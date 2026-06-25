@@ -97,3 +97,15 @@ export type CaseStepStatus = (typeof caseStepStatuses)[number];
 
 export const caseStepDocStatuses = ["missing", "uploaded"] as const;
 export type CaseStepDocStatus = (typeof caseStepDocStatuses)[number];
+
+export const companyExpenseTypes = ["rent", "utility", "other"] as const;
+export type CompanyExpenseType = (typeof companyExpenseTypes)[number];
+
+export const contractStatuses = ["draft", "active", "expired", "terminated"] as const;
+export type ContractStatus = (typeof contractStatuses)[number];
+
+export const contractVersionStatuses = ["draft", "signed", "superseded"] as const;
+export type ContractVersionStatus = (typeof contractVersionStatuses)[number];
+
+export const contractSubjectTypes = ["case", "enrollment", "company", "client"] as const;
+export type ContractSubjectType = (typeof contractSubjectTypes)[number];

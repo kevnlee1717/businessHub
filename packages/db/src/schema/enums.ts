@@ -10,6 +10,10 @@ import {
   caseStepDocStatuses,
   caseStepStatuses,
   commissionTypes,
+  companyExpenseTypes,
+  contractStatuses,
+  contractSubjectTypes,
+  contractVersionStatuses,
   currencies,
   employeeStatuses,
   employmentTypes,
@@ -52,3 +56,7 @@ export const businessTypeEnum = pgEnum("business_type", businessTypes);
 export const caseStatusEnum = pgEnum("case_status", caseStatuses);
 export const caseStepStatusEnum = pgEnum("case_step_status", caseStepStatuses);
 export const caseStepDocStatusEnum = pgEnum("case_step_doc_status", caseStepDocStatuses);
+export const companyExpenseTypeEnum = pgEnum("company_expense_type", companyExpenseTypes);
+export const contractStatusEnum = pgEnum("contract_status", contractStatuses);
+export const contractVersionStatusEnum = pgEnum("contract_version_status", contractVersionStatuses);
+export const contractSubjectTypeEnum = pgEnum("contract_subject_type", contractSubjectTypes);
