@@ -64,6 +64,50 @@
       }
     }
   },
+  "settings": {
+    "tabs": {
+      "companies": "公司",
+      "positions": "岗位",
+      "workShifts": "班次"
+    }
+  },
+  "company": {
+    "title": "公司管理",
+    "add": "新增公司",
+    "edit": "编辑公司",
+    "empty": "暂无公司",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "uen": "UEN",
+      "status": "状态",
+      "note": "备注"
+    }
+  },
+  "position": {
+    "title": "岗位管理",
+    "add": "新增岗位",
+    "edit": "编辑岗位",
+    "empty": "暂无岗位",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "note": "备注"
+    }
+  },
+  "workShift": {
+    "title": "班次管理",
+    "add": "新增班次",
+    "edit": "编辑班次",
+    "empty": "暂无班次",
+    "fields": {
+      "name": "名称",
+      "startMin": "开始分钟",
+      "endMin": "结束分钟",
+      "allowedLateCount": "允许迟到次数",
+      "isDefault": "默认班次"
+    }
+  },
   "role": {
     "owner": "所有者",
     "admin": "管理员",

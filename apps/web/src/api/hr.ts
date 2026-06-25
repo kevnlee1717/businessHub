@@ -4,6 +4,8 @@ import {
   type AttendanceDayStatus,
   type ClockPointCreateInput,
   type ClockPointUpdateInput,
+  type CompanyCreateInput,
+  type CompanyUpdateInput,
   type Currency,
   type EmployeeCreateInput,
   type EmployeeStatus,
@@ -11,13 +13,17 @@ import {
   type EmploymentType,
   type PayslipGenerateInput,
   type PayslipStatus,
+  type PositionCreateInput,
+  type PositionUpdateInput,
   type PayrollScheme,
   type Role,
   type SiteVisitFaceStatus,
   type SiteVisitOverrideInput,
   type SiteVisitStatus,
   type StatutoryPaymentInput,
-  type StatutoryType
+  type StatutoryType,
+  type WorkShiftCreateInput,
+  type WorkShiftUpdateInput
 } from "@bh/shared";
 import { api } from "./client";
 
@@ -190,12 +196,63 @@ export function listCompanies(): Promise<{ companies: Company[] }> {
   return api<{ companies: Company[] }>("/companies");
 }
 
+export function createCompany(body: CompanyCreateInput): Promise<{ company: Company }> {
+  return api<{ company: Company }>("/companies", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateCompany(
+  id: string,
+  body: CompanyUpdateInput
+): Promise<{ company: Company }> {
+  return api<{ company: Company }>(`/companies/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
 export function listPositions(): Promise<{ positions: Position[] }> {
   return api<{ positions: Position[] }>("/positions");
 }
 
+export function createPosition(body: PositionCreateInput): Promise<{ position: Position }> {
+  return api<{ position: Position }>("/positions", {
+    method: "POST",
+    body
+  });
+}
+
+export function updatePosition(
+  id: string,
+  body: PositionUpdateInput
+): Promise<{ position: Position }> {
+  return api<{ position: Position }>(`/positions/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
 export function listWorkShifts(): Promise<{ work_shifts: WorkShift[] }> {
   return api<{ work_shifts: WorkShift[] }>("/work-shifts");
+}
+
+export function createWorkShift(body: WorkShiftCreateInput): Promise<{ work_shift: WorkShift }> {
+  return api<{ work_shift: WorkShift }>("/work-shifts", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateWorkShift(
+  id: string,
+  body: WorkShiftUpdateInput
+): Promise<{ work_shift: WorkShift }> {
+  return api<{ work_shift: WorkShift }>(`/work-shifts/${id}`, {
+    method: "PATCH",
+    body
+  });
 }
 
 export function listClockPoints(): Promise<{ clockPoints: ClockPoint[] }> {

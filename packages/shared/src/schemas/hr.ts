@@ -226,6 +226,12 @@ export const payslipGenerateSchema = z.object({
 
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
+export type CompanyCreateInput = z.infer<typeof companyCreateSchema>;
+export type CompanyUpdateInput = z.infer<typeof companyUpdateSchema>;
+export type PositionCreateInput = z.infer<typeof positionCreateSchema>;
+export type PositionUpdateInput = z.infer<typeof positionUpdateSchema>;
+export type WorkShiftCreateInput = z.infer<typeof workShiftCreateSchema>;
+export type WorkShiftUpdateInput = z.infer<typeof workShiftUpdateSchema>;
 export type ClockPointCreateInput = z.infer<typeof clockPointCreateSchema>;
 export type ClockPointUpdateInput = z.infer<typeof clockPointUpdateSchema>;
 export type EmployeeClockPointsAssignInput = z.infer<typeof employeeClockPointsAssignSchema>;

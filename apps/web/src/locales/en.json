@@ -64,6 +64,50 @@
       }
     }
   },
+  "settings": {
+    "tabs": {
+      "companies": "Companies",
+      "positions": "Positions",
+      "workShifts": "Work shifts"
+    }
+  },
+  "company": {
+    "title": "Company Management",
+    "add": "Add company",
+    "edit": "Edit company",
+    "empty": "No companies yet",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "uen": "UEN",
+      "status": "Status",
+      "note": "Note"
+    }
+  },
+  "position": {
+    "title": "Position Management",
+    "add": "Add position",
+    "edit": "Edit position",
+    "empty": "No positions yet",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "note": "Note"
+    }
+  },
+  "workShift": {
+    "title": "Work Shift Management",
+    "add": "Add work shift",
+    "edit": "Edit work shift",
+    "empty": "No work shifts yet",
+    "fields": {
+      "name": "Name",
+      "startMin": "Start minute",
+      "endMin": "End minute",
+      "allowedLateCount": "Allowed late count",
+      "isDefault": "Default shift"
+    }
+  },
   "role": {
     "owner": "Owner",
     "admin": "Admin",

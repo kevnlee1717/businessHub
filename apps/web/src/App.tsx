@@ -9,6 +9,10 @@ import { HrLayout } from "./pages/hr/HrLayout";
 import { PayrollPage } from "./pages/hr/PayrollPage";
 import { SiteVisitsPage } from "./pages/hr/SiteVisitsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { CompaniesPage } from "./pages/settings/CompaniesPage";
+import { PositionsPage } from "./pages/settings/PositionsPage";
+import { SettingsLayout } from "./pages/settings/SettingsLayout";
+import { WorkShiftsPage } from "./pages/settings/WorkShiftsPage";
 
 export function App() {
   return (
@@ -27,7 +31,12 @@ export function App() {
           </Route>
           <Route path="business" element={<DashboardPage />} />
           <Route path="documents" element={<DashboardPage />} />
-          <Route path="settings" element={<DashboardPage />} />
+          <Route path="settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="companies" replace />} />
+            <Route path="companies" element={<CompaniesPage />} />
+            <Route path="positions" element={<PositionsPage />} />
+            <Route path="work-shifts" element={<WorkShiftsPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
