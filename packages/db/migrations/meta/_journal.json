@@ -22,6 +22,13 @@
       "when": 1782385766556,
       "tag": "0002_overconfident_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782389868650,
+      "tag": "0003_mysterious_skaar",
+      "breakpoints": true
     }
   ]
 }

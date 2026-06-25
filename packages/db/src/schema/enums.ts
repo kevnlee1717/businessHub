@@ -3,8 +3,12 @@ import {
   attendanceDayStatuses,
   attendanceKinds,
   appStates,
+  businessTypes,
   billingRefTypes,
   billingStatuses,
+  caseStatuses,
+  caseStepDocStatuses,
+  caseStepStatuses,
   commissionTypes,
   currencies,
   employeeStatuses,
@@ -44,3 +48,7 @@ export const siteVisitFaceStatusEnum = pgEnum("site_visit_face_status", siteVisi
 export const siteVisitStatusEnum = pgEnum("site_visit_status", siteVisitStatuses);
 export const gpsTriggerEnum = pgEnum("gps_trigger", gpsTriggers);
 export const appStateEnum = pgEnum("app_state", appStates);
+export const businessTypeEnum = pgEnum("business_type", businessTypes);
+export const caseStatusEnum = pgEnum("case_status", caseStatuses);
+export const caseStepStatusEnum = pgEnum("case_step_status", caseStepStatuses);
+export const caseStepDocStatusEnum = pgEnum("case_step_doc_status", caseStepDocStatuses);
