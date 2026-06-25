@@ -1,7 +1,16 @@
 import {
   type BusinessType,
+  type CaseCreateInput,
+  type CaseStatus,
+  type CaseStepDocCreateInput,
+  type CaseStepDocStatus,
+  type CaseStepDocUpdateInput,
+  type CaseStepStatus,
+  type CaseStepUpdateInput,
+  type CaseUpdateInput,
   type ClientCreateInput,
   type ClientUpdateInput,
+  type FollowUpCreateInput,
   type RequiredDocItemInput,
   type Role,
   type TemplateStepCreateInput,
@@ -38,6 +47,55 @@ export type TemplateStep = {
   description?: string | null;
   required_documents: RequiredDocItemInput[];
   default_assignee_role?: Role | null;
+  created_at: string;
+};
+
+export type Case = {
+  id: string;
+  business_type: BusinessType;
+  client_id?: string | null;
+  current_step?: number | null;
+  status: CaseStatus;
+  billing_id?: string | null;
+  guarantor_name?: string | null;
+  guarantor_relation?: string | null;
+  guarantor_contact?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CaseStepDoc = {
+  id: string;
+  case_step_id: string;
+  doc_name: string;
+  doc_name_en?: string | null;
+  is_required: boolean;
+  status: CaseStepDocStatus;
+  document_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CaseStep = {
+  id: string;
+  case_id: string;
+  step_order: number;
+  name: string;
+  name_en?: string | null;
+  description?: string | null;
+  assignee_id?: string | null;
+  status: CaseStepStatus;
+  completed_at?: string | null;
+  documents: CaseStepDoc[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type FollowUp = {
+  id: string;
+  case_step_id: string;
+  author_id?: string | null;
+  content: string;
   created_at: string;
 };
 
@@ -116,5 +174,114 @@ export function updateTemplateStep(
 export function deleteTemplateStep(stepId: string): Promise<{ ok: true }> {
   return api<{ ok: true }>(`/template-steps/${stepId}`, {
     method: "DELETE"
+  });
+}
+
+export function listCases(params: {
+  business_type?: BusinessType | undefined;
+  status?: CaseStatus | undefined;
+  client_id?: string | undefined;
+} = {}): Promise<{ cases: Case[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.business_type) {
+    searchParams.set("business_type", params.business_type);
+  }
+
+  if (params.status) {
+    searchParams.set("status", params.status);
+  }
+
+  if (params.client_id) {
+    searchParams.set("client_id", params.client_id);
+  }
+
+  const query = searchParams.toString();
+  return api<{ cases: Case[] }>(`/cases${query ? `?${query}` : ""}`);
+}
+
+export function getCase(id: string): Promise<{ case: Case; steps: CaseStep[] }> {
+  return api<{ case: Case; steps: CaseStep[] }>(`/cases/${id}`);
+}
+
+export function createCase(body: CaseCreateInput): Promise<{ case: Case }> {
+  return api<{ case: Case }>("/cases", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateCase(id: string, body: CaseUpdateInput): Promise<{ case: Case }> {
+  return api<{ case: Case }>(`/cases/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function updateCaseStep(stepId: string, body: CaseStepUpdateInput): Promise<{ step: CaseStep }> {
+  return api<{ step: CaseStep }>(`/case-steps/${stepId}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function createCaseStepDoc(
+  stepId: string,
+  body: CaseStepDocCreateInput
+): Promise<{ document: CaseStepDoc }> {
+  return api<{ document: CaseStepDoc }>(`/case-steps/${stepId}/documents`, {
+    method: "POST",
+    body
+  });
+}
+
+export function updateCaseStepDoc(
+  docId: string,
+  body: CaseStepDocUpdateInput
+): Promise<CaseStepDoc> {
+  return api<CaseStepDoc>(`/case-step-documents/${docId}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteCaseStepDoc(docId: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/case-step-documents/${docId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function uploadCaseStepDoc(docId: string, file: File): Promise<CaseStepDoc> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`/api/case-step-documents/${docId}/upload`, {
+    method: "POST",
+    body: formData,
+    credentials: "include"
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : response.statusText;
+    throw new Error(message);
+  }
+
+  return data as CaseStepDoc;
+}
+
+export function listFollowUps(stepId: string): Promise<{ followUps: FollowUp[] }> {
+  return api<{ followUps: FollowUp[] }>(`/case-steps/${stepId}/follow-ups`);
+}
+
+export function createFollowUp(stepId: string, content: string): Promise<{ followUp: FollowUp }> {
+  const body: FollowUpCreateInput = { content };
+
+  return api<{ followUp: FollowUp }>(`/case-steps/${stepId}/follow-ups`, {
+    method: "POST",
+    body
   });
 }

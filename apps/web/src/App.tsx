@@ -3,6 +3,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
 import { BusinessLayout } from "./pages/business/BusinessLayout";
+import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { CasesPage } from "./pages/business/CasesPage";
 import { ClientsPage } from "./pages/business/ClientsPage";
 import { TemplatesPage } from "./pages/business/TemplatesPage";
@@ -40,6 +41,7 @@ export function App() {
           <Route path="business" element={<BusinessLayout />}>
             <Route index element={<Navigate to="cases" replace />} />
             <Route path="cases" element={<CasesPage />} />
+            <Route path="cases/:id" element={<CaseDetailPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="templates" element={<TemplatesPage />} />
           </Route>

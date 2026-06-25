@@ -23,6 +23,9 @@
     "actions": "Actions",
     "edit": "Edit",
     "delete": "Delete",
+    "view": "View",
+    "back": "Back",
+    "upload": "Upload",
     "save": "Save",
     "cancel": "Cancel",
     "yes": "Yes",
@@ -82,7 +85,32 @@
     }
   },
   "case": {
-    "title": "Case Management"
+    "title": "Case Management",
+    "detailTitle": "Case Details",
+    "add": "New case",
+    "empty": "No cases yet",
+    "notFound": "Case not found",
+    "updateStatus": "Update status",
+    "filters": {
+      "businessType": "Business type",
+      "status": "Status",
+      "client": "Client"
+    },
+    "fields": {
+      "businessType": "Business type",
+      "client": "Client",
+      "template": "Workflow template",
+      "status": "Status",
+      "currentStep": "Current step",
+      "createdAt": "Created at",
+      "guarantor": "Guarantor",
+      "guarantorName": "Guarantor name",
+      "guarantorRelation": "Guarantor relation",
+      "guarantorContact": "Guarantor contact"
+    },
+    "errors": {
+      "guarantorRequired": "ICA cases require a guarantor name."
+    }
   },
   "client": {
     "title": "Client Management",
@@ -140,6 +168,52 @@
   "businessType": {
     "ep": "EP",
     "ica": "ICA"
+  },
+  "caseStatus": {
+    "open": "Open",
+    "in_progress": "In progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "caseStep": {
+    "title": "Case steps",
+    "empty": "No steps yet",
+    "fields": {
+      "assignee": "Assignee",
+      "completedAt": "Completed at"
+    }
+  },
+  "caseStepStatus": {
+    "pending": "Pending",
+    "in_progress": "In progress",
+    "done": "Done"
+  },
+  "caseStepDoc": {
+    "title": "Document slots",
+    "add": "Add document slot",
+    "empty": "No document slots yet",
+    "required": "Required",
+    "chooseFile": "Choose file",
+    "uploaded": "Uploaded",
+    "unlink": "Unlink",
+    "fields": {
+      "docName": "Document name",
+      "docNameEn": "English name",
+      "isRequired": "Required",
+      "status": "Status"
+    }
+  },
+  "caseStepDocStatus": {
+    "missing": "Missing",
+    "uploaded": "Uploaded"
+  },
+  "followUp": {
+    "title": "Follow-ups",
+    "add": "Add follow-up",
+    "empty": "No follow-ups yet",
+    "fields": {
+      "content": "Content"
+    }
   },
   "company": {
     "title": "Company Management",
