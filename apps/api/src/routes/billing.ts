@@ -1,0 +1,401 @@
+import { billing, db, payments, priceAdjustments } from "@bh/db";
+import {
+  billingCreateSchema,
+  billingRefTypes,
+  billingStatuses,
+  billingUpdateSchema,
+  paymentCreateSchema
+} from "@bh/shared";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { type FastifyInstance } from "fastify";
+import { z } from "zod";
+import { requirePerm } from "../auth/jwt";
+import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
+
+const billingQuerySchema = z.object({
+  ref_type: z.enum(billingRefTypes).optional(),
+  ref_id: z.string().uuid().optional(),
+  status: z.enum(billingStatuses).optional()
+});
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbExecutor = typeof db | DbTransaction;
+
+function computeCommission(
+  type: "percent" | "fixed" | null | undefined,
+  value: string | number | null | undefined,
+  total: string | number | null | undefined
+): number {
+  if (!type || value === null || value === undefined) {
+    return 0;
+  }
+
+  const numericValue = Number(value);
+  const numericTotal = Number(total ?? 0);
+
+  if (type === "percent") {
+    return (numericTotal * numericValue) / 100;
+  }
+
+  return numericValue;
+}
+
+async function recomputeStatus(billingId: string, tx: DbExecutor = db) {
+  const [row] = await tx.select().from(billing).where(eq(billing.id, billingId)).limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  const [paidRow] = await tx
+    .select({
+      total: sql<string>`coalesce(sum(${payments.sgdEquivalent}),0)`
+    })
+    .from(payments)
+    .where(eq(payments.billingId, billingId));
+
+  const paidTotal = Number(paidRow?.total ?? 0);
+  const totalPrice = Number(row.totalPriceSgd);
+  const status = paidTotal >= totalPrice ? "paid" : paidTotal > 0 ? "partial" : "unpaid";
+  const [updated] = await tx
+    .update(billing)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(billing.id, billingId))
+    .returning();
+
+  return updated;
+}
+
+function serializeBilling(row: typeof billing.$inferSelect) {
+  return {
+    id: row.id,
+    ref_type: row.refType,
+    ref_id: row.refId,
+    total_price_sgd: row.totalPriceSgd,
+    deposit_sgd: row.depositSgd,
+    status: row.status,
+    sales_id: row.salesId,
+    commission_type: row.commissionType,
+    commission_value: row.commissionValue,
+    commission_amount_sgd: row.commissionAmountSgd,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializePayment(row: typeof payments.$inferSelect) {
+  return {
+    id: row.id,
+    billing_id: row.billingId,
+    paid_currency: row.paidCurrency,
+    paid_amount: row.paidAmount,
+    fx_rate: row.fxRate,
+    sgd_equivalent: row.sgdEquivalent,
+    type: row.type,
+    recorded_by: row.recordedBy,
+    paid_at: row.paidAt,
+    note: row.note
+  };
+}
+
+function serializeAdjustment(row: typeof priceAdjustments.$inferSelect) {
+  return {
+    id: row.id,
+    billing_id: row.billingId,
+    field: row.field,
+    old_value: row.oldValue,
+    new_value: row.newValue,
+    changed_by: row.changedBy,
+    changed_at: row.changedAt
+  };
+}
+
+function hasOwn(input: object, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(input, field);
+}
+
+function changed(
+  oldValue: string | null | undefined,
+  newValue: string | null | undefined
+): boolean {
+  return String(oldValue ?? "") !== String(newValue ?? "");
+}
+
+export async function registerBillingRoutes(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", app.authenticate);
+
+  app.get("/billing", { preHandler: requirePerm("finance.view") }, async (request) => {
+    const query = parseWithSchema(billingQuerySchema, request.query);
+    const filters: SQL[] = [];
+
+    if (query.ref_type) {
+      filters.push(eq(billing.refType, query.ref_type));
+    }
+    if (query.ref_id) {
+      filters.push(eq(billing.refId, query.ref_id));
+    }
+    if (query.status) {
+      filters.push(eq(billing.status, query.status));
+    }
+
+    const rows = await db
+      .select()
+      .from(billing)
+      .where(filters.length > 0 ? and(...filters) : sql`true`)
+      .orderBy(desc(billing.createdAt));
+
+    return { billings: rows.map(serializeBilling) };
+  });
+
+  app.get("/billing/:id", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [billingRow] = await db.select().from(billing).where(eq(billing.id, id)).limit(1);
+
+    if (!billingRow) {
+      return sendNotFound(reply);
+    }
+
+    const paymentRows = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.billingId, id))
+      .orderBy(desc(payments.paidAt));
+    const adjustmentRows = await db
+      .select()
+      .from(priceAdjustments)
+      .where(eq(priceAdjustments.billingId, id))
+      .orderBy(desc(priceAdjustments.changedAt));
+    const [paidRow] = await db
+      .select({
+        total: sql<string>`coalesce(sum(${payments.sgdEquivalent}),0)`
+      })
+      .from(payments)
+      .where(eq(payments.billingId, id));
+
+    const paidTotal = Number(paidRow?.total ?? 0);
+    const balance = Number(billingRow.totalPriceSgd) - paidTotal;
+
+    return {
+      billing: serializeBilling(billingRow),
+      payments: paymentRows.map(serializePayment),
+      adjustments: adjustmentRows.map(serializeAdjustment),
+      paid_total: paidTotal.toFixed(2),
+      balance: balance.toFixed(2)
+    };
+  });
+
+  app.post("/billing", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+    const body = parseWithSchema(billingCreateSchema, request.body);
+    const totalPriceSgd = toNumeric(body.total_price_sgd) ?? "0";
+    const commissionAmountSgd = computeCommission(
+      body.commission_type,
+      body.commission_value,
+      totalPriceSgd
+    ).toFixed(2);
+
+    const [billingRow] = await db
+      .insert(billing)
+      .values({
+        refType: body.ref_type,
+        refId: body.ref_id,
+        totalPriceSgd,
+        depositSgd: toNumeric(body.deposit_sgd) ?? "0",
+        status: "unpaid",
+        salesId: body.sales_id,
+        commissionType: body.commission_type,
+        commissionValue: toNumeric(body.commission_value),
+        commissionAmountSgd
+      })
+      .returning();
+
+    if (!billingRow) {
+      throw new Error("billing_create_failed");
+    }
+
+    return reply.code(201).send({ billing: serializeBilling(billingRow) });
+  });
+
+  app.patch("/billing/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(billingUpdateSchema, request.body);
+
+    const billingRow = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(billing).where(eq(billing.id, id)).limit(1);
+
+      if (!current) {
+        return null;
+      }
+
+      const totalPriceSgd = hasOwn(body, "total_price_sgd")
+        ? (toNumeric(body.total_price_sgd) as string)
+        : current.totalPriceSgd;
+      const depositSgd = hasOwn(body, "deposit_sgd")
+        ? (toNumeric(body.deposit_sgd) as string)
+        : current.depositSgd;
+      const commissionType = hasOwn(body, "commission_type")
+        ? body.commission_type
+        : current.commissionType;
+      const commissionValue = hasOwn(body, "commission_value")
+        ? toNumeric(body.commission_value)
+        : current.commissionValue;
+      const shouldRecomputeCommission =
+        hasOwn(body, "total_price_sgd") ||
+        hasOwn(body, "commission_type") ||
+        hasOwn(body, "commission_value");
+
+      const adjustmentCandidates = [
+        {
+          field: "total_price_sgd",
+          oldValue: current.totalPriceSgd,
+          newValue: totalPriceSgd
+        },
+        {
+          field: "deposit_sgd",
+          oldValue: current.depositSgd,
+          newValue: depositSgd
+        },
+        {
+          field: "commission_value",
+          oldValue: current.commissionValue,
+          newValue: commissionValue
+        },
+        {
+          field: "commission_type",
+          oldValue: current.commissionType,
+          newValue: commissionType
+        }
+      ].filter((item) => hasOwn(body, item.field) && changed(item.oldValue, item.newValue));
+
+      if (adjustmentCandidates.length > 0) {
+        await tx.insert(priceAdjustments).values(
+          adjustmentCandidates.map((item) => ({
+            billingId: current.id,
+            field: item.field,
+            oldValue: String(item.oldValue ?? ""),
+            newValue: String(item.newValue ?? ""),
+            changedBy: request.user.id
+          }))
+        );
+      }
+
+      const [updated] = await tx
+        .update(billing)
+        .set({
+          totalPriceSgd: hasOwn(body, "total_price_sgd") ? totalPriceSgd : undefined,
+          depositSgd: hasOwn(body, "deposit_sgd") ? depositSgd : undefined,
+          salesId: hasOwn(body, "sales_id") ? body.sales_id : undefined,
+          commissionType: hasOwn(body, "commission_type") ? commissionType : undefined,
+          commissionValue: hasOwn(body, "commission_value") ? commissionValue : undefined,
+          commissionAmountSgd: shouldRecomputeCommission
+            ? computeCommission(commissionType, commissionValue, totalPriceSgd).toFixed(2)
+            : undefined,
+          status: body.status,
+          updatedAt: new Date()
+        })
+        .where(eq(billing.id, id))
+        .returning();
+
+      if (hasOwn(body, "total_price_sgd") && !hasOwn(body, "status")) {
+        return (await recomputeStatus(id, tx)) ?? updated;
+      }
+
+      return updated;
+    });
+
+    if (!billingRow) {
+      return sendNotFound(reply);
+    }
+
+    return { billing: serializeBilling(billingRow) };
+  });
+
+  app.post(
+    "/billing/:id/payments",
+    { preHandler: requirePerm("finance.manage") },
+    async (request, reply) => {
+      const { id } = parseWithSchema(idParamsSchema, request.params);
+      const body = parseWithSchema(paymentCreateSchema, request.body);
+      const paidAmount = Number(body.paid_amount);
+
+      if (body.paid_currency === "RMB" && (body.fx_rate === null || body.fx_rate === undefined)) {
+        return reply.code(400).send({ error: "fx_rate_required" });
+      }
+
+      const result = await db.transaction(async (tx) => {
+        const [billingRow] = await tx.select().from(billing).where(eq(billing.id, id)).limit(1);
+
+        if (!billingRow) {
+          return null;
+        }
+
+        const fxRate = body.paid_currency === "SGD" ? body.fx_rate : (body.fx_rate as string | number);
+        const sgdEquivalent =
+          body.paid_currency === "SGD" ? paidAmount : paidAmount * Number(body.fx_rate);
+        const [payment] = await tx
+          .insert(payments)
+          .values({
+            billingId: id,
+            paidCurrency: body.paid_currency,
+            paidAmount: toNumeric(body.paid_amount) ?? "0",
+            fxRate: toNumeric(fxRate),
+            sgdEquivalent: sgdEquivalent.toFixed(2),
+            type: body.type,
+            recordedBy: request.user.id,
+            paidAt: body.paid_at ? new Date(body.paid_at) : new Date(),
+            note: body.note
+          })
+          .returning();
+
+        const updatedBilling = await recomputeStatus(id, tx);
+
+        return payment && updatedBilling ? { payment, billing: updatedBilling } : null;
+      });
+
+      if (!result) {
+        return sendNotFound(reply);
+      }
+
+      return reply
+        .code(201)
+        .send({ payment: serializePayment(result.payment), billing: serializeBilling(result.billing) });
+    }
+  );
+
+  app.get("/billing/:id/payments", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [billingRow] = await db.select().from(billing).where(eq(billing.id, id)).limit(1);
+
+    if (!billingRow) {
+      return sendNotFound(reply);
+    }
+
+    const rows = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.billingId, id))
+      .orderBy(desc(payments.paidAt));
+
+    return { payments: rows.map(serializePayment) };
+  });
+
+  app.delete("/payments/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+
+    const deleted = await db.transaction(async (tx) => {
+      const [payment] = await tx.delete(payments).where(eq(payments.id, id)).returning();
+
+      if (!payment) {
+        return null;
+      }
+
+      await recomputeStatus(payment.billingId, tx);
+      return payment;
+    });
+
+    if (!deleted) {
+      return sendNotFound(reply);
+    }
+
+    return { ok: true };
+  });
+}

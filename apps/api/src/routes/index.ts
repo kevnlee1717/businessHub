@@ -1,6 +1,7 @@
 import { type FastifyInstance } from "fastify";
 import { registerAttendanceRoutes } from "./attendance";
 import { registerAuthRoutes } from "./auth";
+import { registerBillingRoutes } from "./billing";
 import { registerCaseRoutes } from "./cases";
 import { registerClientRoutes } from "./clients";
 import { registerClockPointRoutes } from "./clockPoints";
@@ -31,6 +32,7 @@ import { registerWsqRoutes } from "./wsq";
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerHealthRoutes);
   await app.register(registerAuthRoutes);
+  await app.register(registerBillingRoutes);
   await app.register(registerEmployeeRoutes);
   await app.register(registerCompanyRoutes);
   await app.register(registerPositionRoutes);

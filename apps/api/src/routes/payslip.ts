@@ -1,4 +1,5 @@
 import {
+  billing,
   compensationTemplates,
   db,
   employeeCompensation,
@@ -7,7 +8,7 @@ import {
   performanceScores
 } from "@bh/db";
 import { payslipGenerateSchema } from "@bh/shared";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -81,7 +82,19 @@ async function buildPayslip(employee: typeof employees.$inferSelect, period: str
   const taskCompletionBonusPaid = comp.taskCompletionBonus * (completionPct / 100);
   const taskSatisfactionBonusPaid = comp.taskSatisfactionBonus * (satisfactionPct / 100);
   const kpiBonusPaid = comp.kpiBonus * (kpiPct / 100);
-  const commissionTotal = 0; // 提成表尚未建模,见 progress.md
+  // 按成交单据创建月归集提成
+  const [commissionRow] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${billing.commissionAmountSgd}),0)`
+    })
+    .from(billing)
+    .where(
+      and(
+        eq(billing.salesId, employee.id),
+        sql`to_char(${billing.createdAt},'YYYY-MM') = ${period}`
+      )
+    );
+  const commissionTotal = Number(commissionRow?.total ?? 0);
 
   const gross =
     comp.baseSalary +
