@@ -11,7 +11,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { parseWithSchema } from "./hrUtils";
+import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const payslipQuerySchema = z.object({
   period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
@@ -159,4 +159,30 @@ export async function registerPayslipRoutes(app: FastifyInstance): Promise<void>
       return reply.code(201).send({ generated: generated.length, payslips: generated });
     }
   );
+
+  app.post("/payslips/:id/pay", { preHandler: requirePerm("payroll.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [payslip] = await db.select().from(payslips).where(eq(payslips.id, id)).limit(1);
+
+    if (!payslip) {
+      return sendNotFound(reply);
+    }
+
+    if (payslip.status === "paid") {
+      return reply.code(409).send({ error: "already_paid" });
+    }
+
+    const [paidPayslip] = await db
+      .update(payslips)
+      .set({
+        status: "paid",
+        paidAt: new Date(),
+        paidBy: request.user.id,
+        updatedAt: new Date()
+      })
+      .where(eq(payslips.id, id))
+      .returning();
+
+    return { payslip: paidPayslip };
+  });
 }
