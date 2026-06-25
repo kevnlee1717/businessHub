@@ -92,6 +92,46 @@
     "SGD": "SGD",
     "RMB": "RMB"
   },
+  "payslip": {
+    "title": "Payslips",
+    "generate": "Generate period payslips",
+    "pay": "Pay",
+    "empty": "No payslips yet",
+    "confirmPay": "Pay payslip for {{employee}}?",
+    "paidBadge": "Paid {{paidAt}}",
+    "fields": {
+      "employee": "Employee",
+      "period": "Period",
+      "gross": "Gross",
+      "netPay": "Net pay",
+      "currency": "Currency",
+      "payday": "Payday",
+      "status": "Status"
+    }
+  },
+  "payslipStatus": {
+    "draft": "Draft",
+    "paid": "Paid"
+  },
+  "statutory": {
+    "title": "Statutory payments",
+    "add": "Add payment",
+    "empty": "No statutory payments yet",
+    "batchPayment": "Batch",
+    "fields": {
+      "type": "Type",
+      "period": "Period",
+      "amount": "Amount",
+      "employee": "Employee",
+      "paidAt": "Paid at",
+      "reference": "Reference"
+    }
+  },
+  "statutoryType": {
+    "cpf": "CPF",
+    "levy": "Levy",
+    "china_fund": "China fund"
+  },
   "clockPoint": {
     "title": "Clock Point Management",
     "add": "Add clock point",
@@ -152,5 +192,36 @@
     "late_and_early": "Late and early leave",
     "incomplete": "Incomplete",
     "absent": "Absent"
+  },
+  "siteVisit": {
+    "empty": "No site visits yet",
+    "review": "Review / override",
+    "filters": {
+      "employee": "Employee",
+      "status": "Status"
+    },
+    "fields": {
+      "employee": "Employee",
+      "capturedAt": "Captured at",
+      "status": "Status",
+      "distanceToLeadM": "Distance to lead (m)",
+      "faceStatus": "Face status",
+      "note": "Note",
+      "latLng": "Lat / Lng",
+      "rejectReason": "Reject reason"
+    }
+  },
+  "siteVisitStatus": {
+    "pending": "Pending",
+    "verified": "Verified",
+    "rejected_distance": "Rejected: distance",
+    "rejected_face": "Rejected: face",
+    "manual_override": "Manual override"
+  },
+  "siteVisitFaceStatus": {
+    "pending": "Pending",
+    "passed": "Passed",
+    "failed": "Failed",
+    "skipped": "Skipped"
   }
 }

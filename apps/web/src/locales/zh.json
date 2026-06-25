@@ -92,6 +92,46 @@
     "SGD": "新币",
     "RMB": "人民币"
   },
+  "payslip": {
+    "title": "工资条",
+    "generate": "生成本期工资条",
+    "pay": "发放",
+    "empty": "暂无工资条",
+    "confirmPay": "确定发放 {{employee}} 的工资条？",
+    "paidBadge": "已发放 {{paidAt}}",
+    "fields": {
+      "employee": "员工",
+      "period": "期间",
+      "gross": "应发",
+      "netPay": "实发",
+      "currency": "币种",
+      "payday": "发薪日",
+      "status": "状态"
+    }
+  },
+  "payslipStatus": {
+    "draft": "草稿",
+    "paid": "已发放"
+  },
+  "statutory": {
+    "title": "法定缴款",
+    "add": "新增缴款",
+    "empty": "暂无法定缴款",
+    "batchPayment": "批次",
+    "fields": {
+      "type": "类型",
+      "period": "期间",
+      "amount": "金额",
+      "employee": "员工",
+      "paidAt": "缴款时间",
+      "reference": "参考号"
+    }
+  },
+  "statutoryType": {
+    "cpf": "CPF",
+    "levy": "劳工税",
+    "china_fund": "中国社保公积金"
+  },
   "clockPoint": {
     "title": "打卡点管理",
     "add": "新增打卡点",
@@ -152,5 +192,36 @@
     "late_and_early": "迟到且早退",
     "incomplete": "缺卡",
     "absent": "缺勤"
+  },
+  "siteVisit": {
+    "empty": "暂无外勤记录",
+    "review": "审核/覆盖",
+    "filters": {
+      "employee": "员工",
+      "status": "状态"
+    },
+    "fields": {
+      "employee": "员工",
+      "capturedAt": "采集时间",
+      "status": "状态",
+      "distanceToLeadM": "距线索距离(米)",
+      "faceStatus": "人脸状态",
+      "note": "备注",
+      "latLng": "经纬度",
+      "rejectReason": "拒绝原因"
+    }
+  },
+  "siteVisitStatus": {
+    "pending": "待处理",
+    "verified": "已验证",
+    "rejected_distance": "距离异常拒绝",
+    "rejected_face": "人脸异常拒绝",
+    "manual_override": "人工覆盖"
+  },
+  "siteVisitFaceStatus": {
+    "pending": "待处理",
+    "passed": "通过",
+    "failed": "失败",
+    "skipped": "跳过"
   }
 }

@@ -9,8 +9,15 @@ import {
   type EmployeeStatus,
   type EmployeeUpdateInput,
   type EmploymentType,
+  type PayslipGenerateInput,
+  type PayslipStatus,
   type PayrollScheme,
-  type Role
+  type Role,
+  type SiteVisitFaceStatus,
+  type SiteVisitOverrideInput,
+  type SiteVisitStatus,
+  type StatutoryPaymentInput,
+  type StatutoryType
 } from "@bh/shared";
 import { api } from "./client";
 
@@ -100,6 +107,62 @@ export type AttendanceDay = {
   clockOutId?: string | null;
   status?: AttendanceDayStatus | null;
   updatedAt: string;
+};
+
+export type Payslip = {
+  id: string;
+  employeeId: string;
+  period: string;
+  payday?: number | null;
+  baseSalary: string;
+  attendanceBonusPaid: string;
+  taskCompletionBonusPaid: string;
+  taskSatisfactionBonusPaid: string;
+  kpiBonusPaid: string;
+  commissionTotal: string;
+  gross: string;
+  netPay: string;
+  currency: Currency;
+  status: PayslipStatus;
+  paidAt?: string | null;
+  paidBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StatutoryPayment = {
+  id: string;
+  type: StatutoryType;
+  period: string;
+  employeeId?: string | null;
+  amount: string;
+  paidAt?: string | null;
+  reference?: string | null;
+  createdAt: string;
+};
+
+export type SiteVisit = {
+  id: string;
+  employee_id: string;
+  client_id?: string | null;
+  captured_at?: string | null;
+  synced_at?: string | null;
+  lat?: string | null;
+  lng?: string | null;
+  accuracy?: string | null;
+  address?: string | null;
+  selfie_document_id?: string | null;
+  site_photo_document_ids: string[];
+  face_challenge_id?: string | null;
+  face_status?: SiteVisitFaceStatus | null;
+  face_similarity?: string | null;
+  distance_to_lead_m?: string | null;
+  note?: string | null;
+  status: SiteVisitStatus;
+  reject_reason?: string | null;
+  overridden_by?: string | null;
+  overridden_at?: string | null;
+  created_at: string;
 };
 
 export function listEmployees(): Promise<{ employees: Employee[] }> {
@@ -205,5 +268,104 @@ export function clockAttendance(body: AttendanceClockInput): Promise<{
   return api<{ record: AttendanceRecord; day: AttendanceDay }>("/attendance/clock", {
     method: "POST",
     body
+  });
+}
+
+export function listPayslips(params: {
+  period?: string | undefined;
+  employee_id?: string | undefined;
+} = {}): Promise<{ payslips: Payslip[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.period) {
+    searchParams.set("period", params.period);
+  }
+
+  if (params.employee_id) {
+    searchParams.set("employee_id", params.employee_id);
+  }
+
+  const query = searchParams.toString();
+  return api<{ payslips: Payslip[] }>(`/payslips${query ? `?${query}` : ""}`);
+}
+
+export function generatePayslips(body: PayslipGenerateInput): Promise<{
+  generated: number;
+  payslips: Payslip[];
+}> {
+  return api<{ generated: number; payslips: Payslip[] }>("/payslips/generate", {
+    method: "POST",
+    body
+  });
+}
+
+export function payPayslip(id: string): Promise<{ payslip: Payslip }> {
+  return api<{ payslip: Payslip }>(`/payslips/${id}/pay`, {
+    method: "POST"
+  });
+}
+
+export function listStatutory(params: {
+  period?: string | undefined;
+  type?: StatutoryType | undefined;
+  employee_id?: string | undefined;
+} = {}): Promise<{ payments: StatutoryPayment[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.period) {
+    searchParams.set("period", params.period);
+  }
+
+  if (params.type) {
+    searchParams.set("type", params.type);
+  }
+
+  if (params.employee_id) {
+    searchParams.set("employee_id", params.employee_id);
+  }
+
+  const query = searchParams.toString();
+  return api<{ payments: StatutoryPayment[] }>(`/statutory${query ? `?${query}` : ""}`);
+}
+
+export function createStatutory(body: StatutoryPaymentInput): Promise<{ payment: StatutoryPayment }> {
+  return api<{ payment: StatutoryPayment }>("/statutory", {
+    method: "POST",
+    body
+  });
+}
+
+export function listSiteVisits(params: {
+  employee_id?: string | undefined;
+  status?: SiteVisitStatus | undefined;
+} = {}): Promise<{ siteVisits: SiteVisit[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.employee_id) {
+    searchParams.set("employee_id", params.employee_id);
+  }
+
+  if (params.status) {
+    searchParams.set("status", params.status);
+  }
+
+  const query = searchParams.toString();
+  return api<{ siteVisits: SiteVisit[] }>(`/site-visits${query ? `?${query}` : ""}`);
+}
+
+export function overrideSiteVisit(
+  id: string,
+  body: SiteVisitOverrideInput
+): Promise<{ siteVisit: SiteVisit }> {
+  return api<{ siteVisit: SiteVisit }>(`/site-visits/${id}/override`, {
+    method: "POST",
+    body
+  });
+}
+
+export function linkSiteVisitClient(id: string, client_id: string): Promise<{ siteVisit: SiteVisit }> {
+  return api<{ siteVisit: SiteVisit }>(`/site-visits/${id}`, {
+    method: "PATCH",
+    body: { client_id }
   });
 }
