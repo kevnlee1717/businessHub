@@ -73,6 +73,12 @@ businessHub/
 └─ docker-compose.yml   # PostgreSQL + 后续部署
 ```
 
+### 部署事实（实现产物，便于部署参照）
+
+- 固定专用端口（Vite/Fastify strictPort）：**api 3011 / web 5190**、人脸微服务 17010（本机多项目，避端口冲突选定）
+- seed 默认 owner 账号：`admin@bh.local` / `changeme`（首次登录后应改）
+- seed 默认文件分类 7 个：护照、学历证明、合同、租房合同、bizfile、收据、其它
+
 ---
 
 ## 2. 架构分层
@@ -155,6 +161,7 @@ businessHub/
 **cases（案件实例，ep/ica 共用 + business_type 区分）**
 - id, business_type, client_id, `current_step`, `status`, billing_id
 - ICA 额外：`guarantor_name`, `guarantor_relation`, `guarantor_contact`（担保人是谁）
+  > 业务约束：ICA 申诉的担保人**须为新加坡公民/PR**（用户明确要求"需要新加坡的担保人担保"）——录入时应校验/提示。
 
 **case_steps（实例步骤，建案时从模板快照）**
 - id, case_id, `order`, name, name_en, description, `assignee_id`（本步负责人）
@@ -319,6 +326,8 @@ net_pay  = gross − cpf_employee − levy − china_fund − other_deductions
 
 **employee_clock_points（员工 ↔ 打卡点，多对多）**：employee_id, clock_point_id → **一人多打卡点** ✓
 
+> 进阶（参考 ifm `company_assignments`，留待 Phase 2）：员工 ↔ 公司可带**历史分配**——主公司 + 副公司、生效/失效时间、软删除（status ACTIVE + ended_at）；打卡时取当前生效公司为打卡地点。Phase 1 先用静态 `employee_clock_points` 表达"一人多点"，不带时间维度。
+
 **work_shifts（班次，判定迟到/早退）**：按角色/岗位或个人，`start_min` / `end_min`（如 540/1020 = 09:00–17:00 SGT）、`allowed_late_count`（允许迟到次数）
 
 #### 人脸（沿用 ifm 表结构）
@@ -334,6 +343,9 @@ net_pay  = gross − cpf_employee − levy − china_fund − other_deductions
 - `nonce`（防重放）、`similarity`、`liveness_action_passed`、`liveness_color_score`、`baseline_id`、`failure_reason`
 - 关联：related_attendance_id / related_site_visit_id；client_ip, user_agent, 时间戳
 - 阈值（可配）：人脸相似度 >0.55、活体 >0.5、人脸质量 det_score >0.5
+- 活体动作门限（前端 MediaPipe，可配）：眨眼 2 次（eyeBlinkLeft/Right >0.5）、张嘴（jawOpen >0.4）、转头（eyeLookOutLeft & eyeLookOutRight >0.4）；检测 52 特征点 + 52 blendshapes（模型 `face_landmarker.task` float16）
+- 炫光活体序列：Red→Green→Blue 每色 1–2 秒，采 3~5 帧（480×480）；主照 640×640；服务端推理超时 60s
+- **RANDOM_CHECK 主动抽查**：服务端可主动 push 一次扫脸挑战给指定员工（status PENDING_PUSH→PUSHED，nonce 防重放），用于日常随机考勤核验——不只是被动验证
 
 #### 打卡记录
 
@@ -342,6 +354,7 @@ net_pay  = gross − cpf_employee − levy − china_fund − other_deductions
 - `clock_point_id`、`lat`、`lng`、`distance_m`（Haversine 到最近打卡点）、`in_geofence`
 - `face_challenge_id`、`face_pass`、`face_similarity`
 - `deviation_minutes`（迟到/早退分钟）、`reason`、`method`（fixed_point / gps / face）
+- `on_behalf_user_id`（代录打卡：管理员/他人代打；本人打卡时自拍 image 必填，代录时人脸验证可跳过）
 - UNIQUE(employee_id, work_date, kind)
 
 **attendance_days（按天汇总）**
@@ -356,8 +369,10 @@ net_pay  = gross − cpf_employee − levy − china_fund − other_deductions
 - `lat`、`lng`、`accuracy`、`address`（可逆地理编码）
 - `selfie_document_id`（人脸自拍）、`site_photo_document_ids`（现场照数组，最多 20 张）
 - `face_challenge_id`、`face_status`（PENDING / PASSED / FAILED / SKIPPED）、`face_similarity`
-- `note`、`status`（PENDING / VERIFIED / REJECTED_DISTANCE / REJECTED_FACE / MANUAL_OVERRIDE）
-- 流程：移动端 multipart 上传 自拍+现场照+GPS+备注 → 服务端存盘 + 人脸比对基线 → 可事后关联客户
+- `distance_to_lead_m`（到拜访对象的距离，用于自动核验到访真实性；超阈值如 >1km 自动置 REJECTED_DISTANCE）
+- `note`、`status`（PENDING / VERIFIED / REJECTED_DISTANCE / REJECTED_FACE / MANUAL_OVERRIDE）、`reject_reason`、`overridden_by` / `overridden_at`（管理员手动覆盖）
+- 流程：移动端 multipart 上传 自拍+现场照+GPS+备注 → 服务端按 `distance_to_lead_m` + 人脸比对基线**自动核验到访真实性**（VERIFIED / REJECTED_DISTANCE / REJECTED_FACE）→ 管理员可 **MANUAL_OVERRIDE** 覆盖并记 `reject_reason` → 可事后关联客户
+  > 这张表即 ifm `lead_visits`「到访核验状态机」的合并落地——把外勤汇报与到访真实性核验收在一张 site_visits 里。
 
 #### GPS 轨迹（销售外出持续定位）
 
@@ -366,7 +381,7 @@ net_pay  = gross − cpf_employee − levy − china_fund − other_deductions
 - `lat`、`lng`、`accuracy`、`altitude`、`speed`、`heading`、`battery_level`、`is_moving`
 - `trigger`（TIME / MOTION / MANUAL）、`device_id`、`app_state`（FOREGROUND / BACKGROUND / TERMINATED）
 - employees 加 `gps_tracking_enabled`（是否对该员工开启后台轨迹）
-- 采集：Capacitor 后台定位 + 本地 SQLite 队列 + 30 秒批量上报 `/api/tracking/points`；leaflet 画轨迹
+- 采集：Capacitor 后台定位 + 本地 SQLite 队列 + 30 秒触发、**每批最多 flush 50 条**上报 `POST /api/tracking/points`；查询 `GET /api/tracking/user/{userId}?from=&to=`；leaflet 画轨迹
 
 ---
 
