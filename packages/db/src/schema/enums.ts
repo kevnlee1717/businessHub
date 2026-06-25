@@ -2,15 +2,21 @@ import { pgEnum } from "drizzle-orm/pg-core";
 import {
   attendanceDayStatuses,
   attendanceKinds,
+  appStates,
   billingRefTypes,
   billingStatuses,
   commissionTypes,
   currencies,
   employeeStatuses,
   employmentTypes,
+  faceChallengeStatuses,
+  facePurposes,
+  gpsTriggers,
   paymentTypes,
   payrollSchemes,
   payslipStatuses,
+  siteVisitFaceStatuses,
+  siteVisitStatuses,
   roles,
   statutoryTypes,
   taskPriorities,
@@ -32,3 +38,9 @@ export const payslipStatusEnum = pgEnum("payslip_status", payslipStatuses);
 export const statutoryTypeEnum = pgEnum("statutory_type", statutoryTypes);
 export const attendanceKindEnum = pgEnum("attendance_kind", attendanceKinds);
 export const attendanceDayStatusEnum = pgEnum("attendance_day_status", attendanceDayStatuses);
+export const facePurposeEnum = pgEnum("face_purpose", facePurposes);
+export const faceChallengeStatusEnum = pgEnum("face_challenge_status", faceChallengeStatuses);
+export const siteVisitFaceStatusEnum = pgEnum("site_visit_face_status", siteVisitFaceStatuses);
+export const siteVisitStatusEnum = pgEnum("site_visit_status", siteVisitStatuses);
+export const gpsTriggerEnum = pgEnum("gps_trigger", gpsTriggers);
+export const appStateEnum = pgEnum("app_state", appStates);

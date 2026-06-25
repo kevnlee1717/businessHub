@@ -15,6 +15,13 @@
       "when": 1782366871620,
       "tag": "0001_tough_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782385766556,
+      "tag": "0002_overconfident_dazzler",
+      "breakpoints": true
     }
   ]
 }

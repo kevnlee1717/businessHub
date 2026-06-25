@@ -22,6 +22,7 @@ export const attendanceRecords = pgTable(
     deviationMinutes: integer("deviation_minutes"),
     reason: text("reason"),
     method: text("method"),
+    onBehalfUserId: uuid("on_behalf_user_id").references(() => employees.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [unique("attendance_records_employee_date_kind_unique").on(table.employeeId, table.workDate, table.kind)]

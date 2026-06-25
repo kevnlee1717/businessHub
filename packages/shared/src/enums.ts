@@ -61,3 +61,27 @@ export type AttendanceDayStatus = (typeof attendanceDayStatuses)[number];
 
 export const compScopes = ["role", "position", "employee"] as const;
 export type CompScope = (typeof compScopes)[number];
+
+export const facePurposes = ["baseline_enroll", "random_check", "attendance", "visit_checkin"] as const;
+export type FacePurpose = (typeof facePurposes)[number];
+
+export const faceChallengeStatuses = ["pending_push", "pushed", "passed", "failed", "timeout", "aborted"] as const;
+export type FaceChallengeStatus = (typeof faceChallengeStatuses)[number];
+
+export const siteVisitFaceStatuses = ["pending", "passed", "failed", "skipped"] as const;
+export type SiteVisitFaceStatus = (typeof siteVisitFaceStatuses)[number];
+
+export const siteVisitStatuses = [
+  "pending",
+  "verified",
+  "rejected_distance",
+  "rejected_face",
+  "manual_override"
+] as const;
+export type SiteVisitStatus = (typeof siteVisitStatuses)[number];
+
+export const gpsTriggers = ["time", "motion", "manual"] as const;
+export type GpsTrigger = (typeof gpsTriggers)[number];
+
+export const appStates = ["foreground", "background", "terminated"] as const;
+export type AppState = (typeof appStates)[number];
