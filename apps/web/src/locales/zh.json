@@ -18,9 +18,75 @@
     "invalidCredentials": "邮箱或密码不正确"
   },
   "common": {
-    "language": "语言"
+    "language": "语言",
+    "coming_soon": "即将上线",
+    "actions": "操作",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消",
+    "not_available": "-",
+    "unknown_error": "发生未知错误"
   },
   "dashboard": {
     "welcome": "欢迎，{{name}}"
+  },
+  "hr": {
+    "tabs": {
+      "employees": "员工",
+      "attendance": "考勤",
+      "payroll": "工资",
+      "clockPoints": "打卡点",
+      "siteVisits": "外勤"
+    },
+    "employees": {
+      "title": "员工管理",
+      "add": "新增员工",
+      "edit": "编辑员工",
+      "empty": "暂无员工",
+      "fields": {
+        "name": "姓名",
+        "nameEn": "英文名",
+        "email": "邮箱",
+        "phone": "电话",
+        "password": "密码",
+        "role": "角色",
+        "company": "公司",
+        "position": "岗位",
+        "shift": "班次",
+        "employmentType": "雇佣类型",
+        "status": "状态",
+        "joinDate": "入职日期",
+        "payrollScheme": "薪资方案",
+        "salaryCurrency": "薪资币种"
+      }
+    }
+  },
+  "role": {
+    "owner": "所有者",
+    "admin": "管理员",
+    "accountant": "会计",
+    "clerk": "文员",
+    "sales": "销售",
+    "teacher": "教师",
+    "principal": "校长",
+    "photographer": "摄影师"
+  },
+  "employmentType": {
+    "full_time": "全职",
+    "part_time": "兼职"
+  },
+  "employeeStatus": {
+    "active": "在职",
+    "left": "离职"
+  },
+  "payrollScheme": {
+    "cpf": "CPF",
+    "levy": "劳工税",
+    "china_fund": "中国社保公积金",
+    "none": "无"
+  },
+  "currency": {
+    "SGD": "新币",
+    "RMB": "人民币"
   }
 }

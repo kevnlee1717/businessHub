@@ -18,9 +18,75 @@
     "invalidCredentials": "Invalid email or password"
   },
   "common": {
-    "language": "Language"
+    "language": "Language",
+    "coming_soon": "Coming soon",
+    "actions": "Actions",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "not_available": "-",
+    "unknown_error": "Unknown error"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}"
+  },
+  "hr": {
+    "tabs": {
+      "employees": "Employees",
+      "attendance": "Attendance",
+      "payroll": "Payroll",
+      "clockPoints": "Clock points",
+      "siteVisits": "Site visits"
+    },
+    "employees": {
+      "title": "Employee Management",
+      "add": "Add employee",
+      "edit": "Edit employee",
+      "empty": "No employees yet",
+      "fields": {
+        "name": "Name",
+        "nameEn": "English name",
+        "email": "Email",
+        "phone": "Phone",
+        "password": "Password",
+        "role": "Role",
+        "company": "Company",
+        "position": "Position",
+        "shift": "Shift",
+        "employmentType": "Employment type",
+        "status": "Status",
+        "joinDate": "Join date",
+        "payrollScheme": "Payroll scheme",
+        "salaryCurrency": "Salary currency"
+      }
+    }
+  },
+  "role": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "accountant": "Accountant",
+    "clerk": "Clerk",
+    "sales": "Sales",
+    "teacher": "Teacher",
+    "principal": "Principal",
+    "photographer": "Photographer"
+  },
+  "employmentType": {
+    "full_time": "Full-time",
+    "part_time": "Part-time"
+  },
+  "employeeStatus": {
+    "active": "Active",
+    "left": "Left"
+  },
+  "payrollScheme": {
+    "cpf": "CPF",
+    "levy": "Levy",
+    "china_fund": "China fund",
+    "none": "None"
+  },
+  "currency": {
+    "SGD": "SGD",
+    "RMB": "RMB"
   }
 }
