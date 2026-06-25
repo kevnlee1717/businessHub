@@ -1,4 +1,4 @@
-import { attendanceDays, attendanceRecords, db, employees, workShifts } from "@bh/db";
+import { attendanceDays, attendanceRecords, clockPoints, db, employeeClockPoints, employees, workShifts } from "@bh/db";
 import { attendanceClockSchema, type AttendanceDayStatus, can } from "@bh/shared";
 import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
@@ -10,6 +10,16 @@ const attendanceQuerySchema = z.object({
   employee_id: z.string().uuid().optional(),
   work_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
 });
+
+function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
 
 function minutesOfDaySgt(clockedAt: Date): number {
   const sgt = new Date(clockedAt.getTime() + 8 * 3600 * 1000);
@@ -52,10 +62,17 @@ function calculateDayStatus(params: {
 export async function registerAttendanceRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  // 员工给自己打卡(clock_in / clock_out)
+  // 员工给自己打卡(clock_in / clock_out),管理员可代录
   app.post("/attendance/clock", { preHandler: requirePerm("attendance.self") }, async (request, reply) => {
     const input = parseWithSchema(attendanceClockSchema, request.body);
-    const employeeId = request.user.id;
+    const targetId = input.employee_id ?? request.user.id;
+
+    if (targetId !== request.user.id && !can(request.user.role, "attendance.manage")) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const employeeId = targetId;
+    const onBehalfUserId = targetId === request.user.id ? null : request.user.id;
     const clockedAt = input.clocked_at ? new Date(input.clocked_at) : new Date();
     const workDate = input.work_date ?? clockedAt.toISOString().slice(0, 10);
     const shift = await resolveEmployeeShift(employeeId);
@@ -66,6 +83,44 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
         : Math.max(0, shift.endMin - minutesOfDay)
       : null;
 
+    let clockPointId: string | null = null;
+    let distanceM: string | null = null;
+    let inGeofence: boolean | null = null;
+    const inputLat = input.lat;
+    const inputLng = input.lng;
+    const hasLocation = inputLat !== undefined && inputLng !== undefined;
+    const lat = hasLocation ? String(inputLat) : null;
+    const lng = hasLocation ? String(inputLng) : null;
+    const method = hasLocation && !onBehalfUserId ? "gps" : "manual";
+
+    if (hasLocation) {
+      const assignedClockPoints = await db
+        .select({ clockPoint: clockPoints })
+        .from(employeeClockPoints)
+        .innerJoin(clockPoints, eq(employeeClockPoints.clockPointId, clockPoints.id))
+        .where(and(eq(employeeClockPoints.employeeId, employeeId), eq(clockPoints.active, true)));
+
+      let nearest:
+        | {
+            clockPoint: typeof clockPoints.$inferSelect;
+            distance: number;
+          }
+        | null = null;
+
+      for (const row of assignedClockPoints) {
+        const distance = haversineMeters(inputLat, inputLng, Number(row.clockPoint.lat), Number(row.clockPoint.lng));
+        if (!nearest || distance < nearest.distance) {
+          nearest = { clockPoint: row.clockPoint, distance };
+        }
+      }
+
+      if (nearest) {
+        clockPointId = nearest.clockPoint.id;
+        distanceM = nearest.distance.toFixed(2);
+        inGeofence = nearest.distance <= nearest.clockPoint.radiusM;
+      }
+    }
+
     // 同一员工同一天同一类型唯一 → 再次打卡更新时间
     const [record] = await db
       .insert(attendanceRecords)
@@ -75,12 +130,29 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
         kind: input.kind,
         clockedAt,
         reason: input.reason,
-        method: "manual",
-        deviationMinutes
+        method,
+        deviationMinutes,
+        clockPointId,
+        lat,
+        lng,
+        distanceM,
+        inGeofence,
+        onBehalfUserId
       })
       .onConflictDoUpdate({
         target: [attendanceRecords.employeeId, attendanceRecords.workDate, attendanceRecords.kind],
-        set: { clockedAt, reason: input.reason, method: "manual", deviationMinutes }
+        set: {
+          clockedAt,
+          reason: input.reason,
+          method,
+          deviationMinutes,
+          clockPointId,
+          lat,
+          lng,
+          distanceM,
+          inGeofence,
+          onBehalfUserId
+        }
       })
       .returning();
 

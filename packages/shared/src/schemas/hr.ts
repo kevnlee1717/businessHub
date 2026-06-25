@@ -78,6 +78,22 @@ const workShiftBaseSchema = z.object({
 export const workShiftCreateSchema = workShiftBaseSchema;
 export const workShiftUpdateSchema = workShiftBaseSchema.partial();
 
+export const clockPointCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  name_en: optionalText,
+  lat: z.number(),
+  lng: z.number(),
+  radius_m: z.number().int().min(1).default(200),
+  company_id: optionalUuid,
+  active: z.boolean().default(true)
+});
+
+export const clockPointUpdateSchema = clockPointCreateSchema.partial();
+
+export const employeeClockPointsAssignSchema = z.object({
+  clock_point_ids: z.array(uuidField)
+});
+
 export const compensationTemplateSchema = z.object({
   company_id: uuidField,
   position_id: uuidField,
@@ -119,7 +135,10 @@ export const attendanceClockSchema = z.object({
   kind: z.enum(attendanceKinds),
   work_date: dateString.optional(),
   clocked_at: z.string().datetime().optional(),
-  reason: optionalText
+  reason: optionalText,
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  employee_id: optionalUuid
 });
 
 export const kpiTargetSchema = z.object({
@@ -153,6 +172,9 @@ export const payslipGenerateSchema = z.object({
 
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
+export type ClockPointCreateInput = z.infer<typeof clockPointCreateSchema>;
+export type ClockPointUpdateInput = z.infer<typeof clockPointUpdateSchema>;
+export type EmployeeClockPointsAssignInput = z.infer<typeof employeeClockPointsAssignSchema>;
 export type CompensationTemplateInput = z.infer<typeof compensationTemplateSchema>;
 export type EmployeeCompensationInput = z.infer<typeof employeeCompensationSchema>;
 export type AttendanceClockInput = z.infer<typeof attendanceClockSchema>;
