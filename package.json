@@ -1,0 +1,25 @@
+{
+  "name": "businesshub",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web \"pnpm --filter @bh/api dev\" \"pnpm --filter @bh/web dev\"",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @bh/db generate",
+    "db:migrate": "pnpm --filter @bh/db migrate",
+    "db:seed": "pnpm --filter @bh/db seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

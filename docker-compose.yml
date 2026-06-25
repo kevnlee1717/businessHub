@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bh
+      POSTGRES_PASSWORD: bh
+      POSTGRES_DB: businesshub
+    ports:
+      - "5432:5432"
+    volumes:
+      - bh_pgdata:/var/lib/postgresql/data
+
+volumes:
+  bh_pgdata:
