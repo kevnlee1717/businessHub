@@ -3,6 +3,7 @@ import { type Role } from "./enums";
 export const permissions = [
   "employee.manage",
   "employee.view",
+  "company.manage",
   "payroll.manage",
   "payroll.view",
   "finance.manage",
@@ -15,6 +16,7 @@ export const permissions = [
   "attendance.self",
   "attendance.manage",
   "task.manage",
+  "task.assign",
   "task.view",
   "commission.view_own",
   "commission.manage",
@@ -31,6 +33,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   admin: [
     "employee.manage",
     "employee.view",
+    "company.manage",
+    "payroll.manage",
     "payroll.view",
     "finance.view",
     "case.manage",
@@ -41,6 +45,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "attendance.manage",
     "attendance.self",
     "task.manage",
+    "task.assign",
     "task.view",
     "commission.manage",
     "education.manage",
@@ -54,6 +59,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "finance.view",
     "document.view",
     "attendance.self",
+    "task.manage",
     "task.view",
     "commission.manage"
   ],
@@ -65,6 +71,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "document.view",
     "attendance.self",
     "task.manage",
+    "task.assign",
     "task.view",
     "education.view"
   ],
@@ -74,12 +81,14 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "document.manage",
     "document.view",
     "attendance.self",
+    "task.manage",
     "task.view",
     "commission.view_own"
   ],
   teacher: [
     "document.view",
     "attendance.self",
+    "task.manage",
     "task.view",
     "education.view"
   ],
@@ -90,6 +99,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "attendance.manage",
     "attendance.self",
     "task.manage",
+    "task.assign",
     "task.view",
     "education.manage",
     "education.view"
@@ -98,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "document.manage",
     "document.view",
     "attendance.self",
+    "task.manage",
     "task.view"
   ]
 };
