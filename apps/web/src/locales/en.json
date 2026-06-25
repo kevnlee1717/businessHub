@@ -123,7 +123,62 @@
     }
   },
   "english": {
-    "title": "Adult English"
+    "title": "Adult English",
+    "tabs": {
+      "levels": "Levels",
+      "classes": "Classes and attendance"
+    }
+  },
+  "englishLevel": {
+    "title": "English levels",
+    "add": "Add level",
+    "edit": "Edit level",
+    "empty": "No English levels yet",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "level": "Level",
+      "priceSgd": "Price SGD",
+      "duration": "Duration"
+    }
+  },
+  "englishClass": {
+    "title": "English classes",
+    "add": "Add class",
+    "edit": "Edit class",
+    "empty": "No classes yet",
+    "panel": "Class panel",
+    "selectHint": "Select a class to view enrollments and attendance.",
+    "schedulePlaceholder": "Mon/Wed 19:00-21:00",
+    "filters": {
+      "level": "Level"
+    },
+    "fields": {
+      "level": "Level",
+      "teacher": "Teacher",
+      "schedule": "Schedule",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "dateRange": "Dates"
+    }
+  },
+  "englishEnrollment": {
+    "title": "Enrollments",
+    "add": "Add enrollment",
+    "remove": "Remove",
+    "empty": "No enrolled students yet",
+    "fields": {
+      "student": "Student"
+    }
+  },
+  "englishAttendance": {
+    "title": "Class attendance",
+    "submit": "Submit attendance",
+    "summary": "Attendance",
+    "summaryValue": "{{attended}}/{{total}}",
+    "fields": {
+      "sessionDate": "Session date"
+    }
   },
   "wsq": {
     "title": "WSQ Courses",

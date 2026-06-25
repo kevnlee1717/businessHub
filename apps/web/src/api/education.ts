@@ -1,6 +1,13 @@
 import {
   type DiplomaEnrollmentCreateInput,
   type DiplomaEnrollmentUpdateInput,
+  type EnglishAttendanceMarkInput,
+  type EnglishClassAttendanceInput,
+  type EnglishClassCreateInput,
+  type EnglishClassUpdateInput,
+  type EnglishEnrollmentCreateInput,
+  type EnglishLevelCreateInput,
+  type EnglishLevelUpdateInput,
   type StudentCreateInput,
   type StudentUpdateInput,
   type WsqCourseCreateInput,
@@ -52,6 +59,59 @@ export type WsqEnrollment = {
   course_id: string;
   billing_id?: string | null;
   created_at: string;
+};
+
+export type EnglishLevel = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  level?: number | null;
+  price_sgd?: string | null;
+  duration?: string | null;
+  created_at: string;
+};
+
+export type EnglishClass = {
+  id: string;
+  level_id?: string | null;
+  teacher_id?: string | null;
+  schedule?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  created_at: string;
+};
+
+export type EnglishEnrollment = {
+  id: string;
+  student_id: string;
+  class_id?: string | null;
+  level_id?: string | null;
+  enroll_date?: string | null;
+  billing_id?: string | null;
+  created_at: string;
+};
+
+export type EnglishAttendance = {
+  id: string;
+  enrollment_id: string;
+  session_date: string;
+  present: boolean;
+  created_at: string;
+};
+
+export type EnglishAttendanceSummary = {
+  total_sessions: number;
+  attended_sessions: number;
+};
+
+export type EnglishClassListParams = {
+  level_id?: string;
+  teacher_id?: string;
+};
+
+export type EnglishEnrollmentListParams = {
+  class_id?: string;
+  student_id?: string;
 };
 
 export function listStudents(): Promise<{ students: Student[] }> {
@@ -134,5 +194,124 @@ export function createWsqEnrollment(body: WsqEnrollmentCreateInput): Promise<{ e
 export function deleteWsqEnrollment(id: string): Promise<{ ok: true }> {
   return api<{ ok: true }>(`/wsq-enrollments/${id}`, {
     method: "DELETE"
+  });
+}
+
+export function listEnglishLevels(): Promise<{ levels: EnglishLevel[] }> {
+  return api<{ levels: EnglishLevel[] }>("/english-levels");
+}
+
+export function createEnglishLevel(body: EnglishLevelCreateInput): Promise<{ level: EnglishLevel }> {
+  return api<{ level: EnglishLevel }>("/english-levels", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateEnglishLevel(
+  id: string,
+  body: EnglishLevelUpdateInput
+): Promise<{ level: EnglishLevel }> {
+  return api<{ level: EnglishLevel }>(`/english-levels/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function listEnglishClasses(
+  params: EnglishClassListParams = {}
+): Promise<{ classes: EnglishClass[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.level_id) {
+    searchParams.set("level_id", params.level_id);
+  }
+
+  if (params.teacher_id) {
+    searchParams.set("teacher_id", params.teacher_id);
+  }
+
+  const query = searchParams.toString();
+  return api<{ classes: EnglishClass[] }>(`/english-classes${query ? `?${query}` : ""}`);
+}
+
+export function createEnglishClass(body: EnglishClassCreateInput): Promise<{ class: EnglishClass }> {
+  return api<{ class: EnglishClass }>("/english-classes", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateEnglishClass(
+  id: string,
+  body: EnglishClassUpdateInput
+): Promise<{ class: EnglishClass }> {
+  return api<{ class: EnglishClass }>(`/english-classes/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function listClassEnrollments(classId: string): Promise<{ enrollments: EnglishEnrollment[] }> {
+  return api<{ enrollments: EnglishEnrollment[] }>(`/english-classes/${classId}/enrollments`);
+}
+
+export function listEnglishEnrollments(
+  params: EnglishEnrollmentListParams = {}
+): Promise<{ enrollments: EnglishEnrollment[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.class_id) {
+    searchParams.set("class_id", params.class_id);
+  }
+
+  if (params.student_id) {
+    searchParams.set("student_id", params.student_id);
+  }
+
+  const query = searchParams.toString();
+  return api<{ enrollments: EnglishEnrollment[] }>(`/english-enrollments${query ? `?${query}` : ""}`);
+}
+
+export function createEnglishEnrollment(
+  body: EnglishEnrollmentCreateInput
+): Promise<{ enrollment: EnglishEnrollment }> {
+  return api<{ enrollment: EnglishEnrollment }>("/english-enrollments", {
+    method: "POST",
+    body
+  });
+}
+
+export function deleteEnglishEnrollment(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/english-enrollments/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function markEnrollmentAttendance(
+  enrollmentId: string,
+  body: EnglishAttendanceMarkInput
+): Promise<{ attendance: EnglishAttendance }> {
+  return api<{ attendance: EnglishAttendance }>(`/english-enrollments/${enrollmentId}/attendance`, {
+    method: "POST",
+    body
+  });
+}
+
+export function getEnrollmentAttendance(
+  enrollmentId: string
+): Promise<{ attendance: EnglishAttendance[]; summary: EnglishAttendanceSummary }> {
+  return api<{ attendance: EnglishAttendance[]; summary: EnglishAttendanceSummary }>(
+    `/english-enrollments/${enrollmentId}/attendance`
+  );
+}
+
+export function markClassAttendance(
+  classId: string,
+  body: EnglishClassAttendanceInput
+): Promise<{ marked: number }> {
+  return api<{ marked: number }>(`/english-classes/${classId}/attendance`, {
+    method: "POST",
+    body
   });
 }

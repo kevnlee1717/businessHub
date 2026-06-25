@@ -123,7 +123,62 @@
     }
   },
   "english": {
-    "title": "成人英语"
+    "title": "成人英语",
+    "tabs": {
+      "levels": "等级",
+      "classes": "排课与点名"
+    }
+  },
+  "englishLevel": {
+    "title": "英语等级",
+    "add": "新增等级",
+    "edit": "编辑等级",
+    "empty": "暂无英语等级",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "level": "等级序号",
+      "priceSgd": "价格 SGD",
+      "duration": "时长"
+    }
+  },
+  "englishClass": {
+    "title": "英语排课",
+    "add": "新增班级",
+    "edit": "编辑班级",
+    "empty": "暂无班级",
+    "panel": "班级面板",
+    "selectHint": "请选择班级查看报名和点名。",
+    "schedulePlaceholder": "周一/三 19:00-21:00",
+    "filters": {
+      "level": "等级"
+    },
+    "fields": {
+      "level": "等级",
+      "teacher": "老师",
+      "schedule": "上课时间",
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "dateRange": "日期"
+    }
+  },
+  "englishEnrollment": {
+    "title": "报名名单",
+    "add": "添加报名",
+    "remove": "移除",
+    "empty": "暂无报名学生",
+    "fields": {
+      "student": "学生"
+    }
+  },
+  "englishAttendance": {
+    "title": "整班点名",
+    "submit": "提交点名",
+    "summary": "出勤",
+    "summaryValue": "{{attended}}/{{total}}",
+    "fields": {
+      "sessionDate": "上课日期"
+    }
   },
   "wsq": {
     "title": "WSQ 课程",
