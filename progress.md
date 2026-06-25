@@ -4,14 +4,15 @@
 
 ---
 
-## 🔖 最新快照(2026-06-25,会话重启前)
+## 🔖 最新快照(2026-06-25 第三轮,大推进会话后)
 
-- **项目位置**:`~/project/businessHub`(已从旧的 `~/businessHub` 搬过来;旧路径暂留软链,重启后可 `rm ~/businessHub` 清掉)。**下次从 `~/project/businessHub` 启动。**
-- **git**:remote `origin = git@github.com:kevnlee1717/businessHub.git`,`master` 已 push 并跟踪 `origin/master`。工作区干净。
-- **已完成**:
-  - Phase 1 第2批 HR API(考勤/KPI/绩效/法定缴款/工资条 5 路由)→ commit `5a54a69`,typecheck 过
-  - 历史对话设计提取 + spec 补全 → commit `6b2e6e3`(含 `docs/superpowers/specs/2026-06-25-design-extracted-delta.md`)
-- **下一步建议**:Phase 1 收尾(如还有未做的 HR 子模块)或开 Phase 2(考勤进阶/移动端 —— delta 里 lead_visits 核验、代录打卡、company_assignments、随机抽查推送都属这阶段)。具体见文末「下一步」。
+- **项目位置**:`~/project/businessHub`;git remote `origin`,`master` 待 push(本会话 11 个新 commit 未 push)。工作区干净。
+- **代码全部由 codex 写,Claude 拆解/审查/typecheck 验收**;全程 `pnpm -r typecheck` 4 包绿、`pnpm --filter @bh/web build` 过(仅 chunk-size warning)。
+- **本会话已完成(commit `d377f01`→`5b1bab1`)**:
+  - **Phase 1 收尾**:`POST /payslips/:id/pay` 发放;`/attendance/clock` 按班次算迟到/早退 + 考勤日 status 自动判定
+  - **Phase 2 后端全栈**:数据层 6 表 + 6 枚举 + migration `0002`(**未 migrate,DB 没起**);打卡点 CRUD + 员工分配 + GPS 围栏(Haversine)+ 代录打卡;外勤 site_visits(multipart 上传+距离核验+人工覆盖);GPS 轨迹 tracking;人脸 face_challenges 状态机 + 基线录入(retire 事务+nonce+结果回写)
+  - **PC 后台前端**:人事区 7 tab(员工/考勤/工资/打卡点/外勤/薪酬配置/绩效KPI)+ 设置区 3 tab(公司/岗位/班次)
+- **下一步(见文末「下一步(2026-06-25 第三轮后)」)**:① `pnpm db:migrate`(需先起 postgres)② Python 人脸微服务(复用 ifm,**阻塞:需 ifm 源 + InsightFace 模型 + 业主阈值**)③ Capacitor 移动端 —— **业主已要求暂缓** ④ 业务层 Phase 3+(案件/教育/DMS)。
 
 ---
 
@@ -74,7 +75,19 @@
 
 **这些 delta 多属 Phase 2(考勤进阶/移动端),与已完成的 Phase 1 第2批不冲突。**
 
-## 下一步
+## 下一步(2026-06-25 第三轮后)
+
+**本会话产出全部本地验证通过、已 commit 但尚未 push。** 剩余:
+
+1. **`git push origin master`**(11 个 commit 待推)+ `pnpm db:migrate`(先 `docker compose up -d` 起 postgres,再跑 0002 迁移)。
+2. **Python 人脸微服务**(spec §3.6,复用 ifm):businessHub 侧集成点已就绪 —— `POST /face/challenges/:id/result` 回调 + `FACE_SERVICE_URL` env + face_baselines.embedding 待回填。**阻塞项**:需 ifm 源码 / InsightFace 模型 / 业主确认人脸·活体阈值是否沿用 ifm 默认(spec §7 待业主后补)。
+3. **Capacitor 移动端** —— 业主 2026-06-25 明确要求**暂缓**,不做。
+4. **业务层**:Phase 3 案件流程(EP/ICA)、Phase 4 教育、Phase 5 DMS/公司实体 —— 多处依赖业主后补数字(费率/提成/步骤流程,见 spec §7)。
+5. **零散**:工资条 CPF/levy/公积金扣项仍留空(需业主费率);commission 仍记 0(提成表未建模);web 包 vite chunk>500kB(可后续 code-split,非阻塞)。
+
+---
+
+## 下一步(历史 · 第二轮)
 
 第2批已提交并 push,工作区干净。下次可选方向(等用户拍板):
 1. **Phase 1 收尾** —— 核对 plan/spec,看人事层是否还有未覆盖的 API(如工资发放 `payslips/:id/pay`、考勤日 status 自动判定等)。
