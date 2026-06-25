@@ -39,7 +39,8 @@
       "attendance": "考勤",
       "payroll": "工资",
       "clockPoints": "打卡点",
-      "siteVisits": "外勤"
+      "siteVisits": "外勤",
+      "compensation": "薪酬配置"
     },
     "employees": {
       "title": "员工管理",
@@ -135,6 +136,47 @@
   "currency": {
     "SGD": "新币",
     "RMB": "人民币"
+  },
+  "commissionType": {
+    "percent": "百分比",
+    "fixed": "固定金额"
+  },
+  "compensation": {
+    "templates": {
+      "title": "薪酬模板",
+      "add": "新增模板",
+      "edit": "编辑模板",
+      "empty": "暂无薪酬模板"
+    },
+    "employee": {
+      "title": "员工个人薪酬覆盖",
+      "select": "员工",
+      "selectHint": "请选择员工配置个人薪酬覆盖。",
+      "overrideTitle": "个人覆盖",
+      "save": "保存覆盖"
+    },
+    "resolved": {
+      "title": "当前生效薪酬",
+      "templateMatched": "已匹配模板"
+    },
+    "source": {
+      "employee": "个人覆盖",
+      "template": "模板",
+      "none": "未设置"
+    },
+    "fields": {
+      "company": "公司",
+      "position": "岗位",
+      "base_salary": "基本工资",
+      "salary_currency": "薪资币种",
+      "attendance_bonus": "考勤奖金",
+      "task_completion_bonus": "任务完成奖金",
+      "task_satisfaction_bonus": "任务满意度奖金",
+      "kpi_bonus": "KPI 奖金",
+      "default_commission_type": "默认提成类型",
+      "default_commission_value": "默认提成值",
+      "payday": "发薪日"
+    }
   },
   "payslip": {
     "title": "工资条",

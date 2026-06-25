@@ -39,7 +39,8 @@
       "attendance": "Attendance",
       "payroll": "Payroll",
       "clockPoints": "Clock points",
-      "siteVisits": "Site visits"
+      "siteVisits": "Site visits",
+      "compensation": "Compensation"
     },
     "employees": {
       "title": "Employee Management",
@@ -135,6 +136,47 @@
   "currency": {
     "SGD": "SGD",
     "RMB": "RMB"
+  },
+  "commissionType": {
+    "percent": "Percent",
+    "fixed": "Fixed amount"
+  },
+  "compensation": {
+    "templates": {
+      "title": "Compensation templates",
+      "add": "Add template",
+      "edit": "Edit template",
+      "empty": "No compensation templates yet"
+    },
+    "employee": {
+      "title": "Employee compensation overrides",
+      "select": "Employee",
+      "selectHint": "Select an employee to configure compensation overrides.",
+      "overrideTitle": "Personal override",
+      "save": "Save override"
+    },
+    "resolved": {
+      "title": "Current effective compensation",
+      "templateMatched": "Template matched"
+    },
+    "source": {
+      "employee": "Employee",
+      "template": "Template",
+      "none": "Unset"
+    },
+    "fields": {
+      "company": "Company",
+      "position": "Position",
+      "base_salary": "Base salary",
+      "salary_currency": "Salary currency",
+      "attendance_bonus": "Attendance bonus",
+      "task_completion_bonus": "Task completion bonus",
+      "task_satisfaction_bonus": "Task satisfaction bonus",
+      "kpi_bonus": "KPI bonus",
+      "default_commission_type": "Default commission type",
+      "default_commission_value": "Default commission value",
+      "payday": "Payday"
+    }
   },
   "payslip": {
     "title": "Payslips",

@@ -4,6 +4,7 @@ import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
+import { CompensationPage } from "./pages/hr/CompensationPage";
 import { EmployeesPage } from "./pages/hr/EmployeesPage";
 import { HrLayout } from "./pages/hr/HrLayout";
 import { PayrollPage } from "./pages/hr/PayrollPage";
@@ -28,6 +29,7 @@ export function App() {
             <Route path="payroll" element={<PayrollPage />} />
             <Route path="clock-points" element={<ClockPointsPage />} />
             <Route path="site-visits" element={<SiteVisitsPage />} />
+            <Route path="compensation" element={<CompensationPage />} />
           </Route>
           <Route path="business" element={<DashboardPage />} />
           <Route path="documents" element={<DashboardPage />} />

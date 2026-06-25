@@ -4,9 +4,12 @@ import {
   type AttendanceDayStatus,
   type ClockPointCreateInput,
   type ClockPointUpdateInput,
+  type CommissionType,
   type CompanyCreateInput,
   type CompanyUpdateInput,
+  type CompensationTemplateInput,
   type Currency,
+  type EmployeeCompensationInput,
   type EmployeeCreateInput,
   type EmployeeStatus,
   type EmployeeUpdateInput,
@@ -145,6 +148,83 @@ export type StatutoryPayment = {
   paidAt?: string | null;
   reference?: string | null;
   createdAt: string;
+};
+
+type MoneyValue = string | null;
+
+export type CompensationTemplate = {
+  id: string;
+  company_id: string;
+  company_name?: string | null;
+  position_id: string;
+  position_name?: string | null;
+  base_salary?: MoneyValue;
+  salary_currency?: Currency | null;
+  attendance_bonus?: MoneyValue;
+  task_completion_bonus?: MoneyValue;
+  task_satisfaction_bonus?: MoneyValue;
+  kpi_bonus?: MoneyValue;
+  default_commission_type?: CommissionType | null;
+  default_commission_value?: MoneyValue;
+  payday?: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompensationTemplateRecord = {
+  id: string;
+  companyId: string;
+  positionId: string;
+  baseSalary?: MoneyValue;
+  salaryCurrency?: Currency | null;
+  attendanceBonus?: MoneyValue;
+  taskCompletionBonus?: MoneyValue;
+  taskSatisfactionBonus?: MoneyValue;
+  kpiBonus?: MoneyValue;
+  defaultCommissionType?: CommissionType | null;
+  defaultCommissionValue?: MoneyValue;
+  payday?: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EmployeeCompensation = {
+  id: string;
+  employeeId: string;
+  baseSalary?: MoneyValue;
+  salaryCurrency?: Currency | null;
+  attendanceBonus?: MoneyValue;
+  taskCompletionBonus?: MoneyValue;
+  taskSatisfactionBonus?: MoneyValue;
+  kpiBonus?: MoneyValue;
+  defaultCommissionType?: CommissionType | null;
+  defaultCommissionValue?: MoneyValue;
+  payday?: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ResolvedCompensationSource = "employee" | "template" | "none";
+
+export type ResolvedCompensationField = {
+  value: string | number | null;
+  source: ResolvedCompensationSource;
+};
+
+export type ResolvedCompensation = {
+  employee_id: string;
+  template_id: string | null;
+  compensation: {
+    base_salary: ResolvedCompensationField;
+    salary_currency: ResolvedCompensationField;
+    attendance_bonus: ResolvedCompensationField;
+    task_completion_bonus: ResolvedCompensationField;
+    task_satisfaction_bonus: ResolvedCompensationField;
+    kpi_bonus: ResolvedCompensationField;
+    default_commission_type: ResolvedCompensationField;
+    default_commission_value: ResolvedCompensationField;
+    payday: ResolvedCompensationField;
+  };
 };
 
 export type SiteVisit = {
@@ -390,6 +470,49 @@ export function createStatutory(body: StatutoryPaymentInput): Promise<{ payment:
     method: "POST",
     body
   });
+}
+
+export function listCompensationTemplates(): Promise<{ templates: CompensationTemplate[] }> {
+  return api<{ templates: CompensationTemplate[] }>("/compensation/templates");
+}
+
+export function createCompensationTemplate(
+  body: CompensationTemplateInput
+): Promise<{ template: CompensationTemplateRecord }> {
+  return api<{ template: CompensationTemplateRecord }>("/compensation/templates", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateCompensationTemplate(
+  id: string,
+  body: Partial<CompensationTemplateInput>
+): Promise<{ template: CompensationTemplateRecord }> {
+  return api<{ template: CompensationTemplateRecord }>(`/compensation/templates/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function getEmployeeCompensation(
+  employeeId: string
+): Promise<{ compensation: EmployeeCompensation | null }> {
+  return api<{ compensation: EmployeeCompensation | null }>(`/employees/${employeeId}/compensation`);
+}
+
+export function putEmployeeCompensation(
+  employeeId: string,
+  body: EmployeeCompensationInput
+): Promise<{ compensation: EmployeeCompensation }> {
+  return api<{ compensation: EmployeeCompensation }>(`/employees/${employeeId}/compensation`, {
+    method: "PUT",
+    body
+  });
+}
+
+export function getResolvedCompensation(employeeId: string): Promise<ResolvedCompensation> {
+  return api<ResolvedCompensation>(`/employees/${employeeId}/compensation/resolved`);
 }
 
 export function listSiteVisits(params: {
