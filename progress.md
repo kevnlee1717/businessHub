@@ -9,8 +9,12 @@
 - **里程碑**:Phase 1→5 后端 + PC 后台前端**全部前后端闭环**;本轮在第三轮基础上又加 Phase 3(案件 EP/ICA)、Phase 4(教育)、Phase 5(DMS/公司实体)。全程 `pnpm -r typecheck` 4 包绿 + `pnpm --filter @bh/web build` 过(仅 chunk-size warning)。代码全由 codex 写、Claude 审查验收,每片单独 commit。
 - **migrations**:已生成到 **0005**(0002 考勤/外勤/人脸、0003 案件、0004 教育、0005 DMS),**均未 migrate**(postgres 没起)。
 - **PC 后台导航**:人事(7 tab)/ 业务(案件·客户·模板)/ 教育(学生·大专·英语·WSQ)/ 文档(检索·客户库·公司费用·合同·分类)/ 设置(公司·岗位·班次)。
-- **仍阻塞/暂缓**:Python 人脸微服务(需 ifm 源/模型/阈值)、Capacitor 移动端(业主暂缓)、billing/payments 的 API+UI(跨模块,enrollment/case 现仅可空关联 billing_id)、业主后补数字(费率/提成/EP·ICA 步骤)。
-- 下次:`pnpm db:migrate`(先起 postgres)→ 按需补 billing 收款闭环 / 人脸服务 / 移动端。
+- **收款闭环已补完**:billing/payments/price_adjustments API + 「财务」区 UI;提成按销售当月成交单据汇总进工资条 commission_total(不再写死 0)。
+- **仍阻塞/暂缓**(均需外部输入,本机无法验证):
+  - Python 人脸微服务 —— 需 ifm 源码 / InsightFace 模型 / 业主确认阈值;businessHub 侧集成点已就绪(/face/challenges/:id/result + FACE_SERVICE_URL + embedding 待回填)
+  - Capacitor 移动端 —— 业主 2026-06-25 明确暂缓
+  - 业主后补数字 —— CPF/levy/公积金费率(工资条扣项仍留空)、EP/ICA 详细步骤流程(模板引擎已就绪,待填模板内容)、各业务默认提成/薪酬包数字
+- **下次第一件事**:`docker compose up -d` 起 postgres → `pnpm db:migrate`(跑 0002-0005)→ `pnpm db:seed` → `pnpm dev` 本地起后端 :3011 / 前端 :5190 联调。
 
 ---
 
