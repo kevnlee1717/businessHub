@@ -4,7 +4,17 @@
 
 ---
 
-## 🔖 最新快照(2026-06-25 第三轮,大推进会话后)
+## 🔖 最新快照(2026-06-25 第四轮,全 Phase 闭环会话后)
+
+- **里程碑**:Phase 1→5 后端 + PC 后台前端**全部前后端闭环**;本轮在第三轮基础上又加 Phase 3(案件 EP/ICA)、Phase 4(教育)、Phase 5(DMS/公司实体)。全程 `pnpm -r typecheck` 4 包绿 + `pnpm --filter @bh/web build` 过(仅 chunk-size warning)。代码全由 codex 写、Claude 审查验收,每片单独 commit。
+- **migrations**:已生成到 **0005**(0002 考勤/外勤/人脸、0003 案件、0004 教育、0005 DMS),**均未 migrate**(postgres 没起)。
+- **PC 后台导航**:人事(7 tab)/ 业务(案件·客户·模板)/ 教育(学生·大专·英语·WSQ)/ 文档(检索·客户库·公司费用·合同·分类)/ 设置(公司·岗位·班次)。
+- **仍阻塞/暂缓**:Python 人脸微服务(需 ifm 源/模型/阈值)、Capacitor 移动端(业主暂缓)、billing/payments 的 API+UI(跨模块,enrollment/case 现仅可空关联 billing_id)、业主后补数字(费率/提成/EP·ICA 步骤)。
+- 下次:`pnpm db:migrate`(先起 postgres)→ 按需补 billing 收款闭环 / 人脸服务 / 移动端。
+
+---
+
+## 🔖 旧快照(2026-06-25 第三轮,大推进会话后)
 
 - **项目位置**:`~/project/businessHub`;git remote `origin`,`master` 待 push(本会话 11 个新 commit 未 push)。工作区干净。
 - **代码全部由 codex 写,Claude 拆解/审查/typecheck 验收**;全程 `pnpm -r typecheck` 4 包绿、`pnpm --filter @bh/web build` 过(仅 chunk-size warning)。
