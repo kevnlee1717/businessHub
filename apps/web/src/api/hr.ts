@@ -1,4 +1,9 @@
 import {
+  type AttendanceClockInput,
+  type AttendanceKind,
+  type AttendanceDayStatus,
+  type ClockPointCreateInput,
+  type ClockPointUpdateInput,
   type Currency,
   type EmployeeCreateInput,
   type EmployeeStatus,
@@ -57,6 +62,46 @@ export type WorkShift = {
   created_at: string;
 };
 
+export type ClockPoint = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  lat: string;
+  lng: string;
+  radius_m: number;
+  company_id?: string | null;
+  active: boolean;
+  created_at: string;
+};
+
+export type AttendanceRecord = {
+  id: string;
+  employeeId: string;
+  workDate: string;
+  kind: AttendanceKind;
+  clockedAt: string;
+  clockPointId?: string | null;
+  lat?: string | null;
+  lng?: string | null;
+  distanceM?: string | null;
+  inGeofence?: boolean | null;
+  deviationMinutes?: number | null;
+  reason?: string | null;
+  method?: string | null;
+  onBehalfUserId?: string | null;
+  createdAt: string;
+};
+
+export type AttendanceDay = {
+  id: string;
+  employeeId: string;
+  workDate: string;
+  clockInId?: string | null;
+  clockOutId?: string | null;
+  status?: AttendanceDayStatus | null;
+  updatedAt: string;
+};
+
 export function listEmployees(): Promise<{ employees: Employee[] }> {
   return api<{ employees: Employee[] }>("/employees");
 }
@@ -88,4 +133,77 @@ export function listPositions(): Promise<{ positions: Position[] }> {
 
 export function listWorkShifts(): Promise<{ work_shifts: WorkShift[] }> {
   return api<{ work_shifts: WorkShift[] }>("/work-shifts");
+}
+
+export function listClockPoints(): Promise<{ clockPoints: ClockPoint[] }> {
+  return api<{ clockPoints: ClockPoint[] }>("/clock-points");
+}
+
+export function createClockPoint(body: ClockPointCreateInput): Promise<{ clockPoint: ClockPoint }> {
+  return api<{ clockPoint: ClockPoint }>("/clock-points", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateClockPoint(
+  id: string,
+  body: ClockPointUpdateInput
+): Promise<{ clockPoint: ClockPoint }> {
+  return api<{ clockPoint: ClockPoint }>(`/clock-points/${id}`, {
+    method: "PUT",
+    body
+  });
+}
+
+export function deleteClockPoint(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/clock-points/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function getEmployeeClockPoints(employeeId: string): Promise<{ clockPoints: ClockPoint[] }> {
+  return api<{ clockPoints: ClockPoint[] }>(`/employees/${employeeId}/clock-points`);
+}
+
+export function assignEmployeeClockPoints(
+  employeeId: string,
+  clock_point_ids: string[]
+): Promise<{ clockPoints: ClockPoint[] }> {
+  return api<{ clockPoints: ClockPoint[] }>(`/employees/${employeeId}/clock-points`, {
+    method: "PUT",
+    body: { clock_point_ids }
+  });
+}
+
+export function listAttendance(params: {
+  employee_id?: string | undefined;
+  work_date?: string | undefined;
+}): Promise<{ records: AttendanceRecord[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (params.employee_id) {
+    searchParams.set("employee_id", params.employee_id);
+  }
+
+  if (params.work_date) {
+    searchParams.set("work_date", params.work_date);
+  }
+
+  const query = searchParams.toString();
+  return api<{ records: AttendanceRecord[] }>(`/attendance${query ? `?${query}` : ""}`);
+}
+
+export function getEmployeeAttendanceDays(employeeId: string): Promise<{ days: AttendanceDay[] }> {
+  return api<{ days: AttendanceDay[] }>(`/employees/${employeeId}/attendance`);
+}
+
+export function clockAttendance(body: AttendanceClockInput): Promise<{
+  record: AttendanceRecord;
+  day: AttendanceDay;
+}> {
+  return api<{ record: AttendanceRecord; day: AttendanceDay }>("/attendance/clock", {
+    method: "POST",
+    body
+  });
 }

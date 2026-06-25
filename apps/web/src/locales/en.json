@@ -22,8 +22,11 @@
     "coming_soon": "Coming soon",
     "actions": "Actions",
     "edit": "Edit",
+    "delete": "Delete",
     "save": "Save",
     "cancel": "Cancel",
+    "yes": "Yes",
+    "no": "No",
     "not_available": "-",
     "unknown_error": "Unknown error"
   },
@@ -88,5 +91,66 @@
   "currency": {
     "SGD": "SGD",
     "RMB": "RMB"
+  },
+  "clockPoint": {
+    "title": "Clock Point Management",
+    "add": "Add clock point",
+    "edit": "Edit clock point",
+    "empty": "No clock points yet",
+    "confirmDelete": "Delete clock point {{name}}?",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "radiusM": "Radius (m)",
+      "company": "Company",
+      "active": "Active"
+    },
+    "assignment": {
+      "title": "Employee clock point assignment",
+      "employee": "Employee",
+      "current": "Currently assigned:",
+      "clockPoints": "Clock points",
+      "save": "Save assignment"
+    }
+  },
+  "attendance": {
+    "title": "Attendance View / Manual Entry",
+    "manualClock": "Manual clock",
+    "daysTitle": "Daily summary",
+    "recordsTitle": "Clock records",
+    "emptyDays": "No attendance days yet",
+    "emptyRecords": "No clock records yet",
+    "selectEmployeeHint": "Select an employee to view attendance.",
+    "filters": {
+      "employee": "Employee",
+      "workDate": "Work date"
+    },
+    "fields": {
+      "workDate": "Work date",
+      "status": "Status",
+      "clockIn": "Clock in",
+      "clockOut": "Clock out",
+      "kind": "Kind",
+      "clockedAt": "Clocked at",
+      "deviationMinutes": "Deviation minutes",
+      "method": "Method",
+      "inGeofence": "In geofence",
+      "onBehalf": "Manual entry",
+      "reason": "Reason"
+    }
+  },
+  "attendanceKind": {
+    "clock_in": "Clock in",
+    "clock_out": "Clock out"
+  },
+  "attendanceDayStatus": {
+    "present": "Present",
+    "late": "Late",
+    "early_leave": "Early leave",
+    "late_and_early": "Late and early leave",
+    "incomplete": "Incomplete",
+    "absent": "Absent"
   }
 }

@@ -22,8 +22,11 @@
     "coming_soon": "即将上线",
     "actions": "操作",
     "edit": "编辑",
+    "delete": "删除",
     "save": "保存",
     "cancel": "取消",
+    "yes": "是",
+    "no": "否",
     "not_available": "-",
     "unknown_error": "发生未知错误"
   },
@@ -88,5 +91,66 @@
   "currency": {
     "SGD": "新币",
     "RMB": "人民币"
+  },
+  "clockPoint": {
+    "title": "打卡点管理",
+    "add": "新增打卡点",
+    "edit": "编辑打卡点",
+    "empty": "暂无打卡点",
+    "confirmDelete": "确定删除打卡点 {{name}}？",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "lat": "纬度",
+      "lng": "经度",
+      "radiusM": "半径(米)",
+      "company": "公司",
+      "active": "启用"
+    },
+    "assignment": {
+      "title": "员工打卡点分配",
+      "employee": "员工",
+      "current": "当前已分配：",
+      "clockPoints": "打卡点",
+      "save": "保存分配"
+    }
+  },
+  "attendance": {
+    "title": "考勤查看/代录",
+    "manualClock": "代录打卡",
+    "daysTitle": "按天汇总",
+    "recordsTitle": "打卡明细",
+    "emptyDays": "暂无考勤汇总",
+    "emptyRecords": "暂无打卡明细",
+    "selectEmployeeHint": "请选择员工查看考勤。",
+    "filters": {
+      "employee": "员工",
+      "workDate": "工作日期"
+    },
+    "fields": {
+      "workDate": "工作日期",
+      "status": "状态",
+      "clockIn": "上班打卡",
+      "clockOut": "下班打卡",
+      "kind": "类型",
+      "clockedAt": "打卡时间",
+      "deviationMinutes": "偏差分钟",
+      "method": "方式",
+      "inGeofence": "在范围内",
+      "onBehalf": "代录",
+      "reason": "原因"
+    }
+  },
+  "attendanceKind": {
+    "clock_in": "上班",
+    "clock_out": "下班"
+  },
+  "attendanceDayStatus": {
+    "present": "正常",
+    "late": "迟到",
+    "early_leave": "早退",
+    "late_and_early": "迟到且早退",
+    "incomplete": "缺卡",
+    "absent": "缺勤"
   }
 }
