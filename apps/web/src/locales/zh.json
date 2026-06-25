@@ -1,0 +1,26 @@
+{
+  "app": {
+    "title": "businessHub"
+  },
+  "nav": {
+    "dashboard": "仪表盘",
+    "hr": "人事",
+    "business": "业务",
+    "documents": "文档",
+    "settings": "设置"
+  },
+  "auth": {
+    "login": "登录",
+    "email": "邮箱",
+    "password": "密码",
+    "loginButton": "登录",
+    "logout": "退出",
+    "invalidCredentials": "邮箱或密码不正确"
+  },
+  "common": {
+    "language": "语言"
+  },
+  "dashboard": {
+    "welcome": "欢迎，{{name}}"
+  }
+}

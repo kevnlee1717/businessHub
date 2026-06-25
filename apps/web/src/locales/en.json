@@ -1,0 +1,26 @@
+{
+  "app": {
+    "title": "businessHub"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "hr": "HR",
+    "business": "Business",
+    "documents": "Documents",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "loginButton": "Sign in",
+    "logout": "Log out",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "common": {
+    "language": "Language"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}"
+  }
+}
