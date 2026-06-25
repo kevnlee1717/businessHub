@@ -2,6 +2,19 @@
 
 > 用途:对话被打断时,看这份就能接上。**每完成一步及时勾选 + 更新"下一步"。**
 
+---
+
+## 🔖 最新快照(2026-06-25,会话重启前)
+
+- **项目位置**:`~/project/businessHub`(已从旧的 `~/businessHub` 搬过来;旧路径暂留软链,重启后可 `rm ~/businessHub` 清掉)。**下次从 `~/project/businessHub` 启动。**
+- **git**:remote `origin = git@github.com:kevnlee1717/businessHub.git`,`master` 已 push 并跟踪 `origin/master`。工作区干净。
+- **已完成**:
+  - Phase 1 第2批 HR API(考勤/KPI/绩效/法定缴款/工资条 5 路由)→ commit `5a54a69`,typecheck 过
+  - 历史对话设计提取 + spec 补全 → commit `6b2e6e3`(含 `docs/superpowers/specs/2026-06-25-design-extracted-delta.md`)
+- **下一步建议**:Phase 1 收尾(如还有未做的 HR 子模块)或开 Phase 2(考勤进阶/移动端 —— delta 里 lead_visits 核验、代录打卡、company_assignments、随机抽查推送都属这阶段)。具体见文末「下一步」。
+
+---
+
 ## 当前任务
 
 **Phase 1 · 第 2 批 HR API**:考勤打卡 / KPI / 绩效覆盖 / 法定缴款 / 工资条生成。
@@ -27,7 +40,7 @@
 - [x] 6. `routes/payslip.ts` — GET `/payslips`、POST `/payslips/generate`(按 spec 公式生成 draft)
 - [x] 7. `routes/index.ts` 注册以上 5 个路由
 - [x] 8. `pnpm --filter @bh/api typecheck` + `pnpm --filter @bh/shared typecheck` 通过 ✅
-- [ ] 9. commit(中文,跟现有 Phase 1 风格)—— **等用户确认后再提交**
+- [x] 9. commit(`5a54a69`)+ docs commit(`6b2e6e3`)+ push origin/master ✅
 
 ## 已知简化(需在 commit message / 后续批次交代)
 
@@ -45,10 +58,10 @@
 ## 附:历史对话设计提取 + spec 补全(2026-06-25 第二轮)
 
 **背景**:被打断的历史对话 `cb9543c0…jsonl`(那场 brainstorming)里有更多设计。已通读提取,和现有 spec 逐条比对。
-- 完整逐条对照:`scratchpad/design-extracted.md`(注:scratchpad 是临时目录,要长期保留得另存)
+- 完整逐条对照:`docs/superpowers/specs/2026-06-25-design-extracted-delta.md`(已纳入 git)
 - 结论:spec 是那场对话里边聊边写的,业务设计 80%+ 已收录;真正 delta 集中在 **ifm 考勤/外勤被简化掉的二级机制 + 实现级数字**。
 
-**已补进 spec**(`specs/2026-06-25-businesshub-design.md`,待用户 review):
+**已补进 spec**(`specs/2026-06-25-businesshub-design.md`,已 review + commit `6b2e6e3`):
 - §1 加「部署事实」:固定端口 api 3011 / web 5190 / 人脸 17010、默认账号 `admin@bh.local`/`changeme`、7 个默认文件分类
 - §3.2 ICA 担保人「须 SG 公民/PR」业务约束
 - §3.6 打卡点:`company_assignments` 历史分配(主/副公司+生效失效,留待 Phase 2)
@@ -63,4 +76,9 @@
 
 ## 下一步
 
-→ 等用户 review:(a) Phase 1 第2批代码(5 路由)是否提交;(b) spec 补全是否 OK。两者都没自动 commit。
+第2批已提交并 push,工作区干净。下次可选方向(等用户拍板):
+1. **Phase 1 收尾** —— 核对 plan/spec,看人事层是否还有未覆盖的 API(如工资发放 `payslips/:id/pay`、考勤日 status 自动判定等)。
+2. **Phase 2 考勤进阶/移动端** —— 把 delta 里被简化的机制实现回来:site_visits 到访核验(distance_to_lead_m + 状态机 + 人工覆盖)、`on_behalf_user_id` 代录、`company_assignments` 历史分配、RANDOM_CHECK 主动抽查推送、人脸微服务接入。
+3. **补业主待定数字**(若业主已给):CPF/劳工税/公积金费率 → 完善 payslip 扣项 + statutory;各业务默认提成 → commission。
+
+⚠️ 重启后从 `~/project/businessHub` 启动;确认新会话路径无误后可 `rm ~/businessHub`(旧软链)。
