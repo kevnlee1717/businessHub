@@ -13,6 +13,9 @@ import {
   roleEnum
 } from "./enums";
 import { pgTable } from "drizzle-orm/pg-core";
+import { companies } from "./companies";
+import { positions } from "./positions";
+import { workShifts } from "./workShifts";
 
 export const employees = pgTable("employees", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -22,8 +25,9 @@ export const employees = pgTable("employees", {
   phone: varchar("phone", { length: 64 }),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: roleEnum("role").notNull(),
-  companyId: uuid("company_id"),
-  positionId: uuid("position_id"),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+  positionId: uuid("position_id").references(() => positions.id, { onDelete: "set null" }),
+  shiftId: uuid("shift_id").references(() => workShifts.id, { onDelete: "set null" }),
   employmentType: employmentTypeEnum("employment_type").notNull().default("full_time"),
   status: employeeStatusEnum("status").notNull().default("active"),
   joinDate: date("join_date"),

@@ -8,6 +8,13 @@
       "when": 1782365327144,
       "tag": "0000_supreme_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782366871620,
+      "tag": "0001_tough_chameleon",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, pool } from "./index";
-import { documentCategories, employees } from "./schema/index";
+import { documentCategories, employees, payrollSettings, workShifts } from "./schema/index";
 
 config({ path: "../../.env" });
 
@@ -59,8 +59,38 @@ for (const category of categorySeeds) {
   }
 }
 
+const existingPayrollSettings = await db.query.payrollSettings.findFirst();
+let insertedPayrollSettings = 0;
+
+if (!existingPayrollSettings) {
+  await db.insert(payrollSettings).values({
+    cpfRates: {},
+    levyAmount: "0",
+    chinaFundRate: "0",
+    attendanceAllowedLate: 0,
+    kpiCap100: true
+  });
+  insertedPayrollSettings = 1;
+}
+
+const existingDefaultShift = await db.query.workShifts.findFirst({
+  where: eq(workShifts.isDefault, true)
+});
+let insertedWorkShifts = 0;
+
+if (!existingDefaultShift) {
+  await db.insert(workShifts).values({
+    name: "标准班 09:00-17:00",
+    startMin: 540,
+    endMin: 1020,
+    allowedLateCount: 0,
+    isDefault: true
+  });
+  insertedWorkShifts = 1;
+}
+
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}`
 );
