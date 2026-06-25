@@ -6,6 +6,7 @@
     "dashboard": "仪表盘",
     "hr": "人事",
     "business": "业务",
+    "education": "教育",
     "documents": "文档",
     "settings": "设置"
   },
@@ -82,6 +83,77 @@
       "cases": "案件",
       "clients": "客户",
       "templates": "流程模板"
+    }
+  },
+  "education": {
+    "tabs": {
+      "students": "学生",
+      "diploma": "成人大专",
+      "english": "成人英语",
+      "wsq": "WSQ"
+    }
+  },
+  "student": {
+    "title": "学生管理",
+    "add": "新增学生",
+    "edit": "编辑学生",
+    "empty": "暂无学生",
+    "fields": {
+      "name": "姓名",
+      "nameEn": "英文名",
+      "phone": "电话",
+      "email": "邮箱",
+      "note": "备注"
+    }
+  },
+  "diploma": {
+    "title": "成人大专报名",
+    "add": "新增报名",
+    "edit": "编辑报名",
+    "empty": "暂无报名",
+    "filters": {
+      "student": "学生"
+    },
+    "fields": {
+      "student": "学生",
+      "program": "课程",
+      "enrollDate": "报名日期",
+      "installmentsCount": "分期数",
+      "graduated": "已毕业"
+    }
+  },
+  "english": {
+    "title": "成人英语"
+  },
+  "wsq": {
+    "title": "WSQ 课程",
+    "course": {
+      "add": "新增课程",
+      "edit": "编辑课程",
+      "empty": "暂无课程",
+      "selectHint": "请选择课程查看报名。",
+      "canOpen": "可开课",
+      "cannotOpen": "未达人数",
+      "fields": {
+        "name": "名称",
+        "nameEn": "英文名",
+        "content": "内容",
+        "startDate": "开始日期",
+        "duration": "时长",
+        "priceSgd": "价格 SGD",
+        "minStudents": "最低人数",
+        "enrollmentCount": "报名数",
+        "canOpen": "开课状态"
+      }
+    },
+    "enrollment": {
+      "title": "课程报名",
+      "add": "添加报名",
+      "remove": "移除",
+      "empty": "暂无报名学生",
+      "fields": {
+        "student": "学生"
+      }
     }
   },
   "case": {

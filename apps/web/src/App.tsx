@@ -7,6 +7,11 @@ import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { CasesPage } from "./pages/business/CasesPage";
 import { ClientsPage } from "./pages/business/ClientsPage";
 import { TemplatesPage } from "./pages/business/TemplatesPage";
+import { DiplomaPage } from "./pages/education/DiplomaPage";
+import { EducationLayout } from "./pages/education/EducationLayout";
+import { EnglishPage } from "./pages/education/EnglishPage";
+import { StudentsPage } from "./pages/education/StudentsPage";
+import { WsqPage } from "./pages/education/WsqPage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
 import { CompensationPage } from "./pages/hr/CompensationPage";
@@ -44,6 +49,13 @@ export function App() {
             <Route path="cases/:id" element={<CaseDetailPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="templates" element={<TemplatesPage />} />
+          </Route>
+          <Route path="education" element={<EducationLayout />}>
+            <Route index element={<Navigate to="students" replace />} />
+            <Route path="students" element={<StudentsPage />} />
+            <Route path="diploma" element={<DiplomaPage />} />
+            <Route path="english" element={<EnglishPage />} />
+            <Route path="wsq" element={<WsqPage />} />
           </Route>
           <Route path="documents" element={<DashboardPage />} />
           <Route path="settings" element={<SettingsLayout />}>

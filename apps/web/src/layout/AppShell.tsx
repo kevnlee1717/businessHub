@@ -18,6 +18,7 @@ const navItems = [
   { to: "/", key: "nav.dashboard" },
   { to: "/hr", key: "nav.hr" },
   { to: "/business", key: "nav.business" },
+  { to: "/education", key: "nav.education" },
   { to: "/documents", key: "nav.documents" },
   { to: "/settings", key: "nav.settings" }
 ] as const;

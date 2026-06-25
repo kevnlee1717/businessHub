@@ -6,6 +6,7 @@
     "dashboard": "Dashboard",
     "hr": "HR",
     "business": "Business",
+    "education": "Education",
     "documents": "Documents",
     "settings": "Settings"
   },
@@ -82,6 +83,77 @@
       "cases": "Cases",
       "clients": "Clients",
       "templates": "Workflow templates"
+    }
+  },
+  "education": {
+    "tabs": {
+      "students": "Students",
+      "diploma": "Adult diploma",
+      "english": "Adult English",
+      "wsq": "WSQ"
+    }
+  },
+  "student": {
+    "title": "Student Management",
+    "add": "Add student",
+    "edit": "Edit student",
+    "empty": "No students yet",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "phone": "Phone",
+      "email": "Email",
+      "note": "Note"
+    }
+  },
+  "diploma": {
+    "title": "Adult diploma enrollments",
+    "add": "Add enrollment",
+    "edit": "Edit enrollment",
+    "empty": "No enrollments yet",
+    "filters": {
+      "student": "Student"
+    },
+    "fields": {
+      "student": "Student",
+      "program": "Program",
+      "enrollDate": "Enroll date",
+      "installmentsCount": "Installments",
+      "graduated": "Graduated"
+    }
+  },
+  "english": {
+    "title": "Adult English"
+  },
+  "wsq": {
+    "title": "WSQ Courses",
+    "course": {
+      "add": "Add course",
+      "edit": "Edit course",
+      "empty": "No courses yet",
+      "selectHint": "Select a course to view enrollments.",
+      "canOpen": "Can open",
+      "cannotOpen": "Not enough students",
+      "fields": {
+        "name": "Name",
+        "nameEn": "English name",
+        "content": "Content",
+        "startDate": "Start date",
+        "duration": "Duration",
+        "priceSgd": "Price SGD",
+        "minStudents": "Min students",
+        "enrollmentCount": "Enrollments",
+        "canOpen": "Open status"
+      }
+    },
+    "enrollment": {
+      "title": "Course enrollments",
+      "add": "Add enrollment",
+      "remove": "Remove",
+      "empty": "No enrolled students yet",
+      "fields": {
+        "student": "Student"
+      }
     }
   },
   "case": {
