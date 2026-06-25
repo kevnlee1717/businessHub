@@ -1,11 +1,13 @@
 import { z } from "zod";
 import {
+  attendanceKinds,
   commissionTypes,
   currencies,
   employeeStatuses,
   employmentTypes,
   payrollSchemes,
   roles,
+  statutoryTypes,
   taskPriorities,
   taskStatuses
 } from "../enums";
@@ -15,6 +17,7 @@ const nullableOptionalText = z.string().trim().min(1).nullable().optional();
 const uuidField = z.string().uuid();
 const optionalUuid = uuidField.optional();
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const monthString = z.string().regex(/^\d{4}-\d{2}$/);
 const moneyValue = z.union([z.string().trim().min(1), z.number()]).nullable().optional();
 
 const employeeBaseSchema = z.object({
@@ -112,7 +115,48 @@ export const taskRateSchema = z.object({
   satisfaction_rating: z.number().int().min(1).max(5)
 });
 
+export const attendanceClockSchema = z.object({
+  kind: z.enum(attendanceKinds),
+  work_date: dateString.optional(),
+  clocked_at: z.string().datetime().optional(),
+  reason: optionalText
+});
+
+export const kpiTargetSchema = z.object({
+  period: monthString,
+  metric: z.string().trim().min(1),
+  target: z.number(),
+  actual: z.number().optional()
+});
+
+export const performanceOverrideSchema = z.object({
+  period: monthString,
+  attendance_qualified: z.boolean().nullable().optional(),
+  task_completion_pct: z.number().nullable().optional(),
+  task_satisfaction_pct: z.number().nullable().optional(),
+  kpi_pct: z.number().nullable().optional()
+});
+
+export const statutoryPaymentSchema = z.object({
+  type: z.enum(statutoryTypes),
+  period: monthString,
+  employee_id: uuidField.nullable().optional(),
+  amount: z.number(),
+  paid_at: z.string().datetime().optional(),
+  reference: optionalText
+});
+
+export const payslipGenerateSchema = z.object({
+  period: monthString,
+  employee_ids: z.array(uuidField).nullable().optional()
+});
+
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 export type CompensationTemplateInput = z.infer<typeof compensationTemplateSchema>;
 export type EmployeeCompensationInput = z.infer<typeof employeeCompensationSchema>;
+export type AttendanceClockInput = z.infer<typeof attendanceClockSchema>;
+export type KpiTargetInput = z.infer<typeof kpiTargetSchema>;
+export type PerformanceOverrideInput = z.infer<typeof performanceOverrideSchema>;
+export type StatutoryPaymentInput = z.infer<typeof statutoryPaymentSchema>;
+export type PayslipGenerateInput = z.infer<typeof payslipGenerateSchema>;

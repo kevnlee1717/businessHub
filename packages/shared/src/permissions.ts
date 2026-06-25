@@ -96,7 +96,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "employee.view",
     "document.manage",
     "document.view",
-    "attendance.manage",
     "attendance.self",
     "task.manage",
     "task.assign",
