@@ -678,5 +678,79 @@
       "active": "Active",
       "isSystem": "System category"
     }
+  },
+  "companyFiles": {
+    "title": "Company Files",
+    "selectCompany": "Select company",
+    "selectHint": "Select a company to view expenses and files.",
+    "filesTitle": "Company files",
+    "empty": "This company has no files yet"
+  },
+  "companyExpense": {
+    "title": "Expense Details",
+    "add": "Add expense",
+    "empty": "No expenses yet",
+    "summary": {
+      "title": "Expense Summary",
+      "byType": "By type",
+      "byPeriod": "By period",
+      "empty": "No data yet"
+    },
+    "fields": {
+      "type": "Type",
+      "amount": "Amount",
+      "currency": "Currency",
+      "period": "Period",
+      "paidAt": "Paid at",
+      "note": "Note"
+    }
+  },
+  "companyExpenseType": {
+    "rent": "Rent",
+    "utility": "Utility",
+    "other": "Other"
+  },
+  "contract": {
+    "title": "Contracts",
+    "add": "New contract",
+    "empty": "No contracts yet",
+    "selectHint": "Select a contract to view versions.",
+    "fields": {
+      "subjectType": "Subject type",
+      "subjectId": "Subject ID",
+      "title": "Title",
+      "partyInfo": "Party info",
+      "status": "Status",
+      "currentVersionNo": "Current version"
+    }
+  },
+  "contractStatus": {
+    "draft": "Draft",
+    "active": "Active",
+    "expired": "Expired",
+    "terminated": "Terminated"
+  },
+  "contractVersion": {
+    "title": "Versions",
+    "uploadTitle": "Upload new version",
+    "empty": "No versions yet",
+    "fileRequired": "Please choose a file",
+    "fields": {
+      "versionNo": "Version",
+      "status": "Status",
+      "note": "Note",
+      "document": "Document"
+    }
+  },
+  "contractVersionStatus": {
+    "draft": "Draft",
+    "signed": "Signed",
+    "superseded": "Superseded"
+  },
+  "contractSubjectType": {
+    "case": "Case",
+    "enrollment": "Enrollment",
+    "company": "Company",
+    "client": "Client"
   }
 }

@@ -9,8 +9,10 @@ import { ClientsPage } from "./pages/business/ClientsPage";
 import { TemplatesPage } from "./pages/business/TemplatesPage";
 import { CategoriesPage } from "./pages/documents/CategoriesPage";
 import { ClientLibraryPage } from "./pages/documents/ClientLibraryPage";
+import { CompanyFilesPage } from "./pages/documents/CompanyFilesPage";
+import { ContractsPage } from "./pages/documents/ContractsPage";
 import { DocumentSearchPage } from "./pages/documents/DocumentSearchPage";
-import { DocumentsLayout, DocumentsPlaceholderPage } from "./pages/documents/DocumentsLayout";
+import { DocumentsLayout } from "./pages/documents/DocumentsLayout";
 import { DiplomaPage } from "./pages/education/DiplomaPage";
 import { EducationLayout } from "./pages/education/EducationLayout";
 import { EnglishPage } from "./pages/education/EnglishPage";
@@ -65,8 +67,8 @@ export function App() {
             <Route index element={<Navigate to="search" replace />} />
             <Route path="search" element={<DocumentSearchPage />} />
             <Route path="client-library" element={<ClientLibraryPage />} />
-            <Route path="company" element={<DocumentsPlaceholderPage titleKey="documents.tabs.company" />} />
-            <Route path="contracts" element={<DocumentsPlaceholderPage titleKey="documents.tabs.contracts" />} />
+            <Route path="company" element={<CompanyFilesPage />} />
+            <Route path="contracts" element={<ContractsPage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
           <Route path="settings" element={<SettingsLayout />}>

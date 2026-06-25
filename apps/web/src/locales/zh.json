@@ -678,5 +678,79 @@
       "active": "启用",
       "isSystem": "系统分类"
     }
+  },
+  "companyFiles": {
+    "title": "公司文件",
+    "selectCompany": "选择公司",
+    "selectHint": "请选择公司查看费用和文件。",
+    "filesTitle": "公司文件",
+    "empty": "该公司暂无文件"
+  },
+  "companyExpense": {
+    "title": "费用明细",
+    "add": "新增费用",
+    "empty": "暂无费用",
+    "summary": {
+      "title": "费用统计",
+      "byType": "按类型",
+      "byPeriod": "按期间",
+      "empty": "暂无数据"
+    },
+    "fields": {
+      "type": "类型",
+      "amount": "金额",
+      "currency": "币种",
+      "period": "期间",
+      "paidAt": "支付时间",
+      "note": "备注"
+    }
+  },
+  "companyExpenseType": {
+    "rent": "租金",
+    "utility": "水电杂费",
+    "other": "其他"
+  },
+  "contract": {
+    "title": "合同版本库",
+    "add": "新建合同",
+    "empty": "暂无合同",
+    "selectHint": "请选择合同查看版本。",
+    "fields": {
+      "subjectType": "主体类型",
+      "subjectId": "主体 ID",
+      "title": "标题",
+      "partyInfo": "合同方信息",
+      "status": "状态",
+      "currentVersionNo": "当前版本"
+    }
+  },
+  "contractStatus": {
+    "draft": "草稿",
+    "active": "生效",
+    "expired": "到期",
+    "terminated": "终止"
+  },
+  "contractVersion": {
+    "title": "版本列表",
+    "uploadTitle": "上传新版本",
+    "empty": "暂无版本",
+    "fileRequired": "请选择文件",
+    "fields": {
+      "versionNo": "版本",
+      "status": "状态",
+      "note": "备注",
+      "document": "文档"
+    }
+  },
+  "contractVersionStatus": {
+    "draft": "草稿",
+    "signed": "已签署",
+    "superseded": "已替代"
+  },
+  "contractSubjectType": {
+    "case": "业务案件",
+    "enrollment": "报名",
+    "company": "公司",
+    "client": "客户"
   }
 }
