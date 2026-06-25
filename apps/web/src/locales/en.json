@@ -27,6 +27,7 @@
     "cancel": "Cancel",
     "yes": "Yes",
     "no": "No",
+    "all": "All",
     "not_available": "-",
     "unknown_error": "Unknown error"
   },
@@ -40,7 +41,8 @@
       "payroll": "Payroll",
       "clockPoints": "Clock points",
       "siteVisits": "Site visits",
-      "compensation": "Compensation"
+      "compensation": "Compensation",
+      "performance": "Performance/KPI"
     },
     "employees": {
       "title": "Employee Management",
@@ -176,6 +178,48 @@
       "default_commission_type": "Default commission type",
       "default_commission_value": "Default commission value",
       "payday": "Payday"
+    }
+  },
+  "performance": {
+    "title": "Performance/KPI",
+    "selectEmployeeHint": "Select an employee to view KPI targets and performance scores.",
+    "overrideHint": "Leaving an override empty uses the system auto value; leaving a percentage empty clears that manual override.",
+    "filters": {
+      "employee": "Employee",
+      "period": "Period"
+    },
+    "kpi": {
+      "title": "KPI targets",
+      "upsert": "Add / update KPI",
+      "empty": "No KPI targets yet"
+    },
+    "scores": {
+      "title": "Performance scores",
+      "adjust": "Manual adjustment",
+      "empty": "No performance scores yet",
+      "periodScore": "Monthly score",
+      "editingPeriod": "Editing {{period}}"
+    },
+    "fields": {
+      "period": "Period",
+      "metric": "Metric",
+      "target": "Target",
+      "actual": "Actual",
+      "achievementPct": "Achievement %",
+      "auto": "Auto",
+      "override": "Override",
+      "effective": "Effective"
+    },
+    "metrics": {
+      "attendance_qualified": "Attendance qualified",
+      "task_completion_pct": "Task completion %",
+      "task_satisfaction_pct": "Task satisfaction %",
+      "kpi_pct": "KPI %"
+    },
+    "values": {
+      "qualified": "Qualified",
+      "unqualified": "Unqualified",
+      "noAdjust": "No adjustment"
     }
   },
   "payslip": {

@@ -14,6 +14,8 @@ import {
   type EmployeeStatus,
   type EmployeeUpdateInput,
   type EmploymentType,
+  type KpiTargetInput,
+  type PerformanceOverrideInput,
   type PayslipGenerateInput,
   type PayslipStatus,
   type PositionCreateInput,
@@ -224,6 +226,36 @@ export type ResolvedCompensation = {
     default_commission_type: ResolvedCompensationField;
     default_commission_value: ResolvedCompensationField;
     payday: ResolvedCompensationField;
+  };
+};
+
+export type KpiTarget = {
+  id: string;
+  employeeId: string;
+  period: string;
+  metric: string;
+  target: string;
+  actual?: string | null;
+  achievementPct?: string | null;
+};
+
+export type PerformanceScore = {
+  id: string;
+  employeeId: string;
+  period: string;
+  attendanceQualifiedAuto?: boolean | null;
+  attendanceQualifiedOverride?: boolean | null;
+  taskCompletionPctAuto?: string | null;
+  taskCompletionPctOverride?: string | null;
+  taskSatisfactionPctAuto?: string | null;
+  taskSatisfactionPctOverride?: string | null;
+  kpiPctAuto?: string | null;
+  kpiPctOverride?: string | null;
+  effective: {
+    attendance_qualified: boolean | null;
+    task_completion_pct: string | null;
+    task_satisfaction_pct: string | null;
+    kpi_pct: string | null;
   };
 };
 
@@ -513,6 +545,56 @@ export function putEmployeeCompensation(
 
 export function getResolvedCompensation(employeeId: string): Promise<ResolvedCompensation> {
   return api<ResolvedCompensation>(`/employees/${employeeId}/compensation/resolved`);
+}
+
+export function listKpiTargets(
+  employeeId: string,
+  period?: string | undefined
+): Promise<{ targets: KpiTarget[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (period) {
+    searchParams.set("period", period);
+  }
+
+  const query = searchParams.toString();
+  return api<{ targets: KpiTarget[] }>(`/employees/${employeeId}/kpi${query ? `?${query}` : ""}`);
+}
+
+export function putKpiTarget(
+  employeeId: string,
+  body: KpiTargetInput
+): Promise<{ target: KpiTarget }> {
+  return api<{ target: KpiTarget }>(`/employees/${employeeId}/kpi`, {
+    method: "PUT",
+    body
+  });
+}
+
+export function listPerformance(
+  employeeId: string,
+  period?: string | undefined
+): Promise<{ scores: PerformanceScore[] }> {
+  const searchParams = new URLSearchParams();
+
+  if (period) {
+    searchParams.set("period", period);
+  }
+
+  const query = searchParams.toString();
+  return api<{ scores: PerformanceScore[] }>(
+    `/employees/${employeeId}/performance${query ? `?${query}` : ""}`
+  );
+}
+
+export function putPerformanceOverride(
+  employeeId: string,
+  body: PerformanceOverrideInput
+): Promise<{ score: PerformanceScore }> {
+  return api<{ score: PerformanceScore }>(`/employees/${employeeId}/performance`, {
+    method: "PUT",
+    body
+  });
 }
 
 export function listSiteVisits(params: {

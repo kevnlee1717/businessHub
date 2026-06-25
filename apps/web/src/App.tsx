@@ -8,6 +8,7 @@ import { CompensationPage } from "./pages/hr/CompensationPage";
 import { EmployeesPage } from "./pages/hr/EmployeesPage";
 import { HrLayout } from "./pages/hr/HrLayout";
 import { PayrollPage } from "./pages/hr/PayrollPage";
+import { PerformancePage } from "./pages/hr/PerformancePage";
 import { SiteVisitsPage } from "./pages/hr/SiteVisitsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { CompaniesPage } from "./pages/settings/CompaniesPage";
@@ -30,6 +31,7 @@ export function App() {
             <Route path="clock-points" element={<ClockPointsPage />} />
             <Route path="site-visits" element={<SiteVisitsPage />} />
             <Route path="compensation" element={<CompensationPage />} />
+            <Route path="performance" element={<PerformancePage />} />
           </Route>
           <Route path="business" element={<DashboardPage />} />
           <Route path="documents" element={<DashboardPage />} />

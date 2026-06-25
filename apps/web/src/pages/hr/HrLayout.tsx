@@ -8,7 +8,8 @@ const tabs = [
   { value: "payroll", path: "/hr/payroll", labelKey: "hr.tabs.payroll" },
   { value: "clock-points", path: "/hr/clock-points", labelKey: "hr.tabs.clockPoints" },
   { value: "site-visits", path: "/hr/site-visits", labelKey: "hr.tabs.siteVisits" },
-  { value: "compensation", path: "/hr/compensation", labelKey: "hr.tabs.compensation" }
+  { value: "compensation", path: "/hr/compensation", labelKey: "hr.tabs.compensation" },
+  { value: "performance", path: "/hr/performance", labelKey: "hr.tabs.performance" }
 ] as const;
 
 export function HrLayout() {

@@ -27,6 +27,7 @@
     "cancel": "取消",
     "yes": "是",
     "no": "否",
+    "all": "全部",
     "not_available": "-",
     "unknown_error": "发生未知错误"
   },
@@ -40,7 +41,8 @@
       "payroll": "工资",
       "clockPoints": "打卡点",
       "siteVisits": "外勤",
-      "compensation": "薪酬配置"
+      "compensation": "薪酬配置",
+      "performance": "绩效/KPI"
     },
     "employees": {
       "title": "员工管理",
@@ -176,6 +178,48 @@
       "default_commission_type": "默认提成类型",
       "default_commission_value": "默认提成值",
       "payday": "发薪日"
+    }
+  },
+  "performance": {
+    "title": "绩效/KPI",
+    "selectEmployeeHint": "请选择员工查看 KPI 和绩效评分。",
+    "overrideHint": "override 留空表示采用系统 auto 值；百分比字段留空会清除该项人工覆盖。",
+    "filters": {
+      "employee": "员工",
+      "period": "期间"
+    },
+    "kpi": {
+      "title": "KPI 目标",
+      "upsert": "新增/更新 KPI",
+      "empty": "暂无 KPI 目标"
+    },
+    "scores": {
+      "title": "绩效评分",
+      "adjust": "人工调整",
+      "empty": "暂无绩效评分",
+      "periodScore": "月度评分",
+      "editingPeriod": "正在调整 {{period}}"
+    },
+    "fields": {
+      "period": "期间",
+      "metric": "指标",
+      "target": "目标",
+      "actual": "实际",
+      "achievementPct": "达成率",
+      "auto": "auto 值",
+      "override": "override 值",
+      "effective": "生效值"
+    },
+    "metrics": {
+      "attendance_qualified": "考勤达标",
+      "task_completion_pct": "任务完成率",
+      "task_satisfaction_pct": "任务满意度",
+      "kpi_pct": "KPI 达成率"
+    },
+    "values": {
+      "qualified": "达标",
+      "unqualified": "未达标",
+      "noAdjust": "不调整"
     }
   },
   "payslip": {
