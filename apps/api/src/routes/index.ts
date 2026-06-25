@@ -8,6 +8,7 @@ import { registerCompanyRoutes } from "./companies";
 import { registerCompensationRoutes } from "./compensation";
 import { registerDiplomaRoutes } from "./diploma";
 import { registerEmployeeRoutes } from "./employees";
+import { registerEnglishRoutes } from "./english";
 import { registerFaceChallengeRoutes } from "./faceChallenges";
 import { registerHealthRoutes } from "./health";
 import { registerKpiRoutes } from "./kpi";
@@ -47,4 +48,5 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerStudentRoutes);
   await app.register(registerDiplomaRoutes);
   await app.register(registerWsqRoutes);
+  await app.register(registerEnglishRoutes);
 }

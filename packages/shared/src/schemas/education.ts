@@ -45,6 +45,44 @@ export const wsqEnrollmentCreateSchema = z.object({
   billing_id: uuidField.nullable().optional()
 });
 
+export const englishLevelCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  name_en: optionalText,
+  level: z.number().int().nullable().optional(),
+  price_sgd: z.union([z.string(), z.number()]).nullable().optional(),
+  duration: optionalText
+});
+
+export const englishLevelUpdateSchema = englishLevelCreateSchema.partial();
+
+export const englishClassCreateSchema = z.object({
+  level_id: uuidField.nullable().optional(),
+  teacher_id: uuidField.nullable().optional(),
+  schedule: optionalText,
+  start_date: dateString.optional(),
+  end_date: dateString.optional()
+});
+
+export const englishClassUpdateSchema = englishClassCreateSchema.partial();
+
+export const englishEnrollmentCreateSchema = z.object({
+  student_id: uuidField,
+  class_id: uuidField.nullable().optional(),
+  level_id: uuidField.nullable().optional(),
+  enroll_date: dateString.optional(),
+  billing_id: uuidField.nullable().optional()
+});
+
+export const englishAttendanceMarkSchema = z.object({
+  session_date: dateString,
+  present: z.boolean()
+});
+
+export const englishClassAttendanceSchema = z.object({
+  session_date: dateString,
+  present_enrollment_ids: z.array(uuidField)
+});
+
 export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
 export type DiplomaEnrollmentCreateInput = z.infer<typeof diplomaEnrollmentCreateSchema>;
@@ -52,3 +90,10 @@ export type DiplomaEnrollmentUpdateInput = z.infer<typeof diplomaEnrollmentUpdat
 export type WsqCourseCreateInput = z.infer<typeof wsqCourseCreateSchema>;
 export type WsqCourseUpdateInput = z.infer<typeof wsqCourseUpdateSchema>;
 export type WsqEnrollmentCreateInput = z.infer<typeof wsqEnrollmentCreateSchema>;
+export type EnglishLevelCreateInput = z.infer<typeof englishLevelCreateSchema>;
+export type EnglishLevelUpdateInput = z.infer<typeof englishLevelUpdateSchema>;
+export type EnglishClassCreateInput = z.infer<typeof englishClassCreateSchema>;
+export type EnglishClassUpdateInput = z.infer<typeof englishClassUpdateSchema>;
+export type EnglishEnrollmentCreateInput = z.infer<typeof englishEnrollmentCreateSchema>;
+export type EnglishAttendanceMarkInput = z.infer<typeof englishAttendanceMarkSchema>;
+export type EnglishClassAttendanceInput = z.infer<typeof englishClassAttendanceSchema>;
