@@ -18,6 +18,7 @@ import { EducationLayout } from "./pages/education/EducationLayout";
 import { EnglishPage } from "./pages/education/EnglishPage";
 import { StudentsPage } from "./pages/education/StudentsPage";
 import { WsqPage } from "./pages/education/WsqPage";
+import { BillingPage } from "./pages/finance/BillingPage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
 import { CompensationPage } from "./pages/hr/CompensationPage";
@@ -71,6 +72,7 @@ export function App() {
             <Route path="contracts" element={<ContractsPage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
+          <Route path="finance" element={<BillingPage />} />
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />
             <Route path="companies" element={<CompaniesPage />} />

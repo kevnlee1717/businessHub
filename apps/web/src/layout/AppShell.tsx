@@ -20,6 +20,7 @@ const navItems = [
   { to: "/business", key: "nav.business" },
   { to: "/education", key: "nav.education" },
   { to: "/documents", key: "nav.documents" },
+  { to: "/finance", key: "nav.finance" },
   { to: "/settings", key: "nav.settings" }
 ] as const;
 

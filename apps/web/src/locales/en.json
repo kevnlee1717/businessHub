@@ -8,6 +8,7 @@
     "business": "Business",
     "education": "Education",
     "documents": "Documents",
+    "finance": "Finance",
     "settings": "Settings"
   },
   "auth": {
@@ -752,5 +753,75 @@
     "enrollment": "Enrollment",
     "company": "Company",
     "client": "Client"
+  },
+  "billing": {
+    "title": "Billing",
+    "add": "New billing",
+    "edit": "Edit billing",
+    "detail": "Details",
+    "detailTitle": "Billing details",
+    "empty": "No billings yet",
+    "selectHint": "Select a billing to view payments and price adjustments.",
+    "refIdHint": "Enter case or enrollment ID",
+    "filters": {
+      "refType": "Reference type",
+      "status": "Status"
+    },
+    "fields": {
+      "refType": "Reference type",
+      "refId": "Reference ID",
+      "totalPriceSgd": "Total SGD",
+      "depositSgd": "Deposit SGD",
+      "status": "Status",
+      "sales": "Sales",
+      "commissionType": "Commission type",
+      "commissionValue": "Commission value",
+      "commissionAmountSgd": "Commission SGD",
+      "paidTotal": "Paid SGD",
+      "balance": "Balance SGD"
+    }
+  },
+  "billingRefType": {
+    "ep": "EP",
+    "ica": "ICA",
+    "diploma": "Adult diploma",
+    "english": "Adult English",
+    "wsq": "WSQ"
+  },
+  "billingStatus": {
+    "unpaid": "Unpaid",
+    "partial": "Partial",
+    "paid": "Paid"
+  },
+  "payment": {
+    "title": "Payments",
+    "add": "Record payment",
+    "empty": "No payments yet",
+    "fxRateHint": "RMB payments require an FX rate",
+    "fxRateRequired": "RMB payments require an FX rate",
+    "fields": {
+      "paidCurrency": "Paid currency",
+      "paidAmount": "Paid amount",
+      "fxRate": "FX rate",
+      "sgdEquivalent": "SGD equivalent",
+      "type": "Payment type",
+      "paidAt": "Paid at",
+      "note": "Note"
+    }
+  },
+  "paymentType": {
+    "deposit": "Deposit",
+    "final": "Final",
+    "installment": "Installment"
+  },
+  "priceAdjustment": {
+    "title": "Price adjustments",
+    "empty": "No price adjustments yet",
+    "fields": {
+      "field": "Field",
+      "oldValue": "Old value",
+      "newValue": "New value",
+      "changedAt": "Changed at"
+    }
   }
 }

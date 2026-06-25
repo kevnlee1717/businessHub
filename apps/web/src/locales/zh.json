@@ -8,6 +8,7 @@
     "business": "业务",
     "education": "教育",
     "documents": "文档",
+    "finance": "财务",
     "settings": "设置"
   },
   "auth": {
@@ -752,5 +753,75 @@
     "enrollment": "报名",
     "company": "公司",
     "client": "客户"
+  },
+  "billing": {
+    "title": "账单管理",
+    "add": "新建账单",
+    "edit": "编辑账单",
+    "detail": "明细",
+    "detailTitle": "账单明细",
+    "empty": "暂无账单",
+    "selectHint": "请选择账单查看收款记录和改价记录。",
+    "refIdHint": "填写案件或报名 ID",
+    "filters": {
+      "refType": "关联类型",
+      "status": "状态"
+    },
+    "fields": {
+      "refType": "关联类型",
+      "refId": "关联 ID",
+      "totalPriceSgd": "总价 SGD",
+      "depositSgd": "定金 SGD",
+      "status": "状态",
+      "sales": "销售",
+      "commissionType": "提成类型",
+      "commissionValue": "提成值",
+      "commissionAmountSgd": "提成 SGD",
+      "paidTotal": "已收 SGD",
+      "balance": "余额 SGD"
+    }
+  },
+  "billingRefType": {
+    "ep": "EP",
+    "ica": "ICA",
+    "diploma": "成人大专",
+    "english": "成人英语",
+    "wsq": "WSQ"
+  },
+  "billingStatus": {
+    "unpaid": "未收款",
+    "partial": "部分收款",
+    "paid": "已收清"
+  },
+  "payment": {
+    "title": "收款记录",
+    "add": "记一笔收款",
+    "empty": "暂无收款记录",
+    "fxRateHint": "RMB 收款必须填写汇率",
+    "fxRateRequired": "RMB 收款必须填写汇率",
+    "fields": {
+      "paidCurrency": "收款币种",
+      "paidAmount": "收款金额",
+      "fxRate": "汇率",
+      "sgdEquivalent": "折合 SGD",
+      "type": "收款类型",
+      "paidAt": "收款时间",
+      "note": "备注"
+    }
+  },
+  "paymentType": {
+    "deposit": "定金",
+    "final": "尾款",
+    "installment": "分期"
+  },
+  "priceAdjustment": {
+    "title": "改价记录",
+    "empty": "暂无改价记录",
+    "fields": {
+      "field": "字段",
+      "oldValue": "原值",
+      "newValue": "新值",
+      "changedAt": "修改时间"
+    }
   }
 }
