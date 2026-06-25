@@ -29,18 +29,33 @@
 | 检索 | **先做元数据搜索**；全文检索（提取正文）以后再加 |
 | 到期提醒 | 先不做，只存文件 |
 | 公司费用 | 月租等**记金额 + 费用统计**，可挂文件 |
+| 系统入口 | PC 后台（管理）+ 移动 App（考勤/外勤，Capacitor 原生）共享同一后端 |
+| 考勤 | 一人多打卡点；外出销售用 GPS+人脸打卡、到点 faceid+照片+GPS 外勤汇报、后台 GPS 轨迹（参考 ifm） |
+| 人脸识别 | 复用 ifm 的 Python 人脸微服务方案，businessHub 自建实例（用商用模型 webface_r50） |
 
 ---
 
 ## 1. 技术栈
 
+**PC 后台（主入口）**
 - **后端**：Fastify + Drizzle ORM + PostgreSQL（轻量、贴合团队熟悉的 Drizzle）
 - **前端**：React + Vite + **Mantine**（组件齐全、轻量、适合表格/表单/审批流多的内部系统）
 - **i18n**：react-i18next（中/英 JSON 两份，右上角一键切换）
-- **数据请求**：TanStack Query
-- **表单**：react-hook-form + zod
+- **数据请求**：TanStack Query；**表单**：react-hook-form + zod
 - **共享**：zod schema + 类型在 `packages/shared` 一处定义，前后端共用
 - **文件预览**：PDF（pdf.js）、图片（原生）、Word（服务端转 PDF 预览）；全部可下载
+
+**移动端（考勤 / 外勤入口，参考 ifm）**
+- **Capacitor** 把 React 包成 iOS/Android 原生 App（后台 GPS 必须原生，PWA 做不到）
+- 插件：`@capacitor/geolocation`（定位）、`@transistorsoft/capacitor-background-geolocation`（后台持续轨迹）、`@capacitor-community/sqlite`（离线点位队列）、`@capacitor/preferences`
+- 前端活体：`@mediapipe/tasks-vision`（眨眼/张嘴/转头动作）+ 炫光颜色挑战；`browser-image-compression`（压图）
+- 地图：`leaflet`（轨迹/点位可视化）
+
+**人脸识别微服务（复用 ifm 方案，businessHub 自有实例）**
+- 独立 **Python FastAPI** 服务（端口 17010，自己的 systemd 单元 `Restart=always`）
+- InsightFace **`webface_r50`**（512 维，可商用 license；**不用 buffalo_l**）+ Silent-Face 活体（onnxruntime）
+- API：`/v1/embed`、`/v1/compare`、`/v1/liveness`、`/healthz`
+- 代码从 `~/project/ifm/face-service` 拷入 `services/face`，不依赖 ifm 运行实例
 
 ### 仓库结构（pnpm monorepo）
 
@@ -48,10 +63,13 @@
 businessHub/
 ├─ apps/
 │  ├─ api/        # Fastify + Drizzle 后端
-│  └─ web/        # React + Vite + Mantine 前端
+│  ├─ web/        # PC 后台 React + Vite + Mantine
+│  └─ mobile/     # 移动端 React + Capacitor（考勤/外勤）
 ├─ packages/
 │  ├─ shared/     # 共享 zod schema、类型、枚举、i18n key
 │  └─ db/         # Drizzle schema + migrations
+├─ services/
+│  └─ face/       # Python FastAPI 人脸微服务（拷自 ifm，用 webface_r50）
 └─ docker-compose.yml   # PostgreSQL + 后续部署
 ```
 
@@ -62,7 +80,7 @@ businessHub/
 三个功能层 + 一个横跨全系统的文档层，构建顺序自上而下：
 
 1. **平台地基层**：登录/员工、角色权限、文档模型、金额&账单&收款、提成引擎
-2. **人事层**：考勤、任务、工资（CPF/劳工税/公积金 + 发放与缴纳记录）
+2. **人事层**：考勤（多打卡点 / 人脸 / GPS 外勤汇报 / 轨迹）、任务、工资（绩效组合 + CPF/劳工税/公积金 + 发放与缴纳记录）
 3. **业务层**：
    - 案件流程引擎：EP 申请 + ICA 申诉（共用可配置多步骤引擎）
    - 教育模块：成人大专、成人英语、WSQ
@@ -81,10 +99,13 @@ businessHub/
 **employees（员工，同时是登录账号）**
 - 基本信息：name, name_en, email, phone, password_hash
 - `role`：单一角色枚举（见 §4）
+- `company_id`：所属公司（见 §3.5 companies）
+- `position_id`：岗位（见 §3.3 positions）
 - `employment_type`：full_time / part_time
 - `status`：active / left；join_date
-- `payroll_scheme`：`cpf`（新加坡公民/PR）｜`levy`（马来/外籍劳工税）｜`china_fund`（中国公积金）｜`none`
-- `base_salary` + `salary_currency`（SGD / RMB）
+- `payroll_scheme`：`cpf`（新加坡公民/PR）｜`levy`（马来/外籍劳工税）｜`china_fund`（中国公积金）｜`none`（**个人属性，可空**）
+- `salary_currency`：SGD / RMB
+- 具体薪酬（底薪 / 各项奖金 / 提成默认 / 发薪日）来自薪酬配置（见 §3.3），不直接存在员工上
 
 **document_categories（文件分类，可管理）**
 - id, name, name_en, parent_id（可选层级）, is_system（系统种子）, active
@@ -151,35 +172,94 @@ businessHub/
 
 ### 3.3 人事层
 
-**attendance（考勤）**
-- id, employee_id, date, check_in, check_out
-- `status`：present / leave / absent；note
-- 员工/老师/摄影师都能打
+**考勤**：含多打卡点、人脸验证、GPS 围栏、外勤汇报、轨迹跟踪，详见 §3.6（员工/老师/摄影师都能打）。按天汇总的 `attendance_days.status` 直接喂给绩效评分的"全勤达标"判定。
 
 **tasks（任务管理）**
 - id, title, description, assignee_id, creator_id, due_date
-- `status`：todo / doing / done；priority
+- `status`：todo / doing / done；priority；`completed_at`、`on_time`（是否按时完成，自动判断）
+- `satisfaction_rating`（满意度评分 1–5）、`rated_by`、`rated_at`（**由任务创建人/派发人打分**）
 - 可关联案件/课程（ref_type + ref_id）；可带附件
 
-**payroll_settings（系统工资配置，可配置不写死）**
-- CPF 比例（按年龄段：员工部分 / 雇主部分）
-- 劳工税额（levy）
-- 中国公积金比例
-- 费率会变 → 全部可配
+工资不是固定数字，而是 **绩效组合工资**：底薪 + 各项奖金×对应绩效得分 + 提成 − 法定扣除。
 
-**payslips（工资单 = 发放记录）**
+#### 薪酬配置（两层：公司×岗位模板 + 个人覆盖）
+
+**positions（岗位）**：id, name, name_en, note
+
+**compensation_templates（薪酬模板，按 公司 × 岗位）**
+- id, company_id, position_id（唯一组合）
+- `base_salary`（底薪）、`salary_currency`
+- `attendance_bonus`（全勤奖，**达标制**）
+- `task_completion_bonus`（任务完成度奖，**百分比折算**）
+- `task_satisfaction_bonus`（任务满意度奖，**百分比折算**）
+- `kpi_bonus`（KPI 奖，**百分比折算**）
+- `default_commission_type` / `default_commission_value`（提成默认）
+- `payday`（发薪日 1–28）
+- 所有字段可空
+
+**employee_compensation（个人薪酬覆盖）**
+- id, employee_id（唯一）
+- 与模板相同的全套字段，**全部可空**
+- 取值顺序：个人值 ?? 模板值（公司×岗位）?? 不适用/0
+
+> CPF / 劳工税 / 公积金是否适用看员工的 `payroll_scheme`（个人属性，可空）。
+
+#### 绩效评分（月度，系统自动算 + 可人工调）
+
+**performance_scores（每员工每月一行）**
 - id, employee_id, period（月份）
-- base, allowances, `commission_total`（当月成交单算出）
-- `cpf_employee`, `cpf_employer`, `levy`, `china_fund`（按 payroll_scheme 计）
+- `attendance_qualified`：是否全勤达标（bool）
+- `task_completion_pct`：按时完成的到期任务比例
+- `task_satisfaction_pct`：当月被评分任务满意度均值归一
+- `kpi_pct`：KPI 达成率
+- 每项存 `auto_value`（系统算）+ `manual_override`（可空）；最终取 override ?? auto
+
+自动算规则（默认，阈值可在 payroll_settings 配）：
+- 全勤达标：当月无缺勤/迟到（允许迟到次数可配）→ bool
+- 任务完成度：当月到期任务中按时完成的比例
+- 任务满意度：当月被评分任务满意度均值归一到 %
+- KPI 达成：见 kpi_targets，封顶 100%（可配是否允许超 100%）
+
+**kpi_targets（KPI 目标，主要给销售，可空表示无 KPI）**
+- id, employee_id, period, `metric`（如成交额 / 成交单数）, `target`, `actual`（可系统从 billing/cases 自动算或人工填）, `achievement_pct`
+
+#### 月工资计算 + 发放/缴纳记录
+
+**payslips（工资单 = 发放记录，绩效组合）**
+- id, employee_id, period、`payday`（该期计划发薪日）
+- `base_salary`
+- `attendance_bonus_paid` = 达标 ? 全勤奖 : 0
+- `task_completion_bonus_paid` = 任务完成度奖 × task_completion_pct
+- `task_satisfaction_bonus_paid` = 任务满意度奖 × task_satisfaction_pct
+- `kpi_bonus_paid` = KPI 奖 × kpi_pct
+- `commission_total`（当月成交单算出）
+- `gross`、`cpf_employee` / `cpf_employer` / `levy` / `china_fund`（按 payroll_scheme，可空）、`other_deductions`
 - `net_pay`, currency
 - `status`：draft / paid；paid_at, paid_by
 - **所有发放都有记录**
+
+计算公式：
+
+```
+全勤奖   = attendance_qualified ? attendance_bonus : 0          (达标制)
+完成度奖 = task_completion_bonus   × task_completion_pct        (百分比折算)
+满意度奖 = task_satisfaction_bonus × task_satisfaction_pct      (百分比折算)
+KPI 奖   = kpi_bonus × kpi_pct                                  (百分比折算)
+gross    = base_salary + 全勤奖 + 完成度奖 + 满意度奖 + KPI 奖 + commission_total
+net_pay  = gross − cpf_employee − levy − china_fund − other_deductions
+```
+
+**payroll_settings（系统工资配置，可配不写死）**
+- CPF 比例（按年龄段：员工部分 / 雇主部分）
+- 劳工税额（levy）、中国公积金比例
+- 全勤达标阈值（允许迟到次数等）、KPI 是否封顶 100%
+- 费率/规则会变 → 全部可配
 
 **statutory_payments（缴税/缴金记录）**
 - id, type（cpf / levy / china_fund）, period, employee_id（或批次）, amount, paid_at, reference
 - **CPF / 劳工税 / 公积金各自有缴纳记录**
 
-> 提成流转：单据成交/收款后算出销售提成 → 工资期内汇总进该员工 payslip 的 commission_total。
+> 提成流转：单据成交/收款后算出销售提成 → 工资期内汇总进 payslip 的 commission_total。
 
 ### 3.4 业务层 · 教育模块（学生现仅为数据，不登录）
 
@@ -229,6 +309,65 @@ businessHub/
 
 **检索（v1：元数据）**：按 客户 / 公司 / 分类 / 标签 / 日期 / 文件名 过滤。全文检索（上传时提取 PDF/Word 正文建索引）列为后续增强。
 
+### 3.6 考勤与外勤（参考 ifm，复用其方案）
+
+照片（自拍/现场照）一律走 §3.1 的 `documents` 模型，按 `uploads/visits/YYYY/MM/<uuid>.<ext>` 分目录存。
+
+#### 打卡点（一人多打卡点）
+
+**clock_points（打卡点）**：id, name, name_en, `lat`, `lng`, `radius_m`（围栏半径，默认 200）, company_id（可选关联公司）, active
+
+**employee_clock_points（员工 ↔ 打卡点，多对多）**：employee_id, clock_point_id → **一人多打卡点** ✓
+
+**work_shifts（班次，判定迟到/早退）**：按角色/岗位或个人，`start_min` / `end_min`（如 540/1020 = 09:00–17:00 SGT）、`allowed_late_count`（允许迟到次数）
+
+#### 人脸（沿用 ifm 表结构）
+
+**face_baselines（人脸基线，员工的"人脸身份证"）**
+- id, employee_id（同时仅 1 个活跃，唯一索引 where retired_at is null）
+- `photo_path`、`embedding`（bytea，512×4 字节 Float32）、`embedding_model`（webface_r50）、`embedding_dim`
+- enrolled_at, retired_at（换模型时弃用旧基线）
+
+**face_challenges（每次扫脸事件）**
+- id, employee_id, `purpose`（BASELINE_ENROLL / RANDOM_CHECK / ATTENDANCE / VISIT_CHECKIN）
+- `status`（PENDING_PUSH / PUSHED / PASSED / FAILED / TIMEOUT / ABORTED）
+- `nonce`（防重放）、`similarity`、`liveness_action_passed`、`liveness_color_score`、`baseline_id`、`failure_reason`
+- 关联：related_attendance_id / related_site_visit_id；client_ip, user_agent, 时间戳
+- 阈值（可配）：人脸相似度 >0.55、活体 >0.5、人脸质量 det_score >0.5
+
+#### 打卡记录
+
+**attendance_records（打卡明细）**
+- id, employee_id, `work_date`（YYYY-MM-DD, SGT）, `kind`（CLOCK_IN / CLOCK_OUT）, `clocked_at`
+- `clock_point_id`、`lat`、`lng`、`distance_m`（Haversine 到最近打卡点）、`in_geofence`
+- `face_challenge_id`、`face_pass`、`face_similarity`
+- `deviation_minutes`（迟到/早退分钟）、`reason`、`method`（fixed_point / gps / face）
+- UNIQUE(employee_id, work_date, kind)
+
+**attendance_days（按天汇总）**
+- id, employee_id, work_date, clock_in_id, clock_out_id
+- `status`：PRESENT / LATE / EARLY_LEAVE / LATE_AND_EARLY / INCOMPLETE / ABSENT
+- UNIQUE(employee_id, work_date)；**直接喂绩效评分的全勤达标**
+
+#### 外勤汇报（sitevisit）
+
+**site_visits（外勤汇报）**
+- id, employee_id, `client_id`（拜访对象，可事后关联）, `captured_at`, `synced_at`
+- `lat`、`lng`、`accuracy`、`address`（可逆地理编码）
+- `selfie_document_id`（人脸自拍）、`site_photo_document_ids`（现场照数组，最多 20 张）
+- `face_challenge_id`、`face_status`（PENDING / PASSED / FAILED / SKIPPED）、`face_similarity`
+- `note`、`status`（PENDING / VERIFIED / REJECTED_DISTANCE / REJECTED_FACE / MANUAL_OVERRIDE）
+- 流程：移动端 multipart 上传 自拍+现场照+GPS+备注 → 服务端存盘 + 人脸比对基线 → 可事后关联客户
+
+#### GPS 轨迹（销售外出持续定位）
+
+**gps_tracks（轨迹点）**
+- id, employee_id, `recorded_at`（设备本地）, `received_at`（服务端）
+- `lat`、`lng`、`accuracy`、`altitude`、`speed`、`heading`、`battery_level`、`is_moving`
+- `trigger`（TIME / MOTION / MANUAL）、`device_id`、`app_state`（FOREGROUND / BACKGROUND / TERMINATED）
+- employees 加 `gps_tracking_enabled`（是否对该员工开启后台轨迹）
+- 采集：Capacitor 后台定位 + 本地 SQLite 队列 + 30 秒批量上报 `/api/tracking/points`；leaflet 画轨迹
+
 ---
 
 ## 4. 角色与权限（RBAC）
@@ -270,3 +409,5 @@ businessHub/
 - ICA 申诉的详细步骤流程
 - CPF / 劳工税 / 公积金的具体费率
 - 各业务的默认提成数字
+- 各岗位薪酬包数字（底薪 / 各项奖金）、KPI 指标定义、全勤达标规则
+- 各打卡点坐标与围栏半径、班次时间（迟到/早退判定）、人脸/活体阈值是否沿用 ifm 默认
