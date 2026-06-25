@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { join } from "node:path";
@@ -15,6 +16,8 @@ import { registerRoutes } from "./routes/index";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const uploadRoot = join(__dirname, "../../..", "uploads");
+const webDist = join(__dirname, "../../web/dist");
+const webIndex = join(webDist, "index.html");
 
 function isHttpError(error: unknown): error is { statusCode: number; message: string } {
   return (
@@ -90,7 +93,27 @@ export async function buildApp() {
     });
   });
 
-  await registerRoutes(app);
+  await app.register(registerRoutes, { prefix: "/api" });
+
+  if (existsSync(webIndex)) {
+    const indexHtml = readFileSync(webIndex);
+
+    await app.register(fastifyStatic, {
+      root: webDist,
+      prefix: "/",
+      decorateReply: false
+    });
+
+    app.setNotFoundHandler((request, reply) => {
+      const url = request.raw.url ?? "";
+
+      if (url.startsWith("/api") || url.startsWith("/uploads")) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+
+      return reply.type("text/html").send(indexHtml);
+    });
+  }
 
   return app;
 }
