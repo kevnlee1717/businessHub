@@ -74,6 +74,73 @@
       "workShifts": "Work shifts"
     }
   },
+  "business": {
+    "tabs": {
+      "cases": "Cases",
+      "clients": "Clients",
+      "templates": "Workflow templates"
+    }
+  },
+  "case": {
+    "title": "Case Management"
+  },
+  "client": {
+    "title": "Client Management",
+    "add": "Add client",
+    "edit": "Edit client",
+    "empty": "No clients yet",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "phone": "Phone",
+      "email": "Email",
+      "note": "Note"
+    }
+  },
+  "template": {
+    "title": "Workflow templates",
+    "add": "Add template",
+    "edit": "Edit template",
+    "empty": "No workflow templates yet",
+    "filters": {
+      "businessType": "Business type"
+    },
+    "fields": {
+      "businessType": "Business type",
+      "name": "Name"
+    }
+  },
+  "templateStep": {
+    "title": "Template steps",
+    "add": "Add step",
+    "edit": "Edit step",
+    "empty": "No steps yet",
+    "selectHint": "Select a template to view steps.",
+    "confirmDelete": "Delete step {{name}}?",
+    "fields": {
+      "stepOrder": "Order",
+      "name": "Name",
+      "nameEn": "English name",
+      "description": "Description",
+      "defaultAssigneeRole": "Default assignee role",
+      "requiredDocuments": "Required documents"
+    }
+  },
+  "requiredDoc": {
+    "title": "Required documents",
+    "add": "Add document",
+    "empty": "No required documents yet",
+    "invalid": "Check required document names.",
+    "fields": {
+      "name": "Document name",
+      "nameEn": "English name",
+      "required": "Required"
+    }
+  },
+  "businessType": {
+    "ep": "EP",
+    "ica": "ICA"
+  },
   "company": {
     "title": "Company Management",
     "add": "Add company",

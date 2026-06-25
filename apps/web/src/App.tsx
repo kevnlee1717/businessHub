@@ -2,6 +2,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
+import { BusinessLayout } from "./pages/business/BusinessLayout";
+import { CasesPage } from "./pages/business/CasesPage";
+import { ClientsPage } from "./pages/business/ClientsPage";
+import { TemplatesPage } from "./pages/business/TemplatesPage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
 import { CompensationPage } from "./pages/hr/CompensationPage";
@@ -33,7 +37,12 @@ export function App() {
             <Route path="compensation" element={<CompensationPage />} />
             <Route path="performance" element={<PerformancePage />} />
           </Route>
-          <Route path="business" element={<DashboardPage />} />
+          <Route path="business" element={<BusinessLayout />}>
+            <Route index element={<Navigate to="cases" replace />} />
+            <Route path="cases" element={<CasesPage />} />
+            <Route path="clients" element={<ClientsPage />} />
+            <Route path="templates" element={<TemplatesPage />} />
+          </Route>
           <Route path="documents" element={<DashboardPage />} />
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />

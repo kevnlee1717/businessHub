@@ -74,6 +74,73 @@
       "workShifts": "班次"
     }
   },
+  "business": {
+    "tabs": {
+      "cases": "案件",
+      "clients": "客户",
+      "templates": "流程模板"
+    }
+  },
+  "case": {
+    "title": "案件管理"
+  },
+  "client": {
+    "title": "客户管理",
+    "add": "新增客户",
+    "edit": "编辑客户",
+    "empty": "暂无客户",
+    "fields": {
+      "name": "姓名",
+      "nameEn": "英文名",
+      "phone": "电话",
+      "email": "邮箱",
+      "note": "备注"
+    }
+  },
+  "template": {
+    "title": "流程模板",
+    "add": "新增模板",
+    "edit": "编辑模板",
+    "empty": "暂无流程模板",
+    "filters": {
+      "businessType": "业务类型"
+    },
+    "fields": {
+      "businessType": "业务类型",
+      "name": "名称"
+    }
+  },
+  "templateStep": {
+    "title": "模板步骤",
+    "add": "新增步骤",
+    "edit": "编辑步骤",
+    "empty": "暂无步骤",
+    "selectHint": "请选择模板查看步骤。",
+    "confirmDelete": "确定删除步骤 {{name}}？",
+    "fields": {
+      "stepOrder": "顺序",
+      "name": "名称",
+      "nameEn": "英文名",
+      "description": "说明",
+      "defaultAssigneeRole": "默认负责人角色",
+      "requiredDocuments": "所需文件"
+    }
+  },
+  "requiredDoc": {
+    "title": "所需文件",
+    "add": "新增文件",
+    "empty": "暂无所需文件",
+    "invalid": "请检查所需文件名称。",
+    "fields": {
+      "name": "文件名",
+      "nameEn": "英文名",
+      "required": "必需"
+    }
+  },
+  "businessType": {
+    "ep": "EP",
+    "ica": "ICA"
+  },
   "company": {
     "title": "公司管理",
     "add": "新增公司",
