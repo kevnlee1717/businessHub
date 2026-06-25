@@ -25,6 +25,8 @@
     "edit": "编辑",
     "delete": "删除",
     "view": "查看",
+    "preview": "预览",
+    "search": "检索",
     "back": "返回",
     "upload": "上传",
     "save": "保存",
@@ -621,5 +623,60 @@
     "passed": "通过",
     "failed": "失败",
     "skipped": "跳过"
+  },
+  "documents": {
+    "tabs": {
+      "search": "检索",
+      "clientLibrary": "客户资料库",
+      "company": "公司",
+      "contracts": "合同",
+      "categories": "分类"
+    }
+  },
+  "document": {
+    "search": {
+      "title": "文档检索",
+      "submit": "检索",
+      "empty": "暂无文档"
+    },
+    "upload": {
+      "title": "上传文档",
+      "fileRequired": "请选择文件",
+      "tagsPlaceholder": "多个标签用逗号分隔"
+    },
+    "clientLibrary": {
+      "title": "客户资料库",
+      "selectClient": "选择客户",
+      "selectHint": "请选择客户查看资料库。",
+      "empty": "该客户暂无文档",
+      "count": "{{count}} 个文档"
+    },
+    "fields": {
+      "file": "文件",
+      "filename": "文件名",
+      "client": "客户",
+      "category": "分类",
+      "tag": "标签",
+      "tags": "标签",
+      "size": "大小",
+      "uploadedAt": "上传时间",
+      "dateFrom": "开始日期",
+      "dateTo": "结束日期",
+      "subjectType": "主体类型"
+    }
+  },
+  "documentCategory": {
+    "title": "文档分类",
+    "add": "新增分类",
+    "edit": "编辑分类",
+    "empty": "暂无分类",
+    "uncategorized": "未分类",
+    "systemReadonly": "系统分类",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "active": "启用",
+      "isSystem": "系统分类"
+    }
   }
 }

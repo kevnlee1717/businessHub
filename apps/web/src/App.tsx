@@ -7,6 +7,10 @@ import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { CasesPage } from "./pages/business/CasesPage";
 import { ClientsPage } from "./pages/business/ClientsPage";
 import { TemplatesPage } from "./pages/business/TemplatesPage";
+import { CategoriesPage } from "./pages/documents/CategoriesPage";
+import { ClientLibraryPage } from "./pages/documents/ClientLibraryPage";
+import { DocumentSearchPage } from "./pages/documents/DocumentSearchPage";
+import { DocumentsLayout, DocumentsPlaceholderPage } from "./pages/documents/DocumentsLayout";
 import { DiplomaPage } from "./pages/education/DiplomaPage";
 import { EducationLayout } from "./pages/education/EducationLayout";
 import { EnglishPage } from "./pages/education/EnglishPage";
@@ -57,7 +61,14 @@ export function App() {
             <Route path="english" element={<EnglishPage />} />
             <Route path="wsq" element={<WsqPage />} />
           </Route>
-          <Route path="documents" element={<DashboardPage />} />
+          <Route path="documents" element={<DocumentsLayout />}>
+            <Route index element={<Navigate to="search" replace />} />
+            <Route path="search" element={<DocumentSearchPage />} />
+            <Route path="client-library" element={<ClientLibraryPage />} />
+            <Route path="company" element={<DocumentsPlaceholderPage titleKey="documents.tabs.company" />} />
+            <Route path="contracts" element={<DocumentsPlaceholderPage titleKey="documents.tabs.contracts" />} />
+            <Route path="categories" element={<CategoriesPage />} />
+          </Route>
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />
             <Route path="companies" element={<CompaniesPage />} />

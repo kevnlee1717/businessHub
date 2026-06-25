@@ -25,6 +25,8 @@
     "edit": "Edit",
     "delete": "Delete",
     "view": "View",
+    "preview": "Preview",
+    "search": "Search",
     "back": "Back",
     "upload": "Upload",
     "save": "Save",
@@ -621,5 +623,60 @@
     "passed": "Passed",
     "failed": "Failed",
     "skipped": "Skipped"
+  },
+  "documents": {
+    "tabs": {
+      "search": "Search",
+      "clientLibrary": "Client library",
+      "company": "Company",
+      "contracts": "Contracts",
+      "categories": "Categories"
+    }
+  },
+  "document": {
+    "search": {
+      "title": "Document Search",
+      "submit": "Search",
+      "empty": "No documents yet"
+    },
+    "upload": {
+      "title": "Upload document",
+      "fileRequired": "Please choose a file",
+      "tagsPlaceholder": "Separate tags with commas"
+    },
+    "clientLibrary": {
+      "title": "Client Library",
+      "selectClient": "Select client",
+      "selectHint": "Select a client to view the library.",
+      "empty": "This client has no documents yet",
+      "count": "{{count}} documents"
+    },
+    "fields": {
+      "file": "File",
+      "filename": "Filename",
+      "client": "Client",
+      "category": "Category",
+      "tag": "Tag",
+      "tags": "Tags",
+      "size": "Size",
+      "uploadedAt": "Uploaded at",
+      "dateFrom": "Date from",
+      "dateTo": "Date to",
+      "subjectType": "Subject type"
+    }
+  },
+  "documentCategory": {
+    "title": "Document Categories",
+    "add": "Add category",
+    "edit": "Edit category",
+    "empty": "No categories yet",
+    "uncategorized": "Uncategorized",
+    "systemReadonly": "System category",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "active": "Active",
+      "isSystem": "System category"
+    }
   }
 }
