@@ -6,6 +6,8 @@ import {
   currencies,
   employeeStatuses,
   employmentTypes,
+  faceChallengeStatuses,
+  facePurposes,
   gpsTriggers,
   payrollSchemes,
   roles,
@@ -144,6 +146,26 @@ export const attendanceClockSchema = z.object({
   employee_id: optionalUuid
 });
 
+export const faceChallengeCreateSchema = z.object({
+  purpose: z.enum(facePurposes),
+  related_attendance_id: optionalUuid,
+  related_site_visit_id: optionalUuid
+});
+
+export const faceRandomCheckSchema = z.object({
+  employee_id: uuidField
+});
+
+export const faceChallengeResultSchema = z.object({
+  nonce: z.string().min(1),
+  status: z.enum(faceChallengeStatuses),
+  similarity: z.number().optional(),
+  liveness_action_passed: z.boolean().optional(),
+  liveness_color_score: z.number().optional(),
+  failure_reason: optionalText,
+  baseline_id: optionalUuid
+});
+
 export const siteVisitOverrideSchema = z.object({
   status: z.enum(siteVisitStatuses),
   reject_reason: optionalText
@@ -210,6 +232,9 @@ export type EmployeeClockPointsAssignInput = z.infer<typeof employeeClockPointsA
 export type CompensationTemplateInput = z.infer<typeof compensationTemplateSchema>;
 export type EmployeeCompensationInput = z.infer<typeof employeeCompensationSchema>;
 export type AttendanceClockInput = z.infer<typeof attendanceClockSchema>;
+export type FaceChallengeCreateInput = z.infer<typeof faceChallengeCreateSchema>;
+export type FaceRandomCheckInput = z.infer<typeof faceRandomCheckSchema>;
+export type FaceChallengeResultInput = z.infer<typeof faceChallengeResultSchema>;
 export type SiteVisitOverrideInput = z.infer<typeof siteVisitOverrideSchema>;
 export type GpsPointInput = z.infer<typeof gpsPointSchema>;
 export type GpsPointsBatchInput = z.infer<typeof gpsPointsBatchSchema>;
