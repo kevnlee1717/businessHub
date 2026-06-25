@@ -2,4 +2,5 @@ export * from "./enums";
 export * from "./permissions";
 export * from "./schemas/auth";
 export * from "./schemas/cases";
+export * from "./schemas/education";
 export * from "./schemas/hr";
