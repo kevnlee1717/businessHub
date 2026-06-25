@@ -1,12 +1,15 @@
 import { z } from "zod";
 import {
   attendanceKinds,
+  appStates,
   commissionTypes,
   currencies,
   employeeStatuses,
   employmentTypes,
+  gpsTriggers,
   payrollSchemes,
   roles,
+  siteVisitStatuses,
   statutoryTypes,
   taskPriorities,
   taskStatuses
@@ -141,6 +144,35 @@ export const attendanceClockSchema = z.object({
   employee_id: optionalUuid
 });
 
+export const siteVisitOverrideSchema = z.object({
+  status: z.enum(siteVisitStatuses),
+  reject_reason: optionalText
+});
+
+export const gpsPointSchema = z.object({
+  recorded_at: z.string().datetime(),
+  lat: z.number(),
+  lng: z.number(),
+  accuracy: z.number().optional(),
+  altitude: z.number().optional(),
+  speed: z.number().optional(),
+  heading: z.number().optional(),
+  battery_level: z.number().int().optional(),
+  is_moving: z.boolean().optional(),
+  trigger: z.enum(gpsTriggers).optional(),
+  device_id: optionalText,
+  app_state: z.enum(appStates).optional()
+});
+
+export const gpsPointsBatchSchema = z.object({
+  points: z.array(gpsPointSchema).min(1).max(50)
+});
+
+export const siteVisitQuerySchema = z.object({
+  employee_id: optionalUuid,
+  status: z.enum(siteVisitStatuses).optional()
+});
+
 export const kpiTargetSchema = z.object({
   period: monthString,
   metric: z.string().trim().min(1),
@@ -178,6 +210,10 @@ export type EmployeeClockPointsAssignInput = z.infer<typeof employeeClockPointsA
 export type CompensationTemplateInput = z.infer<typeof compensationTemplateSchema>;
 export type EmployeeCompensationInput = z.infer<typeof employeeCompensationSchema>;
 export type AttendanceClockInput = z.infer<typeof attendanceClockSchema>;
+export type SiteVisitOverrideInput = z.infer<typeof siteVisitOverrideSchema>;
+export type GpsPointInput = z.infer<typeof gpsPointSchema>;
+export type GpsPointsBatchInput = z.infer<typeof gpsPointsBatchSchema>;
+export type SiteVisitQueryInput = z.infer<typeof siteVisitQuerySchema>;
 export type KpiTargetInput = z.infer<typeof kpiTargetSchema>;
 export type PerformanceOverrideInput = z.infer<typeof performanceOverrideSchema>;
 export type StatutoryPaymentInput = z.infer<typeof statutoryPaymentSchema>;

@@ -10,8 +10,10 @@ import { registerKpiRoutes } from "./kpi";
 import { registerPayslipRoutes } from "./payslip";
 import { registerPerformanceRoutes } from "./performance";
 import { registerPositionRoutes } from "./positions";
+import { registerSiteVisitRoutes } from "./siteVisits";
 import { registerStatutoryRoutes } from "./statutory";
 import { registerTaskRoutes } from "./tasks";
+import { registerTrackingRoutes } from "./tracking";
 import { registerWorkShiftRoutes } from "./workShifts";
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
@@ -29,4 +31,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerPerformanceRoutes);
   await app.register(registerStatutoryRoutes);
   await app.register(registerPayslipRoutes);
+  await app.register(registerSiteVisitRoutes);
+  await app.register(registerTrackingRoutes);
 }
