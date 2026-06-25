@@ -29,6 +29,7 @@ import { PerformancePage } from "./pages/hr/PerformancePage";
 import { SiteVisitsPage } from "./pages/hr/SiteVisitsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { CompaniesPage } from "./pages/settings/CompaniesPage";
+import { IndustriesPage } from "./pages/settings/IndustriesPage";
 import { PositionsPage } from "./pages/settings/PositionsPage";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { WorkShiftsPage } from "./pages/settings/WorkShiftsPage";
@@ -78,6 +79,7 @@ export function App() {
             <Route path="companies" element={<CompaniesPage />} />
             <Route path="positions" element={<PositionsPage />} />
             <Route path="work-shifts" element={<WorkShiftsPage />} />
+            <Route path="industries" element={<IndustriesPage />} />
           </Route>
         </Route>
       </Route>

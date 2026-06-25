@@ -1,4 +1,5 @@
 export * from "./enums";
+export * from "./industries";
 export * from "./companies";
 export * from "./positions";
 export * from "./workShifts";

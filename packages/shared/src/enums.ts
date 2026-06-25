@@ -16,6 +16,9 @@ export type EmploymentType = (typeof employmentTypes)[number];
 export const employeeStatuses = ["active", "left"] as const;
 export type EmployeeStatus = (typeof employeeStatuses)[number];
 
+export const companyStatuses = ["normal", "suspended", "closed"] as const;
+export type CompanyStatus = (typeof companyStatuses)[number];
+
 export const payrollSchemes = ["cpf", "levy", "china_fund", "none"] as const;
 export type PayrollScheme = (typeof payrollSchemes)[number];
 

@@ -3,6 +3,7 @@ import {
   attendanceKinds,
   appStates,
   commissionTypes,
+  companyStatuses,
   currencies,
   employeeStatuses,
   employmentTypes,
@@ -56,12 +57,21 @@ const companyBaseSchema = z.object({
   name: z.string().trim().min(1),
   name_en: optionalText,
   uen: optionalText,
-  status: optionalText,
+  industry_id: uuidField.nullable().optional(),
+  status: z.enum(companyStatuses).optional(),
   note: nullableOptionalText
 });
 
 export const companyCreateSchema = companyBaseSchema;
 export const companyUpdateSchema = companyBaseSchema.partial();
+
+export const industryCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  name_en: optionalText,
+  active: z.boolean().optional()
+});
+
+export const industryUpdateSchema = industryCreateSchema.partial();
 
 const positionBaseSchema = z.object({
   name: z.string().trim().min(1),
@@ -228,6 +238,8 @@ export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 export type CompanyCreateInput = z.infer<typeof companyCreateSchema>;
 export type CompanyUpdateInput = z.infer<typeof companyUpdateSchema>;
+export type IndustryCreateInput = z.infer<typeof industryCreateSchema>;
+export type IndustryUpdateInput = z.infer<typeof industryUpdateSchema>;
 export type PositionCreateInput = z.infer<typeof positionCreateSchema>;
 export type PositionUpdateInput = z.infer<typeof positionUpdateSchema>;
 export type WorkShiftCreateInput = z.infer<typeof workShiftCreateSchema>;

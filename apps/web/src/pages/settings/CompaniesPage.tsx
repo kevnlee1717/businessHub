@@ -7,6 +7,7 @@ import {
   Modal,
   Paper,
   ScrollArea,
+  Select,
   Stack,
   Table,
   Text,
@@ -17,24 +18,29 @@ import {
 import {
   companyCreateSchema,
   companyUpdateSchema,
+  companyStatuses,
+  type CompanyStatus,
   type CompanyCreateInput,
   type CompanyUpdateInput
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { createCompany, listCompanies, updateCompany, type Company } from "../../api/hr";
+import { createCompany, listCompanies, listIndustries, updateCompany, type Company } from "../../api/hr";
 
 type CompanyFormValues = {
   name?: string | undefined;
   name_en?: string | undefined;
   uen?: string | undefined;
-  status?: string | undefined;
+  industry_id?: string | null | undefined;
+  status?: CompanyStatus | undefined;
   note?: string | null | undefined;
 };
 
 const companyQueryKey = ["hr", "companies"] as const;
+const industryQueryKey = ["hr", "industries"] as const;
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
@@ -57,9 +63,14 @@ function getDefaultValues(company?: Company): CompanyFormValues {
     name: company?.name ?? "",
     name_en: company?.name_en ?? undefined,
     uen: company?.uen ?? undefined,
-    status: company?.status ?? undefined,
+    industry_id: company?.industry_id ?? null,
+    status: isCompanyStatus(company?.status) ? company.status : undefined,
     note: company?.note ?? null
   };
+}
+
+function isCompanyStatus(value: string | null | undefined): value is CompanyStatus {
+  return companyStatuses.includes(value as CompanyStatus);
 }
 
 function displayName(name: string, nameEn?: string | null) {
@@ -76,6 +87,11 @@ export function CompaniesPage() {
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
     queryFn: listCompanies
+  });
+
+  const industriesQuery = useQuery({
+    queryKey: industryQueryKey,
+    queryFn: listIndustries
   });
 
   const form = useForm<CompanyFormValues>({
@@ -102,6 +118,21 @@ export function CompaniesPage() {
   });
 
   const companies = companiesQuery.data?.companies ?? [];
+  const industries = industriesQuery.data?.industries ?? [];
+  const industryById = useMemo(
+    () => new Map(industries.map((industry) => [industry.id, industry])),
+    [industries]
+  );
+  const industryOptions = industries.map((industry) => ({
+    value: industry.id,
+    label: displayName(industry.name, industry.name_en)
+  }));
+  const statusOptions = companyStatuses.map((status) => ({
+    value: status,
+    label: t(`companyStatus.${status}`)
+  }));
+  const loadError = companiesQuery.error ?? industriesQuery.error;
+  const isLoading = companiesQuery.isLoading || industriesQuery.isLoading;
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
 
@@ -148,9 +179,9 @@ export function CompaniesPage() {
         <Button onClick={openCreateModal}>{t("company.add")}</Button>
       </Group>
 
-      {companiesQuery.error ? (
+      {loadError ? (
         <Alert color="red" variant="light">
-          {companiesQuery.error instanceof Error ? companiesQuery.error.message : t("common.unknown_error")}
+          {loadError instanceof Error ? loadError.message : t("common.unknown_error")}
         </Alert>
       ) : null}
 
@@ -161,15 +192,16 @@ export function CompaniesPage() {
               <Table.Tr>
                 <Table.Th>{t("company.fields.name")}</Table.Th>
                 <Table.Th>{t("company.fields.uen")}</Table.Th>
+                <Table.Th>{t("company.fields.industry")}</Table.Th>
                 <Table.Th>{t("company.fields.status")}</Table.Th>
                 <Table.Th>{t("company.fields.note")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {companiesQuery.isLoading ? (
+              {isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={6}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -177,7 +209,7 @@ export function CompaniesPage() {
                 </Table.Tr>
               ) : companies.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={6}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("company.empty")}
                     </Text>
@@ -188,7 +220,16 @@ export function CompaniesPage() {
                   <Table.Tr key={company.id}>
                     <Table.Td>{displayName(company.name, company.name_en)}</Table.Td>
                     <Table.Td>{company.uen ?? t("common.not_available")}</Table.Td>
-                    <Table.Td>{company.status ?? t("common.not_available")}</Table.Td>
+                    <Table.Td>
+                      {company.industry_id
+                        ? industryById.get(company.industry_id)?.name ?? t("common.not_available")
+                        : t("common.not_available")}
+                    </Table.Td>
+                    <Table.Td>
+                      {isCompanyStatus(company.status)
+                        ? t(`companyStatus.${company.status}`)
+                        : t("common.not_available")}
+                    </Table.Td>
                     <Table.Td>{company.note ?? t("common.not_available")}</Table.Td>
                     <Table.Td>
                       <Button size="xs" variant="light" onClick={() => openEditModal(company)}>
@@ -234,12 +275,36 @@ export function CompaniesPage() {
                 error={errors.uen?.message}
                 {...form.register("uen", { setValueAs: emptyToUndefined })}
               />
-              <TextInput
-                label={t("company.fields.status")}
-                error={errors.status?.message}
-                {...form.register("status", { setValueAs: emptyToUndefined })}
+              <Controller
+                control={form.control}
+                name="industry_id"
+                render={({ field }) => (
+                  <Select
+                    label={t("company.fields.industry")}
+                    data={industryOptions}
+                    value={field.value ?? null}
+                    onChange={field.onChange}
+                    error={errors.industry_id?.message}
+                    clearable
+                    searchable
+                  />
+                )}
               />
             </Group>
+            <Controller
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <Select
+                  label={t("company.fields.status")}
+                  data={statusOptions}
+                  value={field.value ?? null}
+                  onChange={(value) => field.onChange(isCompanyStatus(value) ? value : undefined)}
+                  error={errors.status?.message}
+                  clearable
+                />
+              )}
+            />
             <Textarea
               label={t("company.fields.note")}
               error={errors.note?.message}

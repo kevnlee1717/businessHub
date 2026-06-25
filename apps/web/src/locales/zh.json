@@ -78,7 +78,8 @@
     "tabs": {
       "companies": "公司",
       "positions": "岗位",
-      "workShifts": "班次"
+      "workShifts": "班次",
+      "industries": "行业"
     }
   },
   "business": {
@@ -354,8 +355,26 @@
       "name": "名称",
       "nameEn": "英文名",
       "uen": "UEN",
+      "industry": "行业",
       "status": "状态",
       "note": "备注"
+    }
+  },
+  "companyStatus": {
+    "normal": "正常运营",
+    "suspended": "暂停经营",
+    "closed": "已注销"
+  },
+  "industry": {
+    "title": "行业管理",
+    "add": "新增行业",
+    "edit": "编辑行业",
+    "empty": "暂无行业",
+    "confirmDelete": "确定删除行业「{{name}}」吗？",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "active": "启用"
     }
   },
   "position": {

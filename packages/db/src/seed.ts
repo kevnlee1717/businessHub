@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, pool } from "./index";
-import { documentCategories, employees, payrollSettings, workShifts } from "./schema/index";
+import { documentCategories, employees, industries, payrollSettings, workShifts } from "./schema/index";
 
 config({ path: "../../.env" });
 
@@ -59,6 +59,28 @@ for (const category of categorySeeds) {
   }
 }
 
+const industrySeeds = [
+  { name: "移民", nameEn: "Immigration" },
+  { name: "留学", nameEn: "Study Abroad" },
+  { name: "学院", nameEn: "College" }
+] as const;
+
+let insertedIndustries = 0;
+
+for (const industry of industrySeeds) {
+  const existing = await db.query.industries.findFirst({
+    where: eq(industries.name, industry.name)
+  });
+
+  if (!existing) {
+    await db.insert(industries).values({
+      name: industry.name,
+      nameEn: industry.nameEn
+    });
+    insertedIndustries += 1;
+  }
+}
+
 const existingPayrollSettings = await db.query.payrollSettings.findFirst();
 let insertedPayrollSettings = 0;
 
@@ -92,5 +114,5 @@ if (!existingDefaultShift) {
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}`
 );

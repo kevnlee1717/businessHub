@@ -14,6 +14,8 @@ import {
   type EmployeeStatus,
   type EmployeeUpdateInput,
   type EmploymentType,
+  type IndustryCreateInput,
+  type IndustryUpdateInput,
   type KpiTargetInput,
   type PerformanceOverrideInput,
   type PayslipGenerateInput,
@@ -57,8 +59,17 @@ export type Company = {
   name: string;
   name_en?: string | null;
   uen?: string | null;
+  industry_id?: string | null;
   status?: string | null;
   note?: string | null;
+  created_at: string;
+};
+
+export type Industry = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  active: boolean;
   created_at: string;
 };
 
@@ -322,6 +333,33 @@ export function updateCompany(
   return api<{ company: Company }>(`/companies/${id}`, {
     method: "PATCH",
     body
+  });
+}
+
+export function listIndustries(): Promise<{ industries: Industry[] }> {
+  return api<{ industries: Industry[] }>("/industries");
+}
+
+export function createIndustry(body: IndustryCreateInput): Promise<{ industry: Industry }> {
+  return api<{ industry: Industry }>("/industries", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateIndustry(
+  id: string,
+  body: IndustryUpdateInput
+): Promise<{ industry: Industry }> {
+  return api<{ industry: Industry }>(`/industries/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteIndustry(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/industries/${id}`, {
+    method: "DELETE"
   });
 }
 

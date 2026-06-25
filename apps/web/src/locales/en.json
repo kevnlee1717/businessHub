@@ -78,7 +78,8 @@
     "tabs": {
       "companies": "Companies",
       "positions": "Positions",
-      "workShifts": "Work shifts"
+      "workShifts": "Work shifts",
+      "industries": "Industries"
     }
   },
   "business": {
@@ -354,8 +355,26 @@
       "name": "Name",
       "nameEn": "English name",
       "uen": "UEN",
+      "industry": "Industry",
       "status": "Status",
       "note": "Note"
+    }
+  },
+  "companyStatus": {
+    "normal": "Normal",
+    "suspended": "Suspended",
+    "closed": "Closed"
+  },
+  "industry": {
+    "title": "Industry Management",
+    "add": "Add industry",
+    "edit": "Edit industry",
+    "empty": "No industries yet",
+    "confirmDelete": "Delete industry \"{{name}}\"?",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "active": "Active"
     }
   },
   "position": {
