@@ -4,7 +4,16 @@
 
 ---
 
-## 🔖 最新快照(2026-06-25 第四轮,全 Phase 闭环会话后)
+## 🔖 最新快照(2026-06-26 第五轮:上线 + EP/ICA 域深化)
+
+- **已上线** https://bh.youjia.sg(单进程同源 systemd `bh-prod`:3011 → frpc 3099 → byte nginx + certbot SSL;postgres 在 cc docker)。改代码后 `XDG_RUNTIME_DIR=/run/user/1000 systemctl --user restart bh-prod`。owner=admin@bh.local/**changeme**(待改)。
+- **本轮新增并上线**:① 行业可管理实体(移民/留学/学院)+ 公司关联行业 + 公司状态枚举下拉;② EP「申请」8步 / ICA「申诉」7步 / DP「申请」5步 流程模板(seed);③ EP 挂多个 DP 子申请(parent_case_id);④ 担保人库(guarantors)+ ICA 选担保人;⑤ 提交/拒绝周期(case_submissions,ICA 失败重提记时间);⑥ 补材料中(need_materials)步骤状态;⑦ 步骤 meta(KYC 预约时间)。migrations 到 **0007**,均已 migrate 生产库。
+- **EP/ICA 步骤内容是 Claude 拟的默认值**,业主可在 业务→流程模板 自行增删改。
+- **仍未做**:Python 人脸微服务(需 ifm 源/模型/阈值)、Capacitor 移动端(业主暂缓)、CPF/levy/公积金费率(工资条扣项空)、KYC 视频专用播放(现按普通文件存)。
+
+---
+
+## 🔖 旧快照(2026-06-25 第四轮,全 Phase 闭环会话后)
 
 - **里程碑**:Phase 1→5 后端 + PC 后台前端**全部前后端闭环**;本轮在第三轮基础上又加 Phase 3(案件 EP/ICA)、Phase 4(教育)、Phase 5(DMS/公司实体)。全程 `pnpm -r typecheck` 4 包绿 + `pnpm --filter @bh/web build` 过(仅 chunk-size warning)。代码全由 codex 写、Claude 审查验收,每片单独 commit。
 - **migrations**:已生成到 **0005**(0002 考勤/外勤/人脸、0003 案件、0004 教育、0005 DMS),**均未 migrate**(postgres 没起)。
