@@ -38,6 +38,7 @@ import {
   updateClockPoint,
   type ClockPoint
 } from "../../api/hr";
+import { MapPicker } from "../../components/MapPicker";
 
 type ClockPointFormValues = {
   name?: string | undefined;
@@ -181,6 +182,9 @@ export function ClockPointsPage() {
   const loadError = clockPointsQuery.error ?? companiesQuery.error ?? employeesQuery.error;
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
+  const selectedLat = form.watch("lat");
+  const selectedLng = form.watch("lng");
+  const selectedRadius = form.watch("radius_m");
 
   function openCreateModal() {
     setEditingClockPoint(null);
@@ -390,7 +394,7 @@ export function ClockPointsPage() {
         opened={modalOpened}
         onClose={closeModal}
         title={editingClockPoint ? t("clockPoint.edit") : t("clockPoint.add")}
-        size="lg"
+        size="xl"
       >
         <form onSubmit={onSubmit}>
           <Stack gap="md">
@@ -468,6 +472,15 @@ export function ClockPointsPage() {
                 )}
               />
             </Group>
+            <MapPicker
+              lat={typeof selectedLat === "number" ? selectedLat : null}
+              lng={typeof selectedLng === "number" ? selectedLng : null}
+              radius={typeof selectedRadius === "number" ? selectedRadius : 0}
+              onChange={(lat, lng) => {
+                form.setValue("lat", lat, { shouldValidate: true, shouldDirty: true });
+                form.setValue("lng", lng, { shouldValidate: true, shouldDirty: true });
+              }}
+            />
             <Controller
               control={form.control}
               name="active"
