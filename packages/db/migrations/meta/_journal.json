@@ -64,6 +64,13 @@
       "when": 1782439231234,
       "tag": "0008_fixed_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782443676508,
+      "tag": "0009_groovy_taskmaster",
+      "breakpoints": true
     }
   ]
 }

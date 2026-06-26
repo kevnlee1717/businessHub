@@ -12,6 +12,7 @@ function serializeCompany(company: typeof companies.$inferSelect) {
     name_en: company.nameEn,
     uen: company.uen,
     industry_id: company.industryId,
+    shift_id: company.shiftId,
     status: company.status,
     note: company.note,
     created_at: company.createdAt
@@ -46,6 +47,7 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
         nameEn: body.name_en,
         uen: body.uen,
         industryId: body.industry_id,
+        shiftId: body.shift_id,
         status: body.status,
         note: body.note
       })
@@ -68,6 +70,7 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
         nameEn: body.name_en,
         uen: body.uen,
         industryId: body.industry_id,
+        shiftId: body.shift_id,
         status: body.status,
         note: body.note
       })

@@ -1,4 +1,13 @@
-import { attendanceDays, attendanceRecords, clockPoints, db, employeeClockPoints, employees, workShifts } from "@bh/db";
+import {
+  attendanceDays,
+  attendanceRecords,
+  clockPoints,
+  companies,
+  db,
+  employeeClockPoints,
+  employees,
+  workShifts
+} from "@bh/db";
 import { attendanceClockSchema, type AttendanceDayStatus, can } from "@bh/shared";
 import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
@@ -33,6 +42,17 @@ async function resolveEmployeeShift(employeeId: string) {
     const [shift] = await db.select().from(workShifts).where(eq(workShifts.id, employee.shiftId)).limit(1);
     if (shift) {
       return shift;
+    }
+  }
+
+  if (employee?.companyId) {
+    const [company] = await db.select().from(companies).where(eq(companies.id, employee.companyId)).limit(1);
+
+    if (company?.shiftId) {
+      const [shift] = await db.select().from(workShifts).where(eq(workShifts.id, company.shiftId)).limit(1);
+      if (shift) {
+        return shift;
+      }
     }
   }
 

@@ -58,6 +58,7 @@ const companyBaseSchema = z.object({
   name_en: optionalText,
   uen: optionalText,
   industry_id: uuidField.nullable().optional(),
+  shift_id: uuidField.nullable().optional(),
   status: z.enum(companyStatuses).optional(),
   note: nullableOptionalText
 });

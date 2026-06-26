@@ -1,0 +1,2 @@
+ALTER TABLE "companies" ADD COLUMN "shift_id" uuid;--> statement-breakpoint
+ALTER TABLE "companies" ADD CONSTRAINT "companies_shift_id_work_shifts_id_fk" FOREIGN KEY ("shift_id") REFERENCES "public"."work_shifts"("id") ON DELETE set null ON UPDATE no action;
