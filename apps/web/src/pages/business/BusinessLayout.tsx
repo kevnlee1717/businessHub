@@ -5,7 +5,8 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 const tabs = [
   { value: "cases", path: "/business/cases", labelKey: "business.tabs.cases" },
   { value: "clients", path: "/business/clients", labelKey: "business.tabs.clients" },
-  { value: "templates", path: "/business/templates", labelKey: "business.tabs.templates" }
+  { value: "templates", path: "/business/templates", labelKey: "business.tabs.templates" },
+  { value: "guarantors", path: "/business/guarantors", labelKey: "business.tabs.guarantors" }
 ] as const;
 
 export function BusinessLayout() {

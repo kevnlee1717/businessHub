@@ -86,7 +86,8 @@
     "tabs": {
       "cases": "Cases",
       "clients": "Clients",
-      "templates": "Workflow templates"
+      "templates": "Workflow templates",
+      "guarantors": "Guarantors"
     }
   },
   "education": {
@@ -233,6 +234,7 @@
       "template": "Workflow template",
       "status": "Status",
       "currentStep": "Current step",
+      "parentCase": "Parent case",
       "createdAt": "Created at",
       "guarantor": "Guarantor",
       "guarantorName": "Guarantor name",
@@ -255,6 +257,62 @@
       "email": "Email",
       "note": "Note"
     }
+  },
+  "guarantor": {
+    "title": "Guarantor Library",
+    "caseSectionTitle": "ICA guarantor",
+    "add": "Add guarantor",
+    "edit": "Edit guarantor",
+    "empty": "No guarantors yet",
+    "select": "Select guarantor",
+    "saveToCase": "Save guarantor",
+    "uploadIdCard": "Upload ID card",
+    "idCardUploaded": "ID card uploaded",
+    "idCardMissing": "No ID card",
+    "sponsoredCount": "Sponsored {{count}}",
+    "confirmDelete": "Delete guarantor \"{{name}}\"?",
+    "fields": {
+      "name": "Name",
+      "nric": "NRIC",
+      "gender": "Gender",
+      "age": "Age",
+      "note": "Note",
+      "sponsoredCount": "Sponsored count",
+      "idCard": "ID card"
+    }
+  },
+  "gender": {
+    "male": "Male",
+    "female": "Female"
+  },
+  "dp": {
+    "childrenTitle": "DP applications",
+    "add": "New DP application",
+    "empty": "No DP applications yet",
+    "viewParent": "View parent case",
+    "templateRequired": "Select a DP workflow template."
+  },
+  "kyc": {
+    "appointmentAt": "Appointment time",
+    "saveAppointment": "Save appointment"
+  },
+  "caseSubmission": {
+    "title": "Submission timeline",
+    "add": "Record submission",
+    "empty": "No submissions yet",
+    "hint": "ICA failures are usually resubmitted after 3 months. Record each submission and rejection time here.",
+    "markResult": "Mark result",
+    "fields": {
+      "submittedAt": "Submitted at",
+      "result": "Result",
+      "rejectedAt": "Rejected at",
+      "note": "Note"
+    }
+  },
+  "caseSubmissionResult": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected"
   },
   "template": {
     "title": "Workflow templates",
@@ -298,7 +356,8 @@
   },
   "businessType": {
     "ep": "EP",
-    "ica": "ICA"
+    "ica": "ICA",
+    "dp": "DP"
   },
   "caseStatus": {
     "open": "Open",
@@ -317,6 +376,7 @@
   "caseStepStatus": {
     "pending": "Pending",
     "in_progress": "In progress",
+    "need_materials": "Need materials",
     "done": "Done"
   },
   "caseStepDoc": {

@@ -1,6 +1,9 @@
 import {
   type BusinessType,
   type CaseCreateInput,
+  type CaseSubmissionCreateInput,
+  type CaseSubmissionResult,
+  type CaseSubmissionUpdateInput,
   type CaseStatus,
   type CaseStepDocCreateInput,
   type CaseStepDocStatus,
@@ -11,6 +14,9 @@ import {
   type ClientCreateInput,
   type ClientUpdateInput,
   type FollowUpCreateInput,
+  type Gender,
+  type GuarantorCreateInput,
+  type GuarantorUpdateInput,
   type RequiredDocItemInput,
   type Role,
   type TemplateStepCreateInput,
@@ -53,15 +59,47 @@ export type TemplateStep = {
 export type Case = {
   id: string;
   business_type: BusinessType;
+  parent_case_id?: string | null;
   client_id?: string | null;
   current_step?: number | null;
   status: CaseStatus;
   billing_id?: string | null;
+  guarantor_id?: string | null;
   guarantor_name?: string | null;
   guarantor_relation?: string | null;
   guarantor_contact?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type Guarantor = {
+  id: string;
+  name: string;
+  nric?: string | null;
+  gender?: Gender | null;
+  age?: number | null;
+  id_card_document_id?: string | null;
+  note?: string | null;
+  sponsored_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UploadedDocument = {
+  id: string;
+  filename: string;
+  mime?: string | null;
+  size?: number | null;
+};
+
+export type CaseSubmission = {
+  id: string;
+  case_id: string;
+  submitted_at?: string | null;
+  result: CaseSubmissionResult;
+  rejected_at?: string | null;
+  note?: string | null;
+  created_at: string;
 };
 
 export type CaseStepDoc = {
@@ -85,6 +123,7 @@ export type CaseStep = {
   description?: string | null;
   assignee_id?: string | null;
   status: CaseStepStatus;
+  meta?: Record<string, unknown> | null;
   completed_at?: string | null;
   documents: CaseStepDoc[];
   created_at?: string;
@@ -115,6 +154,55 @@ export function updateClient(id: string, body: ClientUpdateInput): Promise<{ cli
     method: "PATCH",
     body
   });
+}
+
+export function listGuarantors(): Promise<{ guarantors: Guarantor[] }> {
+  return api<{ guarantors: Guarantor[] }>("/guarantors");
+}
+
+export function createGuarantor(body: GuarantorCreateInput): Promise<{ guarantor: Guarantor }> {
+  return api<{ guarantor: Guarantor }>("/guarantors", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateGuarantor(id: string, body: GuarantorUpdateInput): Promise<{ guarantor: Guarantor }> {
+  return api<{ guarantor: Guarantor }>(`/guarantors/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteGuarantor(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/guarantors/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export async function uploadGuarantorIdCard(
+  id: string,
+  file: File
+): Promise<{ guarantor: Guarantor; document: UploadedDocument }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`/api/guarantors/${id}/id-card`, {
+    method: "POST",
+    body: formData,
+    credentials: "include"
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : response.statusText;
+    throw new Error(message);
+  }
+
+  return data as { guarantor: Guarantor; document: UploadedDocument };
 }
 
 export function listTemplates(business_type?: BusinessType): Promise<{ templates: WorkflowTemplate[] }> {
@@ -181,6 +269,7 @@ export function listCases(params: {
   business_type?: BusinessType | undefined;
   status?: CaseStatus | undefined;
   client_id?: string | undefined;
+  parent_case_id?: string | undefined;
 } = {}): Promise<{ cases: Case[] }> {
   const searchParams = new URLSearchParams();
 
@@ -196,12 +285,28 @@ export function listCases(params: {
     searchParams.set("client_id", params.client_id);
   }
 
+  if (params.parent_case_id) {
+    searchParams.set("parent_case_id", params.parent_case_id);
+  }
+
   const query = searchParams.toString();
   return api<{ cases: Case[] }>(`/cases${query ? `?${query}` : ""}`);
 }
 
-export function getCase(id: string): Promise<{ case: Case; steps: CaseStep[] }> {
-  return api<{ case: Case; steps: CaseStep[] }>(`/cases/${id}`);
+export function getCase(id: string): Promise<{
+  case: Case;
+  steps: CaseStep[];
+  children: Case[];
+  guarantor: Guarantor | null;
+  submissions: CaseSubmission[];
+}> {
+  return api<{
+    case: Case;
+    steps: CaseStep[];
+    children: Case[];
+    guarantor: Guarantor | null;
+    submissions: CaseSubmission[];
+  }>(`/cases/${id}`);
 }
 
 export function createCase(body: CaseCreateInput): Promise<{ case: Case }> {
@@ -220,6 +325,26 @@ export function updateCase(id: string, body: CaseUpdateInput): Promise<{ case: C
 
 export function updateCaseStep(stepId: string, body: CaseStepUpdateInput): Promise<{ step: CaseStep }> {
   return api<{ step: CaseStep }>(`/case-steps/${stepId}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function createSubmission(
+  caseId: string,
+  body: CaseSubmissionCreateInput
+): Promise<{ submission: CaseSubmission }> {
+  return api<{ submission: CaseSubmission }>(`/cases/${caseId}/submissions`, {
+    method: "POST",
+    body
+  });
+}
+
+export function updateSubmission(
+  id: string,
+  body: CaseSubmissionUpdateInput
+): Promise<{ submission: CaseSubmission }> {
+  return api<{ submission: CaseSubmission }>(`/case-submissions/${id}`, {
     method: "PATCH",
     body
   });

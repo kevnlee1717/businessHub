@@ -86,7 +86,8 @@
     "tabs": {
       "cases": "案件",
       "clients": "客户",
-      "templates": "流程模板"
+      "templates": "流程模板",
+      "guarantors": "担保人"
     }
   },
   "education": {
@@ -233,6 +234,7 @@
       "template": "流程模板",
       "status": "状态",
       "currentStep": "当前步骤",
+      "parentCase": "父案件",
       "createdAt": "创建时间",
       "guarantor": "担保人",
       "guarantorName": "担保人姓名",
@@ -255,6 +257,62 @@
       "email": "邮箱",
       "note": "备注"
     }
+  },
+  "guarantor": {
+    "title": "担保人库",
+    "caseSectionTitle": "ICA 担保人",
+    "add": "新增担保人",
+    "edit": "编辑担保人",
+    "empty": "暂无担保人",
+    "select": "选择担保人",
+    "saveToCase": "保存担保人",
+    "uploadIdCard": "上传 ID 卡",
+    "idCardUploaded": "已上传 ID 卡",
+    "idCardMissing": "未上传 ID 卡",
+    "sponsoredCount": "担保过{{count}}人",
+    "confirmDelete": "确定删除担保人「{{name}}」吗？",
+    "fields": {
+      "name": "姓名",
+      "nric": "NRIC",
+      "gender": "性别",
+      "age": "年龄",
+      "note": "备注",
+      "sponsoredCount": "担保人数",
+      "idCard": "ID 卡"
+    }
+  },
+  "gender": {
+    "male": "男",
+    "female": "女"
+  },
+  "dp": {
+    "childrenTitle": "DP 子申请",
+    "add": "新建 DP 子申请",
+    "empty": "暂无 DP 子申请",
+    "viewParent": "查看父案件",
+    "templateRequired": "请选择 DP 流程模板。"
+  },
+  "kyc": {
+    "appointmentAt": "预约时间",
+    "saveAppointment": "保存预约时间"
+  },
+  "caseSubmission": {
+    "title": "提交周期",
+    "add": "记录一次提交",
+    "empty": "暂无提交记录",
+    "hint": "ICA 失败一般3个月后重提，这里记录每次提交/拒绝时间。",
+    "markResult": "标记结果",
+    "fields": {
+      "submittedAt": "提交时间",
+      "result": "结果",
+      "rejectedAt": "拒绝时间",
+      "note": "备注"
+    }
+  },
+  "caseSubmissionResult": {
+    "pending": "待结果",
+    "approved": "已批准",
+    "rejected": "已拒绝"
   },
   "template": {
     "title": "流程模板",
@@ -298,7 +356,8 @@
   },
   "businessType": {
     "ep": "EP",
-    "ica": "ICA"
+    "ica": "ICA",
+    "dp": "DP"
   },
   "caseStatus": {
     "open": "待处理",
@@ -317,6 +376,7 @@
   "caseStepStatus": {
     "pending": "待处理",
     "in_progress": "进行中",
+    "need_materials": "补材料中",
     "done": "已完成"
   },
   "caseStepDoc": {

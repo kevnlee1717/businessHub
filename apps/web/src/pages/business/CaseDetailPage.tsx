@@ -7,7 +7,9 @@ import {
   FileInput,
   Group,
   Loader,
+  Modal,
   Paper,
+  ScrollArea,
   Select,
   SimpleGrid,
   Stack,
@@ -18,13 +20,16 @@ import {
   Title
 } from "@mantine/core";
 import {
+  caseSubmissionResults,
   caseStatuses,
   caseStepDocCreateSchema,
   caseStepStatuses,
   type CaseStatus,
+  type CaseSubmissionResult,
   type CaseStepDocCreateInput,
   type CaseStepDocStatus,
-  type CaseStepStatus
+  type CaseStepStatus,
+  type CaseStepUpdateInput
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -32,18 +37,26 @@ import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  createCase,
   createCaseStepDoc,
   createFollowUp,
+  createSubmission,
   getCase,
+  listGuarantors,
   listClients,
   listFollowUps,
+  listTemplates,
   updateCase,
   updateCaseStep,
   updateCaseStepDoc,
+  updateSubmission,
   uploadCaseStepDoc,
+  type Case,
+  type CaseSubmission,
   type CaseStep,
   type CaseStepDoc,
-  type Client
+  type Client,
+  type Guarantor
 } from "../../api/cases";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
@@ -72,6 +85,24 @@ function formatDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function toDateTimeLocalValue(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function toIsoDateTime(value: string) {
+  return value ? new Date(value).toISOString() : undefined;
+}
+
 function caseStatusColor(status: CaseStatus) {
   switch (status) {
     case "completed":
@@ -91,8 +122,21 @@ function stepStatusColor(status: CaseStepStatus) {
       return "green";
     case "in_progress":
       return "blue";
+    case "need_materials":
+      return "orange";
     default:
       return "yellow";
+  }
+}
+
+function submissionResultColor(result: CaseSubmissionResult) {
+  switch (result) {
+    case "approved":
+      return "green";
+    case "rejected":
+      return "red";
+    default:
+      return "gray";
   }
 }
 
@@ -228,13 +272,16 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
   const [docFormOpened, setDocFormOpened] = useState(false);
   const [followUpContent, setFollowUpContent] = useState("");
   const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const [appointmentDraft, setAppointmentDraft] = useState(() =>
+    toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null)
+  );
 
   const followUpsQuery = useQuery({
     queryKey: ["business", "case-step-follow-ups", step.id],
     queryFn: () => listFollowUps(step.id)
   });
   const updateStepMutation = useMutation({
-    mutationFn: (status: CaseStepStatus) => updateCaseStep(step.id, { status }),
+    mutationFn: (body: CaseStepUpdateInput) => updateCaseStep(step.id, body),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
     }
@@ -268,6 +315,10 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
   const followUps = followUpsQuery.data?.followUps ?? [];
   const docErrors = docForm.formState.errors;
 
+  useEffect(() => {
+    setAppointmentDraft(toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null));
+  }, [step.id, step.meta]);
+
   async function updateStepStatus(status: string | null) {
     if (!status) {
       return;
@@ -275,7 +326,21 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
 
     setStepError(null);
     try {
-      await updateStepMutation.mutateAsync(status as CaseStepStatus);
+      await updateStepMutation.mutateAsync({ status: status as CaseStepStatus });
+    } catch (error) {
+      setStepError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  }
+
+  async function saveAppointment() {
+    setStepError(null);
+    try {
+      await updateStepMutation.mutateAsync({
+        meta: {
+          ...(step.meta ?? {}),
+          appointment_at: toIsoDateTime(appointmentDraft) ?? null
+        }
+      });
     } catch (error) {
       setStepError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -345,6 +410,21 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
             {stepError}
           </Alert>
         ) : null}
+
+        <Group align="flex-end">
+          <TextInput
+            type="datetime-local"
+            label={t("kyc.appointmentAt")}
+            value={appointmentDraft}
+            onChange={(event) => setAppointmentDraft(event.currentTarget.value)}
+            disabled={!canManageCases}
+          />
+          {canManageCases ? (
+            <Button variant="light" onClick={saveAppointment} loading={updateStepMutation.isPending}>
+              {t("kyc.saveAppointment")}
+            </Button>
+          ) : null}
+        </Group>
 
         <Stack gap="xs">
           <Group justify="space-between">
@@ -478,6 +558,413 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
   );
 }
 
+type GuarantorSectionProps = {
+  caseItem: Case;
+  guarantor: Guarantor | null;
+  guarantors: Guarantor[];
+  canManageCases: boolean;
+};
+
+function GuarantorSection({ caseItem, guarantor, guarantors, canManageCases }: GuarantorSectionProps) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [guarantorDraft, setGuarantorDraft] = useState<string | null>(caseItem.guarantor_id ?? null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGuarantorDraft(caseItem.guarantor_id ?? null);
+  }, [caseItem.guarantor_id]);
+
+  const updateGuarantorMutation = useMutation({
+    mutationFn: () => updateCase(caseItem.id, { guarantor_id: guarantorDraft }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseItem.id] });
+      await queryClient.invalidateQueries({ queryKey: ["business", "guarantors"] });
+    }
+  });
+
+  const guarantorOptions = guarantors.map((item) => ({
+    value: item.id,
+    label: `${item.name}${item.nric ? ` / ${item.nric}` : ""}`
+  }));
+
+  async function saveGuarantor() {
+    setError(null);
+    try {
+      await updateGuarantorMutation.mutateAsync();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : t("common.unknown_error"));
+    }
+  }
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Stack gap="md">
+        <Title order={3}>{t("guarantor.caseSectionTitle")}</Title>
+        {error ? (
+          <Alert color="red" variant="light">
+            {error}
+          </Alert>
+        ) : null}
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+          <Stack gap={2}>
+            <Text size="sm" c="dimmed">
+              {t("guarantor.fields.name")}
+            </Text>
+            <Text fw={500}>{guarantor?.name ?? t("common.not_available")}</Text>
+          </Stack>
+          <Stack gap={2}>
+            <Text size="sm" c="dimmed">
+              {t("guarantor.fields.nric")}
+            </Text>
+            <Text fw={500}>{guarantor?.nric ?? t("common.not_available")}</Text>
+          </Stack>
+          <Stack gap={2}>
+            <Text size="sm" c="dimmed">
+              {t("guarantor.fields.sponsoredCount")}
+            </Text>
+            <Text fw={500}>
+              {guarantor ? t("guarantor.sponsoredCount", { count: guarantor.sponsored_count }) : t("common.not_available")}
+            </Text>
+          </Stack>
+        </SimpleGrid>
+        {canManageCases ? (
+          <Group align="flex-end">
+            <Select
+              label={t("guarantor.select")}
+              data={guarantorOptions}
+              value={guarantorDraft}
+              onChange={setGuarantorDraft}
+              searchable
+              clearable
+              w={360}
+            />
+            <Button onClick={saveGuarantor} loading={updateGuarantorMutation.isPending}>
+              {t("guarantor.saveToCase")}
+            </Button>
+          </Group>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+}
+
+type DpChildrenSectionProps = {
+  parentCaseId: string;
+  children: Case[];
+  clients: Client[];
+  canManageCases: boolean;
+};
+
+function DpChildrenSection({ parentCaseId, children, clients, canManageCases }: DpChildrenSectionProps) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [modalOpened, setModalOpened] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const templatesQuery = useQuery({
+    queryKey: ["business", "workflow-templates", "dp"],
+    queryFn: () => listTemplates("dp")
+  });
+
+  const createDpMutation = useMutation({
+    mutationFn: () =>
+      createCase({
+        business_type: "dp",
+        parent_case_id: parentCaseId,
+        template_id: templateId ?? undefined,
+        client_id: clientId
+      }),
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", parentCaseId] });
+      await queryClient.invalidateQueries({ queryKey: ["business", "cases"] });
+      setModalOpened(false);
+      navigate(`/business/cases/${data.case.id}`);
+    }
+  });
+
+  const templateOptions = (templatesQuery.data?.templates ?? []).map((template) => ({
+    value: template.id,
+    label: template.name
+  }));
+  const clientOptions = clients.map((client) => ({
+    value: client.id,
+    label: displayName(client.name, client.name_en)
+  }));
+
+  async function createDpCase() {
+    if (!templateId) {
+      setError(t("dp.templateRequired"));
+      return;
+    }
+
+    setError(null);
+    try {
+      await createDpMutation.mutateAsync();
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : t("common.unknown_error"));
+    }
+  }
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Stack gap="md">
+        <Group justify="space-between">
+          <Title order={3}>{t("dp.childrenTitle")}</Title>
+          {canManageCases ? <Button onClick={() => setModalOpened(true)}>{t("dp.add")}</Button> : null}
+        </Group>
+        {children.length === 0 ? (
+          <Text c="dimmed">{t("dp.empty")}</Text>
+        ) : (
+          <ScrollArea>
+            <Table miw={640} verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t("case.fields.status")}</Table.Th>
+                  <Table.Th>{t("case.fields.currentStep")}</Table.Th>
+                  <Table.Th>{t("case.fields.createdAt")}</Table.Th>
+                  <Table.Th>{t("common.actions")}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {children.map((child) => (
+                  <Table.Tr key={child.id}>
+                    <Table.Td>
+                      <Badge color={caseStatusColor(child.status)} variant="light">
+                        {t(`caseStatus.${child.status}`)}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>{child.current_step ?? t("common.not_available")}</Table.Td>
+                    <Table.Td>{formatDateTime(child.created_at)}</Table.Td>
+                    <Table.Td>
+                      <Button size="xs" variant="light" onClick={() => navigate(`/business/cases/${child.id}`)}>
+                        {t("common.view")}
+                      </Button>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        )}
+      </Stack>
+
+      <Modal opened={modalOpened} onClose={() => setModalOpened(false)} title={t("dp.add")} size="lg">
+        <Stack gap="md">
+          {error ? (
+            <Alert color="red" variant="light">
+              {error}
+            </Alert>
+          ) : null}
+          <Select
+            label={t("case.fields.template")}
+            data={templateOptions}
+            value={templateId}
+            onChange={setTemplateId}
+            searchable
+            clearable
+          />
+          <Select
+            label={t("case.fields.client")}
+            data={clientOptions}
+            value={clientId}
+            onChange={setClientId}
+            searchable
+            clearable
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setModalOpened(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={createDpCase} loading={createDpMutation.isPending} disabled={!templateId}>
+              {t("common.save")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </Paper>
+  );
+}
+
+type SubmissionTimelineProps = {
+  caseId: string;
+  submissions: CaseSubmission[];
+  canManageCases: boolean;
+};
+
+function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionTimelineProps) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [createOpened, setCreateOpened] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState(toDateTimeLocalValue(new Date().toISOString()));
+  const [note, setNote] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [resultDraft, setResultDraft] = useState<CaseSubmissionResult>("pending");
+  const [rejectedAtDraft, setRejectedAtDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createSubmission(caseId, {
+        submitted_at: toIsoDateTime(submittedAt),
+        note: note.trim() ? note.trim() : null
+      }),
+    onSuccess: async () => {
+      setCreateOpened(false);
+      setSubmittedAt(toDateTimeLocalValue(new Date().toISOString()));
+      setNote("");
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (submissionId: string) =>
+      updateSubmission(submissionId, {
+        result: resultDraft,
+        rejected_at: resultDraft === "rejected" ? toIsoDateTime(rejectedAtDraft) ?? null : null
+      }),
+    onSuccess: async () => {
+      setEditingId(null);
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
+    }
+  });
+
+  const resultOptions = caseSubmissionResults.map((result) => ({
+    value: result,
+    label: t(`caseSubmissionResult.${result}`)
+  }));
+
+  function startEdit(submission: CaseSubmission) {
+    setEditingId(submission.id);
+    setResultDraft(submission.result);
+    setRejectedAtDraft(toDateTimeLocalValue(submission.rejected_at));
+    setError(null);
+  }
+
+  async function recordSubmission() {
+    setError(null);
+    try {
+      await createMutation.mutateAsync();
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : t("common.unknown_error"));
+    }
+  }
+
+  async function saveResult(submissionId: string) {
+    setError(null);
+    try {
+      await updateMutation.mutateAsync(submissionId);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : t("common.unknown_error"));
+    }
+  }
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Stack gap="md">
+        <Group justify="space-between">
+          <Stack gap={2}>
+            <Title order={3}>{t("caseSubmission.title")}</Title>
+            <Text size="sm" c="dimmed">
+              {t("caseSubmission.hint")}
+            </Text>
+          </Stack>
+          {canManageCases ? <Button onClick={() => setCreateOpened(true)}>{t("caseSubmission.add")}</Button> : null}
+        </Group>
+        {error ? (
+          <Alert color="red" variant="light">
+            {error}
+          </Alert>
+        ) : null}
+        {submissions.length === 0 ? (
+          <Text c="dimmed">{t("caseSubmission.empty")}</Text>
+        ) : (
+          <Stack gap="sm">
+            {submissions.map((submission) => (
+              <Paper key={submission.id} withBorder radius="md" p="sm">
+                <Stack gap="xs">
+                  <Group justify="space-between" align="flex-start">
+                    <Stack gap={2}>
+                      <Group gap="xs">
+                        <Badge color={submissionResultColor(submission.result)} variant="light">
+                          {t(`caseSubmissionResult.${submission.result}`)}
+                        </Badge>
+                        <Text fw={500}>{formatDateTime(submission.submitted_at)}</Text>
+                      </Group>
+                      {submission.rejected_at ? (
+                        <Text size="sm" c="dimmed">
+                          {t("caseSubmission.fields.rejectedAt")}: {formatDateTime(submission.rejected_at)}
+                        </Text>
+                      ) : null}
+                      {submission.note ? <Text size="sm">{submission.note}</Text> : null}
+                    </Stack>
+                    {canManageCases ? (
+                      <Button size="xs" variant="light" onClick={() => startEdit(submission)}>
+                        {t("caseSubmission.markResult")}
+                      </Button>
+                    ) : null}
+                  </Group>
+                  {editingId === submission.id ? (
+                    <Group align="flex-end">
+                      <Select
+                        label={t("caseSubmission.fields.result")}
+                        data={resultOptions}
+                        value={resultDraft}
+                        onChange={(value) => setResultDraft((value as CaseSubmissionResult | null) ?? "pending")}
+                      />
+                      {resultDraft === "rejected" ? (
+                        <TextInput
+                          type="datetime-local"
+                          label={t("caseSubmission.fields.rejectedAt")}
+                          value={rejectedAtDraft}
+                          onChange={(event) => setRejectedAtDraft(event.currentTarget.value)}
+                        />
+                      ) : null}
+                      <Button onClick={() => saveResult(submission.id)} loading={updateMutation.isPending}>
+                        {t("common.save")}
+                      </Button>
+                      <Button variant="subtle" onClick={() => setEditingId(null)}>
+                        {t("common.cancel")}
+                      </Button>
+                    </Group>
+                  ) : null}
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Stack>
+
+      <Modal opened={createOpened} onClose={() => setCreateOpened(false)} title={t("caseSubmission.add")} size="lg">
+        <Stack gap="md">
+          <TextInput
+            type="datetime-local"
+            label={t("caseSubmission.fields.submittedAt")}
+            value={submittedAt}
+            onChange={(event) => setSubmittedAt(event.currentTarget.value)}
+          />
+          <Textarea
+            label={t("caseSubmission.fields.note")}
+            value={note}
+            onChange={(event) => setNote(event.currentTarget.value)}
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setCreateOpened(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={recordSubmission} loading={createMutation.isPending}>
+              {t("common.save")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </Paper>
+  );
+}
+
 export function CaseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -496,6 +983,10 @@ export function CaseDetailPage() {
     queryKey: ["business", "clients"],
     queryFn: listClients
   });
+  const guarantorsQuery = useQuery({
+    queryKey: ["business", "guarantors"],
+    queryFn: listGuarantors
+  });
   const employeesQuery = useQuery({
     queryKey: ["hr", "employees"],
     queryFn: listEmployees
@@ -505,15 +996,20 @@ export function CaseDetailPage() {
       updateCase(caseId, { status }),
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", variables.caseId] });
+      await queryClient.invalidateQueries({ queryKey: ["business", "cases"] });
     }
   });
 
   const caseItem = caseQuery.data?.case;
+  const children = caseQuery.data?.children ?? [];
+  const guarantor = caseQuery.data?.guarantor ?? null;
+  const submissions = caseQuery.data?.submissions ?? [];
   const steps = useMemo(
     () => [...(caseQuery.data?.steps ?? [])].sort((a, b) => a.step_order - b.step_order),
     [caseQuery.data?.steps]
   );
   const clients = clientsQuery.data?.clients ?? [];
+  const guarantors = guarantorsQuery.data?.guarantors ?? [];
   const employees = employeesQuery.data?.employees ?? [];
   const clientById = useMemo(
     () => new Map(clients.map((client) => [client.id, client] as const)),
@@ -527,7 +1023,7 @@ export function CaseDetailPage() {
     value: status,
     label: t(`caseStatus.${status}`)
   }));
-  const loadError = caseQuery.error ?? clientsQuery.error ?? employeesQuery.error;
+  const loadError = caseQuery.error ?? clientsQuery.error ?? employeesQuery.error ?? guarantorsQuery.error;
   const canManageCases = user ? caseManageRoles.has(user.role) : false;
 
   useEffect(() => {
@@ -602,6 +1098,25 @@ export function CaseDetailPage() {
                       </Text>
                       <Text fw={500}>{caseItem.current_step ?? t("common.not_available")}</Text>
                     </Stack>
+                    {caseItem.business_type === "dp" ? (
+                      <Stack gap={2}>
+                        <Text size="sm" c="dimmed">
+                          {t("case.fields.parentCase")}
+                        </Text>
+                        {caseItem.parent_case_id ? (
+                          <Button
+                            variant="subtle"
+                            size="compact-sm"
+                            px={0}
+                            onClick={() => navigate(`/business/cases/${caseItem.parent_case_id}`)}
+                          >
+                            {t("dp.viewParent")}
+                          </Button>
+                        ) : (
+                          <Text fw={500}>{t("common.not_available")}</Text>
+                        )}
+                      </Stack>
+                    ) : null}
                     <Stack gap={2}>
                       <Text size="sm" c="dimmed">
                         {t("case.fields.createdAt")}
@@ -614,7 +1129,8 @@ export function CaseDetailPage() {
                           {t("case.fields.guarantor")}
                         </Text>
                         <Text fw={500}>
-                          {caseItem.guarantor_name ?? t("common.not_available")}
+                          {guarantor?.name ?? caseItem.guarantor_name ?? t("common.not_available")}
+                          {guarantor?.nric ? ` / ${guarantor.nric}` : ""}
                           {caseItem.guarantor_relation ? ` / ${caseItem.guarantor_relation}` : ""}
                           {caseItem.guarantor_contact ? ` / ${caseItem.guarantor_contact}` : ""}
                         </Text>
@@ -636,6 +1152,32 @@ export function CaseDetailPage() {
               </Group>
             </Stack>
           </Paper>
+
+          {caseItem.business_type === "ica" ? (
+            <GuarantorSection
+              caseItem={caseItem}
+              guarantor={guarantor}
+              guarantors={guarantors}
+              canManageCases={canManageCases}
+            />
+          ) : null}
+
+          {caseItem.business_type === "ep" ? (
+            <DpChildrenSection
+              parentCaseId={caseItem.id}
+              children={children}
+              clients={clients}
+              canManageCases={canManageCases}
+            />
+          ) : null}
+
+          {caseItem.business_type === "ep" || caseItem.business_type === "ica" ? (
+            <SubmissionTimeline
+              caseId={caseItem.id}
+              submissions={submissions}
+              canManageCases={canManageCases}
+            />
+          ) : null}
 
           <Stack gap="md">
             <Title order={3}>{t("caseStep.title")}</Title>

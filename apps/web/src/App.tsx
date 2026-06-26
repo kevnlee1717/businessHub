@@ -6,6 +6,7 @@ import { BusinessLayout } from "./pages/business/BusinessLayout";
 import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { CasesPage } from "./pages/business/CasesPage";
 import { ClientsPage } from "./pages/business/ClientsPage";
+import { GuarantorsPage } from "./pages/business/GuarantorsPage";
 import { TemplatesPage } from "./pages/business/TemplatesPage";
 import { CategoriesPage } from "./pages/documents/CategoriesPage";
 import { ClientLibraryPage } from "./pages/documents/ClientLibraryPage";
@@ -57,6 +58,7 @@ export function App() {
             <Route path="cases/:id" element={<CaseDetailPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="templates" element={<TemplatesPage />} />
+            <Route path="guarantors" element={<GuarantorsPage />} />
           </Route>
           <Route path="education" element={<EducationLayout />}>
             <Route index element={<Navigate to="students" replace />} />
