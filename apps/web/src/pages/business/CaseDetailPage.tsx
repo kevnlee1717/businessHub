@@ -46,9 +46,9 @@ import {
   listClients,
   listFollowUps,
   listTemplates,
+  removeCaseStepDocFile,
   updateCase,
   updateCaseStep,
-  updateCaseStepDoc,
   updateSubmission,
   uploadCaseStepDoc,
   type Case,
@@ -58,12 +58,14 @@ import {
   type Client,
   type Guarantor
 } from "../../api/cases";
+import { fileUrl, listDocumentCategories, type DocumentCategory } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
 
 type DocFormValues = {
   doc_name?: string | undefined;
   doc_name_en?: string | undefined;
+  category_id?: string | null | undefined;
   is_required?: boolean | undefined;
 };
 
@@ -148,6 +150,7 @@ function getDocDefaultValues(): DocFormValues {
   return {
     doc_name: "",
     doc_name_en: undefined,
+    category_id: null,
     is_required: true
   };
 }
@@ -156,48 +159,51 @@ type DocumentRowProps = {
   doc: CaseStepDoc;
   caseId: string;
   canManageCases: boolean;
+  categoryById: Map<string, DocumentCategory>;
 };
 
-function DocumentRow({ doc, caseId, canManageCases }: DocumentRowProps) {
+function DocumentRow({ doc, caseId, canManageCases, categoryById }: DocumentRowProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const category = doc.category_id ? categoryById.get(doc.category_id) : undefined;
+  const uploadedFiles = doc.files ?? [];
 
   const uploadMutation = useMutation({
-    mutationFn: ({ docId, selectedFile }: { docId: string; selectedFile: File }) =>
-      uploadCaseStepDoc(docId, selectedFile),
+    mutationFn: ({ docId, selectedFiles }: { docId: string; selectedFiles: File[] }) =>
+      uploadCaseStepDoc(docId, selectedFiles),
     onSuccess: async () => {
-      setFile(null);
+      setFiles([]);
       await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
     }
   });
-  const unlinkMutation = useMutation({
-    mutationFn: () => updateCaseStepDoc(doc.id, { document_id: null }),
+  const removeFileMutation = useMutation({
+    mutationFn: (documentId: string) => removeCaseStepDocFile(doc.id, documentId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
     }
   });
 
   async function upload() {
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
 
     setError(null);
     try {
-      await uploadMutation.mutateAsync({ docId: doc.id, selectedFile: file });
+      await uploadMutation.mutateAsync({ docId: doc.id, selectedFiles: files });
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : t("common.unknown_error"));
     }
   }
 
-  async function unlink() {
+  async function removeFile(documentId: string) {
     setError(null);
     try {
-      await unlinkMutation.mutateAsync();
-    } catch (unlinkError) {
-      setError(unlinkError instanceof Error ? unlinkError.message : t("common.unknown_error"));
+      await removeFileMutation.mutateAsync(documentId);
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : t("common.unknown_error"));
     }
   }
 
@@ -207,6 +213,11 @@ function DocumentRow({ doc, caseId, canManageCases }: DocumentRowProps) {
         <Stack gap={2}>
           <Group gap="xs">
             <Text fw={500}>{displayName(doc.doc_name, doc.doc_name_en)}</Text>
+            {category ? (
+              <Badge size="xs" variant="light" color="blue">
+                {displayName(category.name, category.name_en)}
+              </Badge>
+            ) : null}
             {doc.is_required ? (
               <Badge size="xs" variant="light" color="red">
                 {t("caseStepDoc.required")}
@@ -226,33 +237,56 @@ function DocumentRow({ doc, caseId, canManageCases }: DocumentRowProps) {
         </Badge>
       </Table.Td>
       <Table.Td>
-        {canManageCases && doc.status === "missing" ? (
-          <Group gap="xs" wrap="nowrap">
-            <FileInput
-              size="xs"
-              value={file}
-              onChange={setFile}
-              placeholder={t("caseStepDoc.chooseFile")}
-              clearable
-            />
-            <Button size="xs" onClick={upload} loading={uploadMutation.isPending} disabled={!file}>
-              {t("common.upload")}
-            </Button>
-          </Group>
-        ) : doc.status === "uploaded" ? (
-          <Group gap="xs">
-            <Badge color="green" variant="light">
-              {t("caseStepDoc.uploaded")}
-            </Badge>
-            {canManageCases ? (
-              <Button size="xs" variant="light" color="red" onClick={unlink} loading={unlinkMutation.isPending}>
-                {t("caseStepDoc.unlink")}
+        <Stack gap="xs">
+          {uploadedFiles.length > 0 ? (
+            <Stack gap={4}>
+              {uploadedFiles.map((file) => (
+                <Group key={file.id} gap="xs" wrap="nowrap">
+                  <Button
+                    component="a"
+                    href={fileUrl(file.storage_path)}
+                    target="_blank"
+                    rel="noreferrer"
+                    size="compact-xs"
+                    variant="subtle"
+                  >
+                    {file.filename}
+                  </Button>
+                  {canManageCases ? (
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="red"
+                      onClick={() => removeFile(file.id)}
+                      loading={removeFileMutation.isPending}
+                    >
+                      {t("caseStepDoc.removeFile")}
+                    </Button>
+                  ) : null}
+                </Group>
+              ))}
+            </Stack>
+          ) : (
+            <Text size="sm" c="dimmed">
+              {t("caseStepDoc.noFiles")}
+            </Text>
+          )}
+          {canManageCases ? (
+            <Group gap="xs" wrap="nowrap">
+              <FileInput
+                size="xs"
+                value={files}
+                onChange={(value) => setFiles(value ?? [])}
+                placeholder={t("caseStepDoc.chooseFiles")}
+                clearable
+                multiple
+              />
+              <Button size="xs" onClick={upload} loading={uploadMutation.isPending} disabled={files.length === 0}>
+                {t("caseStepDoc.uploadFiles")}
               </Button>
-            ) : null}
-          </Group>
-        ) : (
-          t("common.not_available")
-        )}
+            </Group>
+          ) : null}
+        </Stack>
       </Table.Td>
     </Table.Tr>
   );
@@ -263,9 +297,10 @@ type StepCardProps = {
   caseId: string;
   employeeById: Map<string, Employee>;
   canManageCases: boolean;
+  documentCategories: DocumentCategory[];
 };
 
-function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps) {
+function StepCard({ step, caseId, employeeById, canManageCases, documentCategories }: StepCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [stepError, setStepError] = useState<string | null>(null);
@@ -314,6 +349,16 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
   const assignee = step.assignee_id ? employeeById.get(step.assignee_id) : undefined;
   const followUps = followUpsQuery.data?.followUps ?? [];
   const docErrors = docForm.formState.errors;
+  const categoryById = useMemo(
+    () => new Map(documentCategories.map((category) => [category.id, category] as const)),
+    [documentCategories]
+  );
+  const categoryOptions = documentCategories.map((category) => ({
+    value: category.id,
+    label: displayName(category.name, category.name_en)
+  }));
+  const requiredDocuments = step.documents.filter((doc) => doc.is_required);
+  const readyRequiredDocuments = requiredDocuments.filter((doc) => (doc.document_ids?.length ?? 0) > 0).length;
 
   useEffect(() => {
     setAppointmentDraft(toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null));
@@ -328,7 +373,8 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
     try {
       await updateStepMutation.mutateAsync({ status: status as CaseStepStatus });
     } catch (error) {
-      setStepError(error instanceof Error ? error.message : t("common.unknown_error"));
+      const message = error instanceof Error ? error.message : t("common.unknown_error");
+      setStepError(message === "missing_required_documents" ? t("caseStepDoc.missingRequiredDocuments") : message);
     }
   }
 
@@ -393,6 +439,14 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
                 {t("caseStep.fields.completedAt")}: {formatDateTime(step.completed_at)}
               </Text>
             ) : null}
+            {requiredDocuments.length > 0 ? (
+              <Text size="sm" c={readyRequiredDocuments === requiredDocuments.length ? "green" : "orange"}>
+                {t("caseStepDoc.requiredReady", {
+                  ready: readyRequiredDocuments,
+                  total: requiredDocuments.length
+                })}
+              </Text>
+            ) : null}
           </Stack>
           {canManageCases ? (
             <Select
@@ -452,6 +506,20 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
                     />
                   </Group>
                   <Controller
+                    name="category_id"
+                    control={docForm.control}
+                    render={({ field }) => (
+                      <Select
+                        label={t("caseStepDoc.fields.category")}
+                        data={categoryOptions}
+                        value={field.value ?? null}
+                        onChange={field.onChange}
+                        searchable
+                        clearable
+                      />
+                    )}
+                  />
+                  <Controller
                     name="is_required"
                     control={docForm.control}
                     render={({ field }) => (
@@ -479,7 +547,7 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
               <Table.Tr>
                 <Table.Th>{t("caseStepDoc.fields.docName")}</Table.Th>
                 <Table.Th>{t("caseStepDoc.fields.status")}</Table.Th>
-                <Table.Th>{t("common.actions")}</Table.Th>
+                <Table.Th>{t("caseStepDoc.files")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -493,7 +561,13 @@ function StepCard({ step, caseId, employeeById, canManageCases }: StepCardProps)
                 </Table.Tr>
               ) : (
                 step.documents.map((doc) => (
-                  <DocumentRow key={doc.id} doc={doc} caseId={caseId} canManageCases={canManageCases} />
+                  <DocumentRow
+                    key={doc.id}
+                    doc={doc}
+                    caseId={caseId}
+                    canManageCases={canManageCases}
+                    categoryById={categoryById}
+                  />
                 ))
               )}
             </Table.Tbody>
@@ -991,6 +1065,10 @@ export function CaseDetailPage() {
     queryKey: ["hr", "employees"],
     queryFn: listEmployees
   });
+  const documentCategoriesQuery = useQuery({
+    queryKey: ["documents", "categories"],
+    queryFn: listDocumentCategories
+  });
   const updateCaseMutation = useMutation({
     mutationFn: ({ caseId, status }: { caseId: string; status: CaseStatus }) =>
       updateCase(caseId, { status }),
@@ -1011,6 +1089,7 @@ export function CaseDetailPage() {
   const clients = clientsQuery.data?.clients ?? [];
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
   const employees = employeesQuery.data?.employees ?? [];
+  const documentCategories = documentCategoriesQuery.data?.categories ?? [];
   const clientById = useMemo(
     () => new Map(clients.map((client) => [client.id, client] as const)),
     [clients]
@@ -1023,7 +1102,8 @@ export function CaseDetailPage() {
     value: status,
     label: t(`caseStatus.${status}`)
   }));
-  const loadError = caseQuery.error ?? clientsQuery.error ?? employeesQuery.error ?? guarantorsQuery.error;
+  const loadError =
+    caseQuery.error ?? clientsQuery.error ?? employeesQuery.error ?? guarantorsQuery.error ?? documentCategoriesQuery.error;
   const canManageCases = user ? caseManageRoles.has(user.role) : false;
 
   useEffect(() => {
@@ -1203,6 +1283,7 @@ export function CaseDetailPage() {
                   caseId={caseItem.id}
                   employeeById={employeeById}
                   canManageCases={canManageCases}
+                  documentCategories={documentCategories}
                 />
               ))
             )}

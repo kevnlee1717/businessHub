@@ -13,6 +13,7 @@ export const templateSteps = pgTable("template_steps", {
   requiredDocuments: jsonb("required_documents").$type<{
     name: string;
     name_en?: string;
+    category_id?: string | null;
     required: boolean;
   }[]>().notNull().default(sql`'[]'::jsonb`),
   defaultAssigneeRole: roleEnum("default_assignee_role"),

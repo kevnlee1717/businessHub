@@ -428,11 +428,19 @@
     "empty": "暂无文件槽",
     "required": "必需",
     "chooseFile": "选择文件",
+    "chooseFiles": "选择文件",
     "uploaded": "已上传",
     "unlink": "取消关联",
+    "files": "已传文件",
+    "noFiles": "暂无已传文件",
+    "removeFile": "移除",
+    "uploadFiles": "上传文件",
+    "missingRequiredDocuments": "必需文件未齐。",
+    "requiredReady": "必需文件 {{ready}}/{{total}} 已齐",
     "fields": {
       "docName": "文件名",
       "docNameEn": "英文名",
+      "category": "文件类型",
       "isRequired": "必需",
       "status": "状态"
     }

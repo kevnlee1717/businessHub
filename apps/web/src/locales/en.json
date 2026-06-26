@@ -428,11 +428,19 @@
     "empty": "No document slots yet",
     "required": "Required",
     "chooseFile": "Choose file",
+    "chooseFiles": "Choose files",
     "uploaded": "Uploaded",
     "unlink": "Unlink",
+    "files": "Files",
+    "noFiles": "No files uploaded",
+    "removeFile": "Remove",
+    "uploadFiles": "Upload files",
+    "missingRequiredDocuments": "Required files are incomplete.",
+    "requiredReady": "Required files {{ready}}/{{total}} ready",
     "fields": {
       "docName": "Document name",
       "docNameEn": "English name",
+      "category": "File type",
       "isRequired": "Required",
       "status": "Status"
     }

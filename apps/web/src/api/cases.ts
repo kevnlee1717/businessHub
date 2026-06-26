@@ -88,6 +88,7 @@ export type Guarantor = {
 export type UploadedDocument = {
   id: string;
   filename: string;
+  storage_path?: string;
   mime?: string | null;
   size?: number | null;
 };
@@ -109,7 +110,10 @@ export type CaseStepDoc = {
   doc_name_en?: string | null;
   is_required: boolean;
   status: CaseStepDocStatus;
+  category_id?: string | null;
   document_id?: string | null;
+  document_ids: string[];
+  files?: { id: string; filename: string; storage_path: string }[];
   created_at?: string;
   updated_at?: string;
 };
@@ -376,9 +380,14 @@ export function deleteCaseStepDoc(docId: string): Promise<{ ok: true }> {
   });
 }
 
-export async function uploadCaseStepDoc(docId: string, file: File): Promise<CaseStepDoc> {
+export async function uploadCaseStepDoc(
+  docId: string,
+  files: File[]
+): Promise<{ case_step_document: CaseStepDoc; documents: UploadedDocument[] }> {
   const formData = new FormData();
-  formData.append("file", file);
+  for (const file of files) {
+    formData.append("file", file);
+  }
 
   const response = await fetch(`/api/case-step-documents/${docId}/upload`, {
     method: "POST",
@@ -395,7 +404,13 @@ export async function uploadCaseStepDoc(docId: string, file: File): Promise<Case
     throw new Error(message);
   }
 
-  return data as CaseStepDoc;
+  return data as { case_step_document: CaseStepDoc; documents: UploadedDocument[] };
+}
+
+export function removeCaseStepDocFile(docId: string, documentId: string): Promise<{ document: CaseStepDoc }> {
+  return api<{ document: CaseStepDoc }>(`/case-step-documents/${docId}/files/${documentId}`, {
+    method: "DELETE"
+  });
 }
 
 export function listFollowUps(stepId: string): Promise<{ followUps: FollowUp[] }> {

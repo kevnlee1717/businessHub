@@ -106,7 +106,8 @@ export const caseStepDocUpdateSchema = z.object({
   doc_name_en: optionalText,
   category_id: uuidField.nullable().optional(),
   is_required: z.boolean().optional(),
-  document_id: uuidField.nullable().optional()
+  document_id: uuidField.nullable().optional(),
+  document_ids: z.array(uuidField).nullable().optional()
 });
 
 export const stepReviewRequestSchema = z.object({

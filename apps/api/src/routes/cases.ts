@@ -1,5 +1,3 @@
-import { Writable } from "node:stream";
-import { pipeline } from "node:stream/promises";
 import {
   caseStepDocuments,
   caseSteps,
@@ -90,7 +88,14 @@ function serializeSubmission(row: typeof caseSubmissions.$inferSelect) {
   };
 }
 
-function serializeCaseStepDoc(row: typeof caseStepDocuments.$inferSelect) {
+function getSlotDocumentIds(row: typeof caseStepDocuments.$inferSelect) {
+  return row.documentIds.length > 0 ? row.documentIds : row.documentId ? [row.documentId] : [];
+}
+
+function serializeCaseStepDoc(
+  row: typeof caseStepDocuments.$inferSelect,
+  files: Pick<typeof documents.$inferSelect, "id" | "filename" | "storagePath">[] = []
+) {
   return {
     id: row.id,
     case_step_id: row.caseStepId,
@@ -98,7 +103,14 @@ function serializeCaseStepDoc(row: typeof caseStepDocuments.$inferSelect) {
     doc_name_en: row.docNameEn,
     is_required: row.isRequired,
     status: row.status,
+    category_id: row.categoryId,
     document_id: row.documentId,
+    document_ids: getSlotDocumentIds(row),
+    files: files.map((file) => ({
+      id: file.id,
+      filename: file.filename,
+      storage_path: file.storagePath
+    })),
     created_at: row.createdAt
   };
 }
@@ -136,17 +148,6 @@ const caseQuerySchema = z.object({
   client_id: z.string().uuid().optional(),
   parent_case_id: z.string().uuid().optional()
 });
-
-async function discardFile(file: NodeJS.ReadableStream): Promise<void> {
-  await pipeline(
-    file,
-    new Writable({
-      write(_chunk, _encoding, callback) {
-        callback();
-      }
-    })
-  );
-}
 
 async function recalculateCurrentStep(caseId: string): Promise<void> {
   const remainingSteps = await db
@@ -228,6 +229,19 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       items.push(documentRow);
       documentsByStep.set(documentRow.caseStepId, items);
     }
+    const slotDocumentIds = [...new Set(documentRows.flatMap(getSlotDocumentIds))];
+    const slotFileRows =
+      slotDocumentIds.length === 0
+        ? []
+        : await db
+            .select({
+              id: documents.id,
+              filename: documents.filename,
+              storagePath: documents.storagePath
+            })
+            .from(documents)
+            .where(inArray(documents.id, slotDocumentIds));
+    const slotFilesById = new Map(slotFileRows.map((file) => [file.id, file]));
 
     const childRows = await db.select().from(cases).where(eq(cases.parentCaseId, id)).orderBy(desc(cases.createdAt));
     const guarantorRow = caseRow.guarantorId
@@ -243,7 +257,14 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       case: serializeCase(caseRow),
       steps: stepRows.map((step) => ({
         ...serializeCaseStep(step),
-        documents: (documentsByStep.get(step.id) ?? []).map(serializeCaseStepDoc)
+        documents: (documentsByStep.get(step.id) ?? []).map((documentRow) =>
+          serializeCaseStepDoc(
+            documentRow,
+            getSlotDocumentIds(documentRow)
+              .map((documentId) => slotFilesById.get(documentId))
+              .filter((file): file is (typeof slotFileRows)[number] => Boolean(file))
+          )
+        )
       })),
       children: childRows.map(serializeCase),
       guarantor: guarantorRow ? serializeGuarantor(guarantorRow) : null,
@@ -313,6 +334,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
             caseStepId: step.id,
             docName: item.name,
             docNameEn: item.name_en,
+            categoryId: item.category_id ?? null,
             isRequired: item.required ?? true,
             status: "missing"
           });
@@ -432,6 +454,19 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   app.patch("/case-steps/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseStepUpdateSchema, request.body);
+
+    if (body.status === "done") {
+      const requiredDocuments = await db
+        .select()
+        .from(caseStepDocuments)
+        .where(and(eq(caseStepDocuments.caseStepId, id), eq(caseStepDocuments.isRequired, true)));
+      const missingRequiredDocument = requiredDocuments.some((documentRow) => getSlotDocumentIds(documentRow).length === 0);
+
+      if (missingRequiredDocument) {
+        return reply.code(400).send({ error: "missing_required_documents" });
+      }
+    }
+
     const [step] = await db
       .update(caseSteps)
       .set({
@@ -471,6 +506,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
         caseStepId: id,
         docName: body.doc_name,
         docNameEn: body.doc_name_en,
+        categoryId: body.category_id ?? null,
         isRequired: body.is_required ?? true,
         status: "missing"
       })
@@ -486,14 +522,29 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   app.patch("/case-step-documents/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseStepDocUpdateSchema, request.body);
-    const documentStatus = body.document_id === undefined ? undefined : body.document_id === null ? "missing" : "uploaded";
+    const nextDocumentIds =
+      body.document_ids !== undefined
+        ? body.document_ids ?? []
+        : body.document_id !== undefined
+          ? body.document_id === null
+            ? []
+            : [body.document_id]
+          : undefined;
+    const documentStatus = nextDocumentIds === undefined ? undefined : nextDocumentIds.length === 0 ? "missing" : "uploaded";
     const [documentRow] = await db
       .update(caseStepDocuments)
       .set({
         docName: body.doc_name,
         docNameEn: body.doc_name_en,
+        categoryId: body.category_id,
         isRequired: body.is_required,
-        documentId: body.document_id,
+        documentId:
+          nextDocumentIds === undefined
+            ? body.document_id
+            : nextDocumentIds.length === 0
+              ? null
+              : nextDocumentIds[nextDocumentIds.length - 1],
+        documentIds: nextDocumentIds,
         status: documentStatus
       })
       .where(eq(caseStepDocuments.id, id))
@@ -524,36 +575,37 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       return sendNotFound(reply);
     }
 
-    let uploadedDocument: typeof documents.$inferSelect | null = null;
+    const uploadedDocuments: (typeof documents.$inferSelect)[] = [];
 
     for await (const part of request.parts()) {
       if (part.type !== "file") {
         continue;
       }
 
-      if (!uploadedDocument) {
-        const document = await saveUpload(part, {
-          subjectType: "case_step",
-          subjectId: step.id,
-          clientId: caseRow.clientId ?? null,
-          uploadedBy: request.user.id
-        });
-        if (!document) {
-          throw new Error("case_step_document_upload_failed");
-        }
-        uploadedDocument = document;
-      } else {
-        await discardFile(part.file);
+      const document = await saveUpload(part, {
+        subjectType: "case_step",
+        subjectId: step.id,
+        clientId: caseRow.clientId ?? null,
+        uploadedBy: request.user.id
+      });
+      if (!document) {
+        throw new Error("case_step_document_upload_failed");
       }
+      uploadedDocuments.push(document);
     }
 
-    if (!uploadedDocument) {
+    if (uploadedDocuments.length === 0) {
       return reply.code(400).send({ error: "file_required" });
     }
 
+    const nextDocumentIds = [...getSlotDocumentIds(slot), ...uploadedDocuments.map((document) => document.id)];
     const [documentRow] = await db
       .update(caseStepDocuments)
-      .set({ documentId: uploadedDocument.id, status: "uploaded" })
+      .set({
+        documentId: nextDocumentIds[nextDocumentIds.length - 1],
+        documentIds: nextDocumentIds,
+        status: "uploaded"
+      })
       .where(eq(caseStepDocuments.id, id))
       .returning();
 
@@ -561,8 +613,47 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       return sendNotFound(reply);
     }
 
-    return { case_step_document: serializeCaseStepDoc(documentRow), document: serializeDocument(uploadedDocument) };
+    return {
+      case_step_document: serializeCaseStepDoc(documentRow),
+      documents: uploadedDocuments.map(serializeDocument)
+    };
   });
+
+  app.delete(
+    "/case-step-documents/:id/files/:documentId",
+    { preHandler: requirePerm("case.manage") },
+    async (request, reply) => {
+      const params = parseWithSchema(
+        z.object({
+          id: z.string().uuid(),
+          documentId: z.string().uuid()
+        }),
+        request.params
+      );
+      const [slot] = await db.select().from(caseStepDocuments).where(eq(caseStepDocuments.id, params.id)).limit(1);
+
+      if (!slot) {
+        return sendNotFound(reply);
+      }
+
+      const nextDocumentIds = getSlotDocumentIds(slot).filter((documentId) => documentId !== params.documentId);
+      const [documentRow] = await db
+        .update(caseStepDocuments)
+        .set({
+          documentId: nextDocumentIds.length === 0 ? null : nextDocumentIds[nextDocumentIds.length - 1],
+          documentIds: nextDocumentIds,
+          status: nextDocumentIds.length === 0 ? "missing" : "uploaded"
+        })
+        .where(eq(caseStepDocuments.id, params.id))
+        .returning();
+
+      if (!documentRow) {
+        return sendNotFound(reply);
+      }
+
+      return { document: serializeCaseStepDoc(documentRow) };
+    }
+  );
 
   app.delete("/case-step-documents/:id", { preHandler: requirePerm("case.manage") }, async (request) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
