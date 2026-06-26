@@ -51,6 +51,7 @@ import {
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
 import { StudentSelect } from "../../components/StudentSelect";
+import { TeacherSelect } from "../../components/TeacherSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
@@ -251,10 +252,6 @@ export function DiplomaPage() {
   const courseOptions = courses.map((course) => ({
     value: course.id,
     label: displayName(course)
-  }));
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: displayName(employee)
   }));
   const studentsById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students]);
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
@@ -597,15 +594,12 @@ export function DiplomaPage() {
                 control={courseForm.control}
                 name="teacher_id"
                 render={({ field }) => (
-                  <Select
-                    label={t("diplomaCourse.fields.teacher")}
-                    data={employeeOptions}
-                    value={field.value ?? null}
-                    onChange={field.onChange}
-                    error={courseErrors.teacher_id?.message}
-                    clearable
-                    searchable
-                  />
+                  <Input.Wrapper label={t("diplomaCourse.fields.teacher")} error={courseErrors.teacher_id?.message}>
+                    <TeacherSelect
+                      value={field.value ?? null}
+                      onChange={(nextValue) => field.onChange(nextValue)}
+                    />
+                  </Input.Wrapper>
                 )}
               />
               <TextInput

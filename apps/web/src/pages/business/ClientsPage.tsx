@@ -1,68 +1,13 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Alert,
-  Button,
-  Group,
-  Loader,
-  Modal,
-  Paper,
-  ScrollArea,
-  Stack,
-  Table,
-  Text,
-  Textarea,
-  TextInput,
-  Title
-} from "@mantine/core";
-import {
-  clientCreateSchema,
-  clientUpdateSchema,
-  type ClientCreateInput,
-  type ClientUpdateInput
-} from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { listClients, type Client } from "../../api/cases";
 import { useAuth } from "../../auth/AuthContext";
-import { createClient, listClients, updateClient, type Client } from "../../api/cases";
-
-type ClientFormValues = {
-  name?: string | undefined;
-  name_en?: string | undefined;
-  phone?: string | undefined;
-  email?: string | undefined;
-  note?: string | null | undefined;
-};
+import { ClientFormModal } from "../../components/ClientFormModal";
 
 const clientQueryKey = ["business", "clients"] as const;
 const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
-
-const emptyToUndefined = (value: unknown) => {
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value;
-};
-
-const emptyToNull = (value: unknown) => {
-  if (typeof value === "string" && value.trim() === "") {
-    return null;
-  }
-
-  return value;
-};
-
-function getDefaultValues(client?: Client): ClientFormValues {
-  return {
-    name: client?.name ?? "",
-    name_en: client?.name_en ?? undefined,
-    phone: client?.phone ?? undefined,
-    email: client?.email ?? undefined,
-    note: client?.note ?? null
-  };
-}
 
 function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
@@ -74,7 +19,6 @@ export function ClientsPage() {
   const queryClient = useQueryClient();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const canManageCases = user ? caseManageRoles.has(user.role) : false;
 
   const clientsQuery = useQuery({
@@ -82,66 +26,22 @@ export function ClientsPage() {
     queryFn: listClients
   });
 
-  const form = useForm<ClientFormValues>({
-    resolver: zodResolver(editingClient ? clientUpdateSchema : clientCreateSchema) as Resolver<ClientFormValues>,
-    defaultValues: getDefaultValues(editingClient ?? undefined)
-  });
-
-  const createMutation = useMutation({
-    mutationFn: createClient,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: clientQueryKey });
-      closeModal();
-    }
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: ClientUpdateInput }) => updateClient(id, body),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: clientQueryKey });
-      closeModal();
-    }
-  });
-
   const clients = clientsQuery.data?.clients ?? [];
-  const errors = form.formState.errors;
-  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   function openCreateModal() {
     setEditingClient(null);
-    setFormError(null);
-    form.reset(getDefaultValues());
     setModalOpened(true);
   }
 
   function openEditModal(client: Client) {
     setEditingClient(client);
-    setFormError(null);
-    form.reset(getDefaultValues(client));
     setModalOpened(true);
   }
 
   function closeModal() {
     setModalOpened(false);
     setEditingClient(null);
-    setFormError(null);
-    form.reset(getDefaultValues());
   }
-
-  const onSubmit = form.handleSubmit(async (values) => {
-    setFormError(null);
-
-    try {
-      if (editingClient) {
-        await updateMutation.mutateAsync({ id: editingClient.id, body: values });
-        return;
-      }
-
-      await createMutation.mutateAsync(values as ClientCreateInput);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
-    }
-  });
 
   return (
     <Stack gap="md">
@@ -207,59 +107,14 @@ export function ClientsPage() {
         </ScrollArea>
       </Paper>
 
-      <Modal
+      <ClientFormModal
         opened={modalOpened}
         onClose={closeModal}
-        title={editingClient ? t("client.edit") : t("client.add")}
-        size="lg"
-      >
-        <form onSubmit={onSubmit}>
-          <Stack gap="md">
-            {formError ? (
-              <Alert color="red" variant="light">
-                {formError}
-              </Alert>
-            ) : null}
-            <Group grow align="flex-start">
-              <TextInput
-                label={t("client.fields.name")}
-                error={errors.name?.message}
-                {...form.register("name")}
-              />
-              <TextInput
-                label={t("client.fields.nameEn")}
-                error={errors.name_en?.message}
-                {...form.register("name_en", { setValueAs: emptyToUndefined })}
-              />
-            </Group>
-            <Group grow align="flex-start">
-              <TextInput
-                label={t("client.fields.phone")}
-                error={errors.phone?.message}
-                {...form.register("phone", { setValueAs: emptyToUndefined })}
-              />
-              <TextInput
-                label={t("client.fields.email")}
-                error={errors.email?.message}
-                {...form.register("email", { setValueAs: emptyToUndefined })}
-              />
-            </Group>
-            <Textarea
-              label={t("client.fields.note")}
-              error={errors.note?.message}
-              {...form.register("note", { setValueAs: emptyToNull })}
-            />
-            <Group justify="flex-end">
-              <Button variant="subtle" onClick={closeModal}>
-                {t("common.cancel")}
-              </Button>
-              <Button type="submit" loading={isSaving}>
-                {t("common.save")}
-              </Button>
-            </Group>
-          </Stack>
-        </form>
-      </Modal>
+        initialValues={editingClient}
+        onSaved={async () => {
+          await queryClient.invalidateQueries({ queryKey: clientQueryKey });
+        }}
+      />
     </Stack>
   );
 }

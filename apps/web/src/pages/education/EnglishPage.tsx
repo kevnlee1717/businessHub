@@ -54,6 +54,7 @@ import {
 import { listEmployees } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
 import { StudentSelect } from "../../components/StudentSelect";
+import { TeacherSelect } from "../../components/TeacherSelect";
 import { displayStudentName, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type LevelFormValues = {
@@ -251,7 +252,6 @@ export function EnglishPage() {
     return summaries;
   }, [attendanceSummaryQueries, enrollments]);
   const levelOptions = levels.map((level) => ({ value: level.id, label: displayName(level) }));
-  const employeeOptions = employees.map((employee) => ({ value: employee.id, label: displayName(employee) }));
   const levelErrors = levelForm.formState.errors;
   const classErrors = classForm.formState.errors;
   const isSavingLevel = createLevelMutation.isPending || updateLevelMutation.isPending;
@@ -851,15 +851,12 @@ export function EnglishPage() {
                 control={classForm.control}
                 name="teacher_id"
                 render={({ field }) => (
-                  <Select
-                    label={t("englishClass.fields.teacher")}
-                    data={employeeOptions}
-                    value={field.value ?? null}
-                    onChange={field.onChange}
-                    error={classErrors.teacher_id?.message}
-                    clearable
-                    searchable
-                  />
+                  <Input.Wrapper label={t("englishClass.fields.teacher")} error={classErrors.teacher_id?.message}>
+                    <TeacherSelect
+                      value={field.value ?? null}
+                      onChange={(nextValue) => field.onChange(nextValue)}
+                    />
+                  </Input.Wrapper>
                 )}
               />
             </Group>

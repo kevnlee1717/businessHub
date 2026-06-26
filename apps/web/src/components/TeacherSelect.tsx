@@ -1,31 +1,31 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { listStudents } from "../api/education";
+import { listEmployees } from "../api/hr";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
-import { StudentFormModal } from "./StudentFormModal";
+import { EmployeeFormModal } from "./EmployeeFormModal";
 
-type StudentSelectProps = {
+type TeacherSelectProps = {
   value: string | null | undefined;
   onChange: (id: string | null) => void;
   placeholder?: string;
 };
 
-const studentsQueryKey = ["education", "students"] as const;
+const employeesQueryKey = ["hr", "employees"] as const;
 
 function displayName(item: { name: string; name_en?: string | null }) {
   return item.name_en ? `${item.name} / ${item.name_en}` : item.name;
 }
 
-export function StudentSelect({ value, onChange, placeholder }: StudentSelectProps) {
+export function TeacherSelect({ value, onChange, placeholder }: TeacherSelectProps) {
   const queryClient = useQueryClient();
   const [createName, setCreateName] = useState<string | null>(null);
-  const studentsQuery = useQuery({
-    queryKey: studentsQueryKey,
-    queryFn: listStudents
+  const employeesQuery = useQuery({
+    queryKey: employeesQueryKey,
+    queryFn: listEmployees
   });
-  const options = (studentsQuery.data?.students ?? []).map((student) => ({
-    value: student.id,
-    label: displayName(student)
+  const options = (employeesQuery.data?.employees ?? []).map((employee) => ({
+    value: employee.id,
+    label: displayName(employee)
   }));
 
   return (
@@ -35,15 +35,16 @@ export function StudentSelect({ value, onChange, placeholder }: StudentSelectPro
         onChange={onChange}
         options={options}
         onRequestCreate={setCreateName}
-        loading={studentsQuery.isLoading}
+        loading={employeesQuery.isLoading}
         {...(placeholder ? { placeholder } : {})}
       />
-      <StudentFormModal
+      <EmployeeFormModal
         opened={createName !== null}
         onClose={() => setCreateName(null)}
-        onSaved={async (student) => {
-          await queryClient.invalidateQueries({ queryKey: studentsQueryKey });
-          onChange(student.id);
+        defaultRole="teacher"
+        onSaved={async (employee) => {
+          await queryClient.invalidateQueries({ queryKey: employeesQueryKey });
+          onChange(employee.id);
           setCreateName(null);
         }}
         {...(createName ? { initialName: createName } : {})}

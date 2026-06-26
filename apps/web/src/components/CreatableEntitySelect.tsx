@@ -19,7 +19,8 @@ type CreatableEntitySelectProps = {
   value: string | null | undefined;
   onChange: (id: string | null) => void;
   options: EntityOption[];
-  onCreate: (name: string) => Promise<string>;
+  onCreate?: (name: string) => Promise<string>;
+  onRequestCreate?: (name: string) => void;
   placeholder?: string;
   loading?: boolean;
 };
@@ -33,6 +34,7 @@ export function CreatableEntitySelect({
   onChange,
   options,
   onCreate,
+  onRequestCreate,
   placeholder,
   loading
 }: CreatableEntitySelectProps) {
@@ -77,6 +79,18 @@ export function CreatableEntitySelect({
 
   async function handleCreate() {
     if (!canCreate || creating) {
+      return;
+    }
+
+    if (onRequestCreate) {
+      onRequestCreate(trimmedSearch);
+      setSearch(selectedLabel);
+      setError(null);
+      combobox.closeDropdown();
+      return;
+    }
+
+    if (!onCreate) {
       return;
     }
 
