@@ -448,11 +448,15 @@
     "edit": "编辑公司",
     "clockPointsTitle": "{{name}} 打卡点",
     "empty": "暂无公司",
+    "basicInfo": "基本信息",
+    "createdClockPointPrompt": "公司已创建，现在可添加打卡点。",
+    "shiftRequired": "请选择班次",
     "fields": {
       "name": "名称",
       "nameEn": "英文名",
       "uen": "UEN",
       "industry": "行业",
+      "shift": "班次",
       "status": "状态",
       "note": "备注"
     }

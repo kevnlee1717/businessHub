@@ -448,11 +448,15 @@
     "edit": "Edit company",
     "clockPointsTitle": "{{name}} clock points",
     "empty": "No companies yet",
+    "basicInfo": "Basic information",
+    "createdClockPointPrompt": "Company created. You can add clock points now.",
+    "shiftRequired": "Select a shift",
     "fields": {
       "name": "Name",
       "nameEn": "English name",
       "uen": "UEN",
       "industry": "Industry",
+      "shift": "Shift",
       "status": "Status",
       "note": "Note"
     }

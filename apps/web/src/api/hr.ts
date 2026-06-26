@@ -60,6 +60,7 @@ export type Company = {
   name_en?: string | null;
   uen?: string | null;
   industry_id?: string | null;
+  shift_id?: string | null;
   status?: string | null;
   note?: string | null;
   created_at: string;
