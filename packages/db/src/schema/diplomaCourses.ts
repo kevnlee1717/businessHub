@@ -1,4 +1,4 @@
-import { numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { employees } from "./employees";
 
 export const diplomaCourses = pgTable("diploma_courses", {
@@ -9,5 +9,6 @@ export const diplomaCourses = pgTable("diploma_courses", {
   teacherId: uuid("teacher_id").references(() => employees.id, { onDelete: "set null" }),
   priceSgd: numeric("price_sgd", { precision: 12, scale: 2 }),
   duration: text("duration"),
+  monthIndex: integer("month_index"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });

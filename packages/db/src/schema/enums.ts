@@ -18,6 +18,8 @@ import {
   contractSubjectTypes,
   contractVersionStatuses,
   currencies,
+  diplomaAssignmentActions,
+  diplomaAssignmentStatuses,
   employeeStatuses,
   employmentTypes,
   faceChallengeStatuses,
@@ -62,6 +64,8 @@ export const caseStepStatusEnum = pgEnum("case_step_status", caseStepStatuses);
 export const caseStepDocStatusEnum = pgEnum("case_step_doc_status", caseStepDocStatuses);
 export const stepReviewStatusEnum = pgEnum("step_review_status", stepReviewStatuses);
 export const stepReviewActionEnum = pgEnum("step_review_action", stepReviewActions);
+export const diplomaAssignmentStatusEnum = pgEnum("diploma_assignment_status", diplomaAssignmentStatuses);
+export const diplomaAssignmentActionEnum = pgEnum("diploma_assignment_action", diplomaAssignmentActions);
 export const genderEnum = pgEnum("gender", genders);
 export const caseSubmissionResultEnum = pgEnum("case_submission_result", caseSubmissionResults);
 export const companyExpenseTypeEnum = pgEnum("company_expense_type", companyExpenseTypes);

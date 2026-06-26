@@ -409,7 +409,8 @@
     "createError": "新增文件类型失败"
   },
   "creatableSelect": {
-    "createError": "新增失败"
+    "createError": "新增失败",
+    "placeholder": "选择或新增"
   },
   "businessType": {
     "ep": "EP",

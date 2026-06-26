@@ -134,7 +134,7 @@ export function CreatableEntitySelect({
       <Combobox.Target>
         <InputBase
           value={search}
-          placeholder={placeholder ?? t("categorySelect.placeholder")}
+          placeholder={placeholder ?? t("creatableSelect.placeholder")}
           rightSection={
             <Group gap={4} wrap="nowrap">
               {isLoading ? <Loader size={14} /> : null}

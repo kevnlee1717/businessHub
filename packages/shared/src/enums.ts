@@ -107,6 +107,12 @@ export type StepReviewStatus = (typeof stepReviewStatuses)[number];
 export const stepReviewActions = ["request", "comment", "approve", "reject"] as const;
 export type StepReviewAction = (typeof stepReviewActions)[number];
 
+export const diplomaAssignmentStatuses = ["pending", "submitted", "passed", "rejected"] as const;
+export type DiplomaAssignmentStatus = (typeof diplomaAssignmentStatuses)[number];
+
+export const diplomaAssignmentActions = ["submit", "comment", "approve", "reject"] as const;
+export type DiplomaAssignmentAction = (typeof diplomaAssignmentActions)[number];
+
 export const genders = ["male", "female"] as const;
 export type Gender = (typeof genders)[number];
 
