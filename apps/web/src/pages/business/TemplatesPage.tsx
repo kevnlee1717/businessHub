@@ -6,6 +6,7 @@ import {
   Button,
   Checkbox,
   Group,
+  Input,
   Loader,
   Modal,
   NumberInput,
@@ -40,6 +41,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../auth/AuthContext";
+import { CategorySelect } from "../../components/CategorySelect";
 import {
   createTemplate,
   createTemplateStep,
@@ -221,10 +223,6 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     label: t(`role.${role}`)
   }));
   const documentCategories = documentCategoriesQuery.data?.categories ?? [];
-  const documentCategoryOptions = documentCategories.map((category) => ({
-    value: category.id,
-    label: displayName(category.name, category.name_en)
-  }));
   const documentCategoryNameById = useMemo(
     () => new Map(documentCategories.map((category) => [category.id, displayName(category.name, category.name_en)])),
     [documentCategories]
@@ -696,16 +694,13 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
                       }
                       style={{ flex: "1 1 180px" }}
                     />
-                    <Select
-                      label={t("requiredDoc.fields.category")}
-                      placeholder={t("requiredDoc.placeholders.category")}
-                      data={documentCategoryOptions}
-                      value={doc.category_id ?? null}
-                      onChange={(value) => updateRequiredDoc(index, { category_id: value })}
-                      clearable
-                      searchable
-                      style={{ flex: "1 1 220px" }}
-                    />
+                    <Input.Wrapper label={t("requiredDoc.fields.category")} style={{ flex: "1 1 220px" }}>
+                      <CategorySelect
+                        value={doc.category_id ?? null}
+                        onChange={(value) => updateRequiredDoc(index, { category_id: value })}
+                        placeholder={t("requiredDoc.placeholders.category")}
+                      />
+                    </Input.Wrapper>
                     <Checkbox
                       label={t("requiredDoc.fields.required")}
                       checked={doc.required}

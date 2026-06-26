@@ -397,6 +397,13 @@
       "category": "选择文件类型如护照/学历"
     }
   },
+  "categorySelect": {
+    "placeholder": "选择或新增文件类型",
+    "create": "新增「{{name}}」",
+    "clear": "无 / 清除",
+    "empty": "没有匹配的文件类型",
+    "createError": "新增文件类型失败"
+  },
   "businessType": {
     "ep": "EP",
     "ica": "ICA",
