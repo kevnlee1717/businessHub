@@ -41,6 +41,7 @@ function normalizeRequiredDocuments(
         name: string;
         name_en?: string | undefined;
         required?: boolean | undefined;
+        category_id?: string | null | undefined;
       }[]
     | undefined
 ): RequiredDocument[] | undefined {
@@ -51,7 +52,8 @@ function normalizeRequiredDocuments(
   return items.map((item) => ({
     name: item.name,
     ...(item.name_en === undefined ? {} : { name_en: item.name_en }),
-    required: item.required ?? true
+    required: item.required ?? true,
+    ...(item.category_id === undefined ? {} : { category_id: item.category_id })
   }));
 }
 
