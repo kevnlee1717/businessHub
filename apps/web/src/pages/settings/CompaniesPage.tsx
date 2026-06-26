@@ -2,9 +2,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Alert,
   Button,
+  Checkbox,
   Group,
   Loader,
   Modal,
+  NumberInput,
   Paper,
   ScrollArea,
   Select,
@@ -16,9 +18,13 @@ import {
   Title
 } from "@mantine/core";
 import {
+  clockPointCreateSchema,
+  clockPointUpdateSchema,
   companyCreateSchema,
   companyUpdateSchema,
   companyStatuses,
+  type ClockPointCreateInput,
+  type ClockPointUpdateInput,
   type CompanyStatus,
   type CompanyCreateInput,
   type CompanyUpdateInput
@@ -28,7 +34,19 @@ import { useMemo } from "react";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { createCompany, listCompanies, listIndustries, updateCompany, type Company } from "../../api/hr";
+import {
+  createClockPoint,
+  createCompany,
+  deleteClockPoint,
+  listClockPoints,
+  listCompanies,
+  listIndustries,
+  updateClockPoint,
+  updateCompany,
+  type ClockPoint,
+  type Company
+} from "../../api/hr";
+import { MapPicker } from "../../components/MapPicker";
 
 type CompanyFormValues = {
   name?: string | undefined;
@@ -39,8 +57,19 @@ type CompanyFormValues = {
   note?: string | null | undefined;
 };
 
+type ClockPointFormValues = {
+  name?: string | undefined;
+  name_en?: string | undefined;
+  lat?: number | undefined;
+  lng?: number | undefined;
+  radius_m?: number | undefined;
+  company_id?: string | undefined;
+  active?: boolean | undefined;
+};
+
 const companyQueryKey = ["hr", "companies"] as const;
 const industryQueryKey = ["hr", "industries"] as const;
+const companyClockPointQueryKey = (companyId: string | undefined) => ["hr", "clock-points", companyId] as const;
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
@@ -58,7 +87,7 @@ const emptyToNull = (value: unknown) => {
   return value;
 };
 
-function getDefaultValues(company?: Company): CompanyFormValues {
+function getCompanyDefaultValues(company?: Company): CompanyFormValues {
   return {
     name: company?.name ?? "",
     name_en: company?.name_en ?? undefined,
@@ -66,6 +95,18 @@ function getDefaultValues(company?: Company): CompanyFormValues {
     industry_id: company?.industry_id ?? null,
     status: isCompanyStatus(company?.status) ? company.status : undefined,
     note: company?.note ?? null
+  };
+}
+
+function getClockPointDefaultValues(companyId: string | undefined, clockPoint?: ClockPoint): ClockPointFormValues {
+  return {
+    name: clockPoint?.name ?? "",
+    name_en: clockPoint?.name_en ?? undefined,
+    lat: clockPoint ? Number(clockPoint.lat) : undefined,
+    lng: clockPoint ? Number(clockPoint.lng) : undefined,
+    radius_m: clockPoint?.radius_m ?? 200,
+    company_id: companyId,
+    active: clockPoint?.active ?? true
   };
 }
 
@@ -77,12 +118,19 @@ function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
 }
 
+function toNumberOrUndefined(value: string | number) {
+  return typeof value === "number" ? value : undefined;
+}
+
 export function CompaniesPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [clockPointCompany, setClockPointCompany] = useState<Company | null>(null);
+  const [editingClockPoint, setEditingClockPoint] = useState<ClockPoint | null>(null);
+  const [clockPointFormError, setClockPointFormError] = useState<string | null>(null);
 
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
@@ -93,19 +141,32 @@ export function CompaniesPage() {
     queryKey: industryQueryKey,
     queryFn: listIndustries
   });
+  const clockPointsQuery = useQuery({
+    queryKey: companyClockPointQueryKey(clockPointCompany?.id),
+    queryFn: listClockPoints,
+    enabled: Boolean(clockPointCompany)
+  });
 
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(
       editingCompany ? companyUpdateSchema : companyCreateSchema
     ) as Resolver<CompanyFormValues>,
-    defaultValues: getDefaultValues(editingCompany ?? undefined)
+    defaultValues: getCompanyDefaultValues(editingCompany ?? undefined)
+  });
+
+  const clockPointForm = useForm<ClockPointFormValues>({
+    resolver: zodResolver(
+      editingClockPoint ? clockPointUpdateSchema : clockPointCreateSchema
+    ) as Resolver<ClockPointFormValues>,
+    defaultValues: getClockPointDefaultValues(clockPointCompany?.id, editingClockPoint ?? undefined)
   });
 
   const createMutation = useMutation({
     mutationFn: createCompany,
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: companyQueryKey });
       closeModal();
+      openClockPointModal(data.company);
     }
   });
 
@@ -117,8 +178,33 @@ export function CompaniesPage() {
     }
   });
 
+  const createClockPointMutation = useMutation({
+    mutationFn: createClockPoint,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: companyClockPointQueryKey(clockPointCompany?.id) });
+      resetClockPointForm();
+    }
+  });
+
+  const updateClockPointMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ClockPointUpdateInput }) => updateClockPoint(id, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: companyClockPointQueryKey(clockPointCompany?.id) });
+      resetClockPointForm();
+    }
+  });
+
+  const deleteClockPointMutation = useMutation({
+    mutationFn: deleteClockPoint,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: companyClockPointQueryKey(clockPointCompany?.id) });
+    }
+  });
+
   const companies = companiesQuery.data?.companies ?? [];
   const industries = industriesQuery.data?.industries ?? [];
+  const clockPoints =
+    clockPointsQuery.data?.clockPoints.filter((clockPoint) => clockPoint.company_id === clockPointCompany?.id) ?? [];
   const industryById = useMemo(
     () => new Map(industries.map((industry) => [industry.id, industry])),
     [industries]
@@ -135,18 +221,23 @@ export function CompaniesPage() {
   const isLoading = companiesQuery.isLoading || industriesQuery.isLoading;
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
+  const clockPointErrors = clockPointForm.formState.errors;
+  const isClockPointSaving = createClockPointMutation.isPending || updateClockPointMutation.isPending;
+  const selectedLat = clockPointForm.watch("lat");
+  const selectedLng = clockPointForm.watch("lng");
+  const selectedRadius = clockPointForm.watch("radius_m");
 
   function openCreateModal() {
     setEditingCompany(null);
     setFormError(null);
-    form.reset(getDefaultValues());
+    form.reset(getCompanyDefaultValues());
     setModalOpened(true);
   }
 
   function openEditModal(company: Company) {
     setEditingCompany(company);
     setFormError(null);
-    form.reset(getDefaultValues(company));
+    form.reset(getCompanyDefaultValues(company));
     setModalOpened(true);
   }
 
@@ -154,7 +245,41 @@ export function CompaniesPage() {
     setModalOpened(false);
     setEditingCompany(null);
     setFormError(null);
-    form.reset(getDefaultValues());
+    form.reset(getCompanyDefaultValues());
+  }
+
+  function openClockPointModal(company: Company) {
+    setClockPointCompany(company);
+    setEditingClockPoint(null);
+    setClockPointFormError(null);
+    clockPointForm.reset(getClockPointDefaultValues(company.id));
+  }
+
+  function closeClockPointModal() {
+    setClockPointCompany(null);
+    setEditingClockPoint(null);
+    setClockPointFormError(null);
+    clockPointForm.reset(getClockPointDefaultValues(undefined));
+  }
+
+  function resetClockPointForm() {
+    setEditingClockPoint(null);
+    setClockPointFormError(null);
+    clockPointForm.reset(getClockPointDefaultValues(clockPointCompany?.id));
+  }
+
+  function editClockPoint(clockPoint: ClockPoint) {
+    setEditingClockPoint(clockPoint);
+    setClockPointFormError(null);
+    clockPointForm.reset(getClockPointDefaultValues(clockPointCompany?.id, clockPoint));
+  }
+
+  async function handleDeleteClockPoint(clockPoint: ClockPoint) {
+    if (!window.confirm(t("clockPoint.confirmDelete", { name: clockPoint.name }))) {
+      return;
+    }
+
+    await deleteClockPointMutation.mutateAsync(clockPoint.id);
   }
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -169,6 +294,29 @@ export function CompaniesPage() {
       await createMutation.mutateAsync(values as CompanyCreateInput);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  });
+
+  const onClockPointSubmit = clockPointForm.handleSubmit(async (values) => {
+    if (!clockPointCompany) {
+      return;
+    }
+
+    setClockPointFormError(null);
+    const body = {
+      ...values,
+      company_id: clockPointCompany.id
+    };
+
+    try {
+      if (editingClockPoint) {
+        await updateClockPointMutation.mutateAsync({ id: editingClockPoint.id, body });
+        return;
+      }
+
+      await createClockPointMutation.mutateAsync(body as ClockPointCreateInput);
+    } catch (error) {
+      setClockPointFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
   });
 
@@ -232,9 +380,14 @@ export function CompaniesPage() {
                     </Table.Td>
                     <Table.Td>{company.note ?? t("common.not_available")}</Table.Td>
                     <Table.Td>
-                      <Button size="xs" variant="light" onClick={() => openEditModal(company)}>
-                        {t("common.edit")}
-                      </Button>
+                      <Group gap="xs">
+                        <Button size="xs" variant="light" onClick={() => openEditModal(company)}>
+                          {t("common.edit")}
+                        </Button>
+                        <Button size="xs" variant="light" onClick={() => openClockPointModal(company)}>
+                          {t("hr.tabs.clockPoints")}
+                        </Button>
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))
@@ -320,6 +473,185 @@ export function CompaniesPage() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        opened={Boolean(clockPointCompany)}
+        onClose={closeClockPointModal}
+        title={clockPointCompany ? t("company.clockPointsTitle", { name: clockPointCompany.name }) : ""}
+        size="xl"
+      >
+        <Stack gap="md">
+          {clockPointsQuery.error ? (
+            <Alert color="red" variant="light">
+              {clockPointsQuery.error instanceof Error ? clockPointsQuery.error.message : t("common.unknown_error")}
+            </Alert>
+          ) : null}
+
+          <Paper withBorder radius="md">
+            <ScrollArea>
+              <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t("clockPoint.fields.name")}</Table.Th>
+                    <Table.Th>{t("clockPoint.fields.nameEn")}</Table.Th>
+                    <Table.Th>{t("clockPoint.fields.lat")}</Table.Th>
+                    <Table.Th>{t("clockPoint.fields.lng")}</Table.Th>
+                    <Table.Th>{t("clockPoint.fields.radiusM")}</Table.Th>
+                    <Table.Th>{t("clockPoint.fields.active")}</Table.Th>
+                    <Table.Th>{t("common.actions")}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {clockPointsQuery.isLoading ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={7}>
+                        <Group justify="center" py="lg">
+                          <Loader size="sm" />
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : clockPoints.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={7}>
+                        <Text ta="center" c="dimmed" py="lg">
+                          {t("clockPoint.empty")}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : (
+                    clockPoints.map((clockPoint) => (
+                      <Table.Tr key={clockPoint.id}>
+                        <Table.Td>{clockPoint.name}</Table.Td>
+                        <Table.Td>{clockPoint.name_en ?? t("common.not_available")}</Table.Td>
+                        <Table.Td>{clockPoint.lat}</Table.Td>
+                        <Table.Td>{clockPoint.lng}</Table.Td>
+                        <Table.Td>{clockPoint.radius_m}</Table.Td>
+                        <Table.Td>{clockPoint.active ? t("common.yes") : t("common.no")}</Table.Td>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <Button size="xs" variant="light" onClick={() => editClockPoint(clockPoint)}>
+                              {t("common.edit")}
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color="red"
+                              loading={deleteClockPointMutation.isPending}
+                              onClick={() => void handleDeleteClockPoint(clockPoint)}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))
+                  )}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Paper>
+
+          <form onSubmit={onClockPointSubmit}>
+            <Stack gap="md">
+              <Group justify="space-between" align="center">
+                <Title order={4}>{editingClockPoint ? t("clockPoint.edit") : t("clockPoint.add")}</Title>
+                {editingClockPoint ? (
+                  <Button size="xs" variant="subtle" onClick={resetClockPointForm}>
+                    {t("clockPoint.add")}
+                  </Button>
+                ) : null}
+              </Group>
+              {clockPointFormError ? (
+                <Alert color="red" variant="light">
+                  {clockPointFormError}
+                </Alert>
+              ) : null}
+              <Group grow align="flex-start">
+                <TextInput
+                  label={t("clockPoint.fields.name")}
+                  error={clockPointErrors.name?.message}
+                  {...clockPointForm.register("name")}
+                />
+                <TextInput
+                  label={t("clockPoint.fields.nameEn")}
+                  error={clockPointErrors.name_en?.message}
+                  {...clockPointForm.register("name_en", { setValueAs: emptyToUndefined })}
+                />
+              </Group>
+              <Group grow align="flex-start">
+                <Controller
+                  control={clockPointForm.control}
+                  name="lat"
+                  render={({ field }) => (
+                    <NumberInput
+                      label={t("clockPoint.fields.lat")}
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(toNumberOrUndefined(value))}
+                      error={clockPointErrors.lat?.message}
+                      decimalScale={7}
+                    />
+                  )}
+                />
+                <Controller
+                  control={clockPointForm.control}
+                  name="lng"
+                  render={({ field }) => (
+                    <NumberInput
+                      label={t("clockPoint.fields.lng")}
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(toNumberOrUndefined(value))}
+                      error={clockPointErrors.lng?.message}
+                      decimalScale={7}
+                    />
+                  )}
+                />
+                <Controller
+                  control={clockPointForm.control}
+                  name="radius_m"
+                  render={({ field }) => (
+                    <NumberInput
+                      label={t("clockPoint.fields.radiusM")}
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(toNumberOrUndefined(value))}
+                      error={clockPointErrors.radius_m?.message}
+                      min={1}
+                    />
+                  )}
+                />
+              </Group>
+              <MapPicker
+                lat={typeof selectedLat === "number" ? selectedLat : null}
+                lng={typeof selectedLng === "number" ? selectedLng : null}
+                radius={typeof selectedRadius === "number" ? selectedRadius : 0}
+                onChange={(lat, lng) => {
+                  clockPointForm.setValue("lat", lat, { shouldValidate: true, shouldDirty: true });
+                  clockPointForm.setValue("lng", lng, { shouldValidate: true, shouldDirty: true });
+                }}
+              />
+              <Controller
+                control={clockPointForm.control}
+                name="active"
+                render={({ field }) => (
+                  <Checkbox
+                    label={t("clockPoint.fields.active")}
+                    checked={field.value ?? false}
+                    onChange={(event) => field.onChange(event.currentTarget.checked)}
+                    error={clockPointErrors.active?.message}
+                  />
+                )}
+              />
+              <Group justify="flex-end">
+                <Button variant="subtle" onClick={resetClockPointForm}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" loading={isClockPointSaving}>
+                  {t("common.save")}
+                </Button>
+              </Group>
+            </Stack>
+          </form>
+        </Stack>
       </Modal>
     </Stack>
   );

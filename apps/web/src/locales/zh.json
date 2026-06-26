@@ -446,6 +446,7 @@
     "title": "公司管理",
     "add": "新增公司",
     "edit": "编辑公司",
+    "clockPointsTitle": "{{name}} 打卡点",
     "empty": "暂无公司",
     "fields": {
       "name": "名称",
@@ -491,8 +492,8 @@
     "empty": "暂无班次",
     "fields": {
       "name": "名称",
-      "startMin": "开始分钟",
-      "endMin": "结束分钟",
+      "startMin": "上班时间",
+      "endMin": "下班时间",
       "allowedLateCount": "允许迟到次数",
       "isDefault": "默认班次"
     }

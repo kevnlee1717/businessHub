@@ -51,8 +51,23 @@ function toNumberOrUndefined(value: string | number) {
   return typeof value === "number" ? value : undefined;
 }
 
-function hhmm(minutes: number) {
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+const minToTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+const timeToMin = (time: string) => {
+  const parts = time.split(":").map(Number);
+  const hours = parts[0] ?? 0;
+  const minutes = parts[1] ?? 0;
+  return hours * 60 + minutes;
+};
+
+function toMinuteOrUndefined(value: string) {
+  if (!/^\d{2}:\d{2}$/.test(value)) {
+    return undefined;
+  }
+
+  const minutes = timeToMin(value);
+  return Number.isInteger(minutes) && minutes >= 0 && minutes <= 1439 ? minutes : undefined;
 }
 
 export function WorkShiftsPage() {
@@ -177,8 +192,8 @@ export function WorkShiftsPage() {
                 workShifts.map((workShift) => (
                   <Table.Tr key={workShift.id}>
                     <Table.Td>{workShift.name}</Table.Td>
-                    <Table.Td>{`${hhmm(workShift.start_min)} (${workShift.start_min})`}</Table.Td>
-                    <Table.Td>{`${hhmm(workShift.end_min)} (${workShift.end_min})`}</Table.Td>
+                    <Table.Td>{minToTime(workShift.start_min)}</Table.Td>
+                    <Table.Td>{minToTime(workShift.end_min)}</Table.Td>
                     <Table.Td>{workShift.allowed_late_count}</Table.Td>
                     <Table.Td>{workShift.is_default ? t("common.yes") : t("common.no")}</Table.Td>
                     <Table.Td>
@@ -217,13 +232,12 @@ export function WorkShiftsPage() {
                 control={form.control}
                 name="start_min"
                 render={({ field }) => (
-                  <NumberInput
+                  <TextInput
+                    type="time"
                     label={t("workShift.fields.startMin")}
-                    value={field.value ?? ""}
-                    onChange={(value) => field.onChange(toNumberOrUndefined(value))}
+                    value={typeof field.value === "number" ? minToTime(field.value) : ""}
+                    onChange={(event) => field.onChange(toMinuteOrUndefined(event.currentTarget.value))}
                     error={errors.start_min?.message}
-                    min={0}
-                    max={1439}
                   />
                 )}
               />
@@ -231,13 +245,12 @@ export function WorkShiftsPage() {
                 control={form.control}
                 name="end_min"
                 render={({ field }) => (
-                  <NumberInput
+                  <TextInput
+                    type="time"
                     label={t("workShift.fields.endMin")}
-                    value={field.value ?? ""}
-                    onChange={(value) => field.onChange(toNumberOrUndefined(value))}
+                    value={typeof field.value === "number" ? minToTime(field.value) : ""}
+                    onChange={(event) => field.onChange(toMinuteOrUndefined(event.currentTarget.value))}
                     error={errors.end_min?.message}
-                    min={0}
-                    max={1439}
                   />
                 )}
               />

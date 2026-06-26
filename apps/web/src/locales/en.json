@@ -446,6 +446,7 @@
     "title": "Company Management",
     "add": "Add company",
     "edit": "Edit company",
+    "clockPointsTitle": "{{name}} clock points",
     "empty": "No companies yet",
     "fields": {
       "name": "Name",
@@ -491,8 +492,8 @@
     "empty": "No work shifts yet",
     "fields": {
       "name": "Name",
-      "startMin": "Start minute",
-      "endMin": "End minute",
+      "startMin": "Start time",
+      "endMin": "End time",
       "allowedLateCount": "Allowed late count",
       "isDefault": "Default shift"
     }
