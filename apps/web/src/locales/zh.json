@@ -658,6 +658,10 @@
     "add": "新增打卡点",
     "edit": "编辑打卡点",
     "empty": "暂无打卡点",
+    "stage": "添加",
+    "stagedTitle": "待添加打卡点",
+    "stagedEmpty": "暂无待添加打卡点",
+    "selectLocationRequired": "请先在地图上选择经纬度",
     "confirmDelete": "确定删除打卡点 {{name}}？",
     "fields": {
       "name": "名称",

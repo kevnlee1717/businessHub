@@ -658,6 +658,10 @@
     "add": "Add clock point",
     "edit": "Edit clock point",
     "empty": "No clock points yet",
+    "stage": "Add",
+    "stagedTitle": "Clock points to add",
+    "stagedEmpty": "No clock points staged yet",
+    "selectLocationRequired": "Select latitude and longitude on the map first",
     "confirmDelete": "Delete clock point {{name}}?",
     "fields": {
       "name": "Name",
