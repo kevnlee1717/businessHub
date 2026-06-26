@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ActionIcon,
   Alert,
+  Badge,
   Button,
   Checkbox,
   Group,
@@ -50,6 +51,7 @@ import {
   type TemplateStep,
   type WorkflowTemplate
 } from "../../api/cases";
+import { listDocumentCategories } from "../../api/dms";
 
 type TemplateFormValues = {
   business_type?: BusinessType | undefined;
@@ -145,6 +147,10 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     queryFn: () => getTemplate(selectedTemplateId ?? ""),
     enabled: Boolean(selectedTemplateId)
   });
+  const documentCategoriesQuery = useQuery({
+    queryKey: ["documents", "categories"],
+    queryFn: listDocumentCategories
+  });
 
   const templateForm = useForm<TemplateFormValues>({
     resolver: zodResolver(
@@ -214,6 +220,15 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     value: role,
     label: t(`role.${role}`)
   }));
+  const documentCategories = documentCategoriesQuery.data?.categories ?? [];
+  const documentCategoryOptions = documentCategories.map((category) => ({
+    value: category.id,
+    label: displayName(category.name, category.name_en)
+  }));
+  const documentCategoryNameById = useMemo(
+    () => new Map(documentCategories.map((category) => [category.id, displayName(category.name, category.name_en)])),
+    [documentCategories]
+  );
   const selectedTemplateInList = useMemo(
     () => templates.some((template) => template.id === selectedTemplateId),
     [selectedTemplateId, templates]
@@ -292,6 +307,10 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
 
   function removeRequiredDoc(index: number) {
     syncRequiredDocs(requiredDocs.filter((_doc, docIndex) => docIndex !== index));
+  }
+
+  function getDocumentCategoryName(categoryId?: string | null) {
+    return categoryId ? documentCategoryNameById.get(categoryId) ?? t("common.uncategorized") : t("common.uncategorized");
   }
 
   async function handleDeleteStep(step: TemplateStep) {
@@ -456,77 +475,91 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
               </Alert>
             ) : null}
 
-            <ScrollArea>
-              <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>{t("templateStep.fields.stepOrder")}</Table.Th>
-                    <Table.Th>{t("templateStep.fields.name")}</Table.Th>
-                    <Table.Th>{t("templateStep.fields.description")}</Table.Th>
-                    <Table.Th>{t("templateStep.fields.defaultAssigneeRole")}</Table.Th>
-                    <Table.Th>{t("templateStep.fields.requiredDocuments")}</Table.Th>
-                    {canManageCases ? <Table.Th>{t("common.actions")}</Table.Th> : null}
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {selectedTemplateQuery.isLoading ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={canManageCases ? 6 : 5}>
-                        <Group justify="center" py="lg">
-                          <Loader size="sm" />
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : !selectedTemplateId ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={canManageCases ? 6 : 5}>
-                        <Text ta="center" c="dimmed" py="lg">
-                          {t("templateStep.selectHint")}
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : steps.length === 0 ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={canManageCases ? 6 : 5}>
-                        <Text ta="center" c="dimmed" py="lg">
-                          {t("templateStep.empty")}
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : (
-                    steps.map((step) => (
-                      <Table.Tr key={step.id}>
-                        <Table.Td>{step.step_order}</Table.Td>
-                        <Table.Td>{displayName(step.name, step.name_en)}</Table.Td>
-                        <Table.Td>{step.description ?? t("common.not_available")}</Table.Td>
-                        <Table.Td>
-                          {step.default_assignee_role ? t(`role.${step.default_assignee_role}`) : t("common.not_available")}
-                        </Table.Td>
-                        <Table.Td>{step.required_documents.length}</Table.Td>
+            {selectedTemplateQuery.isLoading ? (
+              <Group justify="center" py="lg">
+                <Loader size="sm" />
+              </Group>
+            ) : !selectedTemplateId ? (
+              <Text ta="center" c="dimmed" py="lg">
+                {t("templateStep.selectHint")}
+              </Text>
+            ) : steps.length === 0 ? (
+              <Text ta="center" c="dimmed" py="lg">
+                {t("templateStep.empty")}
+              </Text>
+            ) : (
+              <Stack gap="sm">
+                {steps.map((step) => (
+                  <Paper key={step.id} withBorder radius="md" p="md">
+                    <Stack gap="sm">
+                      <Group justify="space-between" align="flex-start" gap="sm">
+                        <div>
+                          <Text fw={600}>{`${step.step_order}. ${displayName(step.name, step.name_en)}`}</Text>
+                        </div>
                         {canManageCases ? (
-                          <Table.Td>
-                            <Group gap="xs" wrap="nowrap">
-                              <Button size="xs" variant="light" onClick={() => openEditStepModal(step)}>
-                                {t("common.edit")}
-                              </Button>
-                              <Button
-                                size="xs"
-                                color="red"
-                                variant="light"
-                                loading={deleteStepMutation.isPending}
-                                onClick={() => void handleDeleteStep(step)}
-                              >
-                                {t("common.delete")}
-                              </Button>
-                            </Group>
-                          </Table.Td>
+                          <Group gap="xs" wrap="nowrap">
+                            <Button size="xs" variant="light" onClick={() => openEditStepModal(step)}>
+                              {t("common.edit")}
+                            </Button>
+                            <Button
+                              size="xs"
+                              color="red"
+                              variant="light"
+                              loading={deleteStepMutation.isPending}
+                              onClick={() => void handleDeleteStep(step)}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </Group>
                         ) : null}
-                      </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
+                      </Group>
+
+                      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("templateStep.fields.description")}
+                          </Text>
+                          <Text size="sm">{step.description ?? t("common.not_available")}</Text>
+                        </div>
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("templateStep.fields.defaultAssigneeRole")}
+                          </Text>
+                          <Text size="sm">
+                            {step.default_assignee_role
+                              ? t(`role.${step.default_assignee_role}`)
+                              : t("common.not_available")}
+                          </Text>
+                        </div>
+                      </SimpleGrid>
+
+                      <Stack gap={6}>
+                        <Text size="xs" c="dimmed">
+                          {t("templateStep.fields.requiredDocuments")}
+                        </Text>
+                        {step.required_documents.length === 0 ? (
+                          <Text size="sm" c="dimmed">
+                            {t("requiredDoc.empty")}
+                          </Text>
+                        ) : (
+                          step.required_documents.map((doc, index) => (
+                            <Group key={`${doc.name}-${index}`} gap="xs" wrap="wrap">
+                              <Text size="sm">{displayName(doc.name, doc.name_en)}</Text>
+                              <Badge size="sm" variant="light">
+                                {getDocumentCategoryName(doc.category_id)}
+                              </Badge>
+                              <Badge size="sm" color={doc.required ? "green" : "gray"} variant="light">
+                                {doc.required ? t("requiredDoc.fields.required") : t("requiredDoc.fields.optional")}
+                              </Badge>
+                            </Group>
+                          ))
+                        )}
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
           </Stack>
         </Paper>
       </SimpleGrid>
@@ -648,12 +681,12 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
                 </Text>
               ) : (
                 requiredDocs.map((doc, index) => (
-                  <Group key={index} align="flex-end" wrap="nowrap">
+                  <Group key={index} align="flex-end" wrap="wrap">
                     <TextInput
                       label={t("requiredDoc.fields.name")}
                       value={doc.name}
                       onChange={(event) => updateRequiredDoc(index, { name: event.currentTarget.value })}
-                      style={{ flex: 1 }}
+                      style={{ flex: "1 1 180px" }}
                     />
                     <TextInput
                       label={t("requiredDoc.fields.nameEn")}
@@ -661,7 +694,17 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
                       onChange={(event) =>
                         updateRequiredDoc(index, { name_en: event.currentTarget.value.trim() || undefined })
                       }
-                      style={{ flex: 1 }}
+                      style={{ flex: "1 1 180px" }}
+                    />
+                    <Select
+                      label={t("requiredDoc.fields.category")}
+                      placeholder={t("requiredDoc.placeholders.category")}
+                      data={documentCategoryOptions}
+                      value={doc.category_id ?? null}
+                      onChange={(value) => updateRequiredDoc(index, { category_id: value })}
+                      clearable
+                      searchable
+                      style={{ flex: "1 1 220px" }}
                     />
                     <Checkbox
                       label={t("requiredDoc.fields.required")}

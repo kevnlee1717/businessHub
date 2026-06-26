@@ -49,6 +49,7 @@
     "all": "All",
     "course": "Course",
     "teacher": "Teacher",
+    "uncategorized": "Uncategorized",
     "not_available": "-",
     "unknown_error": "Unknown error"
   },
@@ -388,7 +389,12 @@
     "fields": {
       "name": "Document name",
       "nameEn": "English name",
-      "required": "Required"
+      "category": "Document type",
+      "required": "Required",
+      "optional": "Optional"
+    },
+    "placeholders": {
+      "category": "Select document type, e.g. passport/education"
     }
   },
   "businessType": {

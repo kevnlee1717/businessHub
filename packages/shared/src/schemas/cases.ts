@@ -18,6 +18,7 @@ export const clientUpdateSchema = clientCreateSchema.partial();
 export const requiredDocItemSchema = z.object({
   name: z.string().trim().min(1),
   name_en: z.string().trim().min(1).optional(),
+  category_id: z.string().uuid().nullable().optional(),
   required: z.boolean().default(true)
 });
 
