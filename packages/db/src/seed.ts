@@ -120,7 +120,7 @@ if (!existingDefaultShift) {
 }
 
 type WorkflowTemplateSeed = {
-  businessType: "ep" | "ica";
+  businessType: "ep" | "ica" | "dp";
   name: string;
   steps: {
     name: string;
@@ -229,6 +229,40 @@ const workflowTemplateSeeds: WorkflowTemplateSeed[] = [
         name: "提交",
         nameEn: "Submit",
         description: "结果一般3个月后,失败需重走担保人扫脸再提交(后续版本记录每次提交/拒绝时间)",
+        requiredDocuments: []
+      }
+    ]
+  },
+  {
+    businessType: "dp",
+    name: "DP 申请",
+    steps: [
+      {
+        name: "搜集资料",
+        nameEn: "Collect Documents",
+        requiredDocuments: [
+          { name: "身份证", name_en: "ID Card", required: true },
+          { name: "关系证明", name_en: "Relationship Proof", required: true }
+        ]
+      },
+      {
+        name: "提交申请",
+        nameEn: "Submit Application",
+        requiredDocuments: []
+      },
+      {
+        name: "获批",
+        nameEn: "Approval",
+        requiredDocuments: []
+      },
+      {
+        name: "预约指纹",
+        nameEn: "Book Fingerprint",
+        requiredDocuments: []
+      },
+      {
+        name: "完成",
+        nameEn: "Completed",
         requiredDocuments: []
       }
     ]

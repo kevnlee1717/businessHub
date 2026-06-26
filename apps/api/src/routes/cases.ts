@@ -1,9 +1,21 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { caseStepDocuments, caseSteps, cases, db, documents, followUps, templateSteps } from "@bh/db";
+import {
+  caseStepDocuments,
+  caseSteps,
+  caseSubmissions,
+  cases,
+  db,
+  documents,
+  followUps,
+  guarantors,
+  templateSteps
+} from "@bh/db";
 import {
   businessTypes,
   caseCreateSchema,
+  caseSubmissionCreateSchema,
+  caseSubmissionUpdateSchema,
   caseStatuses,
   caseUpdateSchema,
   caseStepDocCreateSchema,
@@ -11,7 +23,7 @@ import {
   caseStepUpdateSchema,
   followUpCreateSchema
 } from "@bh/shared";
-import { and, asc, desc, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -22,10 +34,12 @@ function serializeCase(row: typeof cases.$inferSelect) {
   return {
     id: row.id,
     business_type: row.businessType,
+    parent_case_id: row.parentCaseId,
     client_id: row.clientId,
     current_step: row.currentStep,
     status: row.status,
     billing_id: row.billingId,
+    guarantor_id: row.guarantorId,
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
     guarantor_contact: row.guarantorContact,
@@ -44,7 +58,34 @@ function serializeCaseStep(row: typeof caseSteps.$inferSelect) {
     description: row.description,
     assignee_id: row.assigneeId,
     status: row.status,
+    meta: row.meta,
     completed_at: row.completedAt,
+    created_at: row.createdAt
+  };
+}
+
+function serializeGuarantor(row: typeof guarantors.$inferSelect) {
+  return {
+    id: row.id,
+    name: row.name,
+    nric: row.nric,
+    gender: row.gender,
+    age: row.age,
+    id_card_document_id: row.idCardDocumentId,
+    note: row.note,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializeSubmission(row: typeof caseSubmissions.$inferSelect) {
+  return {
+    id: row.id,
+    case_id: row.caseId,
+    submitted_at: row.submittedAt,
+    result: row.result,
+    rejected_at: row.rejectedAt,
+    note: row.note,
     created_at: row.createdAt
   };
 }
@@ -92,7 +133,8 @@ function serializeDocument(row: typeof documents.$inferSelect) {
 const caseQuerySchema = z.object({
   business_type: z.enum(businessTypes).optional(),
   status: z.enum(caseStatuses).optional(),
-  client_id: z.string().uuid().optional()
+  client_id: z.string().uuid().optional(),
+  parent_case_id: z.string().uuid().optional()
 });
 
 async function discardFile(file: NodeJS.ReadableStream): Promise<void> {
@@ -146,6 +188,11 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     if (query.client_id) {
       filters.push(eq(cases.clientId, query.client_id));
     }
+    if (query.parent_case_id) {
+      filters.push(eq(cases.parentCaseId, query.parent_case_id));
+    } else {
+      filters.push(isNull(cases.parentCaseId));
+    }
 
     const rows = await db
       .select()
@@ -182,12 +229,25 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       documentsByStep.set(documentRow.caseStepId, items);
     }
 
+    const childRows = await db.select().from(cases).where(eq(cases.parentCaseId, id)).orderBy(desc(cases.createdAt));
+    const guarantorRow = caseRow.guarantorId
+      ? (await db.select().from(guarantors).where(eq(guarantors.id, caseRow.guarantorId)).limit(1))[0] ?? null
+      : null;
+    const submissionRows = await db
+      .select()
+      .from(caseSubmissions)
+      .where(eq(caseSubmissions.caseId, id))
+      .orderBy(desc(caseSubmissions.createdAt));
+
     return {
       case: serializeCase(caseRow),
       steps: stepRows.map((step) => ({
         ...serializeCaseStep(step),
         documents: (documentsByStep.get(step.id) ?? []).map(serializeCaseStepDoc)
-      }))
+      })),
+      children: childRows.map(serializeCase),
+      guarantor: guarantorRow ? serializeGuarantor(guarantorRow) : null,
+      submissions: submissionRows.map(serializeSubmission)
     };
   });
 
@@ -203,6 +263,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
         .insert(cases)
         .values({
           businessType: body.business_type,
+          parentCaseId: body.parent_case_id ?? null,
           clientId: body.client_id ?? null,
           currentStep: 0,
           status: "open",
@@ -287,6 +348,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
         billingId: body.billing_id,
         status: body.status,
         currentStep: body.current_step,
+        guarantorId: body.guarantor_id,
         guarantorName: body.guarantor_name,
         guarantorRelation: body.guarantor_relation,
         guarantorContact: body.guarantor_contact,
@@ -302,6 +364,71 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     return { case: serializeCase(caseRow) };
   });
 
+  app.post("/cases/:id/submissions", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(caseSubmissionCreateSchema, request.body);
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const [submission] = await db
+      .insert(caseSubmissions)
+      .values({
+        caseId: id,
+        submittedAt: body.submitted_at ? new Date(body.submitted_at) : new Date(),
+        result: "pending",
+        note: body.note
+      })
+      .returning();
+
+    if (!submission) {
+      throw new Error("case_submission_create_failed");
+    }
+
+    return reply.code(201).send({ submission: serializeSubmission(submission) });
+  });
+
+  app.get("/cases/:id/submissions", { preHandler: requirePerm("case.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const submissionRows = await db
+      .select()
+      .from(caseSubmissions)
+      .where(eq(caseSubmissions.caseId, id))
+      .orderBy(desc(caseSubmissions.createdAt));
+
+    return { submissions: submissionRows.map(serializeSubmission) };
+  });
+
+  app.patch("/case-submissions/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(caseSubmissionUpdateSchema, request.body);
+    const [submission] = await db
+      .update(caseSubmissions)
+      .set({
+        result: body.result,
+        rejectedAt: body.rejected_at === undefined ? undefined : body.rejected_at === null ? null : new Date(body.rejected_at),
+        submittedAt:
+          body.submitted_at === undefined ? undefined : body.submitted_at === null ? null : new Date(body.submitted_at),
+        note: body.note
+      })
+      .where(eq(caseSubmissions.id, id))
+      .returning();
+
+    if (!submission) {
+      return sendNotFound(reply);
+    }
+
+    return { submission: serializeSubmission(submission) };
+  });
+
   app.patch("/case-steps/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseStepUpdateSchema, request.body);
@@ -314,6 +441,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
         assigneeId: body.assignee_id,
         status: body.status,
         stepOrder: body.step_order,
+        meta: body.meta,
         completedAt: body.status === undefined ? undefined : body.status === "done" ? new Date() : null
       })
       .where(eq(caseSteps.id, id))

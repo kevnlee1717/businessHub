@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { businessTypes, caseStatuses, caseStepStatuses, roles } from "../enums";
+import { businessTypes, caseStatuses, caseStepStatuses, caseSubmissionResults, genders, roles } from "../enums";
 
 const optionalText = z.string().trim().min(1).optional();
 const nullableOptionalText = z.string().trim().min(1).nullable().optional();
@@ -41,6 +41,7 @@ export const templateStepUpdateSchema = templateStepCreateSchema.partial();
 
 export const caseCreateSchema = z.object({
   business_type: z.enum(businessTypes),
+  parent_case_id: uuidField.nullable().optional(),
   client_id: uuidField.nullable().optional(),
   template_id: uuidField.optional(),
   billing_id: uuidField.nullable().optional(),
@@ -54,6 +55,7 @@ export const caseUpdateSchema = z.object({
   billing_id: uuidField.nullable().optional(),
   status: z.enum(caseStatuses).optional(),
   current_step: z.number().int().optional(),
+  guarantor_id: uuidField.nullable().optional(),
   guarantor_name: optionalText,
   guarantor_relation: optionalText,
   guarantor_contact: optionalText
@@ -65,7 +67,30 @@ export const caseStepUpdateSchema = z.object({
   description: nullableOptionalText,
   assignee_id: uuidField.nullable().optional(),
   status: z.enum(caseStepStatuses).optional(),
-  step_order: z.number().int().optional()
+  step_order: z.number().int().optional(),
+  meta: z.record(z.string(), z.unknown()).optional()
+});
+
+export const guarantorCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  nric: optionalText,
+  gender: z.enum(genders).nullable().optional(),
+  age: z.number().int().min(0).nullable().optional(),
+  note: nullableOptionalText
+});
+
+export const guarantorUpdateSchema = guarantorCreateSchema.partial();
+
+export const caseSubmissionCreateSchema = z.object({
+  submitted_at: z.string().datetime().optional(),
+  note: nullableOptionalText
+});
+
+export const caseSubmissionUpdateSchema = z.object({
+  result: z.enum(caseSubmissionResults).optional(),
+  rejected_at: z.string().datetime().nullable().optional(),
+  submitted_at: z.string().datetime().nullable().optional(),
+  note: nullableOptionalText
 });
 
 export const caseStepDocCreateSchema = z.object({
@@ -95,6 +120,10 @@ export type TemplateStepUpdateInput = z.infer<typeof templateStepUpdateSchema>;
 export type CaseCreateInput = z.infer<typeof caseCreateSchema>;
 export type CaseUpdateInput = z.infer<typeof caseUpdateSchema>;
 export type CaseStepUpdateInput = z.infer<typeof caseStepUpdateSchema>;
+export type GuarantorCreateInput = z.infer<typeof guarantorCreateSchema>;
+export type GuarantorUpdateInput = z.infer<typeof guarantorUpdateSchema>;
+export type CaseSubmissionCreateInput = z.infer<typeof caseSubmissionCreateSchema>;
+export type CaseSubmissionUpdateInput = z.infer<typeof caseSubmissionUpdateSchema>;
 export type CaseStepDocCreateInput = z.infer<typeof caseStepDocCreateSchema>;
 export type CaseStepDocUpdateInput = z.infer<typeof caseStepDocUpdateSchema>;
 export type FollowUpCreateInput = z.infer<typeof followUpCreateSchema>;
