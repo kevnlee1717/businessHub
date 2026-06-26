@@ -88,9 +88,16 @@ function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
 }
 
-function getTemplateDefaultValues(template?: WorkflowTemplate): TemplateFormValues {
+type TemplatesPageProps = {
+  businessType?: Extract<BusinessType, "ep" | "ica">;
+};
+
+function getTemplateDefaultValues(
+  template?: WorkflowTemplate,
+  businessType?: Extract<BusinessType, "ep" | "ica">
+): TemplateFormValues {
   return {
-    business_type: template?.business_type ?? "ep",
+    business_type: template?.business_type ?? businessType ?? "ep",
     name: template?.name ?? ""
   };
 }
@@ -114,11 +121,11 @@ function normalizeStepValues(values: StepFormValues): TemplateStepCreateInput {
   } as TemplateStepCreateInput;
 }
 
-export function TemplatesPage() {
+export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [businessTypeFilter, setBusinessTypeFilter] = useState<BusinessType | null>(null);
+  const [businessTypeFilter, setBusinessTypeFilter] = useState<BusinessType | null>(businessType ?? null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templateModalOpened, setTemplateModalOpened] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WorkflowTemplate | null>(null);
@@ -130,8 +137,8 @@ export function TemplatesPage() {
   const canManageCases = user ? caseManageRoles.has(user.role) : false;
 
   const templatesQuery = useQuery({
-    queryKey: [...templateQueryKey, businessTypeFilter],
-    queryFn: () => listTemplates(businessTypeFilter ?? undefined)
+    queryKey: [...templateQueryKey, businessType ?? businessTypeFilter],
+    queryFn: () => listTemplates(businessType ?? businessTypeFilter ?? undefined)
   });
   const selectedTemplateQuery = useQuery({
     queryKey: [...templateQueryKey, selectedTemplateId],
@@ -143,7 +150,7 @@ export function TemplatesPage() {
     resolver: zodResolver(
       editingTemplate ? workflowTemplateUpdateSchema : workflowTemplateCreateSchema
     ) as Resolver<TemplateFormValues>,
-    defaultValues: getTemplateDefaultValues(editingTemplate ?? undefined)
+    defaultValues: getTemplateDefaultValues(editingTemplate ?? undefined, businessType)
   });
   const stepForm = useForm<StepFormValues>({
     resolver: zodResolver(editingStep ? templateStepUpdateSchema : templateStepCreateSchema) as Resolver<StepFormValues>,
@@ -232,14 +239,14 @@ export function TemplatesPage() {
   function openCreateTemplateModal() {
     setEditingTemplate(null);
     setTemplateFormError(null);
-    templateForm.reset(getTemplateDefaultValues());
+    templateForm.reset(getTemplateDefaultValues(undefined, businessType));
     setTemplateModalOpened(true);
   }
 
   function openEditTemplateModal(template: WorkflowTemplate) {
     setEditingTemplate(template);
     setTemplateFormError(null);
-    templateForm.reset(getTemplateDefaultValues(template));
+    templateForm.reset(getTemplateDefaultValues(template, businessType));
     setTemplateModalOpened(true);
   }
 
@@ -247,7 +254,7 @@ export function TemplatesPage() {
     setTemplateModalOpened(false);
     setEditingTemplate(null);
     setTemplateFormError(null);
-    templateForm.reset(getTemplateDefaultValues());
+    templateForm.reset(getTemplateDefaultValues(undefined, businessType));
   }
 
   function openCreateStepModal() {
@@ -300,11 +307,17 @@ export function TemplatesPage() {
 
     try {
       if (editingTemplate) {
-        await updateTemplateMutation.mutateAsync({ id: editingTemplate.id, body: values });
+        await updateTemplateMutation.mutateAsync({
+          id: editingTemplate.id,
+          body: { ...values, business_type: businessType ?? values.business_type }
+        });
         return;
       }
 
-      await createTemplateMutation.mutateAsync(values as WorkflowTemplateCreateInput);
+      await createTemplateMutation.mutateAsync({
+        ...values,
+        business_type: businessType ?? values.business_type
+      } as WorkflowTemplateCreateInput);
     } catch (error) {
       setTemplateFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -335,14 +348,16 @@ export function TemplatesPage() {
       <Group justify="space-between" align="flex-end">
         <Group align="flex-end">
           <Title order={2}>{t("template.title")}</Title>
-          <Select
-            label={t("template.filters.businessType")}
-            data={businessTypeOptions}
-            value={businessTypeFilter}
-            onChange={(value) => setBusinessTypeFilter(value as BusinessType | null)}
-            clearable
-            w={220}
-          />
+          {businessType ? null : (
+            <Select
+              label={t("template.filters.businessType")}
+              data={businessTypeOptions}
+              value={businessTypeFilter}
+              onChange={(value) => setBusinessTypeFilter(value as BusinessType | null)}
+              clearable
+              w={220}
+            />
+          )}
         </Group>
         {canManageCases ? <Button onClick={openCreateTemplateModal}>{t("template.add")}</Button> : null}
       </Group>
@@ -529,19 +544,21 @@ export function TemplatesPage() {
                 {templateFormError}
               </Alert>
             ) : null}
-            <Controller
-              control={templateForm.control}
-              name="business_type"
-              render={({ field }) => (
-                <Select
-                  label={t("template.fields.businessType")}
-                  data={businessTypeOptions}
-                  value={field.value ?? null}
-                  onChange={(value) => field.onChange(value as BusinessType | null)}
-                  error={templateErrors.business_type?.message}
-                />
-              )}
-            />
+            {businessType ? null : (
+              <Controller
+                control={templateForm.control}
+                name="business_type"
+                render={({ field }) => (
+                  <Select
+                    label={t("template.fields.businessType")}
+                    data={businessTypeOptions}
+                    value={field.value ?? null}
+                    onChange={(value) => field.onChange(value as BusinessType | null)}
+                    error={templateErrors.business_type?.message}
+                  />
+                )}
+              />
+            )}
             <TextInput
               label={t("template.fields.name")}
               error={templateErrors.name?.message}

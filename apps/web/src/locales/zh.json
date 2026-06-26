@@ -105,6 +105,8 @@
   },
   "education": {
     "tabs": {
+      "courses": "课程与报名",
+      "coursesAndSchedule": "课程与排课",
       "students": "学生",
       "diploma": "成人大专",
       "english": "成人英语",

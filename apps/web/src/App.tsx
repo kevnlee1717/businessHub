@@ -4,21 +4,18 @@ import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
 import { BusinessLayout } from "./pages/business/BusinessLayout";
 import { CaseDetailPage } from "./pages/business/CaseDetailPage";
-import { CasesPage } from "./pages/business/CasesPage";
-import { ClientsPage } from "./pages/business/ClientsPage";
-import { GuarantorsPage } from "./pages/business/GuarantorsPage";
-import { TemplatesPage } from "./pages/business/TemplatesPage";
+import { EpSection } from "./pages/business/EpSection";
+import { IcaSection } from "./pages/business/IcaSection";
 import { CategoriesPage } from "./pages/documents/CategoriesPage";
 import { ClientLibraryPage } from "./pages/documents/ClientLibraryPage";
 import { CompanyFilesPage } from "./pages/documents/CompanyFilesPage";
 import { ContractsPage } from "./pages/documents/ContractsPage";
 import { DocumentSearchPage } from "./pages/documents/DocumentSearchPage";
 import { DocumentsLayout } from "./pages/documents/DocumentsLayout";
-import { DiplomaPage } from "./pages/education/DiplomaPage";
+import { DiplomaSection } from "./pages/education/DiplomaSection";
 import { EducationLayout } from "./pages/education/EducationLayout";
-import { EnglishPage } from "./pages/education/EnglishPage";
-import { StudentsPage } from "./pages/education/StudentsPage";
-import { WsqPage } from "./pages/education/WsqPage";
+import { EnglishSection } from "./pages/education/EnglishSection";
+import { WsqSection } from "./pages/education/WsqSection";
 import { BillingPage } from "./pages/finance/BillingPage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
@@ -54,19 +51,15 @@ export function App() {
           </Route>
           <Route path="business" element={<BusinessLayout />}>
             <Route index element={<Navigate to="ep" replace />} />
-            <Route path="ep" element={<CasesPage businessType="ep" />} />
-            <Route path="ica" element={<CasesPage businessType="ica" />} />
+            <Route path="ep" element={<EpSection />} />
+            <Route path="ica" element={<IcaSection />} />
             <Route path="cases/:id" element={<CaseDetailPage />} />
-            <Route path="clients" element={<ClientsPage />} />
-            <Route path="templates" element={<TemplatesPage />} />
-            <Route path="guarantors" element={<GuarantorsPage />} />
           </Route>
           <Route path="education" element={<EducationLayout />}>
-            <Route index element={<Navigate to="students" replace />} />
-            <Route path="students" element={<StudentsPage />} />
-            <Route path="diploma" element={<DiplomaPage />} />
-            <Route path="english" element={<EnglishPage />} />
-            <Route path="wsq" element={<WsqPage />} />
+            <Route index element={<Navigate to="diploma" replace />} />
+            <Route path="diploma" element={<DiplomaSection />} />
+            <Route path="english" element={<EnglishSection />} />
+            <Route path="wsq" element={<WsqSection />} />
           </Route>
           <Route path="documents" element={<DocumentsLayout />}>
             <Route index element={<Navigate to="search" replace />} />

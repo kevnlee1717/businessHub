@@ -105,6 +105,8 @@
   },
   "education": {
     "tabs": {
+      "courses": "Courses and enrollments",
+      "coursesAndSchedule": "Courses and schedules",
       "students": "Students",
       "diploma": "Adult diploma",
       "english": "Adult English",

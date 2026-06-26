@@ -22,10 +22,7 @@ const navItems = [
     defaultOpened: true,
     children: [
       { to: "/business/ep", key: "nav.ep" },
-      { to: "/business/ica", key: "nav.ica" },
-      { to: "/business/clients", key: "nav.clients" },
-      { to: "/business/templates", key: "nav.templates" },
-      { to: "/business/guarantors", key: "nav.guarantors" }
+      { to: "/business/ica", key: "nav.ica" }
     ]
   },
   {
@@ -34,8 +31,7 @@ const navItems = [
     children: [
       { to: "/education/diploma", key: "nav.diploma" },
       { to: "/education/wsq", key: "nav.wsq" },
-      { to: "/education/english", key: "nav.english" },
-      { to: "/education/students", key: "nav.students" }
+      { to: "/education/english", key: "nav.english" }
     ]
   },
   { to: "/documents", key: "nav.documents" },
