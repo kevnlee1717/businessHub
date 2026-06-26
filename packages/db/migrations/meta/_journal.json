@@ -71,6 +71,13 @@
       "when": 1782443676508,
       "tag": "0009_groovy_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782458255484,
+      "tag": "0010_glamorous_banshee",
+      "breakpoints": true
     }
   ]
 }

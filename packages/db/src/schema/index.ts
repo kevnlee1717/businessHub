@@ -17,6 +17,7 @@ export * from "./cases";
 export * from "./caseSteps";
 export * from "./caseSubmissions";
 export * from "./caseStepDocuments";
+export * from "./stepReviews";
 export * from "./followUps";
 export * from "./priceAdjustments";
 export * from "./payments";

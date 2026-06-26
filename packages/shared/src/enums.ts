@@ -101,6 +101,12 @@ export type CaseStepStatus = (typeof caseStepStatuses)[number];
 export const caseStepDocStatuses = ["missing", "uploaded"] as const;
 export type CaseStepDocStatus = (typeof caseStepDocStatuses)[number];
 
+export const stepReviewStatuses = ["none", "pending", "approved", "rejected"] as const;
+export type StepReviewStatus = (typeof stepReviewStatuses)[number];
+
+export const stepReviewActions = ["request", "comment", "approve", "reject"] as const;
+export type StepReviewAction = (typeof stepReviewActions)[number];
+
 export const genders = ["male", "female"] as const;
 export type Gender = (typeof genders)[number];
 

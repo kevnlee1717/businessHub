@@ -10,6 +10,8 @@ import {
   caseSubmissionResults,
   caseStepDocStatuses,
   caseStepStatuses,
+  stepReviewActions,
+  stepReviewStatuses,
   commissionTypes,
   companyExpenseTypes,
   contractStatuses,
@@ -58,6 +60,8 @@ export const businessTypeEnum = pgEnum("business_type", businessTypes);
 export const caseStatusEnum = pgEnum("case_status", caseStatuses);
 export const caseStepStatusEnum = pgEnum("case_step_status", caseStepStatuses);
 export const caseStepDocStatusEnum = pgEnum("case_step_doc_status", caseStepDocStatuses);
+export const stepReviewStatusEnum = pgEnum("step_review_status", stepReviewStatuses);
+export const stepReviewActionEnum = pgEnum("step_review_action", stepReviewActions);
 export const genderEnum = pgEnum("gender", genders);
 export const caseSubmissionResultEnum = pgEnum("case_submission_result", caseSubmissionResults);
 export const companyExpenseTypeEnum = pgEnum("company_expense_type", companyExpenseTypes);

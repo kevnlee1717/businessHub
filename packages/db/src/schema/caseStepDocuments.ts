@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { caseSteps } from "./caseSteps";
+import { documentCategories } from "./documentCategories";
 import { documents } from "./documents";
 import { caseStepDocStatusEnum } from "./enums";
 
@@ -10,6 +12,8 @@ export const caseStepDocuments = pgTable("case_step_documents", {
   docNameEn: text("doc_name_en"),
   isRequired: boolean("is_required").notNull().default(true),
   status: caseStepDocStatusEnum("status").notNull().default("missing"),
+  categoryId: uuid("category_id").references(() => documentCategories.id, { onDelete: "set null" }),
   documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+  documentIds: uuid("document_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });

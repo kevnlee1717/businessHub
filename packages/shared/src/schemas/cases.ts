@@ -97,14 +97,26 @@ export const caseSubmissionUpdateSchema = z.object({
 export const caseStepDocCreateSchema = z.object({
   doc_name: z.string().trim().min(1),
   doc_name_en: optionalText,
+  category_id: uuidField.nullable().optional(),
   is_required: z.boolean().optional()
 });
 
 export const caseStepDocUpdateSchema = z.object({
   doc_name: optionalText,
   doc_name_en: optionalText,
+  category_id: uuidField.nullable().optional(),
   is_required: z.boolean().optional(),
   document_id: uuidField.nullable().optional()
+});
+
+export const stepReviewRequestSchema = z.object({
+  reviewer_id: uuidField,
+  content: nullableOptionalText
+});
+
+export const stepReviewMessageSchema = z.object({
+  action: z.enum(["comment", "approve", "reject"]),
+  content: nullableOptionalText
 });
 
 export const followUpCreateSchema = z.object({
@@ -127,4 +139,6 @@ export type CaseSubmissionCreateInput = z.infer<typeof caseSubmissionCreateSchem
 export type CaseSubmissionUpdateInput = z.infer<typeof caseSubmissionUpdateSchema>;
 export type CaseStepDocCreateInput = z.infer<typeof caseStepDocCreateSchema>;
 export type CaseStepDocUpdateInput = z.infer<typeof caseStepDocUpdateSchema>;
+export type StepReviewRequestInput = z.infer<typeof stepReviewRequestSchema>;
+export type StepReviewMessageInput = z.infer<typeof stepReviewMessageSchema>;
 export type FollowUpCreateInput = z.infer<typeof followUpCreateSchema>;
