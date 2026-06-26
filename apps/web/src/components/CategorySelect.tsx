@@ -171,7 +171,7 @@ export function CategorySelect({ value, onChange, placeholder }: CategorySelectP
       </Combobox.Target>
 
       <Combobox.Dropdown>
-        <Combobox.Options>
+        <Combobox.Options mah={240} style={{ overflowY: "auto" }}>
           {value ? <Combobox.Option value="__clear__">{t("categorySelect.clear")}</Combobox.Option> : null}
 
           {filteredCategories.map((category) => (
