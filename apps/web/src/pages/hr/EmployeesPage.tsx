@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Group,
+  Input,
   Loader,
   Modal,
   Paper,
@@ -43,6 +44,7 @@ import {
   updateEmployee,
   type Employee
 } from "../../api/hr";
+import { PositionSelect } from "../../components/PositionSelect";
 
 type EmployeeFormValues = {
   name?: string | undefined;
@@ -157,10 +159,6 @@ export function EmployeesPage() {
   const companyOptions = companies.map((company) => ({
     value: company.id,
     label: displayName(company.name, company.name_en)
-  }));
-  const positionOptions = positions.map((position) => ({
-    value: position.id,
-    label: displayName(position.name, position.name_en)
   }));
   const shiftOptions = workShifts.map((shift) => ({
     value: shift.id,
@@ -446,14 +444,12 @@ export function EmployeesPage() {
                 control={form.control}
                 name="position_id"
                 render={({ field }) => (
-                  <Select
-                    label={t("hr.employees.fields.position")}
-                    data={positionOptions}
-                    value={field.value ?? null}
-                    onChange={(value) => field.onChange(value ?? undefined)}
-                    error={errors.position_id?.message}
-                    clearable
-                  />
+                  <Input.Wrapper label={t("hr.employees.fields.position")} error={errors.position_id?.message}>
+                    <PositionSelect
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value ?? undefined)}
+                    />
+                  </Input.Wrapper>
                 )}
               />
             </Group>

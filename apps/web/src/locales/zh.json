@@ -404,6 +404,9 @@
     "empty": "没有匹配的文件类型",
     "createError": "新增文件类型失败"
   },
+  "creatableSelect": {
+    "createError": "新增失败"
+  },
   "businessType": {
     "ep": "EP",
     "ica": "ICA",

@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Group,
+  Input,
   Loader,
   Modal,
   Paper,
@@ -28,6 +29,7 @@ import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { ClientSelect } from "../../components/ClientSelect";
 import {
   createCase,
   listCases,
@@ -301,15 +303,12 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 name="client_id"
                 control={form.control}
                 render={({ field }) => (
-                  <Select
-                    label={t("case.fields.client")}
-                    data={clientOptions}
-                    value={field.value ?? null}
-                    onChange={(value) => field.onChange(value)}
-                    error={errors.client_id?.message}
-                    searchable
-                    clearable
-                  />
+                  <Input.Wrapper label={t("case.fields.client")} error={errors.client_id?.message}>
+                    <ClientSelect
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value)}
+                    />
+                  </Input.Wrapper>
                 )}
               />
             </Group>

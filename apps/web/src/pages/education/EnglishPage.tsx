@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   Group,
+  Input,
   Loader,
   Modal,
   NumberInput,
@@ -52,6 +53,7 @@ import {
 } from "../../api/education";
 import { listEmployees } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { StudentSelect } from "../../components/StudentSelect";
 import { displayStudentName, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type LevelFormValues = {
@@ -249,7 +251,6 @@ export function EnglishPage() {
     return summaries;
   }, [attendanceSummaryQueries, enrollments]);
   const levelOptions = levels.map((level) => ({ value: level.id, label: displayName(level) }));
-  const studentOptions = students.map((student) => ({ value: student.id, label: displayStudentName(student) }));
   const employeeOptions = employees.map((employee) => ({ value: employee.id, label: displayName(employee) }));
   const levelErrors = levelForm.formState.errors;
   const classErrors = classForm.formState.errors;
@@ -602,14 +603,12 @@ export function EnglishPage() {
                 {selectedClass ? (
                   <Stack gap="md">
                     <Group align="flex-end">
-                      <Select
-                        label={t("englishEnrollment.fields.student")}
-                        data={studentOptions}
-                        value={enrollmentStudentId}
-                        onChange={setEnrollmentStudentId}
-                        searchable
-                        w={300}
-                      />
+                      <Input.Wrapper label={t("englishEnrollment.fields.student")} w={300}>
+                        <StudentSelect
+                          value={enrollmentStudentId}
+                          onChange={setEnrollmentStudentId}
+                        />
+                      </Input.Wrapper>
                       {canManageEducation ? (
                         <Button
                           onClick={handleCreateEnrollment}

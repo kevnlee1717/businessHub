@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Group,
+  Input,
   Loader,
   Modal,
   NumberInput,
@@ -51,6 +52,7 @@ import {
   type EmployeeCompensation,
   type ResolvedCompensationField
 } from "../../api/hr";
+import { PositionSelect } from "../../components/PositionSelect";
 
 type MoneyFormValue = number | null | undefined;
 
@@ -225,10 +227,6 @@ export function CompensationPage() {
   const companyOptions = companies.map((company) => ({
     value: company.id,
     label: displayName(company.name, company.name_en)
-  }));
-  const positionOptions = positions.map((position) => ({
-    value: position.id,
-    label: displayName(position.name, position.name_en)
   }));
   const employeeOptions = employees.map((employee) => ({
     value: employee.id,
@@ -579,14 +577,12 @@ export function CompensationPage() {
                 control={templateForm.control}
                 name="position_id"
                 render={({ field }) => (
-                  <Select
-                    label={t("compensation.fields.position")}
-                    data={positionOptions}
-                    value={field.value ?? null}
-                    onChange={(value) => field.onChange(value ?? undefined)}
-                    error={templateErrors.position_id?.message}
-                    searchable
-                  />
+                  <Input.Wrapper label={t("compensation.fields.position")} error={templateErrors.position_id?.message}>
+                    <PositionSelect
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value ?? undefined)}
+                    />
+                  </Input.Wrapper>
                 )}
               />
             </Group>

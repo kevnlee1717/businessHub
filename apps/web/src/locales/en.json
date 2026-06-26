@@ -404,6 +404,9 @@
     "empty": "No matching document types",
     "createError": "Failed to add document type"
   },
+  "creatableSelect": {
+    "createError": "Failed to add item"
+  },
   "businessType": {
     "ep": "EP",
     "ica": "ICA",

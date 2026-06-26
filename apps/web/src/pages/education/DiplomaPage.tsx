@@ -5,6 +5,7 @@ import {
   Button,
   Checkbox,
   Group,
+  Input,
   Loader,
   Modal,
   NumberInput,
@@ -49,6 +50,7 @@ import {
 } from "../../api/education";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { StudentSelect } from "../../components/StudentSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
@@ -655,15 +657,16 @@ export function DiplomaPage() {
                 control={enrollmentForm.control}
                 name="student_id"
                 render={({ field }) => (
-                  <Select
+                  <Input.Wrapper
                     label={t("diploma.fields.student")}
-                    data={studentOptions}
-                    value={field.value ?? null}
-                    onChange={field.onChange}
                     error={enrollmentErrors.student_id?.message}
-                    searchable
                     withAsterisk
-                  />
+                  >
+                    <StudentSelect
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value ?? undefined)}
+                    />
+                  </Input.Wrapper>
                 )}
               />
             )}

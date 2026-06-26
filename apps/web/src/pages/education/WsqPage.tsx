@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Group,
+  Input,
   Loader,
   Modal,
   NumberInput,
@@ -42,6 +43,7 @@ import {
   type WsqCourse
 } from "../../api/education";
 import { useAuth } from "../../auth/AuthContext";
+import { StudentSelect } from "../../components/StudentSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
@@ -172,10 +174,6 @@ export function WsqPage() {
   const enrollmentErrors = enrollmentForm.formState.errors;
   const isSavingCourse = createCourseMutation.isPending || updateCourseMutation.isPending;
   const isSavingEnrollment = createEnrollmentMutation.isPending;
-  const studentOptions = students.map((student) => ({
-    value: student.id,
-    label: displayStudentName(student)
-  }));
   const studentsById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students]);
 
   useEffect(() => {
@@ -522,15 +520,16 @@ export function WsqPage() {
               control={enrollmentForm.control}
               name="student_id"
               render={({ field }) => (
-                <Select
+                <Input.Wrapper
                   label={t("wsq.enrollment.fields.student")}
-                  data={studentOptions}
-                  value={field.value ?? null}
-                  onChange={field.onChange}
                   error={enrollmentErrors.student_id?.message}
-                  searchable
                   withAsterisk
-                />
+                >
+                  <StudentSelect
+                    value={field.value ?? null}
+                    onChange={(value) => field.onChange(value ?? undefined)}
+                  />
+                </Input.Wrapper>
               )}
             />
             <Group justify="flex-end">
