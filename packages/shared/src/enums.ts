@@ -89,17 +89,23 @@ export type GpsTrigger = (typeof gpsTriggers)[number];
 export const appStates = ["foreground", "background", "terminated"] as const;
 export type AppState = (typeof appStates)[number];
 
-export const businessTypes = ["ep", "ica"] as const;
+export const businessTypes = ["ep", "ica", "dp"] as const;
 export type BusinessType = (typeof businessTypes)[number];
 
 export const caseStatuses = ["open", "in_progress", "completed", "cancelled"] as const;
 export type CaseStatus = (typeof caseStatuses)[number];
 
-export const caseStepStatuses = ["pending", "in_progress", "done"] as const;
+export const caseStepStatuses = ["pending", "in_progress", "need_materials", "done"] as const;
 export type CaseStepStatus = (typeof caseStepStatuses)[number];
 
 export const caseStepDocStatuses = ["missing", "uploaded"] as const;
 export type CaseStepDocStatus = (typeof caseStepDocStatuses)[number];
+
+export const genders = ["male", "female"] as const;
+export type Gender = (typeof genders)[number];
+
+export const caseSubmissionResults = ["pending", "approved", "rejected"] as const;
+export type CaseSubmissionResult = (typeof caseSubmissionResults)[number];
 
 export const companyExpenseTypes = ["rent", "utility", "other"] as const;
 export type CompanyExpenseType = (typeof companyExpenseTypes)[number];

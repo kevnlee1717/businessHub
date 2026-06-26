@@ -1,4 +1,5 @@
-import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { cases } from "./cases";
 import { employees } from "./employees";
 import { caseStepStatusEnum } from "./enums";
@@ -12,6 +13,7 @@ export const caseSteps = pgTable("case_steps", {
   description: text("description"),
   assigneeId: uuid("assignee_id").references(() => employees.id, { onDelete: "set null" }),
   status: caseStepStatusEnum("status").notNull().default("pending"),
+  meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });

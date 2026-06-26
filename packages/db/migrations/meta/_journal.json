@@ -50,6 +50,13 @@
       "when": 1782430822646,
       "tag": "0006_young_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782431971919,
+      "tag": "0007_blue_romulus",
+      "breakpoints": true
     }
   ]
 }
