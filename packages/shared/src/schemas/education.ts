@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { diplomaAssignmentActions } from "../enums";
 
 const optionalText = z.string().trim().min(1).optional();
 const nullableOptionalText = z.string().trim().min(1).nullable().optional();
@@ -22,6 +23,8 @@ export const diplomaEnrollmentCreateSchema = z.object({
   enroll_date: dateString.optional(),
   billing_id: uuidField.nullable().optional(),
   installments_count: z.number().int().min(0).nullable().optional(),
+  deposit_amount: z.union([z.string(), z.number()]).nullable().optional(),
+  deposit_paid_at: z.string().datetime().nullable().optional(),
   graduated: z.boolean().optional()
 });
 
@@ -33,10 +36,23 @@ export const diplomaCourseCreateSchema = z.object({
   content: nullableOptionalText,
   teacher_id: uuidField.nullable().optional(),
   price_sgd: z.union([z.string(), z.number()]).nullable().optional(),
-  duration: optionalText
+  duration: optionalText,
+  month_index: z.number().int().min(1).max(6).nullable().optional()
 });
 
 export const diplomaCourseUpdateSchema = diplomaCourseCreateSchema.partial();
+
+export const diplomaPaymentUpdateSchema = z.object({
+  paid: z.boolean().optional(),
+  paid_at: z.string().datetime().nullable().optional(),
+  amount: z.union([z.string(), z.number()]).nullable().optional(),
+  note: nullableOptionalText
+});
+
+export const diplomaAssignmentMessageSchema = z.object({
+  action: z.enum(diplomaAssignmentActions),
+  content: nullableOptionalText
+});
 
 export const wsqCourseCreateSchema = z.object({
   name: z.string().trim().min(1),
@@ -101,6 +117,8 @@ export type DiplomaCourseCreateInput = z.infer<typeof diplomaCourseCreateSchema>
 export type DiplomaCourseUpdateInput = z.infer<typeof diplomaCourseUpdateSchema>;
 export type DiplomaEnrollmentCreateInput = z.infer<typeof diplomaEnrollmentCreateSchema>;
 export type DiplomaEnrollmentUpdateInput = z.infer<typeof diplomaEnrollmentUpdateSchema>;
+export type DiplomaPaymentUpdateInput = z.infer<typeof diplomaPaymentUpdateSchema>;
+export type DiplomaAssignmentMessageInput = z.infer<typeof diplomaAssignmentMessageSchema>;
 export type WsqCourseCreateInput = z.infer<typeof wsqCourseCreateSchema>;
 export type WsqCourseUpdateInput = z.infer<typeof wsqCourseUpdateSchema>;
 export type WsqEnrollmentCreateInput = z.infer<typeof wsqEnrollmentCreateSchema>;

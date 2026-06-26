@@ -14,6 +14,7 @@ function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect) {
     teacher_id: course.teacherId,
     price_sgd: course.priceSgd,
     duration: course.duration,
+    month_index: course.monthIndex,
     created_at: course.createdAt
   };
 }
@@ -62,7 +63,8 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
         content: body.content,
         teacherId: body.teacher_id,
         priceSgd: toNumeric(body.price_sgd),
-        duration: body.duration
+        duration: body.duration,
+        monthIndex: body.month_index
       })
       .returning();
 
@@ -84,7 +86,8 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
         content: body.content,
         teacherId: body.teacher_id,
         priceSgd: toNumeric(body.price_sgd),
-        duration: body.duration
+        duration: body.duration,
+        monthIndex: body.month_index
       })
       .where(eq(diplomaCourses.id, id))
       .returning();
