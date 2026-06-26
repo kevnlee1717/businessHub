@@ -6,7 +6,18 @@
     "dashboard": "仪表盘",
     "hr": "人事",
     "business": "业务",
+    "immigration": "移民业务",
+    "ep": "EP",
+    "ica": "ICA 申诉",
+    "clients": "客户",
+    "templates": "流程模板",
+    "guarantors": "担保人",
     "education": "教育",
+    "education_business": "教育业务",
+    "diploma": "成人大专",
+    "wsq": "WSQ",
+    "english": "成人英语",
+    "students": "学生",
     "documents": "文档",
     "finance": "财务",
     "settings": "设置"
@@ -217,7 +228,10 @@
     }
   },
   "case": {
-    "title": "案件管理",
+    "title": {
+      "ep": "EP 案件",
+      "ica": "ICA 申诉"
+    },
     "detailTitle": "案件详情",
     "add": "新建案件",
     "empty": "暂无案件",

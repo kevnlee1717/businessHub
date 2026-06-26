@@ -53,8 +53,9 @@ export function App() {
             <Route path="performance" element={<PerformancePage />} />
           </Route>
           <Route path="business" element={<BusinessLayout />}>
-            <Route index element={<Navigate to="cases" replace />} />
-            <Route path="cases" element={<CasesPage />} />
+            <Route index element={<Navigate to="ep" replace />} />
+            <Route path="ep" element={<CasesPage businessType="ep" />} />
+            <Route path="ica" element={<CasesPage businessType="ica" />} />
             <Route path="cases/:id" element={<CaseDetailPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="templates" element={<TemplatesPage />} />

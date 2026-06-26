@@ -1049,11 +1049,19 @@ export function CaseDetailPage() {
     return client ? displayName(client.name, client.name_en) : t("common.not_available");
   }
 
+  function getBackPath(caseItem?: Case) {
+    if (caseItem?.business_type === "ica") {
+      return "/business/ica";
+    }
+
+    return "/business/ep";
+  }
+
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
         <Title order={2}>{t("case.detailTitle")}</Title>
-        <Button variant="subtle" onClick={() => navigate("/business/cases")}>
+        <Button variant="subtle" onClick={() => navigate(getBackPath(caseItem))}>
           {t("common.back")}
         </Button>
       </Group>

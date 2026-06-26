@@ -16,7 +16,6 @@ import {
   Title
 } from "@mantine/core";
 import {
-  businessTypes,
   caseCreateSchema,
   caseStatuses,
   type BusinessType,
@@ -44,6 +43,12 @@ type CaseFormValues = {
   guarantor_name?: string | undefined;
   guarantor_relation?: string | undefined;
   guarantor_contact?: string | undefined;
+};
+
+type CaseListBusinessType = Extract<BusinessType, "ep" | "ica">;
+
+type CasesPageProps = {
+  businessType: CaseListBusinessType;
 };
 
 const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
@@ -77,9 +82,9 @@ function statusColor(status: CaseStatus) {
   }
 }
 
-function getDefaultValues(): CaseFormValues {
+function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
   return {
-    business_type: "ep",
+    business_type: businessType,
     client_id: null,
     template_id: undefined,
     guarantor_name: undefined,
@@ -88,11 +93,10 @@ function getDefaultValues(): CaseFormValues {
   };
 }
 
-export function CasesPage() {
+export function CasesPage({ businessType }: CasesPageProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [businessTypeFilter, setBusinessTypeFilter] = useState<BusinessType | null>(null);
   const [statusFilter, setStatusFilter] = useState<CaseStatus | null>(null);
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
@@ -100,10 +104,10 @@ export function CasesPage() {
   const canManageCases = user ? caseManageRoles.has(user.role) : false;
 
   const casesQuery = useQuery({
-    queryKey: ["business", "cases", businessTypeFilter, statusFilter, clientFilter],
+    queryKey: ["business", "cases", businessType, statusFilter, clientFilter],
     queryFn: () =>
       listCases({
-        business_type: businessTypeFilter ?? undefined,
+        business_type: businessType,
         status: statusFilter ?? undefined,
         client_id: clientFilter ?? undefined
       })
@@ -113,13 +117,13 @@ export function CasesPage() {
     queryFn: listClients
   });
   const templatesQuery = useQuery({
-    queryKey: ["business", "workflow-templates"],
-    queryFn: () => listTemplates()
+    queryKey: ["business", "workflow-templates", businessType],
+    queryFn: () => listTemplates(businessType)
   });
 
   const form = useForm<CaseFormValues>({
     resolver: zodResolver(caseCreateSchema) as Resolver<CaseFormValues>,
-    defaultValues: getDefaultValues()
+    defaultValues: getDefaultValues(businessType)
   });
 
   const createMutation = useMutation({
@@ -137,12 +141,7 @@ export function CasesPage() {
     () => new Map(clients.map((client) => [client.id, client] as const)),
     [clients]
   );
-  const selectedBusinessType = form.watch("business_type");
   const errors = form.formState.errors;
-  const businessTypeOptions = businessTypes.map((type) => ({
-    value: type,
-    label: t(`businessType.${type}`)
-  }));
   const statusOptions = caseStatuses.map((status) => ({
     value: status,
     label: t(`caseStatus.${status}`)
@@ -152,7 +151,7 @@ export function CasesPage() {
     label: displayName(client.name, client.name_en)
   }));
   const templateOptions = templates
-    .filter((template) => !selectedBusinessType || template.business_type === selectedBusinessType)
+    .filter((template) => template.business_type === businessType)
     .map((template) => ({
       value: template.id,
       label: template.name
@@ -161,14 +160,14 @@ export function CasesPage() {
 
   function openCreateModal() {
     setFormError(null);
-    form.reset(getDefaultValues());
+    form.reset(getDefaultValues(businessType));
     setModalOpened(true);
   }
 
   function closeModal() {
     setModalOpened(false);
     setFormError(null);
-    form.reset(getDefaultValues());
+    form.reset(getDefaultValues(businessType));
   }
 
   function clientName(client?: Client) {
@@ -178,13 +177,13 @@ export function CasesPage() {
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
 
-    if (values.business_type === "ica" && !values.guarantor_name?.trim()) {
+    if (businessType === "ica" && !values.guarantor_name?.trim()) {
       setFormError(t("case.errors.guarantorRequired"));
       return;
     }
 
     try {
-      await createMutation.mutateAsync(values as CaseCreateInput);
+      await createMutation.mutateAsync({ ...values, business_type: businessType } as CaseCreateInput);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -193,7 +192,7 @@ export function CasesPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("case.title")}</Title>
+        <Title order={2}>{t(`case.title.${businessType}`)}</Title>
         {canManageCases ? <Button onClick={openCreateModal}>{t("case.add")}</Button> : null}
       </Group>
 
@@ -205,13 +204,6 @@ export function CasesPage() {
 
       <Paper withBorder radius="md" p="md">
         <Group grow align="flex-end">
-          <Select
-            label={t("case.filters.businessType")}
-            data={businessTypeOptions}
-            value={businessTypeFilter}
-            onChange={(value) => setBusinessTypeFilter(value as BusinessType | null)}
-            clearable
-          />
           <Select
             label={t("case.filters.status")}
             data={statusOptions}
@@ -306,22 +298,6 @@ export function CasesPage() {
             ) : null}
             <Group grow align="flex-start">
               <Controller
-                name="business_type"
-                control={form.control}
-                render={({ field }) => (
-                  <Select
-                    label={t("case.fields.businessType")}
-                    data={businessTypeOptions}
-                    value={field.value ?? null}
-                    onChange={(value) => {
-                      field.onChange(value as BusinessType);
-                      form.setValue("template_id", undefined);
-                    }}
-                    error={errors.business_type?.message}
-                  />
-                )}
-              />
-              <Controller
                 name="client_id"
                 control={form.control}
                 render={({ field }) => (
@@ -352,7 +328,7 @@ export function CasesPage() {
                 />
               )}
             />
-            {selectedBusinessType === "ica" ? (
+            {businessType === "ica" ? (
               <Stack gap="md">
                 <Group grow align="flex-start">
                   <TextInput

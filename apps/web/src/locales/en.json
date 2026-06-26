@@ -6,7 +6,18 @@
     "dashboard": "Dashboard",
     "hr": "HR",
     "business": "Business",
+    "immigration": "Immigration",
+    "ep": "EP",
+    "ica": "ICA Appeal",
+    "clients": "Clients",
+    "templates": "Workflow templates",
+    "guarantors": "Guarantors",
     "education": "Education",
+    "education_business": "Education Business",
+    "diploma": "Adult diploma",
+    "wsq": "WSQ",
+    "english": "Adult English",
+    "students": "Students",
     "documents": "Documents",
     "finance": "Finance",
     "settings": "Settings"
@@ -217,7 +228,10 @@
     }
   },
   "case": {
-    "title": "Case Management",
+    "title": {
+      "ep": "EP Cases",
+      "ica": "ICA Appeals"
+    },
     "detailTitle": "Case Details",
     "add": "New case",
     "empty": "No cases yet",

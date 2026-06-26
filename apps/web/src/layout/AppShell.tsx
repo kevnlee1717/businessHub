@@ -17,8 +17,27 @@ import { LanguageToggle } from "../components/LanguageToggle";
 const navItems = [
   { to: "/", key: "nav.dashboard" },
   { to: "/hr", key: "nav.hr" },
-  { to: "/business", key: "nav.business" },
-  { to: "/education", key: "nav.education" },
+  {
+    key: "nav.immigration",
+    defaultOpened: true,
+    children: [
+      { to: "/business/ep", key: "nav.ep" },
+      { to: "/business/ica", key: "nav.ica" },
+      { to: "/business/clients", key: "nav.clients" },
+      { to: "/business/templates", key: "nav.templates" },
+      { to: "/business/guarantors", key: "nav.guarantors" }
+    ]
+  },
+  {
+    key: "nav.education_business",
+    defaultOpened: false,
+    children: [
+      { to: "/education/diploma", key: "nav.diploma" },
+      { to: "/education/wsq", key: "nav.wsq" },
+      { to: "/education/english", key: "nav.english" },
+      { to: "/education/students", key: "nav.students" }
+    ]
+  },
   { to: "/documents", key: "nav.documents" },
   { to: "/finance", key: "nav.finance" },
   { to: "/settings", key: "nav.settings" }
@@ -64,15 +83,34 @@ export function AppShell() {
       </MantineAppShell.Header>
 
       <MantineAppShell.Navbar p="sm">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            component={RouterNavLink}
-            to={item.to}
-            label={t(item.key)}
-            onClick={toggle}
-          />
-        ))}
+        {navItems.map((item) =>
+          "children" in item ? (
+            <NavLink
+              key={item.key}
+              label={t(item.key)}
+              childrenOffset={28}
+              defaultOpened={item.defaultOpened}
+            >
+              {item.children.map((child) => (
+                <NavLink
+                  key={child.to}
+                  component={RouterNavLink}
+                  to={child.to}
+                  label={t(child.key)}
+                  onClick={toggle}
+                />
+              ))}
+            </NavLink>
+          ) : (
+            <NavLink
+              key={item.to}
+              component={RouterNavLink}
+              to={item.to}
+              label={t(item.key)}
+              onClick={toggle}
+            />
+          )
+        )}
       </MantineAppShell.Navbar>
 
       <MantineAppShell.Main>
