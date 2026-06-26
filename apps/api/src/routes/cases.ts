@@ -7,6 +7,7 @@ import {
   documents,
   followUps,
   guarantors,
+  stepReviews,
   templateSteps
 } from "@bh/db";
 import {
@@ -19,9 +20,12 @@ import {
   caseStepDocCreateSchema,
   caseStepDocUpdateSchema,
   caseStepUpdateSchema,
-  followUpCreateSchema
+  followUpCreateSchema,
+  stepReviewMessageSchema,
+  stepReviewRequestSchema
 } from "@bh/shared";
-import { and, asc, desc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { can } from "@bh/shared";
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -56,6 +60,8 @@ function serializeCaseStep(row: typeof caseSteps.$inferSelect) {
     description: row.description,
     assignee_id: row.assigneeId,
     status: row.status,
+    reviewer_id: row.reviewerId,
+    review_status: row.reviewStatus,
     meta: row.meta,
     completed_at: row.completedAt,
     created_at: row.createdAt
@@ -125,6 +131,26 @@ function serializeFollowUp(row: typeof followUps.$inferSelect) {
   };
 }
 
+function serializeStepReview(
+  row: typeof stepReviews.$inferSelect,
+  files: Pick<typeof documents.$inferSelect, "id" | "filename" | "storagePath">[] = []
+) {
+  return {
+    id: row.id,
+    case_step_id: row.caseStepId,
+    author_id: row.authorId,
+    action: row.action,
+    content: row.content,
+    document_ids: row.documentIds,
+    files: files.map((file) => ({
+      id: file.id,
+      filename: file.filename,
+      storage_path: file.storagePath
+    })),
+    created_at: row.createdAt
+  };
+}
+
 function serializeDocument(row: typeof documents.$inferSelect) {
   return {
     id: row.id,
@@ -150,27 +176,40 @@ const caseQuerySchema = z.object({
 });
 
 async function recalculateCurrentStep(caseId: string): Promise<void> {
-  const remainingSteps = await db
-    .select({ stepOrder: caseSteps.stepOrder })
+  const stepRows = await db
+    .select({
+      stepOrder: caseSteps.stepOrder,
+      status: caseSteps.status,
+      reviewerId: caseSteps.reviewerId,
+      reviewStatus: caseSteps.reviewStatus
+    })
     .from(caseSteps)
-    .where(and(eq(caseSteps.caseId, caseId), ne(caseSteps.status, "done")))
-    .orderBy(asc(caseSteps.stepOrder))
-    .limit(1);
+    .where(eq(caseSteps.caseId, caseId))
+    .orderBy(asc(caseSteps.stepOrder));
 
-  let currentStep = remainingSteps[0]?.stepOrder;
-
-  if (currentStep === undefined) {
-    const lastSteps = await db
-      .select({ stepOrder: caseSteps.stepOrder })
-      .from(caseSteps)
-      .where(eq(caseSteps.caseId, caseId))
-      .orderBy(desc(caseSteps.stepOrder))
-      .limit(1);
-
-    currentStep = lastSteps[0]?.stepOrder ?? 0;
-  }
+  const firstUnpassedStep = stepRows.find(
+    (step) => step.status !== "done" || (step.reviewerId && step.reviewStatus !== "approved")
+  );
+  const currentStep = firstUnpassedStep?.stepOrder ?? stepRows[stepRows.length - 1]?.stepOrder ?? 0;
 
   await db.update(cases).set({ currentStep, updatedAt: new Date() }).where(eq(cases.id, caseId));
+}
+
+async function getReviewFilesById(reviewRows: (typeof stepReviews.$inferSelect)[]) {
+  const documentIds = [...new Set(reviewRows.flatMap((review) => review.documentIds))];
+  const fileRows =
+    documentIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: documents.id,
+            filename: documents.filename,
+            storagePath: documents.storagePath
+          })
+          .from(documents)
+          .where(inArray(documents.id, documentIds));
+
+  return new Map(fileRows.map((file) => [file.id, file]));
 }
 
 export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
@@ -242,6 +281,22 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
             .from(documents)
             .where(inArray(documents.id, slotDocumentIds));
     const slotFilesById = new Map(slotFileRows.map((file) => [file.id, file]));
+    const reviewRows =
+      stepRows.length === 0
+        ? []
+        : await db
+            .select()
+            .from(stepReviews)
+            .where(inArray(stepReviews.caseStepId, stepIds))
+            .orderBy(asc(stepReviews.createdAt));
+    const reviewsByStep = new Map<string, (typeof stepReviews.$inferSelect)[]>();
+
+    for (const reviewRow of reviewRows) {
+      const items = reviewsByStep.get(reviewRow.caseStepId) ?? [];
+      items.push(reviewRow);
+      reviewsByStep.set(reviewRow.caseStepId, items);
+    }
+    const reviewFilesById = await getReviewFilesById(reviewRows);
 
     const childRows = await db.select().from(cases).where(eq(cases.parentCaseId, id)).orderBy(desc(cases.createdAt));
     const guarantorRow = caseRow.guarantorId
@@ -263,6 +318,14 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
             getSlotDocumentIds(documentRow)
               .map((documentId) => slotFilesById.get(documentId))
               .filter((file): file is (typeof slotFileRows)[number] => Boolean(file))
+          )
+        ),
+        reviews: (reviewsByStep.get(step.id) ?? []).map((review) =>
+          serializeStepReview(
+            review,
+            review.documentIds
+              .map((documentId) => reviewFilesById.get(documentId))
+              .filter((file): file is NonNullable<ReturnType<typeof reviewFilesById.get>> => Boolean(file))
           )
         )
       })),
@@ -659,6 +722,149 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     await db.delete(caseStepDocuments).where(eq(caseStepDocuments.id, id));
     return { ok: true };
+  });
+
+  app.post("/case-steps/:id/review/request", { preHandler: requirePerm("case.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(stepReviewRequestSchema, request.body);
+    const [step] = await db
+      .update(caseSteps)
+      .set({
+        reviewerId: body.reviewer_id,
+        reviewStatus: "pending"
+      })
+      .where(eq(caseSteps.id, id))
+      .returning();
+
+    if (!step) {
+      return sendNotFound(reply);
+    }
+
+    const [review] = await db
+      .insert(stepReviews)
+      .values({
+        caseStepId: id,
+        authorId: request.user.id,
+        action: "request",
+        content: body.content
+      })
+      .returning();
+
+    if (!review) {
+      throw new Error("step_review_request_failed");
+    }
+
+    await recalculateCurrentStep(step.caseId);
+
+    return reply.code(201).send({ step: serializeCaseStep(step), review: serializeStepReview(review) });
+  });
+
+  app.post("/case-steps/:id/review/messages", async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [step] = await db.select().from(caseSteps).where(eq(caseSteps.id, id)).limit(1);
+
+    if (!step) {
+      return sendNotFound(reply);
+    }
+
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, step.caseId)).limit(1);
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    let action: string | undefined;
+    let content: string | null | undefined;
+    const uploadedDocuments: (typeof documents.$inferSelect)[] = [];
+
+    for await (const part of request.parts()) {
+      if (part.type === "file") {
+        const document = await saveUpload(part, {
+          subjectType: "step_review",
+          subjectId: id,
+          clientId: caseRow.clientId ?? null,
+          uploadedBy: request.user.id
+        });
+        if (!document) {
+          throw new Error("step_review_upload_failed");
+        }
+        uploadedDocuments.push(document);
+        continue;
+      }
+
+      if (part.fieldname === "action") {
+        action = String(part.value);
+      }
+      if (part.fieldname === "content") {
+        const value = String(part.value).trim();
+        content = value ? value : null;
+      }
+    }
+
+    const body = parseWithSchema(stepReviewMessageSchema, { action, content });
+    const canManageCase = can(request.user.role, "case.manage");
+
+    if (body.action === "comment") {
+      if (!can(request.user.role, "case.view")) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    } else if (step.reviewerId !== request.user.id && !canManageCase) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const [review] = await db
+      .insert(stepReviews)
+      .values({
+        caseStepId: id,
+        authorId: request.user.id,
+        action: body.action,
+        content: body.content,
+        documentIds: uploadedDocuments.map((document) => document.id)
+      })
+      .returning();
+
+    if (!review) {
+      throw new Error("step_review_message_failed");
+    }
+
+    let updatedStep = step;
+    if (body.action === "approve" || body.action === "reject") {
+      const [nextStep] = await db
+        .update(caseSteps)
+        .set({ reviewStatus: body.action === "approve" ? "approved" : "rejected" })
+        .where(eq(caseSteps.id, id))
+        .returning();
+
+      if (!nextStep) {
+        return sendNotFound(reply);
+      }
+      updatedStep = nextStep;
+      await recalculateCurrentStep(updatedStep.caseId);
+    }
+
+    return reply
+      .code(201)
+      .send({ review: serializeStepReview(review, uploadedDocuments), step: serializeCaseStep(updatedStep) });
+  });
+
+  app.get("/case-steps/:id/reviews", { preHandler: requirePerm("case.view") }, async (request) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const rows = await db
+      .select()
+      .from(stepReviews)
+      .where(eq(stepReviews.caseStepId, id))
+      .orderBy(asc(stepReviews.createdAt));
+    const filesById = await getReviewFilesById(rows);
+
+    return {
+      reviews: rows.map((review) =>
+        serializeStepReview(
+          review,
+          review.documentIds
+            .map((documentId) => filesById.get(documentId))
+            .filter((file): file is NonNullable<ReturnType<typeof filesById.get>> => Boolean(file))
+        )
+      )
+    };
   });
 
   app.get("/case-steps/:id/follow-ups", { preHandler: requirePerm("case.view") }, async (request) => {

@@ -449,6 +449,33 @@
     "missing": "缺失",
     "uploaded": "已上传"
   },
+  "reviewStatus": {
+    "none": "未送审",
+    "pending": "待审核",
+    "approved": "已通过",
+    "rejected": "已驳回"
+  },
+  "reviewAction": {
+    "request": "请求",
+    "comment": "评论",
+    "approve": "通过",
+    "reject": "驳回"
+  },
+  "stepReview": {
+    "title": "步骤审核",
+    "request": "请求审核",
+    "comment": "评论",
+    "approve": "通过",
+    "reject": "驳回",
+    "empty": "暂无审核消息",
+    "reviewer": "审核人",
+    "reviewerRequired": "请选择审核人。",
+    "gateHint": "需审核通过才能进入下一步",
+    "fields": {
+      "content": "消息",
+      "files": "附件"
+    }
+  },
   "followUp": {
     "title": "跟进",
     "add": "添加跟进",

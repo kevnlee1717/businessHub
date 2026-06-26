@@ -449,6 +449,33 @@
     "missing": "Missing",
     "uploaded": "Uploaded"
   },
+  "reviewStatus": {
+    "none": "Not requested",
+    "pending": "Pending review",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "reviewAction": {
+    "request": "Request",
+    "comment": "Comment",
+    "approve": "Approved",
+    "reject": "Rejected"
+  },
+  "stepReview": {
+    "title": "Step review",
+    "request": "Request review",
+    "comment": "Comment",
+    "approve": "Approve",
+    "reject": "Reject",
+    "empty": "No review messages yet",
+    "reviewer": "Reviewer",
+    "reviewerRequired": "Select a reviewer.",
+    "gateHint": "Review approval is required before the next step can proceed.",
+    "fields": {
+      "content": "Message",
+      "files": "Attachments"
+    }
+  },
   "followUp": {
     "title": "Follow-ups",
     "add": "Add follow-up",

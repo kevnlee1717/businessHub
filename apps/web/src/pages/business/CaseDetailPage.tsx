@@ -24,6 +24,7 @@ import {
   caseStatuses,
   caseStepDocCreateSchema,
   caseStepStatuses,
+  type Role,
   type CaseStatus,
   type CaseSubmissionResult,
   type CaseStepDocCreateInput,
@@ -46,7 +47,9 @@ import {
   listClients,
   listFollowUps,
   listTemplates,
+  postStepReviewMessage,
   removeCaseStepDocFile,
+  requestStepReview,
   updateCase,
   updateCaseStep,
   updateSubmission,
@@ -56,7 +59,8 @@ import {
   type CaseStep,
   type CaseStepDoc,
   type Client,
-  type Guarantor
+  type Guarantor,
+  type StepReview
 } from "../../api/cases";
 import { fileUrl, listDocumentCategories, type DocumentCategory } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
@@ -70,6 +74,7 @@ type DocFormValues = {
 };
 
 const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
+const caseReviewAdminRoles = new Set(["owner", "admin"]);
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
@@ -144,6 +149,32 @@ function submissionResultColor(result: CaseSubmissionResult) {
 
 function docStatusColor(status: CaseStepDocStatus) {
   return status === "uploaded" ? "green" : "yellow";
+}
+
+function reviewStatusColor(status: CaseStep["review_status"]) {
+  switch (status) {
+    case "approved":
+      return "green";
+    case "rejected":
+      return "red";
+    case "pending":
+      return "yellow";
+    default:
+      return "gray";
+  }
+}
+
+function reviewActionColor(action: StepReview["action"]) {
+  switch (action) {
+    case "approve":
+      return "green";
+    case "reject":
+      return "red";
+    case "request":
+      return "blue";
+    default:
+      return "gray";
+  }
 }
 
 function getDocDefaultValues(): DocFormValues {
@@ -295,16 +326,34 @@ function DocumentRow({ doc, caseId, canManageCases, categoryById }: DocumentRowP
 type StepCardProps = {
   step: CaseStep;
   caseId: string;
+  employees: Employee[];
   employeeById: Map<string, Employee>;
   canManageCases: boolean;
+  currentUserId?: string | undefined;
+  currentUserRole?: Role | undefined;
   documentCategories: DocumentCategory[];
 };
 
-function StepCard({ step, caseId, employeeById, canManageCases, documentCategories }: StepCardProps) {
+function StepCard({
+  step,
+  caseId,
+  employees,
+  employeeById,
+  canManageCases,
+  currentUserId,
+  currentUserRole,
+  documentCategories
+}: StepCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [stepError, setStepError] = useState<string | null>(null);
   const [docFormOpened, setDocFormOpened] = useState(false);
+  const [reviewRequestOpened, setReviewRequestOpened] = useState(false);
+  const [reviewerId, setReviewerId] = useState<string | null>(step.reviewer_id ?? null);
+  const [reviewRequestContent, setReviewRequestContent] = useState("");
+  const [reviewMessageContent, setReviewMessageContent] = useState("");
+  const [reviewFiles, setReviewFiles] = useState<File[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [followUpContent, setFollowUpContent] = useState("");
   const [followUpError, setFollowUpError] = useState<string | null>(null);
   const [appointmentDraft, setAppointmentDraft] = useState(() =>
@@ -336,6 +385,31 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
       await queryClient.invalidateQueries({ queryKey: ["business", "case-step-follow-ups", step.id] });
     }
   });
+  const requestReviewMutation = useMutation({
+    mutationFn: () =>
+      requestStepReview(step.id, {
+        reviewer_id: reviewerId ?? "",
+        content: reviewRequestContent.trim() ? reviewRequestContent.trim() : null
+      }),
+    onSuccess: async () => {
+      setReviewRequestOpened(false);
+      setReviewRequestContent("");
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
+    }
+  });
+  const postReviewMessageMutation = useMutation({
+    mutationFn: (action: "comment" | "approve" | "reject") =>
+      postStepReviewMessage(step.id, {
+        action,
+        content: reviewMessageContent.trim() ? reviewMessageContent.trim() : null,
+        files: reviewFiles
+      }),
+    onSuccess: async () => {
+      setReviewMessageContent("");
+      setReviewFiles([]);
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
+    }
+  });
 
   const docForm = useForm<DocFormValues>({
     resolver: zodResolver(caseStepDocCreateSchema) as Resolver<DocFormValues>,
@@ -347,6 +421,8 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
     label: t(`caseStepStatus.${status}`)
   }));
   const assignee = step.assignee_id ? employeeById.get(step.assignee_id) : undefined;
+  const reviewer = step.reviewer_id ? employeeById.get(step.reviewer_id) : undefined;
+  const reviews = step.reviews ?? [];
   const followUps = followUpsQuery.data?.followUps ?? [];
   const docErrors = docForm.formState.errors;
   const categoryById = useMemo(
@@ -357,12 +433,23 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
     value: category.id,
     label: displayName(category.name, category.name_en)
   }));
+  const employeeOptions = employees.map((employee) => ({
+    value: employee.id,
+    label: displayName(employee.name, employee.name_en)
+  }));
   const requiredDocuments = step.documents.filter((doc) => doc.is_required);
   const readyRequiredDocuments = requiredDocuments.filter((doc) => (doc.document_ids?.length ?? 0) > 0).length;
+  const canReviewStep =
+    Boolean(currentUserId && step.reviewer_id === currentUserId) ||
+    Boolean(currentUserRole && caseReviewAdminRoles.has(currentUserRole));
 
   useEffect(() => {
     setAppointmentDraft(toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null));
   }, [step.id, step.meta]);
+
+  useEffect(() => {
+    setReviewerId(step.reviewer_id ?? null);
+  }, [step.id, step.reviewer_id]);
 
   async function updateStepStatus(status: string | null) {
     if (!status) {
@@ -416,6 +503,33 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
     }
   }
 
+  async function submitReviewRequest() {
+    if (!reviewerId) {
+      setReviewError(t("stepReview.reviewerRequired"));
+      return;
+    }
+
+    setReviewError(null);
+    try {
+      await requestReviewMutation.mutateAsync();
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  }
+
+  async function submitReviewMessage(action: "comment" | "approve" | "reject") {
+    if (action === "comment" && !reviewMessageContent.trim() && reviewFiles.length === 0) {
+      return;
+    }
+
+    setReviewError(null);
+    try {
+      await postReviewMessageMutation.mutateAsync(action);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  }
+
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="md">
@@ -428,11 +542,18 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
               <Badge color={stepStatusColor(step.status)} variant="light">
                 {t(`caseStepStatus.${step.status}`)}
               </Badge>
+              <Badge color={reviewStatusColor(step.review_status)} variant="light">
+                {t(`reviewStatus.${step.review_status}`)}
+              </Badge>
             </Group>
             {step.description ? <Text c="dimmed">{step.description}</Text> : null}
             <Text size="sm" c="dimmed">
               {t("caseStep.fields.assignee")}:{" "}
               {assignee ? displayName(assignee.name, assignee.name_en) : t("common.not_available")}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {t("stepReview.reviewer")}:{" "}
+              {reviewer ? displayName(reviewer.name, reviewer.name_en) : t("common.not_available")}
             </Text>
             {step.completed_at ? (
               <Text size="sm" c="dimmed">
@@ -447,16 +568,28 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
                 })}
               </Text>
             ) : null}
+            {step.reviewer_id && step.review_status !== "approved" ? (
+              <Text size="sm" c="orange">
+                {t("stepReview.gateHint")}
+              </Text>
+            ) : null}
           </Stack>
-          {canManageCases ? (
-            <Select
-              w={180}
-              data={stepStatusOptions}
-              value={step.status}
-              onChange={updateStepStatus}
-              disabled={updateStepMutation.isPending}
-            />
-          ) : null}
+          <Stack gap="xs" align="flex-end">
+            {canManageCases ? (
+              <Select
+                w={180}
+                data={stepStatusOptions}
+                value={step.status}
+                onChange={updateStepStatus}
+                disabled={updateStepMutation.isPending}
+              />
+            ) : null}
+            {step.review_status === "none" || step.review_status === "rejected" ? (
+              <Button size="xs" variant="light" onClick={() => setReviewRequestOpened(true)}>
+                {t("stepReview.request")}
+              </Button>
+            ) : null}
+          </Stack>
         </Group>
 
         {stepError ? (
@@ -479,6 +612,105 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
             </Button>
           ) : null}
         </Group>
+
+        <Stack gap="xs">
+          <Title order={5}>{t("stepReview.title")}</Title>
+          {reviewError ? (
+            <Alert color="red" variant="light">
+              {reviewError}
+            </Alert>
+          ) : null}
+          {reviews.length === 0 ? (
+            <Text c="dimmed">{t("stepReview.empty")}</Text>
+          ) : (
+            <Stack gap="xs">
+              {reviews.map((review) => {
+                const author = review.author_id ? employeeById.get(review.author_id) : undefined;
+                return (
+                  <Paper key={review.id} withBorder radius="md" p="sm">
+                    <Stack gap={6}>
+                      <Group gap="xs">
+                        <Badge size="sm" color={reviewActionColor(review.action)} variant="light">
+                          {t(`reviewAction.${review.action}`)}
+                        </Badge>
+                        <Text size="sm" fw={500}>
+                          {author ? displayName(author.name, author.name_en) : t("common.not_available")}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {formatDateTime(review.created_at)}
+                        </Text>
+                      </Group>
+                      {review.content ? <Text size="sm">{review.content}</Text> : null}
+                      {review.files.length > 0 ? (
+                        <Group gap="xs">
+                          {review.files.map((file) => (
+                            <Button
+                              key={file.id}
+                              component="a"
+                              href={fileUrl(file.storage_path)}
+                              target="_blank"
+                              rel="noreferrer"
+                              size="compact-xs"
+                              variant="subtle"
+                            >
+                              {file.filename}
+                            </Button>
+                          ))}
+                        </Group>
+                      ) : null}
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          )}
+          <Stack gap="xs">
+            <Textarea
+              label={t("stepReview.fields.content")}
+              value={reviewMessageContent}
+              onChange={(event) => setReviewMessageContent(event.currentTarget.value)}
+              autosize
+              minRows={2}
+            />
+            <FileInput
+              label={t("stepReview.fields.files")}
+              value={reviewFiles}
+              onChange={(value) => setReviewFiles(value ?? [])}
+              multiple
+              clearable
+            />
+            <Group justify="flex-end">
+              <Button
+                variant="light"
+                onClick={() => submitReviewMessage("comment")}
+                loading={postReviewMessageMutation.isPending}
+                disabled={!reviewMessageContent.trim() && reviewFiles.length === 0}
+              >
+                {t("stepReview.comment")}
+              </Button>
+              {canReviewStep ? (
+                <>
+                  <Button
+                    color="green"
+                    variant="light"
+                    onClick={() => submitReviewMessage("approve")}
+                    loading={postReviewMessageMutation.isPending}
+                  >
+                    {t("stepReview.approve")}
+                  </Button>
+                  <Button
+                    color="red"
+                    variant="light"
+                    onClick={() => submitReviewMessage("reject")}
+                    loading={postReviewMessageMutation.isPending}
+                  >
+                    {t("stepReview.reject")}
+                  </Button>
+                </>
+              ) : null}
+            </Group>
+          </Stack>
+        </Stack>
 
         <Stack gap="xs">
           <Group justify="space-between">
@@ -628,6 +860,39 @@ function StepCard({ step, caseId, employeeById, canManageCases, documentCategori
           ) : null}
         </Stack>
       </Stack>
+
+      <Modal opened={reviewRequestOpened} onClose={() => setReviewRequestOpened(false)} title={t("stepReview.request")} size="lg">
+        <Stack gap="md">
+          {reviewError ? (
+            <Alert color="red" variant="light">
+              {reviewError}
+            </Alert>
+          ) : null}
+          <Select
+            label={t("stepReview.reviewer")}
+            data={employeeOptions}
+            value={reviewerId}
+            onChange={setReviewerId}
+            searchable
+            clearable
+          />
+          <Textarea
+            label={t("stepReview.fields.content")}
+            value={reviewRequestContent}
+            onChange={(event) => setReviewRequestContent(event.currentTarget.value)}
+            autosize
+            minRows={2}
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setReviewRequestOpened(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={submitReviewRequest} loading={requestReviewMutation.isPending} disabled={!reviewerId}>
+              {t("common.save")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Paper>
   );
 }
@@ -1281,8 +1546,11 @@ export function CaseDetailPage() {
                   key={step.id}
                   step={step}
                   caseId={caseItem.id}
+                  employees={employees}
                   employeeById={employeeById}
                   canManageCases={canManageCases}
+                  currentUserId={user?.id}
+                  currentUserRole={user?.role}
                   documentCategories={documentCategories}
                 />
               ))

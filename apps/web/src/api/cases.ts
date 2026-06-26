@@ -19,6 +19,10 @@ import {
   type GuarantorUpdateInput,
   type RequiredDocItemInput,
   type Role,
+  type StepReviewAction,
+  type StepReviewMessageInput,
+  type StepReviewRequestInput,
+  type StepReviewStatus,
   type TemplateStepCreateInput,
   type TemplateStepUpdateInput,
   type WorkflowTemplateCreateInput,
@@ -127,11 +131,25 @@ export type CaseStep = {
   description?: string | null;
   assignee_id?: string | null;
   status: CaseStepStatus;
+  reviewer_id?: string | null;
+  review_status: StepReviewStatus;
   meta?: Record<string, unknown> | null;
   completed_at?: string | null;
   documents: CaseStepDoc[];
+  reviews?: StepReview[];
   created_at?: string;
   updated_at?: string;
+};
+
+export type StepReview = {
+  id: string;
+  case_step_id: string;
+  author_id?: string | null;
+  action: StepReviewAction;
+  content?: string | null;
+  document_ids: string[];
+  files: { id: string; filename: string; storage_path: string }[];
+  created_at: string;
 };
 
 export type FollowUp = {
@@ -332,6 +350,47 @@ export function updateCaseStep(stepId: string, body: CaseStepUpdateInput): Promi
     method: "PATCH",
     body
   });
+}
+
+export function requestStepReview(
+  stepId: string,
+  body: StepReviewRequestInput
+): Promise<{ step: CaseStep; review: StepReview }> {
+  return api<{ step: CaseStep; review: StepReview }>(`/case-steps/${stepId}/review/request`, {
+    method: "POST",
+    body
+  });
+}
+
+export async function postStepReviewMessage(
+  stepId: string,
+  body: StepReviewMessageInput & { files?: File[] }
+): Promise<{ step: CaseStep; review: StepReview }> {
+  const formData = new FormData();
+  formData.append("action", body.action);
+  if (body.content) {
+    formData.append("content", body.content);
+  }
+  for (const file of body.files ?? []) {
+    formData.append("file", file);
+  }
+
+  const response = await fetch(`/api/case-steps/${stepId}/review/messages`, {
+    method: "POST",
+    body: formData,
+    credentials: "include"
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : response.statusText;
+    throw new Error(message);
+  }
+
+  return data as { step: CaseStep; review: StepReview };
 }
 
 export function createSubmission(
