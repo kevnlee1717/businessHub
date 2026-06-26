@@ -10,6 +10,7 @@ function serializeDiploma(enrollment: typeof diplomaEnrollments.$inferSelect) {
   return {
     id: enrollment.id,
     student_id: enrollment.studentId,
+    course_id: enrollment.courseId,
     program: enrollment.program,
     enroll_date: enrollment.enrollDate,
     billing_id: enrollment.billingId,
@@ -45,6 +46,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
       .insert(diplomaEnrollments)
       .values({
         studentId: body.student_id,
+        courseId: body.course_id,
         program: body.program,
         enrollDate: body.enroll_date,
         billingId: body.billing_id,
@@ -67,6 +69,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
       .update(diplomaEnrollments)
       .set({
         studentId: body.student_id,
+        courseId: body.course_id,
         program: body.program,
         enrollDate: body.enroll_date,
         billingId: body.billing_id,

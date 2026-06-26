@@ -46,6 +46,8 @@
     "yes": "是",
     "no": "否",
     "all": "全部",
+    "course": "课程",
+    "teacher": "老师",
     "not_available": "-",
     "unknown_error": "发生未知错误"
   },
@@ -127,15 +129,33 @@
     "add": "新增报名",
     "edit": "编辑报名",
     "empty": "暂无报名",
+    "enrollment": {
+      "title": "成人大专报名"
+    },
     "filters": {
       "student": "学生"
     },
     "fields": {
       "student": "学生",
+      "course": "课程",
       "program": "课程",
       "enrollDate": "报名日期",
       "installmentsCount": "分期数",
       "graduated": "已毕业"
+    }
+  },
+  "diplomaCourse": {
+    "add": "新增课程",
+    "edit": "编辑课程",
+    "empty": "暂无课程",
+    "confirmDelete": "确认删除课程 {{name}}？",
+    "fields": {
+      "name": "名称",
+      "nameEn": "英文名",
+      "content": "课程内容",
+      "teacher": "老师",
+      "priceSgd": "价格 SGD",
+      "duration": "时长"
     }
   },
   "english": {

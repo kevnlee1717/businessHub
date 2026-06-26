@@ -17,6 +17,7 @@ export const studentUpdateSchema = studentCreateSchema.partial();
 
 export const diplomaEnrollmentCreateSchema = z.object({
   student_id: uuidField,
+  course_id: uuidField.nullable().optional(),
   program: z.string().trim().min(1),
   enroll_date: dateString.optional(),
   billing_id: uuidField.nullable().optional(),
@@ -25,6 +26,17 @@ export const diplomaEnrollmentCreateSchema = z.object({
 });
 
 export const diplomaEnrollmentUpdateSchema = diplomaEnrollmentCreateSchema.partial();
+
+export const diplomaCourseCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  name_en: optionalText,
+  content: nullableOptionalText,
+  teacher_id: uuidField.nullable().optional(),
+  price_sgd: z.union([z.string(), z.number()]).nullable().optional(),
+  duration: optionalText
+});
+
+export const diplomaCourseUpdateSchema = diplomaCourseCreateSchema.partial();
 
 export const wsqCourseCreateSchema = z.object({
   name: z.string().trim().min(1),
@@ -85,6 +97,8 @@ export const englishClassAttendanceSchema = z.object({
 
 export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
+export type DiplomaCourseCreateInput = z.infer<typeof diplomaCourseCreateSchema>;
+export type DiplomaCourseUpdateInput = z.infer<typeof diplomaCourseUpdateSchema>;
 export type DiplomaEnrollmentCreateInput = z.infer<typeof diplomaEnrollmentCreateSchema>;
 export type DiplomaEnrollmentUpdateInput = z.infer<typeof diplomaEnrollmentUpdateSchema>;
 export type WsqCourseCreateInput = z.infer<typeof wsqCourseCreateSchema>;

@@ -57,6 +57,13 @@
       "when": 1782431971919,
       "tag": "0007_blue_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782439231234,
+      "tag": "0008_fixed_ricochet",
+      "breakpoints": true
     }
   ]
 }

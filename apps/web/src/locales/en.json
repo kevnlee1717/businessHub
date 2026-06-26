@@ -46,6 +46,8 @@
     "yes": "Yes",
     "no": "No",
     "all": "All",
+    "course": "Course",
+    "teacher": "Teacher",
     "not_available": "-",
     "unknown_error": "Unknown error"
   },
@@ -127,15 +129,33 @@
     "add": "Add enrollment",
     "edit": "Edit enrollment",
     "empty": "No enrollments yet",
+    "enrollment": {
+      "title": "Adult diploma enrollments"
+    },
     "filters": {
       "student": "Student"
     },
     "fields": {
       "student": "Student",
+      "course": "Course",
       "program": "Program",
       "enrollDate": "Enroll date",
       "installmentsCount": "Installments",
       "graduated": "Graduated"
+    }
+  },
+  "diplomaCourse": {
+    "add": "Add course",
+    "edit": "Edit course",
+    "empty": "No courses yet",
+    "confirmDelete": "Delete course {{name}}?",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "content": "Course content",
+      "teacher": "Teacher",
+      "priceSgd": "Price SGD",
+      "duration": "Duration"
     }
   },
   "english": {

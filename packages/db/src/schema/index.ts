@@ -27,6 +27,7 @@ export * from "./englishEnrollments";
 export * from "./englishAttendance";
 export * from "./wsqCourses";
 export * from "./wsqEnrollments";
+export * from "./diplomaCourses";
 export * from "./diplomaEnrollments";
 export * from "./compensationTemplates";
 export * from "./employeeCompensation";

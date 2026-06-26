@@ -1,4 +1,6 @@
 import {
+  type DiplomaCourseCreateInput,
+  type DiplomaCourseUpdateInput,
   type DiplomaEnrollmentCreateInput,
   type DiplomaEnrollmentUpdateInput,
   type EnglishAttendanceMarkInput,
@@ -30,11 +32,23 @@ export type Student = {
 export type DiplomaEnrollment = {
   id: string;
   student_id: string;
+  course_id?: string | null;
   program: string;
   enroll_date?: string | null;
   billing_id?: string | null;
   installments_count?: number | null;
   graduated: boolean;
+  created_at: string;
+};
+
+export type DiplomaCourse = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  content?: string | null;
+  teacher_id?: string | null;
+  price_sgd?: string | null;
+  duration?: string | null;
   created_at: string;
 };
 
@@ -160,6 +174,37 @@ export function updateDiplomaEnrollment(
     method: "PATCH",
     body
   });
+}
+
+export function listDiplomaCourses(): Promise<{ courses: DiplomaCourse[] }> {
+  return api<{ courses: DiplomaCourse[] }>("/diploma-courses");
+}
+
+export function createDiplomaCourse(body: DiplomaCourseCreateInput): Promise<{ course: DiplomaCourse }> {
+  return api<{ course: DiplomaCourse }>("/diploma-courses", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateDiplomaCourse(
+  id: string,
+  body: DiplomaCourseUpdateInput
+): Promise<{ course: DiplomaCourse }> {
+  return api<{ course: DiplomaCourse }>(`/diploma-courses/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteDiplomaCourse(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/diploma-courses/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function listDiplomaCourseEnrollments(courseId: string): Promise<{ enrollments: DiplomaEnrollment[] }> {
+  return api<{ enrollments: DiplomaEnrollment[] }>(`/diploma-courses/${courseId}/enrollments`);
 }
 
 export function listWsqCourses(): Promise<{ courses: WsqCourse[] }> {
