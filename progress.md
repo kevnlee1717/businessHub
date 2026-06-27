@@ -37,7 +37,15 @@
   - API(纯聚合 `dashboardUtils.ts` + `routes/dashboard.ts`):`/dashboard/overview`(各公司现金/预期收入/固定成本/预计盈亏/健康度/落后/紧张)、`/payment-calendar`、`/receivables`、`/kpi`(公司层保本收入 + 业务层保本单数/学院保本生数)、`/whatif`(再进N单→现金/盈亏变化)。
   - 前端:首页 DashboardPage 改造为财务总面板(全局条+公司健康度卡网格+付款日历+应收追款+KPI反推+现金流what-if+固定支出/期初余额设置)。
   - 实跑验证(恺德):现金 15500(期初20000−流水4500)、固定成本 4120(房租+宽带)、预计盈亏 3000、健康=盈利、落后=True、应收 12500;付款日历列房租6-05/宽带6-10;what-if 再进3英语单→现金29000/盈亏16500;KPI 学院保本1生缺口0、英语/WSQ保本1单缺口1。**截图已发业主确认效果。**
-- **本会话共做完:第1层地基 + 模块③a + 模块④ + 模块⑦,4 大块全部端到端验证,migration 到 0014(仅本地)。约 23 commit 待 push,未部署生产。**
+- **第 2 层模块 ⑧(通用成交收款计划/期数台账 + 绑工作流步骤)也已做完、commit、端到端验证**(spec `68e80d3`,数据层 `50d0105` / API `b20fcf7` / 前端 `c425393`):
+  - spec:`docs/superpowers/specs/2026-06-27-finance-module8-charge-schedule-design.md`
+  - 数据层(migration **0015**):`scheme_milestones`(一次性收入拆首付/尾款/分笔模板,可绑第几步)+ `billing_charges`(成交收款计划:milestone/period/event 三类,应收/已收/状态/绑 case_step/凭证)+ `payments.charge_id`。
+  - 引擎:`@bh/shared` `generateCharges` 纯函数(一次性拆里程碑末笔吃余额 / 每月 N 期 / 每次事件)+ 5 单测(共 11 绿)。
+  - API:建/改单**自动生成 charges**(幂等,里程碑按 bind_step_order 绑 case_steps);charges 台账路由;`POST /charges/:id/collect`**一键收款**(强制凭证→建 payment 挂 charge + 桥接 ledger 进账,模块④);milestones CRUD;事件手工补录。
+  - 前端:`ChargeSchedulePanel`(逐笔收款+凭证)接入 EP/ICA 案件详情(步骤旁显示待收/已收)+ 方案版本里程碑编辑 + 跨单应收台账页(逾期高亮)。
+  - HTTP 验证:建 EP 成交(总价5000)→ 生成首付1500/尾款3500 两里程碑 → collect 首付(无凭证422、有凭证→paid + payment挂charge + ledger进账1500)→ 台账 应收5000/已收1500/未收3500。
+- **本会话共做完:第1层地基 + 模块③a + ④ + ⑦ + ⑧,5 大块全部端到端验证,migration 到 0015(仅本地)。约 27 commit 待 push,未部署生产。**
+- **业主 5 个场景核对结论(模块⑧后)**:#1 EP/ICA 首付尾款分期+绑步骤 ✅;#2 学校报名+月收 ✅(③a);#3 按摩椅每月抽成 ✅(period charges);#4 床垫每晚抽成 ✅(event charges+补录);#5 加盟里程碑+每月 ✅(混合 charges)。**唯一剩:销售提成台账 ⑤**(现仅算得出提成额,缺"发给哪个销售/跨业务/底薪/汇总进工资条"的台账)。
 - **下一步(财务剩余 ⑤⑥,各需独立 spec + 业主真实数字)**:
   - ⑤ 销售跨业务分配/底薪/每单提成账本 → 汇入工资条(现 commission 写死在 billing,需独立提成台账;需各业务真实提成规则)
   - ⑥ 新加坡报表导出(Form C-S / GST / ACRA;简化录入→导出映射,需业主的新加坡会计要的具体格式)
