@@ -56,7 +56,25 @@
   - seed:`[DEMO] 销售小陈`(JUYI,底薪2000,分配 ep/ica)。
 
 - **🎉 业主列的 5 个场景 + 销售提成 全部闭环。本会话共做完 6 个财务模块:① 业务+方案引擎 / ③a 学校收款 / ④ 收支凭证对账 / ⑦ 总面板现金流 / ⑧ 收款计划期数台账 / ⑤ 销售提成台账。migration 到 0016(仅本地),约 33 commit 待 push,未部署生产。`pnpm -r typecheck` 4 包 + 11 单测全绿。**
-- **唯一剩(7模块里的最后一个)**:⑥ 新加坡报表导出(Form C-S / GST F5 / ACRA 财报),需业主的新加坡会计要的具体格式。
+- **模块⑥(新加坡报表导出 通用框架)也已做完、commit、端到端验证**(spec `e8257cf`,API `e1a4395` / 前端 `9e9d4df`):
+  - spec:`docs/superpowers/specs/2026-06-27-finance-layer3-module6-sg-reports-design.md`
+  - 数据(migration **0017**):`expense_categories` 加 `report_section`(cost_of_sales/operating_expense/other)。
+  - API:`reportUtils` 损益表聚合(现金基础,从 ledger_entries 出:收入按业务、成本/费用按科目段、毛利、税前净利)+ GST 估算(默认9%含税倒算)+ `pnl.csv` 导出(UTF-8 BOM + 中文表头);`/reports/pnl|pnl.csv|gst`;expenseCategories PATCH 支持 report_section。
+  - 前端:财务报表页(公司+期间筛选、损益表分段表、GST 折叠卡、全部公司汇总、导出 CSV blob 下载)。
+  - HTTP 验证:恺德 2026-06 损益表 收入0/营业费用4500(房租)/税前净利−4500;GST 进项估371.56;CSV 带 BOM+中文表头可下载。
+  - 输出口径:现金基础;权责发生制调整 + Form C-S/GST F5/ACRA 精确模板由业主新加坡会计套(spec §6 注明)。
+
+- **🏁 财务系统 7 大模块全部完成!本会话从 0 设计到落地,全程 codex 写 + Claude 审/typecheck/端到端 HTTP 验证,每片单独 commit:**
+  - ① 业务实体化+方案版本引擎(通用条目规则+预设)
+  - ③a 学校月度收款(进度/欠款/缺口)
+  - ④ 收支总账本+强制凭证+对公账户对账
+  - ⑦ 总数据面板+现金流+KPI反推
+  - ⑧ 通用成交收款计划/期数台账+绑工作流步骤
+  - ⑤ 销售提成台账(跨业务/底薪/汇入工资条)
+  - ⑥ 新加坡报表导出(损益表/GST/CSV)
+- **业主 5 个场景 + 销售提成 + 报表全闭环。migration 到 0017(仅本地),约 39 commit 待 push,未部署生产。`pnpm -r typecheck` 4 包 + 11 单测全绿。**
+- **下一步建议**:① `git push origin master`(39 commit);② 部署生产(migrate 0012-0017 生产库 + 重启 bh-prod);③ 业主录真实数据替换 DEMO;④ 业主会计给 Form C-S/GST F5 精确格式后细化⑥;⑤ 各业务真实价格/提成/成本数字回填。
+- **DEMO 测试数据(本地,可删)**:保安保洁业务、4 个 `[DEMO]` 学院学生、销售小陈、各 DEMO 流水/明细/固定支出/期初余额/里程碑、若干测试成交单。
 - **DEMO 测试数据(本地,可删)**:保安保洁业务、4 个 `[DEMO]` 学院学生、销售小陈、各 DEMO 流水/明细/固定支出/期初余额、若干测试成交单。
 - **下一步(财务剩余 ⑤⑥,各需独立 spec + 业主真实数字)**:
   - ⑤ 销售跨业务分配/底薪/每单提成账本 → 汇入工资条(现 commission 写死在 billing,需独立提成台账;需各业务真实提成规则)
