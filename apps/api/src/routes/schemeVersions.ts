@@ -93,6 +93,7 @@ function schemaLineToEngineLine(line: z.infer<typeof schemeLineSchema>): Resolva
     rate: line.rate === null || line.rate === undefined ? null : Number(line.rate),
     unitLabel: line.unit_label,
     inputKey: line.input_key,
+    milestoneSplit: line.milestone_split,
     label: line.label,
     note: line.note,
     sortOrder: line.sort_order
@@ -190,6 +191,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
               rate: line.rate === null || line.rate === undefined ? null : toNumeric(line.rate),
               unitLabel: line.unitLabel,
               inputKey: line.inputKey,
+              milestoneSplit: line.milestoneSplit,
               label: line.label ?? "",
               note: line.note
             }))
@@ -393,6 +395,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
           rate: resolved.rate === null || resolved.rate === undefined ? null : toNumeric(resolved.rate),
           unitLabel: resolved.unitLabel,
           inputKey: resolved.inputKey,
+          milestoneSplit: resolved.milestoneSplit,
           label: resolved.label ?? "",
           note: resolved.note
         })
@@ -434,6 +437,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
               : Number(body.rate),
         unitLabel: body.unit_label === undefined ? current.unitLabel : body.unit_label,
         inputKey: body.input_key === undefined ? current.inputKey : body.input_key,
+        milestoneSplit: body.milestone_split === undefined ? current.milestoneSplit ?? null : body.milestone_split,
         label: body.label ?? current.label,
         note: body.note === undefined ? current.note : body.note,
         sortOrder: body.sort_order ?? current.sortOrder
@@ -454,6 +458,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
         rate: body.rate === undefined ? undefined : body.rate === null ? null : toNumeric(body.rate),
         unitLabel: body.unit_label,
         inputKey: body.input_key,
+        milestoneSplit: body.milestone_split,
         label: body.label,
         note: body.note
       })

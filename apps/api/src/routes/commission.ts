@@ -41,6 +41,7 @@ function serializeCommissionEntry(row: typeof commissionEntries.$inferSelect) {
     period: row.period,
     recurrence: row.recurrence,
     seq: row.seq,
+    milestone_seq: row.milestoneSeq,
     amount_sgd: row.amountSgd,
     amount_override: row.amountOverride,
     effective_amount_sgd: effectiveAmountSgd,

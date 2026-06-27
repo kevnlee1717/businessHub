@@ -3,8 +3,11 @@ import {
   dealLineAmounts,
   dealParties,
   db,
-  externalCommissionEntries
+  externalCommissionEntries,
+  schemeLines,
+  schemeMilestones
 } from "@bh/db";
+import { splitCommissionByMilestones } from "@bh/shared";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import type { DbExecutor } from "./financeUtils";
 import { toNumeric } from "./hrUtils";
@@ -30,6 +33,10 @@ function roundMoney(value: number): string {
   return value.toFixed(2);
 }
 
+function retainedKey(sourceLineId: string | null | undefined, milestoneSeq: number | null | undefined): string {
+  return `${sourceLineId ?? ""}:${milestoneSeq ?? ""}`;
+}
+
 export async function refreshExternalCommissionEntries(
   tx: DbExecutor,
   billingRow: BillingRow
@@ -44,11 +51,39 @@ export async function refreshExternalCommissionEntries(
     .select()
     .from(dealLineAmounts)
     .where(and(eq(dealLineAmounts.billingId, billingRow.id), eq(dealLineAmounts.kind, "commission")));
+  const revenueRows = await tx
+    .select()
+    .from(dealLineAmounts)
+    .where(and(eq(dealLineAmounts.billingId, billingRow.id), eq(dealLineAmounts.kind, "revenue")));
+  const oneTimeRevenueTotal = revenueRows
+    .filter((line) => line.recurrence === "one_time")
+    .reduce((sum, line) => sum + Number(line.amountTotalExpected ?? line.amountPerPeriod ?? 0), 0);
+
+  const milestoneRows = billingRow.schemeVersionId
+    ? await tx
+        .select()
+        .from(schemeMilestones)
+        .where(eq(schemeMilestones.versionId, billingRow.schemeVersionId))
+        .orderBy(schemeMilestones.seq)
+    : [];
+  const schemeLineRows = billingRow.schemeVersionId
+    ? await tx.select().from(schemeLines).where(eq(schemeLines.versionId, billingRow.schemeVersionId))
+    : [];
+  const schemeLineById = new Map(schemeLineRows.map((line) => [line.id, line]));
+  const milestones = milestoneRows.map((milestone) => ({
+    seq: milestone.seq,
+    label: milestone.label,
+    basis: milestone.basis,
+    value: Number(milestone.value)
+  }));
 
   const externalPayees = billingRow.externalPayees ?? {};
   const startPeriod = inputStartPeriod(billingRow.inputs, billingRow.createdAt ?? new Date());
   const retainedRows = await tx
-    .select({ sourceLineId: externalCommissionEntries.sourceLineId })
+    .select({
+      sourceLineId: externalCommissionEntries.sourceLineId,
+      milestoneSeq: externalCommissionEntries.milestoneSeq
+    })
     .from(externalCommissionEntries)
     .where(
       and(
@@ -59,16 +94,11 @@ export async function refreshExternalCommissionEntries(
         )
       )
     );
-  const retainedSourceLineIds = new Set(
-    retainedRows.map((row) => row.sourceLineId).filter((sourceLineId): sourceLineId is string => Boolean(sourceLineId))
-  );
+  const retainedKeys = new Set(retainedRows.map((row) => retainedKey(row.sourceLineId, row.milestoneSeq)));
   const drafts: Array<typeof externalCommissionEntries.$inferInsert> = [];
 
   for (const line of lineRows) {
     if (!line.partyId || systemPartyIds.has(line.partyId) || !line.schemeLineId) {
-      continue;
-    }
-    if (retainedSourceLineIds.has(line.schemeLineId)) {
       continue;
     }
 
@@ -87,8 +117,45 @@ export async function refreshExternalCommissionEntries(
       line.recurrence === "monthly"
         ? Number(line.amountPerPeriod ?? line.amountTotalExpected ?? 0)
         : Number(line.amountTotalExpected ?? line.amountPerPeriod ?? 0);
+    const schemeLine = schemeLineById.get(line.schemeLineId);
+
+    if (recurrence === "one_time") {
+      const splits = splitCommissionByMilestones({
+        commissionTotal: amount,
+        revenueTotal: oneTimeRevenueTotal,
+        milestones,
+        milestoneSplit: schemeLine?.milestoneSplit ?? null
+      });
+
+      for (const split of splits) {
+        if (retainedKeys.has(retainedKey(line.schemeLineId, split.milestoneSeq))) {
+          continue;
+        }
+
+        const lineLabel = line.label ?? schemeLine?.label ?? "Commission";
+        drafts.push({
+          payeeId,
+          billingId: billingRow.id,
+          businessId: billingRow.businessId,
+          partyId: line.partyId,
+          period: addMonths(startPeriod, 0),
+          recurrence,
+          seq: 1,
+          milestoneSeq: split.milestoneSeq,
+          amountSgd: toNumeric(roundMoney(split.amount)) ?? "0",
+          status: "pending",
+          sourceLineId: line.schemeLineId,
+          note: split.label ? `${lineLabel} · ${split.label}` : lineLabel
+        });
+      }
+      continue;
+    }
 
     for (let index = 0; index < count; index += 1) {
+      if (retainedKeys.has(retainedKey(line.schemeLineId, null))) {
+        continue;
+      }
+
       drafts.push({
         payeeId,
         billingId: billingRow.id,
@@ -97,6 +164,7 @@ export async function refreshExternalCommissionEntries(
         period: addMonths(startPeriod, recurrence === "monthly" ? index : 0),
         recurrence,
         seq: index + 1,
+        milestoneSeq: null,
         amountSgd: toNumeric(roundMoney(amount)) ?? "0",
         status: "pending",
         sourceLineId: line.schemeLineId

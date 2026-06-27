@@ -58,6 +58,7 @@ export const schemeLineSchema = z.object({
   rate: numericField.nullable().optional(),
   unit_label: nullableOptionalText,
   input_key: nullableOptionalText,
+  milestone_split: z.record(z.string(), z.number()).nullable().optional(),
   label: z.string().trim().min(1),
   note: nullableOptionalText,
   sort_order: z.number().int().optional()

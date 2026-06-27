@@ -4,8 +4,11 @@ import {
   dealParties,
   db,
   salesBusinessAssignments,
+  schemeLines,
+  schemeMilestones,
   type billing
 } from "@bh/db";
+import { splitCommissionByMilestones } from "@bh/shared";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { toNumeric } from "./hrUtils";
 import type { DbExecutor } from "./financeUtils";
@@ -18,6 +21,7 @@ type CommissionDraft = {
   period: string;
   recurrence: "one_time" | "monthly";
   seq: number;
+  milestoneSeq: number | null;
   amountSgd: string;
   sourceLineId: string;
   note?: string | null;
@@ -42,8 +46,10 @@ function roundMoney(value: number): string {
   return value.toFixed(2);
 }
 
-function entryKey(entry: Pick<CommissionDraft, "billingId" | "sourceLineId" | "period" | "seq">): string {
-  return `${entry.billingId}:${entry.sourceLineId}:${entry.period}:${entry.seq}`;
+function entryKey(
+  entry: Pick<CommissionDraft, "billingId" | "sourceLineId" | "period" | "milestoneSeq" | "seq">
+): string {
+  return `${entry.billingId}:${entry.sourceLineId}:${entry.period}:${entry.milestoneSeq ?? ""}:${entry.seq}`;
 }
 
 export async function generateCommissionEntries(
@@ -86,12 +92,34 @@ export async function generateCommissionEntries(
     .where(and(eq(dealLineAmounts.billingId, billingRow.id), eq(dealLineAmounts.kind, "revenue")));
   const revenueByRecurrence = new Map<string, number>();
   let totalRevenue = 0;
+  let oneTimeRevenueTotal = 0;
   for (const row of revenueRows) {
     const amount = Number(row.amountPerPeriod ?? row.amountTotalExpected ?? 0);
     const total = row.recurrence === "monthly" ? amount * Number(row.periodsCount ?? 0) : amount;
     totalRevenue += total;
     revenueByRecurrence.set(row.recurrence, (revenueByRecurrence.get(row.recurrence) ?? 0) + total);
+    if (row.recurrence === "one_time") {
+      oneTimeRevenueTotal += Number(row.amountTotalExpected ?? row.amountPerPeriod ?? 0);
+    }
   }
+
+  const milestoneRows = billingRow.schemeVersionId
+    ? await tx
+        .select()
+        .from(schemeMilestones)
+        .where(eq(schemeMilestones.versionId, billingRow.schemeVersionId))
+        .orderBy(schemeMilestones.seq)
+    : [];
+  const schemeLineRows = billingRow.schemeVersionId
+    ? await tx.select().from(schemeLines).where(eq(schemeLines.versionId, billingRow.schemeVersionId))
+    : [];
+  const schemeLineById = new Map(schemeLineRows.map((line) => [line.id, line]));
+  const milestones = milestoneRows.map((milestone) => ({
+    seq: milestone.seq,
+    label: milestone.label,
+    basis: milestone.basis,
+    value: Number(milestone.value)
+  }));
 
   const [assignment] =
     billingRow.businessId === null
@@ -135,6 +163,36 @@ export async function generateCommissionEntries(
       note = "sales_business_assignment_override";
     }
 
+    if (recurrence === "one_time") {
+      const schemeLine = line.schemeLineId ? schemeLineById.get(line.schemeLineId) : undefined;
+      const splits = splitCommissionByMilestones({
+        commissionTotal: amountPerPeriod,
+        revenueTotal: oneTimeRevenueTotal,
+        milestones,
+        milestoneSplit: schemeLine?.milestoneSplit ?? null
+      });
+
+      for (const split of splits) {
+        const lineLabel = line.label ?? schemeLine?.label ?? "Commission";
+        const splitNote = split.label ? `${lineLabel} · ${split.label}` : lineLabel;
+        drafts.push({
+          salesId: billingRow.salesId,
+          billingId: billingRow.id,
+          businessId: billingRow.businessId,
+          period: addMonths(startPeriod, 0),
+          // per_event commission lines are currently materialized as one one_time entry;
+          // event-level release can be added when event source data is available.
+          recurrence,
+          seq: 1,
+          milestoneSeq: split.milestoneSeq,
+          amountSgd: roundMoney(split.amount),
+          sourceLineId: line.id,
+          note: note ? `${splitNote}; ${note}` : splitNote
+        });
+      }
+      continue;
+    }
+
     for (let index = 0; index < count; index += 1) {
       drafts.push({
         salesId: billingRow.salesId,
@@ -145,6 +203,7 @@ export async function generateCommissionEntries(
         // event-level release can be added when event source data is available.
         recurrence,
         seq: index + 1,
+        milestoneSeq: null,
         amountSgd: roundMoney(amountPerPeriod),
         sourceLineId: line.id,
         note
@@ -164,6 +223,7 @@ export async function generateCommissionEntries(
           billingId: entry.billingId,
           sourceLineId: entry.sourceLineId as string,
           period: entry.period,
+          milestoneSeq: entry.milestoneSeq,
           seq: entry.seq
         }),
         entry.amountOverride as string
@@ -177,6 +237,7 @@ export async function generateCommissionEntries(
           billingId: entry.billingId,
           sourceLineId: entry.sourceLineId as string,
           period: entry.period,
+          milestoneSeq: entry.milestoneSeq,
           seq: entry.seq
         })
       )
@@ -189,6 +250,7 @@ export async function generateCommissionEntries(
           billingId: entry.billingId,
           sourceLineId: entry.sourceLineId as string,
           period: entry.period,
+          milestoneSeq: entry.milestoneSeq,
           seq: entry.seq
         }),
         entry
@@ -211,6 +273,7 @@ export async function generateCommissionEntries(
       period: draft.period,
       recurrence: draft.recurrence,
       seq: draft.seq,
+      milestoneSeq: draft.milestoneSeq,
       amountSgd: toNumeric(draft.amountSgd) ?? "0",
       status: "pending" as const,
       payslipId: null,

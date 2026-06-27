@@ -2,6 +2,7 @@ export * from "./enums";
 export * from "./finance/dealEconomics";
 export * from "./finance/generateCharges";
 export * from "./finance/presets";
+export * from "./finance/splitCommissionByMilestones";
 export * from "./permissions";
 export * from "./schemas/auth";
 export * from "./schemas/cases";

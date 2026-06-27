@@ -46,6 +46,7 @@ function serializeExternalCommissionEntry(row: typeof externalCommissionEntries.
     period: row.period,
     recurrence: row.recurrence,
     seq: row.seq,
+    milestone_seq: row.milestoneSeq,
     amount_sgd: row.amountSgd,
     amount_settled: row.amountSettled,
     outstanding: (amountSgd - amountSettled).toFixed(2),

@@ -23,6 +23,7 @@ export type ResolvableSchemeLineInput = {
   label?: string | null | undefined;
   partyId?: string | null | undefined;
   partyCode?: string | null | undefined;
+  milestoneSplit?: Record<string, number> | null | undefined;
   sortOrder?: number | undefined;
   note?: string | null | undefined;
 };
@@ -61,6 +62,7 @@ export function serializeSchemeLine(row: SchemeLineRow) {
     rate: row.rate,
     unit_label: row.unitLabel,
     input_key: row.inputKey,
+    milestone_split: row.milestoneSplit ?? null,
     label: row.label,
     note: row.note,
     created_at: row.createdAt
@@ -77,6 +79,7 @@ export function toEngineLines(rows: SchemeLineRow[]): SchemeLineInput[] {
     rate: line.rate === null ? null : Number(line.rate),
     unitLabel: line.unitLabel,
     inputKey: line.inputKey,
+    milestoneSplit: line.milestoneSplit ?? null,
     label: line.label
   }));
 }
@@ -103,6 +106,7 @@ export async function resolvePartyIds(
     rate: line.rate,
     unitLabel: line.unitLabel,
     inputKey: line.inputKey,
+    milestoneSplit: line.milestoneSplit,
     label: line.label,
     note: line.note,
     sortOrder: line.sortOrder
