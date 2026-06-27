@@ -1,8 +1,12 @@
 import {
   type DiplomaCourseCreateInput,
   type DiplomaCourseUpdateInput,
+  type DiplomaAssignmentAction,
+  type DiplomaAssignmentMessageInput,
+  type DiplomaAssignmentStatus,
   type DiplomaEnrollmentCreateInput,
   type DiplomaEnrollmentUpdateInput,
+  type DiplomaPaymentUpdateInput,
   type EnglishAttendanceMarkInput,
   type EnglishClassAttendanceInput,
   type EnglishClassCreateInput,
@@ -37,6 +41,11 @@ export type DiplomaEnrollment = {
   enroll_date?: string | null;
   billing_id?: string | null;
   installments_count?: number | null;
+  start_period?: string | null;
+  deposit_amount?: string | null;
+  deposit_paid_at?: string | null;
+  certificate_document_id?: string | null;
+  media_document_ids?: string[];
   graduated: boolean;
   created_at: string;
 };
@@ -49,7 +58,76 @@ export type DiplomaCourse = {
   teacher_id?: string | null;
   price_sgd?: string | null;
   duration?: string | null;
+  month_index?: number | null;
   created_at: string;
+};
+
+export type DiplomaAssignmentFile = {
+  id: string;
+  filename: string;
+  storage_path: string;
+};
+
+export type DiplomaAssignmentMessage = {
+  id: string;
+  assignment_id: string;
+  author_id?: string | null;
+  action: DiplomaAssignmentAction;
+  content?: string | null;
+  document_ids?: string[];
+  files: DiplomaAssignmentFile[];
+  created_at: string;
+};
+
+export type DiplomaAssignment = {
+  id: string;
+  enrollment_id: string;
+  course_id?: string | null;
+  status: DiplomaAssignmentStatus;
+  passed_at?: string | null;
+  course?: {
+    id: string;
+    name: string;
+    name_en?: string | null;
+    month_index?: number | null;
+  } | null;
+  messages: DiplomaAssignmentMessage[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type DiplomaPayment = {
+  id: string;
+  enrollment_id: string;
+  period: string;
+  amount?: string | null;
+  paid: boolean;
+  paid_at?: string | null;
+  note?: string | null;
+  created_at: string;
+};
+
+export type DiplomaEnrollmentProgress = {
+  start_period?: string | null;
+  months_read: number;
+  courses_total: number;
+  courses_passed: number;
+  graduated: boolean;
+  estimated_graduation_period?: string | null;
+  deposit_paid_at?: string | null;
+  payments_paid: number;
+  payments_total: number;
+};
+
+export type DiplomaEnrollmentDetail = {
+  enrollment: DiplomaEnrollment;
+  progress: DiplomaEnrollmentProgress;
+  assignments: DiplomaAssignment[];
+  payments: DiplomaPayment[];
+};
+
+export type PostAssignmentMessageInput = DiplomaAssignmentMessageInput & {
+  files?: File[];
 };
 
 export type WsqCourse = {
@@ -174,6 +252,82 @@ export function updateDiplomaEnrollment(
     method: "PATCH",
     body
   });
+}
+
+export function getDiplomaEnrollment(id: string): Promise<DiplomaEnrollmentDetail> {
+  return api<DiplomaEnrollmentDetail>(`/diploma-enrollments/${id}`);
+}
+
+async function multipartApi<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method: "POST",
+    body: formData,
+    credentials: "include"
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : response.statusText;
+    throw new Error(message);
+  }
+
+  return data as T;
+}
+
+export function postAssignmentMessage(
+  assignmentId: string,
+  input: PostAssignmentMessageInput
+): Promise<{ assignment: DiplomaAssignment; message: DiplomaAssignmentMessage }> {
+  const formData = new FormData();
+
+  formData.append("action", input.action);
+  if (input.content?.trim()) {
+    formData.append("content", input.content.trim());
+  }
+  for (const file of input.files ?? []) {
+    formData.append("files", file);
+  }
+
+  return multipartApi<{ assignment: DiplomaAssignment; message: DiplomaAssignmentMessage }>(
+    `/diploma-assignments/${assignmentId}/messages`,
+    formData
+  );
+}
+
+export function updateDiplomaPayment(
+  id: string,
+  body: DiplomaPaymentUpdateInput
+): Promise<{ payment: DiplomaPayment }> {
+  return api<{ payment: DiplomaPayment }>(`/diploma-payments/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function uploadDiplomaCertificate(
+  enrollmentId: string,
+  file: File
+): Promise<{ enrollment: DiplomaEnrollment; document: DiplomaAssignmentFile }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return multipartApi<{ enrollment: DiplomaEnrollment; document: DiplomaAssignmentFile }>(
+    `/diploma-enrollments/${enrollmentId}/certificate`,
+    formData
+  );
+}
+
+export function uploadDiplomaMedia(enrollmentId: string, files: File[]): Promise<{ enrollment: DiplomaEnrollment }> {
+  const formData = new FormData();
+
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  return multipartApi<{ enrollment: DiplomaEnrollment }>(`/diploma-enrollments/${enrollmentId}/media`, formData);
 }
 
 export function listDiplomaCourses(): Promise<{ courses: DiplomaCourse[] }> {

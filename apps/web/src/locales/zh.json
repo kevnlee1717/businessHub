@@ -139,6 +139,9 @@
     "enrollment": {
       "title": "成人大专报名"
     },
+    "detail": {
+      "title": "学生报名详情"
+    },
     "filters": {
       "student": "学生"
     },
@@ -147,8 +150,24 @@
       "course": "课程",
       "program": "课程",
       "enrollDate": "报名日期",
+      "depositAmount": "定金金额",
+      "depositPaidAt": "定金时间",
       "installmentsCount": "分期数",
       "graduated": "已毕业"
+    },
+    "progress": {
+      "title": "进度",
+      "startPeriod": "开始月份",
+      "monthsRead": "已读月份",
+      "monthsReadValue": "{{read}}/6 个月",
+      "coursesPassed": "课程通过",
+      "coursesPassedValue": "{{passed}}/{{total}} 门",
+      "estimatedGraduationPeriod": "预计毕业月",
+      "graduated": "已毕业",
+      "notGraduated": "未毕业",
+      "depositPaidAt": "定金时间",
+      "payments": "学费已收",
+      "paymentsValue": "{{paid}}/{{total}} 期"
     }
   },
   "diplomaCourse": {
@@ -162,8 +181,54 @@
       "content": "课程内容",
       "teacher": "老师",
       "priceSgd": "价格 SGD",
-      "duration": "时长"
+      "duration": "时长",
+      "monthIndex": "月份"
+    },
+    "monthHint": "第几个月的课",
+    "monthValue": "第 {{month}} 月"
+  },
+  "diplomaAssignment": {
+    "title": "作业批改",
+    "empty": "暂无作业消息",
+    "emptyAssignments": "暂无作业",
+    "submit": "提交作业",
+    "comment": "评论",
+    "approve": "通过",
+    "reject": "打回",
+    "fields": {
+      "content": "内容",
+      "files": "附件"
+    },
+    "status": {
+      "pending": "待提交",
+      "submitted": "待批",
+      "passed": "已过",
+      "rejected": "打回"
+    },
+    "action": {
+      "submit": "提交",
+      "comment": "评论",
+      "approve": "通过",
+      "reject": "打回"
     }
+  },
+  "diplomaPayment": {
+    "title": "月度学费",
+    "fields": {
+      "period": "月份",
+      "amount": "金额",
+      "paid": "已收",
+      "paidAt": "收款时间",
+      "note": "备注"
+    }
+  },
+  "diplomaMaterial": {
+    "title": "毕业材料",
+    "certificate": "毕业证书",
+    "media": "毕业照片/视频",
+    "uploadCertificate": "上传证书",
+    "uploadMedia": "上传照片/视频",
+    "upload": "上传"
   },
   "english": {
     "title": "成人英语",

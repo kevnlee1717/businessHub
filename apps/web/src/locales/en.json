@@ -139,6 +139,9 @@
     "enrollment": {
       "title": "Adult diploma enrollments"
     },
+    "detail": {
+      "title": "Student enrollment detail"
+    },
     "filters": {
       "student": "Student"
     },
@@ -147,8 +150,24 @@
       "course": "Course",
       "program": "Program",
       "enrollDate": "Enroll date",
+      "depositAmount": "Deposit amount",
+      "depositPaidAt": "Deposit time",
       "installmentsCount": "Installments",
       "graduated": "Graduated"
+    },
+    "progress": {
+      "title": "Progress",
+      "startPeriod": "Start period",
+      "monthsRead": "Months read",
+      "monthsReadValue": "{{read}}/6 months",
+      "coursesPassed": "Courses passed",
+      "coursesPassedValue": "{{passed}}/{{total}} courses",
+      "estimatedGraduationPeriod": "Estimated graduation month",
+      "graduated": "Graduated",
+      "notGraduated": "Not graduated",
+      "depositPaidAt": "Deposit time",
+      "payments": "Tuition received",
+      "paymentsValue": "{{paid}}/{{total}} periods"
     }
   },
   "diplomaCourse": {
@@ -162,8 +181,54 @@
       "content": "Course content",
       "teacher": "Teacher",
       "priceSgd": "Price SGD",
-      "duration": "Duration"
+      "duration": "Duration",
+      "monthIndex": "Month"
+    },
+    "monthHint": "Which month this course belongs to",
+    "monthValue": "Month {{month}}"
+  },
+  "diplomaAssignment": {
+    "title": "Assignment review",
+    "empty": "No assignment messages yet",
+    "emptyAssignments": "No assignments yet",
+    "submit": "Submit assignment",
+    "comment": "Comment",
+    "approve": "Approve",
+    "reject": "Reject",
+    "fields": {
+      "content": "Content",
+      "files": "Files"
+    },
+    "status": {
+      "pending": "Pending submission",
+      "submitted": "Pending review",
+      "passed": "Passed",
+      "rejected": "Rejected"
+    },
+    "action": {
+      "submit": "Submit",
+      "comment": "Comment",
+      "approve": "Approve",
+      "reject": "Reject"
     }
+  },
+  "diplomaPayment": {
+    "title": "Monthly tuition",
+    "fields": {
+      "period": "Period",
+      "amount": "Amount",
+      "paid": "Paid",
+      "paidAt": "Paid time",
+      "note": "Note"
+    }
+  },
+  "diplomaMaterial": {
+    "title": "Graduation materials",
+    "certificate": "Certificate",
+    "media": "Graduation photos/videos",
+    "uploadCertificate": "Upload certificate",
+    "uploadMedia": "Upload photos/videos",
+    "upload": "Upload"
   },
   "english": {
     "title": "Adult English",
