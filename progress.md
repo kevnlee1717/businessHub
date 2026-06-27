@@ -4,7 +4,22 @@
 
 ---
 
-## 🔖 最新快照(2026-06-27 第七轮:财务系统第 1 层地基)
+## 🔖 最新快照(2026-06-27 第八轮:收款名目目录 + 步骤关联收款)
+
+- **业主看 EP 模板步骤编辑器后提出**:步骤能关联收款、收款方式(=**收款名目目录**,业主确认)要可管理、步骤跟收款怎么连。**结论:步骤绑"收款名目"(与版本无关),金额由每单实际版本供给**(业主选定)。
+- **已做完、commit、端到端验证 + 实跑截图**(spec `436fb35`,数据层 `52fc638` / API `7ccfac5` / 前端 `e3cfec1`):
+  - spec:`docs/superpowers/specs/2026-06-27-collection-items-step-binding-design.md`
+  - 数据(migration **0018**,已 migrate 本地+生产共用库):新表 `collection_items`(名目目录)+ `scheme_milestones.collection_item_id` + `template_steps/case_steps.collections` jsonb。
+  - 引擎/API:`generateCharges` 透传 collectionItemId;charge 生成**按名目匹配绑 case_step**(回退 bind_step_order);`refreshBillingCharges` 抽出,**案件连 billing 时自动重算绑定**;collection-items CRUD;里程碑接名目;模板步骤读写 collections;建案快照 collections。
+  - 前端:**设置→「收款名目」管理页**(=收款方式管理入口)、**工作流步骤编辑加「关联收款」区**(选名目+必收,同所需文件交互)、**里程碑名称改名目下拉**(隐藏 bind_step_order)。
+  - 验证:建 EP 案件→成交→首付 charge 自动绑「签约」步、尾款绑「完成」步(只需连 case.billing_id,无需手动重算);截图可见 EP 模板每步的关联收款。seed 回填 7 系统名目 + EP 首付/尾款 + EP 模板步骤。
+- **名目"接头键"设计**:工作流子系统与业务方案子系统不直接连,靠 collection_item 匹配。加版本/加业务各管各的。
+- **⚠️ 暴露一个待办(非本功能)**:成交金额目前取**方案的一次性收入(EP 占位固定 5000)**,`billing.total_price_sgd` 被忽略 → 每单价格不能自定。真实需求要"每单能填价格"(方案的一次性收入改成走录入,而非写死)。**下次优先**。
+- **本轮 5 commit 待 push**(累计待 push 更多);**生产服务还跑旧代码**(migration 0018 已在共用库,但 bh-prod 未重启加载新代码——要上线需 rebuild + restart bh-prod)。
+
+---
+
+## 🔖 旧快照(2026-06-27 第七轮:财务系统第 1 层地基)
 
 - **业主提了一整套财务系统大需求**(业务绑公司、公司财务数据/新加坡报表导出、KPI 反推不亏损、总现金流面板、灵活收入模型/方案版本、强制凭证、对公账户对账…)。已拆成 **3 层 7 模块**,设计 + 实现都**自下而上一层层来**。
 - **设计 spec**:`docs/superpowers/specs/2026-06-27-finance-layer1-businesses-schemes-design.md`(含整套分层表 + 第 1 层详设)。**会计走「简化录入 + 生成专业报表导出」**;收入模型用**通用条目规则引擎 + 预设模板**(业主确认方向)。
