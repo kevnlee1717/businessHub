@@ -1450,7 +1450,7 @@
       "empty": "暂无业务"
     },
     "detail": {
-      "title": "业务详情",
+      "title": "业务收款详情",
       "addVersion": "新增版本",
       "editVersion": "编辑规则",
       "setDefault": "设为默认",
@@ -1495,6 +1495,8 @@
       "category": "分类",
       "status": "状态",
       "defaultVersion": "默认版本",
+      "currency": "结算币种",
+      "partyPlaceholder": "分给谁",
       "profitRate": "利润率",
       "collectionItem": "收款名目",
       "label": "标签",

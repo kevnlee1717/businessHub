@@ -1450,7 +1450,7 @@
       "empty": "No businesses yet"
     },
     "detail": {
-      "title": "Business detail",
+      "title": "Business collection detail",
       "addVersion": "Add version",
       "editVersion": "Edit rules",
       "setDefault": "Set default",
@@ -1495,6 +1495,8 @@
       "category": "Category",
       "status": "Status",
       "defaultVersion": "Default version",
+      "currency": "Currency",
+      "partyPlaceholder": "Split to whom",
       "profitRate": "Profit rate",
       "collectionItem": "Collection item",
       "label": "Label",

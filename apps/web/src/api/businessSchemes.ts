@@ -2,6 +2,7 @@ import {
   type BusinessCreateInput,
   type BusinessStatus,
   type BusinessUpdateInput,
+  type Currency,
   type DealInputsInput,
   type DealPartyCreateInput,
   type DealPartyUpdateInput,
@@ -32,6 +33,7 @@ export type Business = {
   name_en?: string | null;
   category?: string | null;
   status: BusinessStatus;
+  currency?: Currency | null;
   default_version_id?: string | null;
   sort_order?: number | null;
   note?: string | null;

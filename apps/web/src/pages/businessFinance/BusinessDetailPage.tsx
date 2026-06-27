@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Alert,
-  Badge,
   Button,
   Group,
   Loader,
@@ -12,7 +11,9 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Table,
+  Tabs,
   Text,
   TextInput,
   Title
@@ -20,14 +21,13 @@ import {
 import { useDebouncedValue } from "@mantine/hooks";
 import {
   DEAL_PRESETS,
-  businessStatuses,
-  schemeLineBases,
+  currencies,
   schemeLineKinds,
   schemeLineRecurrences,
   schemeLineSchema,
   schemeVersionCreateSchema,
-  schemeVersionStatuses,
   type BusinessStatus,
+  type Currency,
   type DealInputsInput,
   type SchemeLineBasis,
   type SchemeLineInputSchema,
@@ -83,8 +83,6 @@ type LineFormValues = {
   recurrence?: SchemeLineRecurrence | undefined;
   party_id?: string | null | undefined;
   rate?: number | string | null | undefined;
-  unit_label?: string | null | undefined;
-  input_key?: string | null | undefined;
   label?: string | undefined;
   sort_order?: number | undefined;
 };
@@ -130,10 +128,6 @@ function statusColor(status: string) {
   return status === "active" ? "green" : status === "paused" ? "yellow" : "gray";
 }
 
-function versionStatusColor(status: string) {
-  return status === "active" ? "green" : "gray";
-}
-
 function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
 }
@@ -149,8 +143,6 @@ function lineDefaults(): LineFormValues {
     recurrence: "one_time",
     party_id: null,
     rate: 0,
-    unit_label: null,
-    input_key: null,
     label: "",
     sort_order: undefined
   };
@@ -163,8 +155,6 @@ function lineToForm(line: SchemeLine): LineFormValues {
     recurrence: line.recurrence,
     party_id: line.party_id ?? null,
     rate: line.rate === null || line.rate === undefined ? null : Number(line.rate),
-    unit_label: line.unit_label ?? null,
-    input_key: line.input_key ?? null,
     label: line.label,
     sort_order: line.sort_order ?? undefined
   };
@@ -248,8 +238,13 @@ export function BusinessDetailPage() {
     }
   });
   const updateBusinessMutation = useMutation({
-    mutationFn: ({ businessId, body }: { businessId: string; body: { status?: BusinessStatus; default_version_id?: string | null } }) =>
-      updateBusiness(businessId, body),
+    mutationFn: ({
+      businessId,
+      body
+    }: {
+      businessId: string;
+      body: { status?: BusinessStatus; currency?: Currency; default_version_id?: string | null };
+    }) => updateBusiness(businessId, body),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: businessQueryKey(id) });
     }
@@ -267,17 +262,24 @@ export function BusinessDetailPage() {
 
   const business = businessQuery.data?.business;
   const versions = business?.scheme_versions ?? [];
-  const statusOptions = businessStatuses.map((status) => ({
-    value: status,
-    label: t(`businessStatus.${status}`)
-  }));
-  const versionStatusOptions = schemeVersionStatuses.map((status) => ({
-    value: status,
-    label: t(`schemeVersionStatus.${status}`)
-  }));
+  // 版本对外标识 = 业务码 + 三位序号(如 ep001),按列表顺序稳定编号
+  const versionLabelById = useMemo(
+    () =>
+      new Map(
+        versions.map((version, index) => [
+          version.id,
+          `${business?.code ?? ""}${String(index + 1).padStart(3, "0")}`
+        ])
+      ),
+    [versions, business?.code]
+  );
   const presetOptions = DEAL_PRESETS.map((preset) => ({
     value: preset.key,
     label: getPresetLabel(preset, i18n.language)
+  }));
+  const currencyOptions = currencies.map((currency) => ({
+    value: currency,
+    label: t(`currency.${currency}`)
   }));
   const loadError = businessQuery.error ?? partiesQuery.error;
 
@@ -353,24 +355,46 @@ export function BusinessDetailPage() {
       ) : (
         <>
           <Paper withBorder radius="md" p="md">
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }}>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 6 }}>
               <SummaryItem label={t("businessFinance.fields.name")} value={displayName(business.name, business.name_en)} />
               <SummaryItem label={t("businessFinance.fields.code")} value={business.code} />
               <SummaryItem label={t("businessFinance.fields.category")} value={business.category ?? "-"} />
-              <SummaryItem label={t("businessFinance.fields.defaultVersion")} value={business.default_version_id ?? "-"} />
+              <SummaryItem
+                label={t("businessFinance.fields.defaultVersion")}
+                value={
+                  business.default_version_id
+                    ? versionLabelById.get(business.default_version_id) ?? business.default_version_id
+                    : "-"
+                }
+              />
               <Stack gap={4}>
-                <Text size="xs" c="dimmed">{t("businessFinance.fields.status")}</Text>
+                <Text size="xs" c="dimmed">{t("businessFinance.fields.currency")}</Text>
                 <Select
                   size="xs"
-                  data={statusOptions}
-                  value={business.status}
+                  data={currencyOptions}
+                  value={business.currency ?? "SGD"}
+                  allowDeselect={false}
                   onChange={(value) => {
                     if (value) {
                       void updateBusinessMutation.mutateAsync({
                         businessId: id,
-                        body: { status: value as BusinessStatus }
+                        body: { currency: value as Currency }
                       });
                     }
+                  }}
+                />
+              </Stack>
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed">{t("businessFinance.fields.status")}</Text>
+                <Switch
+                  size="md"
+                  checked={business.status === "active"}
+                  label={t(`businessStatus.${business.status}`)}
+                  onChange={(event) => {
+                    void updateBusinessMutation.mutateAsync({
+                      businessId: id,
+                      body: { status: (event.currentTarget.checked ? "active" : "closed") as BusinessStatus }
+                    });
                   }}
                 />
               </Stack>
@@ -404,9 +428,9 @@ export function BusinessDetailPage() {
                       <VersionRow
                         key={version.id}
                         version={version}
+                        displayLabel={versionLabelById.get(version.id) ?? version.label}
                         businessDefaultVersionId={business.default_version_id}
                         expanded={expandedVersionId === version.id}
-                        versionStatusOptions={versionStatusOptions}
                         onExpand={() => setExpandedVersionId(expandedVersionId === version.id ? null : version.id)}
                         onSetDefault={() => void setDefaultVersion(version.id)}
                         onStatusChange={(status) =>
@@ -423,6 +447,7 @@ export function BusinessDetailPage() {
           {expandedVersionId ? (
             <VersionEditor
               versionId={expandedVersionId}
+              currency={business.currency ?? "SGD"}
               parties={partiesQuery.data?.deal_parties ?? []}
               onChanged={async () => {
                 await Promise.all([
@@ -473,13 +498,12 @@ export function BusinessDetailPage() {
               <Controller
                 control={versionForm.control}
                 name="status"
-                render={({ field, fieldState }) => (
-                  <Select
-                    label={t("businessFinance.fields.status")}
-                    data={versionStatusOptions}
-                    value={field.value ?? "active"}
-                    onChange={(value) => field.onChange(value ?? "active")}
-                    error={fieldState.error?.message}
+                render={({ field }) => (
+                  <Switch
+                    mt="lg"
+                    label={t(`schemeVersionStatus.${(field.value ?? "active") as SchemeVersionStatus}`)}
+                    checked={(field.value ?? "active") === "active"}
+                    onChange={(event) => field.onChange(event.currentTarget.checked ? "active" : "closed")}
                   />
                 )}
               />
@@ -520,17 +544,17 @@ export function BusinessDetailPage() {
 
 function VersionRow({
   version,
+  displayLabel,
   businessDefaultVersionId,
   expanded,
-  versionStatusOptions,
   onExpand,
   onSetDefault,
   onStatusChange
 }: {
   version: VersionBrief;
+  displayLabel: string;
   businessDefaultVersionId?: string | null | undefined;
   expanded: boolean;
-  versionStatusOptions: { value: string; label: string }[];
   onExpand: () => void;
   onSetDefault: () => void;
   onStatusChange: (status: SchemeVersionStatus) => void;
@@ -540,11 +564,23 @@ function VersionRow({
 
   return (
     <Table.Tr>
-      <Table.Td>{version.label}</Table.Td>
       <Table.Td>
-        <Badge color={versionStatusColor(version.status)} variant="light">
-          {t(`schemeVersionStatus.${version.status}`)}
-        </Badge>
+        <Stack gap={0}>
+          <Text fw={600}>{displayLabel}</Text>
+          {version.label && version.label !== displayLabel ? (
+            <Text size="xs" c="dimmed">
+              {version.label}
+            </Text>
+          ) : null}
+        </Stack>
+      </Table.Td>
+      <Table.Td>
+        <Switch
+          size="sm"
+          checked={version.status === "active"}
+          label={t(`schemeVersionStatus.${version.status}`)}
+          onChange={(event) => onStatusChange(event.currentTarget.checked ? "active" : "closed")}
+        />
       </Table.Td>
       <Table.Td>{formatDate(version.effective_from)}</Table.Td>
       <Table.Td>{formatRate(version.profit_rate)}</Table.Td>
@@ -557,17 +593,6 @@ function VersionRow({
           <Button size="xs" variant="light" disabled={isDefault} onClick={onSetDefault}>
             {t("businessFinance.detail.setDefault")}
           </Button>
-          <Select
-            size="xs"
-            w={120}
-            data={versionStatusOptions}
-            value={version.status}
-            onChange={(value) => {
-              if (value) {
-                onStatusChange(value as SchemeVersionStatus);
-              }
-            }}
-          />
         </Group>
       </Table.Td>
     </Table.Tr>
@@ -576,10 +601,12 @@ function VersionRow({
 
 function VersionEditor({
   versionId,
+  currency,
   parties,
   onChanged
 }: {
   versionId: string;
+  currency: Currency;
   parties: DealParty[];
   onChanged: () => Promise<void>;
 }) {
@@ -618,7 +645,6 @@ function VersionEditor({
     label: `${party.code} · ${displayName(party.name, party.name_en)}`
   }));
   const kindOptions = schemeLineKinds.map((kind) => ({ value: kind, label: t(`schemeLineKind.${kind}`) }));
-  const basisOptions = schemeLineBases.map((basis) => ({ value: basis, label: t(`schemeLineBasis.${basis}`) }));
   const recurrenceOptions = schemeLineRecurrences.map((recurrence) => ({
     value: recurrence,
     label: t(`schemeLineRecurrence.${recurrence}`)
@@ -634,7 +660,8 @@ function VersionEditor({
   const onAddSubmit = addForm.handleSubmit(async (values) => {
     setEditorError(null);
     try {
-      await createLineMutation.mutateAsync(values as SchemeLineInputSchema);
+      // 不再用每单录入/单位:固定价靠 rate,显式清空 input_key/unit_label
+      await createLineMutation.mutateAsync({ ...values, input_key: null, unit_label: null } as SchemeLineInputSchema);
       addForm.reset(lineDefaults());
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : t("common.unknown_error"));
@@ -644,7 +671,10 @@ function VersionEditor({
   async function saveLine(line: SchemeLine, values: LineFormValues) {
     setEditorError(null);
     try {
-      await updateLineMutation.mutateAsync({ lineId: line.id, body: values as Partial<SchemeLineInputSchema> });
+      await updateLineMutation.mutateAsync({
+        lineId: line.id,
+        body: { ...values, input_key: null, unit_label: null } as Partial<SchemeLineInputSchema>
+      });
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -660,8 +690,13 @@ function VersionEditor({
   }
 
   return (
-    <Stack gap="md">
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+    <Tabs defaultValue="lines" keepMounted={false}>
+      <Tabs.List>
+        <Tabs.Tab value="lines">{t("businessFinance.lines.title")}</Tabs.Tab>
+        <Tabs.Tab value="preview">{t("businessFinance.preview.title")}</Tabs.Tab>
+        <Tabs.Tab value="milestones">{t("businessFinance.milestones.title")}</Tabs.Tab>
+      </Tabs.List>
+      <Tabs.Panel value="lines" pt="md">
         <Paper withBorder radius="md" p="md">
           <Stack gap="md">
             <Group justify="space-between" align="center">
@@ -674,7 +709,7 @@ function VersionEditor({
               </Alert>
             ) : null}
             <ScrollArea>
-              <Table miw={1200} verticalSpacing="sm" striped>
+              <Table miw={860} verticalSpacing="sm" striped>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>{t("businessFinance.fields.kind")}</Table.Th>
@@ -682,8 +717,6 @@ function VersionEditor({
                     <Table.Th>{t("businessFinance.fields.recurrence")}</Table.Th>
                     <Table.Th>{t("businessFinance.fields.party")}</Table.Th>
                     <Table.Th>{t("businessFinance.fields.rate")}</Table.Th>
-                    <Table.Th>{t("businessFinance.fields.unitLabel")}</Table.Th>
-                    <Table.Th>{t("businessFinance.fields.inputKey")}</Table.Th>
                     <Table.Th>{t("businessFinance.fields.label")}</Table.Th>
                     <Table.Th>{t("common.actions")}</Table.Th>
                   </Table.Tr>
@@ -691,7 +724,7 @@ function VersionEditor({
                 <Table.Tbody>
                   {(version?.lines ?? []).length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={9}>
+                      <Table.Td colSpan={7}>
                         <Text ta="center" c="dimmed" py="md">
                           {t("businessFinance.lines.empty")}
                         </Text>
@@ -705,7 +738,7 @@ function VersionEditor({
                         defaults={lineForms.get(line.id) ?? lineToForm(line)}
                         partyOptions={partyOptions}
                         kindOptions={kindOptions}
-                        basisOptions={basisOptions}
+                        currency={currency}
                         recurrenceOptions={recurrenceOptions}
                         onSave={saveLine}
                         onDelete={removeLine}
@@ -717,7 +750,7 @@ function VersionEditor({
                     form={addForm}
                     partyOptions={partyOptions}
                     kindOptions={kindOptions}
-                    basisOptions={basisOptions}
+                    currency={currency}
                     recurrenceOptions={recurrenceOptions}
                     onSubmit={onAddSubmit}
                     loading={createLineMutation.isPending}
@@ -727,10 +760,14 @@ function VersionEditor({
             </ScrollArea>
           </Stack>
         </Paper>
+      </Tabs.Panel>
+      <Tabs.Panel value="preview" pt="md">
         <PreviewPanel version={version ?? null} />
-      </SimpleGrid>
-      <MilestonesPanel versionId={versionId} />
-    </Stack>
+      </Tabs.Panel>
+      <Tabs.Panel value="milestones" pt="md">
+        <MilestonesPanel versionId={versionId} />
+      </Tabs.Panel>
+    </Tabs>
   );
 }
 
@@ -1088,12 +1125,21 @@ function MilestoneCells({
   );
 }
 
+// 「基准」选项按类型收窄:分成只给 固定金额/按收入比例;成本不含毛利;收入含毛利
+function basesForKind(kind: SchemeLineKind | undefined): SchemeLineBasis[] {
+  // 分成可固定金额或按收入比例;收入/成本只有固定金额(价格不同→新建版本)
+  if (kind === "commission") {
+    return ["fixed", "percent_of_revenue"];
+  }
+  return ["fixed"];
+}
+
 function EditableLineRow({
   line,
   defaults,
   partyOptions,
   kindOptions,
-  basisOptions,
+  currency,
   recurrenceOptions,
   onSave,
   onDelete,
@@ -1103,7 +1149,7 @@ function EditableLineRow({
   defaults: LineFormValues;
   partyOptions: { value: string; label: string }[];
   kindOptions: { value: string; label: string }[];
-  basisOptions: { value: string; label: string }[];
+  currency: Currency;
   recurrenceOptions: { value: string; label: string }[];
   onSave: (line: SchemeLine, values: LineFormValues) => Promise<void>;
   onDelete: (lineId: string) => Promise<void>;
@@ -1126,7 +1172,7 @@ function EditableLineRow({
         form={form}
         partyOptions={partyOptions}
         kindOptions={kindOptions}
-        basisOptions={basisOptions}
+        currency={currency}
         recurrenceOptions={recurrenceOptions}
       />
       <Table.Td>
@@ -1147,7 +1193,7 @@ function AddLineRow({
   form,
   partyOptions,
   kindOptions,
-  basisOptions,
+  currency,
   recurrenceOptions,
   onSubmit,
   loading
@@ -1155,7 +1201,7 @@ function AddLineRow({
   form: ReturnType<typeof useForm<LineFormValues>>;
   partyOptions: { value: string; label: string }[];
   kindOptions: { value: string; label: string }[];
-  basisOptions: { value: string; label: string }[];
+  currency: Currency;
   recurrenceOptions: { value: string; label: string }[];
   onSubmit: () => void;
   loading: boolean;
@@ -1168,7 +1214,7 @@ function AddLineRow({
         form={form}
         partyOptions={partyOptions}
         kindOptions={kindOptions}
-        basisOptions={basisOptions}
+        currency={currency}
         recurrenceOptions={recurrenceOptions}
       />
       <Table.Td>
@@ -1184,16 +1230,27 @@ function LineCells({
   form,
   partyOptions,
   kindOptions,
-  basisOptions,
+  currency,
   recurrenceOptions
 }: {
   form: ReturnType<typeof useForm<LineFormValues>>;
   partyOptions: { value: string; label: string }[];
   kindOptions: { value: string; label: string }[];
-  basisOptions: { value: string; label: string }[];
+  currency: Currency;
   recurrenceOptions: { value: string; label: string }[];
 }) {
   const { t } = useTranslation();
+  const watchedKind = form.watch("kind");
+  const watchedBasis = form.watch("basis");
+  const isCommission = watchedKind === "commission";
+  const isPercent = watchedBasis === "percent_of_revenue";
+  // 基准选项按类型收窄;若当前值不在列表(历史数据)也补进去,避免下拉空白
+  const allowedBases = basesForKind(watchedKind);
+  const basisValues = watchedBasis && !allowedBases.includes(watchedBasis)
+    ? [...allowedBases, watchedBasis]
+    : allowedBases;
+  const basisOptions = basisValues.map((basis) => ({ value: basis, label: t(`schemeLineBasis.${basis}`) }));
+  const rateSuffix = isPercent ? "%" : currency;
 
   return (
     <>
@@ -1225,20 +1282,27 @@ function LineCells({
         />
       </Table.Td>
       <Table.Td>
-        <Controller
-          control={form.control}
-          name="party_id"
-          render={({ field }) => (
-            <Select
-              size="xs"
-              w={170}
-              data={partyOptions}
-              value={field.value ?? null}
-              onChange={(value) => field.onChange(value)}
-              clearable
-            />
-          )}
-        />
+        {isCommission ? (
+          <Controller
+            control={form.control}
+            name="party_id"
+            render={({ field }) => (
+              <Select
+                size="xs"
+                w={170}
+                placeholder={t("businessFinance.fields.partyPlaceholder")}
+                data={partyOptions}
+                value={field.value ?? null}
+                onChange={(value) => field.onChange(value)}
+                clearable
+              />
+            )}
+          />
+        ) : (
+          <Text size="xs" c="dimmed">
+            —
+          </Text>
+        )}
       </Table.Td>
       <Table.Td>
         <Controller
@@ -1247,38 +1311,16 @@ function LineCells({
           render={({ field }) => (
             <NumberInput
               size="xs"
-              w={110}
+              w={120}
+              hideControls
               value={field.value ?? ""}
               onChange={(value) => field.onChange(toNumberOrUndefined(value))}
-            />
-          )}
-        />
-      </Table.Td>
-      <Table.Td>
-        <Controller
-          control={form.control}
-          name="unit_label"
-          render={({ field }) => (
-            <TextInput
-              size="xs"
-              w={110}
-              value={field.value ?? ""}
-              onChange={(event) => field.onChange(event.currentTarget.value || null)}
-            />
-          )}
-        />
-      </Table.Td>
-      <Table.Td>
-        <Controller
-          control={form.control}
-          name="input_key"
-          render={({ field }) => (
-            <TextInput
-              size="xs"
-              w={120}
-              value={field.value ?? ""}
-              placeholder={t("businessFinance.preview.inputKey")}
-              onChange={(event) => field.onChange(event.currentTarget.value || null)}
+              rightSection={
+                <Text size="xs" c="dimmed" pr={6}>
+                  {rateSuffix}
+                </Text>
+              }
+              rightSectionWidth={rateSuffix.length > 1 ? 42 : 24}
             />
           )}
         />
