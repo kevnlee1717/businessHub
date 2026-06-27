@@ -60,6 +60,7 @@ export function serializeExpenseCategory(row: typeof expenseCategories.$inferSel
     code: row.code,
     name: row.name,
     name_en: row.nameEn,
+    report_section: row.reportSection,
     active: row.active,
     is_system: row.isSystem,
     created_at: row.createdAt

@@ -11,3 +11,4 @@ export * from "./schemas/education";
 export * from "./schemas/finance";
 export * from "./schemas/hr";
 export * from "./schemas/ledger";
+export * from "./schemas/reports";

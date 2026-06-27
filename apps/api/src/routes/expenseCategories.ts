@@ -56,6 +56,7 @@ export async function registerExpenseCategoryRoutes(app: FastifyInstance): Promi
         code: current.isSystem ? undefined : body.code,
         name: body.name,
         nameEn: body.name_en,
+        reportSection: body.report_section,
         active: body.active,
         isSystem: body.is_system
       })

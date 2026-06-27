@@ -137,6 +137,9 @@ export type LedgerSource = (typeof ledgerSources)[number];
 export const reconcileStatuses = ["unreconciled", "reconciled", "ignored"] as const;
 export type ReconcileStatus = (typeof reconcileStatuses)[number];
 
+export const reportSections = ["cost_of_sales", "operating_expense", "other"] as const;
+export type ReportSection = (typeof reportSections)[number];
+
 export const contractStatuses = ["draft", "active", "expired", "terminated"] as const;
 export type ContractStatus = (typeof contractStatuses)[number];
 

@@ -5,6 +5,7 @@ import {
   currencies,
   ledgerDirections,
   milestoneBases,
+  reportSections,
   reconcileStatuses
 } from "../enums";
 
@@ -61,6 +62,7 @@ export const expenseCategoryUpdateSchema = z.object({
   code: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1).optional(),
   name_en: nullableOptionalText,
+  report_section: z.enum(reportSections).optional(),
   active: z.boolean().optional(),
   is_system: z.boolean().optional()
 });

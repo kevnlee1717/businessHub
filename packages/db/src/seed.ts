@@ -807,15 +807,15 @@ const academyDemoStats = await seedAcademyDemo();
 
 async function seedFinanceLedgerDemo() {
   const expenseCategorySeeds = [
-    { code: "rent", name: "房租", nameEn: "Rent" },
-    { code: "utility", name: "水电", nameEn: "Utilities" },
-    { code: "broadband", name: "宽带", nameEn: "Broadband" },
-    { code: "salary", name: "工资", nameEn: "Salary" },
-    { code: "cpf", name: "CPF", nameEn: "CPF" },
-    { code: "levy", name: "劳工税", nameEn: "Levy" },
-    { code: "marketing", name: "市场推广", nameEn: "Marketing" },
-    { code: "office", name: "办公杂费", nameEn: "Office" },
-    { code: "other", name: "其它", nameEn: "Other" }
+    { code: "rent", name: "房租", nameEn: "Rent", reportSection: "operating_expense" },
+    { code: "utility", name: "水电", nameEn: "Utilities", reportSection: "operating_expense" },
+    { code: "broadband", name: "宽带", nameEn: "Broadband", reportSection: "operating_expense" },
+    { code: "salary", name: "工资", nameEn: "Salary", reportSection: "operating_expense" },
+    { code: "cpf", name: "CPF", nameEn: "CPF", reportSection: "operating_expense" },
+    { code: "levy", name: "劳工税", nameEn: "Levy", reportSection: "operating_expense" },
+    { code: "marketing", name: "市场推广", nameEn: "Marketing", reportSection: "operating_expense" },
+    { code: "office", name: "办公杂费", nameEn: "Office", reportSection: "operating_expense" },
+    { code: "other", name: "其它", nameEn: "Other", reportSection: "other" }
   ] as const;
 
   let expenseCategoriesUpserted = 0;
@@ -833,6 +833,7 @@ async function seedFinanceLedgerDemo() {
           code: category.code,
           name: category.name,
           nameEn: category.nameEn,
+          reportSection: category.reportSection,
           active: true,
           isSystem: true
         })
@@ -841,6 +842,7 @@ async function seedFinanceLedgerDemo() {
           set: {
             name: category.name,
             nameEn: category.nameEn,
+            reportSection: category.reportSection,
             active: true,
             isSystem: true
           }
@@ -1280,5 +1282,5 @@ const demoSalesStats = await seedDemoSales();
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

@@ -1,0 +1,2 @@
+CREATE TYPE "public"."report_section" AS ENUM('cost_of_sales', 'operating_expense', 'other');--> statement-breakpoint
+ALTER TABLE "expense_categories" ADD COLUMN "report_section" "report_section" DEFAULT 'operating_expense' NOT NULL;
