@@ -45,7 +45,19 @@
   - 前端:`ChargeSchedulePanel`(逐笔收款+凭证)接入 EP/ICA 案件详情(步骤旁显示待收/已收)+ 方案版本里程碑编辑 + 跨单应收台账页(逾期高亮)。
   - HTTP 验证:建 EP 成交(总价5000)→ 生成首付1500/尾款3500 两里程碑 → collect 首付(无凭证422、有凭证→paid + payment挂charge + ledger进账1500)→ 台账 应收5000/已收1500/未收3500。
 - **本会话共做完:第1层地基 + 模块③a + ④ + ⑦ + ⑧,5 大块全部端到端验证,migration 到 0015(仅本地)。约 27 commit 待 push,未部署生产。**
-- **业主 5 个场景核对结论(模块⑧后)**:#1 EP/ICA 首付尾款分期+绑步骤 ✅;#2 学校报名+月收 ✅(③a);#3 按摩椅每月抽成 ✅(period charges);#4 床垫每晚抽成 ✅(event charges+补录);#5 加盟里程碑+每月 ✅(混合 charges)。**唯一剩:销售提成台账 ⑤**(现仅算得出提成额,缺"发给哪个销售/跨业务/底薪/汇总进工资条"的台账)。
+- **业主 5 个场景核对结论(模块⑧后)**:#1 EP/ICA 首付尾款分期+绑步骤 ✅;#2 学校报名+月收 ✅(③a);#3 按摩椅每月抽成 ✅(period charges);#4 床垫每晚抽成 ✅(event charges+补录);#5 加盟里程碑+每月 ✅(混合 charges)。
+
+- **模块⑤(销售提成台账)也已做完、commit、端到端验证**(spec `3615980`,数据层 `17eae33` / API `38d5cbe` / 前端 `cdad478`):
+  - spec:`docs/superpowers/specs/2026-06-27-finance-module5-commission-ledger-design.md`
+  - 数据层(migration **0016**):`sales_business_assignments`(销售↔业务,跨业务+每业务提成覆盖)+ `commission_entries`(提成台账:一次性/每月、pending/settled/void、汇入哪张工资条)。
+  - API:从 `deal_line_amounts` 的 commission(party=sales)行**物化**提成 entries(建/改单事务内,幂等);销售业务分配 CRUD;`/commission/entries|recompute|summary`;**改 payslip:commission_total 按台账汇总并把 entries 标 settled+payslip_id**(替换旧 billing 口径)。修了 sales-business-assignments PATCH/DELETE 裸 `/:id` 路由 bug。
+  - 前端:销售提成页(业务分配+提成覆盖+底薪 / 提成台账筛选+重算+作废)+ 工资条提成明细展开。
+  - HTTP 验证:建带销售小陈的 ep 成交(提成10%)→ 物化 one_time 提成 500/2026-06 → 生成工资条 gross 2500(底薪2000+提成500)、entry 标 settled+payslip_id;ep 业务设 fixed 800 覆盖 → 新单提成变 800。
+  - seed:`[DEMO] 销售小陈`(JUYI,底薪2000,分配 ep/ica)。
+
+- **🎉 业主列的 5 个场景 + 销售提成 全部闭环。本会话共做完 6 个财务模块:① 业务+方案引擎 / ③a 学校收款 / ④ 收支凭证对账 / ⑦ 总面板现金流 / ⑧ 收款计划期数台账 / ⑤ 销售提成台账。migration 到 0016(仅本地),约 33 commit 待 push,未部署生产。`pnpm -r typecheck` 4 包 + 11 单测全绿。**
+- **唯一剩(7模块里的最后一个)**:⑥ 新加坡报表导出(Form C-S / GST F5 / ACRA 财报),需业主的新加坡会计要的具体格式。
+- **DEMO 测试数据(本地,可删)**:保安保洁业务、4 个 `[DEMO]` 学院学生、销售小陈、各 DEMO 流水/明细/固定支出/期初余额、若干测试成交单。
 - **下一步(财务剩余 ⑤⑥,各需独立 spec + 业主真实数字)**:
   - ⑤ 销售跨业务分配/底薪/每单提成账本 → 汇入工资条(现 commission 写死在 billing,需独立提成台账;需各业务真实提成规则)
   - ⑥ 新加坡报表导出(Form C-S / GST / ACRA;简化录入→导出映射,需业主的新加坡会计要的具体格式)
