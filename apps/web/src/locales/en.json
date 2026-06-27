@@ -1472,7 +1472,7 @@
         "basis": "Basis",
         "value": "Value",
         "bindStepOrder": "Bind step",
-        "dueOffsetDays": "Due offset days"
+        "dueOffsetDays": "Days after deal"
       }
     },
     "preview": {

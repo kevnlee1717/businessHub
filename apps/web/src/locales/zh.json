@@ -1472,7 +1472,7 @@
         "basis": "拆分方式",
         "value": "值",
         "bindStepOrder": "绑第几步",
-        "dueOffsetDays": "应收偏移天"
+        "dueOffsetDays": "成交后几天应收"
       }
     },
     "preview": {
