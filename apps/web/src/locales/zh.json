@@ -1628,6 +1628,8 @@
       "profitRate": "利润率",
       "collectionItem": "收款名目",
       "label": "标签",
+      "versionName": "名字/备注(给员工看)",
+      "versionNamePlaceholder": "如:1万·落地方4.5k",
       "effectiveFrom": "生效日",
       "isDefault": "默认",
       "preset": "预设模板",

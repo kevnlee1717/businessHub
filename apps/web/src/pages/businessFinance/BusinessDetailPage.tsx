@@ -34,6 +34,7 @@ import {
   type SchemeLineKind,
   type SchemeLineRecurrence,
   type SchemeVersionCreateInput,
+  type SchemeVersionUpdateInput,
   type SchemeVersionStatus
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -274,7 +275,7 @@ export function BusinessDetailPage() {
     }
   });
   const updateVersionMutation = useMutation({
-    mutationFn: ({ versionId, body }: { versionId: string; body: { status?: SchemeVersionStatus } }) =>
+    mutationFn: ({ versionId, body }: { versionId: string; body: SchemeVersionUpdateInput }) =>
       updateSchemeVersion(versionId, body),
     onSuccess: async (_data, variables) => {
       await Promise.all([
@@ -346,6 +347,15 @@ export function BusinessDetailPage() {
     }
 
     await updateBusinessMutation.mutateAsync({ businessId: id, body: { default_version_id: versionId } });
+  }
+
+  async function renameVersionLabel(versionId: string, label: string) {
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      return;
+    }
+
+    await updateVersionMutation.mutateAsync({ versionId, body: { label: trimmedLabel } });
   }
 
   if (!id) {
@@ -460,6 +470,7 @@ export function BusinessDetailPage() {
                         onStatusChange={(status) =>
                           void updateVersionMutation.mutateAsync({ versionId: version.id, body: { status } })
                         }
+                        onRenameLabel={(versionId, label) => void renameVersionLabel(versionId, label)}
                       />
                     ))
                   )}
@@ -511,7 +522,8 @@ export function BusinessDetailPage() {
                 name="label"
                 render={({ field, fieldState }) => (
                   <TextInput
-                    label={t("businessFinance.fields.label")}
+                    label={t("businessFinance.fields.versionName")}
+                    placeholder={t("businessFinance.fields.versionNamePlaceholder")}
                     value={field.value ?? ""}
                     onChange={field.onChange}
                     error={fieldState.error?.message}
@@ -573,7 +585,8 @@ function VersionRow({
   expanded,
   onExpand,
   onSetDefault,
-  onStatusChange
+  onStatusChange,
+  onRenameLabel
 }: {
   version: VersionBrief;
   displayLabel: string;
@@ -582,20 +595,40 @@ function VersionRow({
   onExpand: () => void;
   onSetDefault: () => void;
   onStatusChange: (status: SchemeVersionStatus) => void;
+  onRenameLabel: (versionId: string, label: string) => void;
 }) {
   const { t } = useTranslation();
+  const [labelDraft, setLabelDraft] = useState(version.label);
   const isDefault = businessDefaultVersionId === version.id;
+
+  useEffect(() => {
+    setLabelDraft(version.label);
+  }, [version.label]);
+
+  function commitLabelRename() {
+    const trimmedLabel = labelDraft.trim();
+    if (trimmedLabel && trimmedLabel !== version.label) {
+      onRenameLabel(version.id, trimmedLabel);
+    }
+  }
 
   return (
     <Table.Tr>
       <Table.Td>
-        <Stack gap={0}>
+        <Stack gap={4}>
           <Text fw={600}>{displayLabel}</Text>
-          {version.label && version.label !== displayLabel ? (
-            <Text size="xs" c="dimmed">
-              {version.label}
-            </Text>
-          ) : null}
+          <TextInput
+            size="xs"
+            value={labelDraft}
+            placeholder={t("businessFinance.fields.versionNamePlaceholder")}
+            onChange={(event) => setLabelDraft(event.currentTarget.value)}
+            onBlur={commitLabelRename}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+          />
         </Stack>
       </Table.Td>
       <Table.Td>

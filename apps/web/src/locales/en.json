@@ -1628,6 +1628,8 @@
       "profitRate": "Profit rate",
       "collectionItem": "Collection item",
       "label": "Label",
+      "versionName": "Name / note (for staff)",
+      "versionNamePlaceholder": "e.g. 10k · landing partner 4.5k",
       "effectiveFrom": "Effective from",
       "isDefault": "Default",
       "preset": "Preset",
