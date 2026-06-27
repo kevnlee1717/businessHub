@@ -1,4 +1,5 @@
 import { integer, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { collectionItems } from "./collectionItems";
 import { milestoneBasisEnum } from "./enums";
 import { schemeVersions } from "./schemeVersions";
 
@@ -9,6 +10,7 @@ export const schemeMilestones = pgTable(
     versionId: uuid("version_id").notNull().references(() => schemeVersions.id, { onDelete: "cascade" }),
     seq: integer("seq").notNull(),
     label: text("label").notNull(),
+    collectionItemId: uuid("collection_item_id").references(() => collectionItems.id, { onDelete: "set null" }),
     basis: milestoneBasisEnum("basis").notNull(),
     value: numeric("value", { precision: 12, scale: 2 }).notNull(),
     bindStepOrder: integer("bind_step_order"),

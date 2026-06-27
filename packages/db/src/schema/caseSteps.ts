@@ -16,6 +16,10 @@ export const caseSteps = pgTable("case_steps", {
   reviewerId: uuid("reviewer_id").references(() => employees.id, { onDelete: "set null" }),
   reviewStatus: stepReviewStatusEnum("review_status").notNull().default("none"),
   meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  collections: jsonb("collections").$type<{
+    collection_item_id: string;
+    required?: boolean;
+  }[]>().notNull().default(sql`'[]'::jsonb`),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });

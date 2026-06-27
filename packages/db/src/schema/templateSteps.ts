@@ -16,6 +16,10 @@ export const templateSteps = pgTable("template_steps", {
     category_id?: string | null;
     required: boolean;
   }[]>().notNull().default(sql`'[]'::jsonb`),
+  collections: jsonb("collections").$type<{
+    collection_item_id: string;
+    required?: boolean;
+  }[]>().notNull().default(sql`'[]'::jsonb`),
   defaultAssigneeRole: roleEnum("default_assignee_role"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });

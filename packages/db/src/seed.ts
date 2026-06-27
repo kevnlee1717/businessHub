@@ -8,6 +8,7 @@ import {
   bankStatementLines,
   billing,
   businesses,
+  collectionItems,
   companyExpenses,
   companies,
   dealParties,
@@ -393,6 +394,47 @@ for (const party of dealPartySeeds) {
 const partyRows = await db.select().from(dealParties);
 const partyIdByCode = new Map(partyRows.map((party) => [party.code, party.id]));
 
+const collectionItemSeeds = [
+  { code: "deposit", name: "定金", nameEn: "Deposit", defaultRecurrence: "one_time", sortOrder: 1 },
+  { code: "down_payment", name: "首付", nameEn: "Down Payment", defaultRecurrence: "one_time", sortOrder: 2 },
+  { code: "progress", name: "中期款", nameEn: "Progress Payment", defaultRecurrence: "one_time", sortOrder: 3 },
+  { code: "final", name: "尾款", nameEn: "Final Payment", defaultRecurrence: "one_time", sortOrder: 4 },
+  { code: "monthly_fee", name: "月费", nameEn: "Monthly Fee", defaultRecurrence: "monthly", sortOrder: 5 },
+  { code: "service_fee", name: "服务费", nameEn: "Service Fee", defaultRecurrence: "one_time", sortOrder: 6 },
+  { code: "commission_share", name: "抽成", nameEn: "Commission Share", defaultRecurrence: "monthly", sortOrder: 7 }
+] as const;
+
+let collectionItemsUpserted = 0;
+
+for (const item of collectionItemSeeds) {
+  await db
+    .insert(collectionItems)
+    .values({
+      code: item.code,
+      name: item.name,
+      nameEn: item.nameEn,
+      defaultRecurrence: item.defaultRecurrence,
+      active: true,
+      isSystem: true,
+      sortOrder: item.sortOrder
+    })
+    .onConflictDoUpdate({
+      target: collectionItems.code,
+      set: {
+        name: item.name,
+        nameEn: item.nameEn,
+        defaultRecurrence: item.defaultRecurrence,
+        active: true,
+        isSystem: true,
+        sortOrder: item.sortOrder
+      }
+    });
+  collectionItemsUpserted += 1;
+}
+
+const collectionItemRows = await db.select().from(collectionItems);
+const collectionItemIdByCode = new Map(collectionItemRows.map((item) => [item.code, item.id]));
+
 const [fallbackCompany] = await db.select().from(companies).limit(1);
 
 let upsertedBusinesses = 0;
@@ -401,6 +443,8 @@ let skippedSchemeVersions = 0;
 let insertedSchemeLines = 0;
 let updatedBillingRows = 0;
 let schemeMilestonesUpserted = 0;
+let epMilestonesLinked = 0;
+let epStepCollectionsSet = 0;
 const financeSeedWarnings: string[] = [];
 
 if (!fallbackCompany) {
@@ -635,6 +679,95 @@ if (!fallbackCompany) {
 
         schemeMilestonesUpserted += 1;
       }
+
+      const downPaymentCollectionItemId = collectionItemIdByCode.get("down_payment");
+      const finalCollectionItemId = collectionItemIdByCode.get("final");
+
+      if (!downPaymentCollectionItemId || !finalCollectionItemId) {
+        financeSeedWarnings.push("未找到首付/尾款 collection_items, 跳过 EP 名目回填");
+      } else {
+        const linkedDownPayment = await db
+          .update(schemeMilestones)
+          .set({ collectionItemId: downPaymentCollectionItemId })
+          .where(
+            and(
+              eq(schemeMilestones.versionId, epDefaultVersionId),
+              isNull(schemeMilestones.collectionItemId),
+              sql`${schemeMilestones.label} like ${"%首付%"}`
+            )
+          )
+          .returning({ id: schemeMilestones.id });
+
+        const linkedFinal = await db
+          .update(schemeMilestones)
+          .set({ collectionItemId: finalCollectionItemId })
+          .where(
+            and(
+              eq(schemeMilestones.versionId, epDefaultVersionId),
+              isNull(schemeMilestones.collectionItemId),
+              sql`${schemeMilestones.label} like ${"%尾款%"}`
+            )
+          )
+          .returning({ id: schemeMilestones.id });
+
+        epMilestonesLinked += linkedDownPayment.length + linkedFinal.length;
+      }
+    }
+  }
+
+  const downPaymentCollectionItemId = collectionItemIdByCode.get("down_payment");
+  const finalCollectionItemId = collectionItemIdByCode.get("final");
+
+  if (!downPaymentCollectionItemId || !finalCollectionItemId) {
+    financeSeedWarnings.push("未找到首付/尾款 collection_items, 跳过 EP 模板步骤收款回填");
+  } else {
+    const epTemplates = await db
+      .select({ id: workflowTemplates.id })
+      .from(workflowTemplates)
+      .where(eq(workflowTemplates.businessType, "ep"));
+
+    if (epTemplates.length === 0) {
+      financeSeedWarnings.push("未找到 EP 工作流模板, 跳过 EP 模板步骤收款回填");
+    }
+
+    for (const template of epTemplates) {
+      const [maxStepRow] = await db
+        .select({ maxStepOrder: sql<number | null>`max(${templateSteps.stepOrder})::int` })
+        .from(templateSteps)
+        .where(eq(templateSteps.templateId, template.id));
+
+      const maxStepOrder = maxStepRow?.maxStepOrder ?? null;
+
+      if (!maxStepOrder) {
+        financeSeedWarnings.push(`EP 工作流模板 ${template.id} 未找到步骤, 跳过收款回填`);
+        continue;
+      }
+
+      const firstStepUpdated = await db
+        .update(templateSteps)
+        .set({ collections: [{ collection_item_id: downPaymentCollectionItemId, required: true }] })
+        .where(
+          and(
+            eq(templateSteps.templateId, template.id),
+            eq(templateSteps.stepOrder, 1),
+            sql`${templateSteps.collections} = '[]'::jsonb`
+          )
+        )
+        .returning({ id: templateSteps.id });
+
+      const finalStepUpdated = await db
+        .update(templateSteps)
+        .set({ collections: [{ collection_item_id: finalCollectionItemId, required: true }] })
+        .where(
+          and(
+            eq(templateSteps.templateId, template.id),
+            eq(templateSteps.stepOrder, maxStepOrder),
+            sql`${templateSteps.collections} = '[]'::jsonb`
+          )
+        )
+        .returning({ id: templateSteps.id });
+
+      epStepCollectionsSet += firstStepUpdated.length + finalStepUpdated.length;
     }
   }
 
@@ -1282,5 +1415,5 @@ const demoSalesStats = await seedDemoSales();
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

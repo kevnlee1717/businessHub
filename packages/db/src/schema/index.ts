@@ -16,6 +16,7 @@ export * from "./bankAccounts";
 export * from "./businesses";
 export * from "./salesBusinessAssignments";
 export * from "./dealParties";
+export * from "./collectionItems";
 export * from "./schemeVersions";
 export * from "./schemeLines";
 export * from "./schemeMilestones";
