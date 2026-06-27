@@ -14,6 +14,7 @@ export const commissionEntries = pgTable("commission_entries", {
   recurrence: commissionRecurrenceEnum("recurrence").notNull(),
   seq: integer("seq").notNull().default(1),
   amountSgd: numeric("amount_sgd", { precision: 12, scale: 2 }).notNull(),
+  amountOverride: numeric("amount_override", { precision: 12, scale: 2 }),
   status: commissionEntryStatusEnum("status").notNull().default("pending"),
   payslipId: uuid("payslip_id").references(() => payslips.id, { onDelete: "set null" }),
   sourceLineId: uuid("source_line_id"),

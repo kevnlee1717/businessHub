@@ -1,0 +1,2 @@
+ALTER TABLE "commission_entries" ADD COLUMN "amount_override" numeric(12, 2);--> statement-breakpoint
+ALTER TABLE "external_commission_entries" ADD COLUMN "amount_settled" numeric(12, 2) DEFAULT '0' NOT NULL;
