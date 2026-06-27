@@ -27,6 +27,7 @@
     "finance_bank_accounts": "对公账户",
     "finance_reconcile": "对账",
     "finance_commission": "销售提成",
+    "finance_reports": "财务报表",
     "business_finance": "业务方案",
     "business_finance_list": "业务列表",
     "deal_parties": "分成对象",
@@ -1171,7 +1172,8 @@
       "ledger": "收支流水",
       "bankAccounts": "对公账户",
       "reconcile": "对账",
-      "commission": "销售提成"
+      "commission": "销售提成",
+      "reports": "财务报表"
     },
     "fields": {
       "company": "公司",
@@ -1244,6 +1246,33 @@
       "proofMissingHint": "桥接或历史流水存在缺凭证记录，请补齐后再查账。",
       "filterMissing": "筛出缺凭证",
       "missingOnly": "只看缺凭证"
+    },
+    "reports": {
+      "title": "财务报表",
+      "pnl": "损益表",
+      "cashBasis": "现金基础",
+      "cashBasisHint": "现金基础；权责发生制调整由会计处理；导出后可套 Form C-S / ACRA 模板。",
+      "exportCsv": "导出 CSV",
+      "revenue": "收入",
+      "revenueTotal": "收入合计",
+      "costOfSales": "销货成本",
+      "costOfSalesTotal": "销货成本合计",
+      "grossProfit": "毛利",
+      "operatingExpenses": "营业费用",
+      "operatingExpensesTotal": "营业费用合计",
+      "otherExpenses": "其它费用",
+      "otherExpensesTotal": "其它费用合计",
+      "netProfitBeforeTax": "税前净利",
+      "gstEstimate": "GST 估算",
+      "gstRate": "税率",
+      "outputTaxEst": "销项估算",
+      "inputTaxEst": "进项估算",
+      "netGstEst": "净 GST",
+      "estimateOnly": "估算仅供参考",
+      "byCompany": "各公司税前净利",
+      "expand": "展开",
+      "loading": "加载中",
+      "empty": "暂无报表数据"
     },
     "reconcile": {
       "title": "对账",

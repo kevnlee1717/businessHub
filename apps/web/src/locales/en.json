@@ -27,6 +27,7 @@
     "finance_bank_accounts": "Bank Accounts",
     "finance_reconcile": "Reconcile",
     "finance_commission": "Sales Commission",
+    "finance_reports": "Financial Reports",
     "business_finance": "Business Schemes",
     "business_finance_list": "Business List",
     "deal_parties": "Deal Parties",
@@ -1171,7 +1172,8 @@
       "ledger": "Ledger",
       "bankAccounts": "Bank Accounts",
       "reconcile": "Reconcile",
-      "commission": "Sales Commission"
+      "commission": "Sales Commission",
+      "reports": "Financial Reports"
     },
     "fields": {
       "company": "Company",
@@ -1244,6 +1246,33 @@
       "proofMissingHint": "Some bridged or historical entries are missing proof. Fill them before audit.",
       "filterMissing": "Filter missing proof",
       "missingOnly": "Missing proof only"
+    },
+    "reports": {
+      "title": "Financial Reports",
+      "pnl": "Profit and Loss",
+      "cashBasis": "Cash basis",
+      "cashBasisHint": "Cash basis; accrual adjustments are handled by the accountant; exported data can be mapped to Form C-S / ACRA templates.",
+      "exportCsv": "Export CSV",
+      "revenue": "Revenue",
+      "revenueTotal": "Revenue total",
+      "costOfSales": "Cost of sales",
+      "costOfSalesTotal": "Cost of sales total",
+      "grossProfit": "Gross profit",
+      "operatingExpenses": "Operating expenses",
+      "operatingExpensesTotal": "Operating expenses total",
+      "otherExpenses": "Other expenses",
+      "otherExpensesTotal": "Other expenses total",
+      "netProfitBeforeTax": "Net profit before tax",
+      "gstEstimate": "GST estimate",
+      "gstRate": "Rate",
+      "outputTaxEst": "Output tax est.",
+      "inputTaxEst": "Input tax est.",
+      "netGstEst": "Net GST",
+      "estimateOnly": "Estimate only",
+      "byCompany": "Net profit before tax by company",
+      "expand": "Expand",
+      "loading": "Loading",
+      "empty": "No report data"
     },
     "reconcile": {
       "title": "Reconcile",
