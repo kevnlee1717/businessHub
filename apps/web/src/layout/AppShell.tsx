@@ -31,7 +31,8 @@ const navItems = [
     children: [
       { to: "/education/diploma", key: "nav.diploma" },
       { to: "/education/wsq", key: "nav.wsq" },
-      { to: "/education/english", key: "nav.english" }
+      { to: "/education/english", key: "nav.english" },
+      { to: "/education/academy-collection", key: "nav.academy_collection" }
     ]
   },
   { to: "/documents", key: "nav.documents" },

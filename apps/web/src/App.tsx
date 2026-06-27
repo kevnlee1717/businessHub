@@ -12,6 +12,7 @@ import { CompanyFilesPage } from "./pages/documents/CompanyFilesPage";
 import { ContractsPage } from "./pages/documents/ContractsPage";
 import { DocumentSearchPage } from "./pages/documents/DocumentSearchPage";
 import { DocumentsLayout } from "./pages/documents/DocumentsLayout";
+import { AcademyCollectionPage } from "./pages/education/AcademyCollectionPage";
 import { DiplomaSection } from "./pages/education/DiplomaSection";
 import { EducationLayout } from "./pages/education/EducationLayout";
 import { EnglishSection } from "./pages/education/EnglishSection";
@@ -63,6 +64,7 @@ export function App() {
             <Route path="diploma" element={<DiplomaSection />} />
             <Route path="english" element={<EnglishSection />} />
             <Route path="wsq" element={<WsqSection />} />
+            <Route path="academy-collection" element={<AcademyCollectionPage />} />
           </Route>
           <Route path="documents" element={<DocumentsLayout />}>
             <Route index element={<Navigate to="search" replace />} />

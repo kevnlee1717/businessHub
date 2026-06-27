@@ -17,6 +17,7 @@
     "diploma": "成人大专",
     "wsq": "WSQ",
     "english": "成人英语",
+    "academy_collection": "学院收款",
     "students": "学生",
     "documents": "文档",
     "finance": "财务",
@@ -223,6 +224,53 @@
       "paid": "已收",
       "paidAt": "收款时间",
       "note": "备注"
+    }
+  },
+  "academyCollection": {
+    "title": "学院月度收款",
+    "loading": "加载中",
+    "progressAmount": "已收 {{collected}} / 应收 {{expected}}",
+    "counts": "应交 {{due}} 笔 / 已交 {{paid}} 笔 / 未交 {{unpaid}} 笔",
+    "breakevenValue": "保本需 {{count}} 人",
+    "totalOutstanding": "欠款合计 {{amount}}",
+    "emptyOverdue": "暂无欠款",
+    "emptyCollectionRows": "本月暂无应交期数",
+    "cards": {
+      "progress": "收款进度",
+      "health": "健康指示"
+    },
+    "sections": {
+      "overdue": "欠款名单",
+      "currentRows": "当月期数",
+      "trend": "近 6 月趋势"
+    },
+    "fields": {
+      "month": "月份",
+      "student": "学生",
+      "program": "课程",
+      "period": "期数",
+      "amount": "应交额",
+      "expected": "应收",
+      "collected": "已收",
+      "collectionRate": "收款率",
+      "overdueMonths": "逾期月数",
+      "phone": "电话",
+      "status": "状态",
+      "paidAt": "收款时间",
+      "activeStudents": "在读学生",
+      "monthlyFixedCost": "当月固定成本",
+      "avgMonthlyTuition": "人均月学费",
+      "breakeven": "保本人数"
+    },
+    "actions": {
+      "markPaid": "标记已交"
+    },
+    "status": {
+      "paid": "已交",
+      "unpaid": "未交",
+      "needMoreStudents": "还需招 {{count}} 人",
+      "costCovered": "已覆盖固定成本",
+      "insufficientData": "数据不足"
     }
   },
   "diplomaMaterial": {

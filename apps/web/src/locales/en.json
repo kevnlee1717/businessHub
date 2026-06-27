@@ -17,6 +17,7 @@
     "diploma": "Adult diploma",
     "wsq": "WSQ",
     "english": "Adult English",
+    "academy_collection": "Academy Collection",
     "students": "Students",
     "documents": "Documents",
     "finance": "Finance",
@@ -223,6 +224,53 @@
       "paid": "Paid",
       "paidAt": "Paid time",
       "note": "Note"
+    }
+  },
+  "academyCollection": {
+    "title": "Academy Monthly Collection",
+    "loading": "Loading",
+    "progressAmount": "Collected {{collected}} / Expected {{expected}}",
+    "counts": "Due {{due}} / Paid {{paid}} / Unpaid {{unpaid}}",
+    "breakevenValue": "Breakeven needs {{count}} students",
+    "totalOutstanding": "Outstanding total {{amount}}",
+    "emptyOverdue": "No overdue payments",
+    "emptyCollectionRows": "No due payments this month",
+    "cards": {
+      "progress": "Collection Progress",
+      "health": "Health Indicator"
+    },
+    "sections": {
+      "overdue": "Overdue List",
+      "currentRows": "Current Month Periods",
+      "trend": "Last 6 Months"
+    },
+    "fields": {
+      "month": "Month",
+      "student": "Student",
+      "program": "Program",
+      "period": "Period",
+      "amount": "Amount due",
+      "expected": "Expected",
+      "collected": "Collected",
+      "collectionRate": "Collection rate",
+      "overdueMonths": "Overdue months",
+      "phone": "Phone",
+      "status": "Status",
+      "paidAt": "Paid time",
+      "activeStudents": "Active students",
+      "monthlyFixedCost": "Monthly fixed cost",
+      "avgMonthlyTuition": "Avg monthly tuition",
+      "breakeven": "Breakeven students"
+    },
+    "actions": {
+      "markPaid": "Mark paid"
+    },
+    "status": {
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "needMoreStudents": "Need {{count}} more students",
+      "costCovered": "Fixed cost covered",
+      "insufficientData": "Insufficient data"
     }
   },
   "diplomaMaterial": {

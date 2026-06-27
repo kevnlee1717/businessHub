@@ -107,6 +107,62 @@ export type DiplomaPayment = {
   created_at: string;
 };
 
+export type AcademyCollectionSummary = {
+  expected_total: number | string;
+  collected_total: number | string;
+  outstanding_total: number | string;
+  collection_rate: number | string;
+  due_count: number;
+  paid_count: number;
+  unpaid_count: number;
+};
+
+export type AcademyCollectionRow = {
+  payment_id: string;
+  enrollment_id: string;
+  student_id: string;
+  student_name: string;
+  program: string;
+  amount: number | string;
+  paid: boolean;
+  paid_at?: string | null;
+  period: string;
+};
+
+export type AcademyCollection = {
+  period: string;
+  summary: AcademyCollectionSummary;
+  rows: AcademyCollectionRow[];
+};
+
+export type AcademyOverdueRow = {
+  payment_id: string;
+  student_name: string;
+  program: string;
+  period: string;
+  amount: number | string;
+  overdue_months: number;
+  enroll_date?: string | null;
+  phone?: string | null;
+};
+
+export type AcademyOverdue = {
+  as_of_period: string;
+  total_outstanding: number | string;
+  rows: AcademyOverdueRow[];
+};
+
+export type AcademyHealth = {
+  period: string;
+  active_students: number;
+  monthly_fixed_cost: number | string;
+  expected_tuition: number | string;
+  collected_tuition: number | string;
+  avg_monthly_tuition_per_student: number | string;
+  breakeven_students: number | null;
+  gap: number | null;
+};
+
 export type DiplomaEnrollmentProgress = {
   start_period?: string | null;
   months_read: number;
@@ -305,6 +361,40 @@ export function updateDiplomaPayment(
     method: "PATCH",
     body
   });
+}
+
+export function getAcademyCollection(period?: string): Promise<AcademyCollection> {
+  const searchParams = new URLSearchParams();
+  if (period) {
+    searchParams.set("period", period);
+  }
+
+  const query = searchParams.toString();
+  return api<AcademyCollection>(`/academy/collection${query ? `?${query}` : ""}`);
+}
+
+export function getAcademyOverdue(asOf?: string): Promise<AcademyOverdue> {
+  const searchParams = new URLSearchParams();
+  if (asOf) {
+    searchParams.set("as_of", asOf);
+  }
+
+  const query = searchParams.toString();
+  return api<AcademyOverdue>(`/academy/overdue${query ? `?${query}` : ""}`);
+}
+
+export function getAcademyHealth(period?: string): Promise<AcademyHealth> {
+  const searchParams = new URLSearchParams();
+  if (period) {
+    searchParams.set("period", period);
+  }
+
+  const query = searchParams.toString();
+  return api<AcademyHealth>(`/academy/health${query ? `?${query}` : ""}`);
+}
+
+export function markDiplomaPaymentPaid(id: string, paid: boolean): Promise<{ payment: DiplomaPayment }> {
+  return updateDiplomaPayment(id, { paid });
 }
 
 export function uploadDiplomaCertificate(
