@@ -19,6 +19,7 @@ import {
   industries,
   ledgerEntries,
   payrollSettings,
+  recurringCosts,
   schemeLines,
   schemeVersions,
   students,
@@ -748,6 +749,8 @@ async function seedFinanceLedgerDemo() {
 
   let expenseCategoriesUpserted = 0;
   let bankAccountsUpserted = 0;
+  let recurringCostsUpserted = 0;
+  let bankOpeningSet = 0;
   let ledgerBridged = 0;
   let statementLinesDemo = 0;
 
@@ -837,9 +840,11 @@ async function seedFinanceLedgerDemo() {
       return createdAccount;
     };
 
+    const period = currentPeriod();
+    const openingDate = `${period}-01`;
     const juyiCompany = await ensureCompany("JUYI 咨询", "Seed company for finance demo");
     const kaideCompany = await ensureCompany("恺德学校", "[DEMO] 学院收款演示公司");
-    await ensureBankAccount(juyiCompany.id);
+    const juyiAccount = await ensureBankAccount(juyiCompany.id);
     const kaideAccount = await ensureBankAccount(kaideCompany.id);
 
     const [rentCategory] = await tx
@@ -847,6 +852,86 @@ async function seedFinanceLedgerDemo() {
       .from(expenseCategories)
       .where(eq(expenseCategories.code, "rent"))
       .limit(1);
+
+    const [broadbandCategory] = await tx
+      .select({ id: expenseCategories.id })
+      .from(expenseCategories)
+      .where(eq(expenseCategories.code, "broadband"))
+      .limit(1);
+
+    const maybeSetOpening = async (accountId: string, openingBalance: string) => {
+      const [account] = await tx
+        .select({ id: bankAccounts.id, openingBalance: bankAccounts.openingBalance })
+        .from(bankAccounts)
+        .where(eq(bankAccounts.id, accountId))
+        .limit(1);
+
+      if (!account || Number(account.openingBalance) !== 0) {
+        return;
+      }
+
+      await tx
+        .update(bankAccounts)
+        .set({ openingBalance, openingDate })
+        .where(eq(bankAccounts.id, account.id));
+      bankOpeningSet += 1;
+    };
+
+    await maybeSetOpening(kaideAccount.id, toMoney(20000));
+    await maybeSetOpening(juyiAccount.id, toMoney(30000));
+
+    const upsertRecurringCost = async (values: {
+      companyId: string;
+      expenseCategoryId?: string | null;
+      label: string;
+      amount: string;
+      dueDay: number;
+    }) => {
+      const [existingCost] = await tx
+        .select({ id: recurringCosts.id })
+        .from(recurringCosts)
+        .where(and(eq(recurringCosts.companyId, values.companyId), eq(recurringCosts.label, values.label)))
+        .limit(1);
+
+      const row = {
+        companyId: values.companyId,
+        expenseCategoryId: values.expenseCategoryId,
+        label: values.label,
+        amount: values.amount,
+        currency: "SGD" as const,
+        dueDay: values.dueDay,
+        active: true,
+        note: "[DEMO]"
+      };
+
+      if (existingCost) {
+        await tx.update(recurringCosts).set(row).where(eq(recurringCosts.id, existingCost.id));
+      } else {
+        await tx.insert(recurringCosts).values(row);
+      }
+
+      recurringCostsUpserted += 1;
+    };
+
+    if (rentCategory) {
+      await upsertRecurringCost({
+        companyId: kaideCompany.id,
+        expenseCategoryId: rentCategory.id,
+        label: "[DEMO] 办公室房租",
+        amount: toMoney(4000),
+        dueDay: 5
+      });
+    }
+
+    if (broadbandCategory) {
+      await upsertRecurringCost({
+        companyId: kaideCompany.id,
+        expenseCategoryId: broadbandCategory.id,
+        label: "[DEMO] 公司宽带",
+        amount: toMoney(120),
+        dueDay: 10
+      });
+    }
 
     const [demoExpense] = await tx
       .select({
@@ -958,6 +1043,8 @@ async function seedFinanceLedgerDemo() {
     return {
       expenseCategoriesUpserted,
       bankAccountsUpserted,
+      recurringCostsUpserted,
+      bankOpeningSet,
       ledgerBridged,
       statementLinesDemo
     };
@@ -971,5 +1058,5 @@ const financeLedgerDemoStats = await seedFinanceLedgerDemo();
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

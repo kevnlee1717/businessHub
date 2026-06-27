@@ -57,5 +57,6 @@ export * from "./companyExpenses";
 export * from "./expenseCategories";
 export * from "./ledgerEntries";
 export * from "./bankStatementLines";
+export * from "./recurringCosts";
 export * from "./contracts";
 export * from "./contractVersions";

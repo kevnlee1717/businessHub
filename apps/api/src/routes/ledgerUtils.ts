@@ -46,6 +46,8 @@ export function serializeBankAccount(row: typeof bankAccounts.$inferSelect) {
     account_no: row.accountNo,
     currency: row.currency,
     is_primary: row.isPrimary,
+    opening_balance: row.openingBalance,
+    opening_date: row.openingDate,
     active: row.active,
     note: row.note,
     created_at: row.createdAt

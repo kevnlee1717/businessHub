@@ -4,7 +4,7 @@ import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { serializeBankAccount } from "./ledgerUtils";
 
 const bankAccountQuerySchema = z.object({
@@ -94,6 +94,8 @@ export async function registerBankAccountRoutes(app: FastifyInstance): Promise<v
           accountNo: body.account_no,
           currency: body.currency,
           isPrimary: body.is_primary,
+          openingBalance: body.opening_balance === undefined ? undefined : (toNumeric(body.opening_balance) as string),
+          openingDate: body.opening_date,
           active: body.active,
           note: body.note
         })

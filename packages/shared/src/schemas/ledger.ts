@@ -23,9 +23,24 @@ export const bankAccountUpdateSchema = z.object({
   account_no: nullableOptionalText,
   currency: z.enum(currencies).optional(),
   is_primary: z.boolean().optional(),
+  opening_balance: numericField.optional(),
+  opening_date: z.string().date().nullable().optional(),
   active: z.boolean().optional(),
   note: nullableOptionalText
 });
+
+export const recurringCostCreateSchema = z.object({
+  company_id: uuidField,
+  expense_category_id: uuidField.nullable().optional(),
+  label: z.string().trim().min(1),
+  amount: numericField,
+  currency: z.enum(currencies).optional(),
+  due_day: z.number().int().min(1).max(28),
+  active: z.boolean().optional(),
+  note: nullableOptionalText
+});
+
+export const recurringCostUpdateSchema = recurringCostCreateSchema.partial();
 
 export const expenseCategoryCreateSchema = z.object({
   code: z.string().trim().min(1),
@@ -93,6 +108,8 @@ export const ledgerQuerySchema = z.object({
 
 export type BankAccountCreateInput = z.infer<typeof bankAccountCreateSchema>;
 export type BankAccountUpdateInput = z.infer<typeof bankAccountUpdateSchema>;
+export type RecurringCostCreateInput = z.infer<typeof recurringCostCreateSchema>;
+export type RecurringCostUpdateInput = z.infer<typeof recurringCostUpdateSchema>;
 export type ExpenseCategoryCreateInput = z.infer<typeof expenseCategoryCreateSchema>;
 export type ExpenseCategoryUpdateInput = z.infer<typeof expenseCategoryUpdateSchema>;
 export type LedgerCreateInput = z.infer<typeof ledgerCreateSchema>;

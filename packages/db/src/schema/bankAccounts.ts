@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { companies } from "./companies";
 import { currencyEnum } from "./enums";
 
@@ -10,6 +10,8 @@ export const bankAccounts = pgTable("bank_accounts", {
   accountNo: text("account_no"),
   currency: currencyEnum("currency").notNull().default("SGD"),
   isPrimary: boolean("is_primary").notNull().default(false),
+  openingBalance: numeric("opening_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  openingDate: date("opening_date"),
   active: boolean("active").notNull().default(true),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
