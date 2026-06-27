@@ -175,7 +175,15 @@ export function BusinessListPage() {
     <Stack gap="md">
       <Group justify="space-between" align="center">
         <Title order={2}>{t("businessFinance.list.title")}</Title>
-        <Button onClick={openModal}>{t("businessFinance.list.add")}</Button>
+        <Group gap="xs">
+          <Button variant="light" onClick={() => navigate("/business-finance/parties")}>
+            {t("dealParty.title")}
+          </Button>
+          <Button variant="light" onClick={() => navigate("/business-finance/external-parties")}>
+            {t("externalParties.title")}
+          </Button>
+          <Button onClick={openModal}>{t("businessFinance.list.add")}</Button>
+        </Group>
       </Group>
 
       {loadError ? (

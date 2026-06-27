@@ -16,6 +16,9 @@ export type Billing = {
   commission_type?: string | null;
   commission_value?: string | null;
   commission_amount_sgd: string;
+  business_id?: string | null;
+  scheme_version_id?: string | null;
+  external_payees?: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 };

@@ -27,10 +27,13 @@
     "finance_bank_accounts": "对公账户",
     "finance_reconcile": "对账",
     "finance_commission": "销售提成",
+    "finance_my_commission": "我的提成",
+    "finance_external_commission": "外部提成",
     "finance_reports": "财务报表",
     "business_finance": "业务方案",
     "business_finance_list": "业务列表",
     "deal_parties": "分成对象",
+    "external_parties": "外部分成人",
     "settings": "设置",
     "collection_items": "收款名目"
   },
@@ -1202,6 +1205,8 @@
       "bankAccounts": "对公账户",
       "reconcile": "对账",
       "commission": "销售提成",
+      "myCommission": "我的提成",
+      "externalCommission": "外部提成",
       "reports": "财务报表"
     },
     "fields": {
@@ -1372,6 +1377,51 @@
     "void": "作废",
     "confirmDeleteAssignment": "确定删除 {{business}} 的业务分配？"
   },
+  "externalParties": {
+    "title": "外部分成人",
+    "add": "新增外部分成人",
+    "edit": "编辑外部分成人",
+    "empty": "暂无外部分成人",
+    "copyLink": "复制链接",
+    "copied": "已复制",
+    "rotateLink": "重置链接",
+    "confirmDelete": "确定删除外部分成人「{{name}}」吗？",
+    "fields": {
+      "name": "姓名",
+      "nameEn": "英文名",
+      "defaultParty": "默认角色",
+      "contact": "联系方式",
+      "note": "备注",
+      "active": "启用",
+      "statementLink": "对账单链接"
+    },
+    "errors": {
+      "nameRequired": "姓名必填"
+    }
+  },
+  "externalCommission": {
+    "title": "外部提成台账",
+    "empty": "暂无外部提成记录",
+    "recompute": "重算",
+    "settle": "结算",
+    "totals": {
+      "earned": "应得 SGD",
+      "settled": "已结 SGD",
+      "pending": "未结 SGD"
+    },
+    "fields": {
+      "payee": "外部人",
+      "business": "业务",
+      "period": "期间",
+      "amount": "金额 SGD",
+      "status": "状态"
+    },
+    "status": {
+      "pending": "待结",
+      "settled": "已结",
+      "void": "作废"
+    }
+  },
   "billing": {
     "title": "账单管理",
     "add": "新建账单",
@@ -1395,8 +1445,59 @@
       "commissionType": "提成类型",
       "commissionValue": "提成值",
       "commissionAmountSgd": "提成 SGD",
+      "business": "业务",
+      "schemeVersion": "方案版本",
       "paidTotal": "已收 SGD",
       "balance": "余额 SGD"
+    },
+    "externalPayees": {
+      "title": "外部分成挂人",
+      "selectPayee": "分给谁",
+      "loading": "正在读取方案分成行"
+    }
+  },
+  "statement": {
+    "print": "打印",
+    "notFound": "对账单不存在或链接已失效",
+    "empty": "暂无对账明细",
+    "totals": {
+      "total": "累计应得 SGD",
+      "settled": "已结 SGD",
+      "outstanding": "未结 SGD"
+    },
+    "fields": {
+      "business": "业务",
+      "customer": "客户",
+      "dealAt": "成交日",
+      "period": "期间",
+      "amount": "金额 SGD",
+      "status": "状态"
+    },
+    "status": {
+      "pending": "待结",
+      "settled": "已结",
+      "void": "作废"
+    }
+  },
+  "myCommission": {
+    "title": "我的提成",
+    "empty": "暂无提成记录",
+    "totals": {
+      "total": "累计提成 SGD",
+      "settled": "已进工资条 SGD",
+      "pending": "待结 SGD"
+    },
+    "fields": {
+      "order": "订单/业务",
+      "period": "期间",
+      "amount": "金额 SGD",
+      "status": "状态",
+      "inPayslip": "已进工资条"
+    },
+    "status": {
+      "pending": "待结",
+      "settled": "已进工资条",
+      "void": "作废"
     }
   },
   "billingRefType": {

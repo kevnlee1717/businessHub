@@ -39,6 +39,13 @@ import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
+  getSchemeVersion,
+  listBusinesses,
+  listDealParties,
+  listSchemeVersions,
+  type SchemeLine
+} from "../../api/businessSchemes";
+import {
   createBilling,
   createPayment,
   deletePayment,
@@ -47,6 +54,7 @@ import {
   updateBilling,
   type Billing
 } from "../../api/finance";
+import { listExternalParties } from "../../api/externalParties";
 import { listEmployees } from "../../api/hr";
 
 type MoneyFormValue = number | null | undefined;
@@ -59,6 +67,9 @@ type BillingFormValues = {
   sales_id?: string | null | undefined;
   commission_type?: CommissionType | null | undefined;
   commission_value?: MoneyFormValue;
+  business_id?: string | null | undefined;
+  scheme_version_id?: string | null | undefined;
+  external_payees?: Record<string, string | null | undefined>;
   status?: BillingStatus | undefined;
 };
 
@@ -121,7 +132,10 @@ function getCreateDefaults(): BillingFormValues {
     deposit_sgd: undefined,
     sales_id: null,
     commission_type: null,
-    commission_value: null
+    commission_value: null,
+    business_id: null,
+    scheme_version_id: null,
+    external_payees: {}
   };
 }
 
@@ -132,6 +146,9 @@ function getEditDefaults(billing?: Billing): BillingFormValues {
     sales_id: billing?.sales_id ?? null,
     commission_type: (billing?.commission_type as CommissionType | null | undefined) ?? null,
     commission_value: moneyToNumber(billing?.commission_value),
+    business_id: billing?.business_id ?? null,
+    scheme_version_id: billing?.scheme_version_id ?? null,
+    external_payees: billing?.external_payees ?? {},
     status: (billing?.status as BillingStatus | undefined) ?? "unpaid"
   };
 }
@@ -144,6 +161,32 @@ function getPaymentDefaults(): PaymentFormValues {
     type: "deposit",
     paid_at: undefined,
     note: null
+  };
+}
+
+function sanitizeExternalPayees(values?: Record<string, string | null | undefined>) {
+  const payees: Record<string, string> = {};
+
+  Object.entries(values ?? {}).forEach(([lineId, payeeId]) => {
+    if (payeeId) {
+      payees[lineId] = payeeId;
+    }
+  });
+
+  return payees;
+}
+
+function toBillingCreateInput(values: BillingFormValues): BillingCreateInput {
+  return {
+    ...(values as BillingCreateInput),
+    external_payees: sanitizeExternalPayees(values.external_payees)
+  };
+}
+
+function toBillingUpdateInput(values: BillingFormValues): BillingUpdateInput {
+  return {
+    ...(values as BillingUpdateInput),
+    external_payees: sanitizeExternalPayees(values.external_payees)
   };
 }
 
@@ -171,6 +214,18 @@ export function BillingPage() {
   const employeesQuery = useQuery({
     queryKey: ["hr", "employees"],
     queryFn: listEmployees
+  });
+  const businessesQuery = useQuery({
+    queryKey: ["business-finance", "businesses"],
+    queryFn: () => listBusinesses()
+  });
+  const dealPartiesQuery = useQuery({
+    queryKey: ["business-finance", "deal-parties"],
+    queryFn: listDealParties
+  });
+  const externalPartiesQuery = useQuery({
+    queryKey: ["business-finance", "external-parties"],
+    queryFn: listExternalParties
   });
 
   const createForm = useForm<BillingFormValues>({
@@ -218,6 +273,9 @@ export function BillingPage() {
   const selectedDetail = billingDetailQuery.data;
   const selectedBilling = selectedDetail?.billing;
   const employees = employeesQuery.data?.employees ?? [];
+  const businesses = businessesQuery.data?.businesses ?? [];
+  const dealParties = dealPartiesQuery.data?.deal_parties ?? [];
+  const externalParties = externalPartiesQuery.data?.external_parties ?? [];
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
 
   const refTypeOptions = billingRefTypes.map((type) => ({
@@ -240,6 +298,14 @@ export function BillingPage() {
   const paymentTypeOptions = paymentTypes.map((type) => ({
     value: type,
     label: t(`paymentType.${type}`)
+  }));
+  const businessOptions = businesses.map((business) => ({
+    value: business.id,
+    label: business.code ? `${business.code} · ${business.name}` : business.name
+  }));
+  const externalPartyOptions = externalParties.map((party) => ({
+    value: party.id,
+    label: party.name_en ? `${party.name} / ${party.name_en}` : party.name
   }));
 
   async function invalidateBilling() {
@@ -295,7 +361,7 @@ export function BillingPage() {
     setFormError(null);
 
     try {
-      await createMutation.mutateAsync(values as BillingCreateInput);
+      await createMutation.mutateAsync(toBillingCreateInput(values));
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -308,7 +374,7 @@ export function BillingPage() {
 
     setFormError(null);
     try {
-      await updateMutation.mutateAsync({ id: selectedBilling.id, body: values as BillingUpdateInput });
+      await updateMutation.mutateAsync({ id: selectedBilling.id, body: toBillingUpdateInput(values) });
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -606,6 +672,9 @@ export function BillingPage() {
             refTypeOptions={refTypeOptions}
             statusOptions={statusOptions}
             commissionTypeOptions={commissionTypeOptions}
+            businessOptions={businessOptions}
+            externalPartyOptions={externalPartyOptions}
+            dealParties={dealParties}
             mode="create"
           />
           <FormActions loading={createMutation.isPending} onCancel={closeCreateModal} />
@@ -625,6 +694,9 @@ export function BillingPage() {
             refTypeOptions={refTypeOptions}
             statusOptions={statusOptions}
             commissionTypeOptions={commissionTypeOptions}
+            businessOptions={businessOptions}
+            externalPartyOptions={externalPartyOptions}
+            dealParties={dealParties}
             mode="edit"
           />
           <FormActions loading={updateMutation.isPending} onCancel={closeEditModal} />
@@ -744,6 +816,9 @@ function BillingForm({
   refTypeOptions,
   statusOptions,
   commissionTypeOptions,
+  businessOptions,
+  externalPartyOptions,
+  dealParties,
   mode
 }: {
   form: ReturnType<typeof useForm<BillingFormValues>>;
@@ -751,10 +826,38 @@ function BillingForm({
   refTypeOptions: { value: string; label: string }[];
   statusOptions: { value: string; label: string }[];
   commissionTypeOptions: { value: string; label: string }[];
+  businessOptions: { value: string; label: string }[];
+  externalPartyOptions: { value: string; label: string }[];
+  dealParties: { id: string; code: string }[];
   mode: "create" | "edit";
 }) {
   const { t } = useTranslation();
   const errors = form.formState.errors;
+  const selectedBusinessId = form.watch("business_id");
+  const selectedSchemeVersionId = form.watch("scheme_version_id");
+  const versionsQuery = useQuery({
+    queryKey: ["business-finance", "scheme-versions", selectedBusinessId],
+    queryFn: () => listSchemeVersions(selectedBusinessId ?? ""),
+    enabled: Boolean(selectedBusinessId)
+  });
+  const schemeVersionQuery = useQuery({
+    queryKey: ["business-finance", "scheme-version", selectedSchemeVersionId],
+    queryFn: () => getSchemeVersion(selectedSchemeVersionId ?? ""),
+    enabled: Boolean(selectedSchemeVersionId)
+  });
+  const partyCodeById = useMemo(() => new Map(dealParties.map((party) => [party.id, party.code])), [dealParties]);
+  const versionOptions = (versionsQuery.data?.scheme_versions ?? []).map((version) => ({
+    value: version.id,
+    label: version.label
+  }));
+  const externalCommissionLines = useMemo(
+    () =>
+      (schemeVersionQuery.data?.scheme_version.lines ?? []).filter((line): line is SchemeLine => {
+        const partyCode = line.party_id ? partyCodeById.get(line.party_id) : undefined;
+        return line.kind === "commission" && Boolean(partyCode) && partyCode !== "us" && partyCode !== "sales";
+      }),
+    [partyCodeById, schemeVersionQuery.data?.scheme_version.lines]
+  );
 
   return (
     <Stack gap="md">
@@ -855,6 +958,77 @@ function BillingForm({
           />
         )}
       />
+      <Controller
+        control={form.control}
+        name="business_id"
+        render={({ field }) => (
+          <Select
+            label={t("billing.fields.business")}
+            data={businessOptions}
+            value={field.value ?? null}
+            onChange={(value) => {
+              field.onChange(value);
+              form.setValue("scheme_version_id", null);
+              form.setValue("external_payees", {});
+            }}
+            error={errors.business_id?.message}
+            searchable
+            clearable
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="scheme_version_id"
+        render={({ field }) => (
+          <Select
+            label={t("billing.fields.schemeVersion")}
+            data={versionOptions}
+            value={field.value ?? null}
+            onChange={(value) => {
+              field.onChange(value);
+              form.setValue("external_payees", {});
+            }}
+            error={errors.scheme_version_id?.message}
+            disabled={!selectedBusinessId}
+            searchable
+            clearable
+          />
+        )}
+      />
+      {schemeVersionQuery.isFetching ? (
+        <Group gap="xs">
+          <Loader size="xs" />
+          <Text size="sm" c="dimmed">
+            {t("billing.externalPayees.loading")}
+          </Text>
+        </Group>
+      ) : null}
+      {externalCommissionLines.length > 0 ? (
+        <Paper withBorder radius="md" p="md">
+          <Stack gap="sm">
+            <Text fw={600}>{t("billing.externalPayees.title")}</Text>
+            {externalCommissionLines.map((line) => (
+              <Controller
+                key={line.id}
+                control={form.control}
+                name={`external_payees.${line.id}`}
+                render={({ field }) => (
+                  <Select
+                    label={line.label}
+                    placeholder={t("billing.externalPayees.selectPayee")}
+                    data={externalPartyOptions}
+                    value={field.value ?? null}
+                    onChange={field.onChange}
+                    searchable
+                    clearable
+                  />
+                )}
+              />
+            ))}
+          </Stack>
+        </Paper>
+      ) : null}
       {mode === "edit" ? (
         <Controller
           control={form.control}

@@ -46,6 +46,8 @@ const navItems = [
       { to: "/finance/bank-accounts", key: "nav.finance_bank_accounts" },
       { to: "/finance/reconcile", key: "nav.finance_reconcile" },
       { to: "/finance/commission", key: "nav.finance_commission" },
+      { to: "/finance/my-commission", key: "nav.finance_my_commission" },
+      { to: "/finance/external-commission", key: "nav.finance_external_commission" },
       { to: "/finance/reports", key: "nav.finance_reports" }
     ]
   },
@@ -54,7 +56,8 @@ const navItems = [
     defaultOpened: false,
     children: [
       { to: "/business-finance", key: "nav.business_finance_list" },
-      { to: "/business-finance/parties", key: "nav.deal_parties" }
+      { to: "/business-finance/parties", key: "nav.deal_parties" },
+      { to: "/business-finance/external-parties", key: "nav.external_parties" }
     ]
   },
   {

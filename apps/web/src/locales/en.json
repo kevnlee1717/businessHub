@@ -27,10 +27,13 @@
     "finance_bank_accounts": "Bank Accounts",
     "finance_reconcile": "Reconcile",
     "finance_commission": "Sales Commission",
+    "finance_my_commission": "My Commission",
+    "finance_external_commission": "External Commission",
     "finance_reports": "Financial Reports",
     "business_finance": "Business Schemes",
     "business_finance_list": "Business List",
     "deal_parties": "Deal Parties",
+    "external_parties": "External Parties",
     "settings": "Settings",
     "collection_items": "Collection Items"
   },
@@ -1202,6 +1205,8 @@
       "bankAccounts": "Bank Accounts",
       "reconcile": "Reconcile",
       "commission": "Sales Commission",
+      "myCommission": "My Commission",
+      "externalCommission": "External Commission",
       "reports": "Financial Reports"
     },
     "fields": {
@@ -1372,6 +1377,51 @@
     "void": "Void",
     "confirmDeleteAssignment": "Delete assignment for {{business}}?"
   },
+  "externalParties": {
+    "title": "External Parties",
+    "add": "Add external party",
+    "edit": "Edit external party",
+    "empty": "No external parties yet",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "rotateLink": "Reset link",
+    "confirmDelete": "Delete external party \"{{name}}\"?",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "defaultParty": "Default role",
+      "contact": "Contact",
+      "note": "Note",
+      "active": "Active",
+      "statementLink": "Statement link"
+    },
+    "errors": {
+      "nameRequired": "Name is required"
+    }
+  },
+  "externalCommission": {
+    "title": "External Commission Ledger",
+    "empty": "No external commission entries",
+    "recompute": "Recompute",
+    "settle": "Settle",
+    "totals": {
+      "earned": "Earned SGD",
+      "settled": "Settled SGD",
+      "pending": "Pending SGD"
+    },
+    "fields": {
+      "payee": "External party",
+      "business": "Business",
+      "period": "Period",
+      "amount": "Amount SGD",
+      "status": "Status"
+    },
+    "status": {
+      "pending": "Pending",
+      "settled": "Settled",
+      "void": "Void"
+    }
+  },
   "billing": {
     "title": "Billing",
     "add": "New billing",
@@ -1395,8 +1445,59 @@
       "commissionType": "Commission type",
       "commissionValue": "Commission value",
       "commissionAmountSgd": "Commission SGD",
+      "business": "Business",
+      "schemeVersion": "Scheme version",
       "paidTotal": "Paid SGD",
       "balance": "Balance SGD"
+    },
+    "externalPayees": {
+      "title": "External commission assignees",
+      "selectPayee": "Assign to",
+      "loading": "Loading scheme commission lines"
+    }
+  },
+  "statement": {
+    "print": "Print",
+    "notFound": "Statement not found or link expired",
+    "empty": "No statement entries",
+    "totals": {
+      "total": "Total earned SGD",
+      "settled": "Settled SGD",
+      "outstanding": "Outstanding SGD"
+    },
+    "fields": {
+      "business": "Business",
+      "customer": "Customer",
+      "dealAt": "Deal date",
+      "period": "Period",
+      "amount": "Amount SGD",
+      "status": "Status"
+    },
+    "status": {
+      "pending": "Pending",
+      "settled": "Settled",
+      "void": "Void"
+    }
+  },
+  "myCommission": {
+    "title": "My Commission",
+    "empty": "No commission entries",
+    "totals": {
+      "total": "Total commission SGD",
+      "settled": "In payslip SGD",
+      "pending": "Pending SGD"
+    },
+    "fields": {
+      "order": "Order/business",
+      "period": "Period",
+      "amount": "Amount SGD",
+      "status": "Status",
+      "inPayslip": "In payslip"
+    },
+    "status": {
+      "pending": "Pending",
+      "settled": "In payslip",
+      "void": "Void"
     }
   },
   "billingRefType": {
