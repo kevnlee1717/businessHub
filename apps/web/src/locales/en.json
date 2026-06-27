@@ -62,7 +62,103 @@
     "unknown_error": "Unknown error"
   },
   "dashboard": {
-    "welcome": "Welcome, {{name}}"
+    "welcome": "Welcome, {{name}}",
+    "title": "Finance Dashboard",
+    "subtitle": "Cash, P/L, receivables, payment calendar, and breakeven KPI in one view.",
+    "scope": {
+      "global": "Global"
+    },
+    "globalBar": {
+      "title": "Monthly overview",
+      "asOf": "Today is day {{day}} / {{days}} of this month"
+    },
+    "metrics": {
+      "cash": "Cash",
+      "projectedPl": "Projected P/L",
+      "receivable": "Receivables",
+      "fixedCost": "Monthly fixed cost",
+      "upcoming": "Still to pay"
+    },
+    "health": {
+      "profit": "Profit",
+      "breakeven": "Breakeven",
+      "loss": "Loss",
+      "tense": "Cash tight"
+    },
+    "progress": {
+      "income": "Income progress",
+      "time": "Month progress",
+      "behind": "Behind"
+    },
+    "paymentCalendar": {
+      "title": "{{scope}} payment calendar",
+      "total": "Total due this month {{total}}, remaining from today {{remaining}}",
+      "type": {
+        "recurring": "Fixed cost",
+        "payroll": "Payroll"
+      }
+    },
+    "receivables": {
+      "title": "{{scope}} receivables",
+      "total": "Total receivable {{total}}",
+      "goAcademy": "Academy collection"
+    },
+    "kpi": {
+      "title": "{{scope}} KPI backsolve",
+      "scope": {
+        "company": "Company",
+        "business": "Business"
+      },
+      "companyBreakeven": "Monthly revenue must be ≥ {{amount}} to break even",
+      "unitGap": "Breakeven needs {{breakeven}} deals, gap {{gap}}",
+      "studentGap": "Breakeven needs {{breakeven}} students, gap {{gap}}"
+    },
+    "whatIf": {
+      "title": "Cashflow what-if",
+      "hint": "Choose businesses and new deal counts to see cash and P/L impact.",
+      "selectCompany": "Select a company first to run what-if.",
+      "addLine": "Add line",
+      "calculate": "Calculate",
+      "cash": "Cash",
+      "projectedPl": "Projected P/L",
+      "addedProfit": "Added profit"
+    },
+    "settings": {
+      "title": "Fixed Costs & Opening Balances",
+      "hint": "Fixed costs drive the payment calendar; opening balances make cash estimates accurate.",
+      "readonly": "Read only",
+      "recurringCosts": "Fixed costs",
+      "openingBalances": "Account opening balances",
+      "addCost": "Add cost"
+    },
+    "fields": {
+      "month": "Month",
+      "label": "Label",
+      "amount": "Amount",
+      "currency": "Currency",
+      "dueDay": "Due day",
+      "active": "Active",
+      "note": "Note",
+      "account": "Account",
+      "openingBalance": "Opening balance",
+      "openingDate": "Opening date",
+      "source": "Source",
+      "studentOrClient": "Student/client",
+      "periodOrRef": "Period/ref",
+      "overdueMonths": "Overdue months",
+      "business": "Business",
+      "count": "Count"
+    },
+    "empty": {
+      "noTarget": "No target",
+      "noCompanies": "No company data yet",
+      "noPayments": "No upcoming payments this month",
+      "noReceivables": "No receivables",
+      "noKpi": "No KPI data",
+      "noRecurringCosts": "No fixed costs",
+      "noAccounts": "No bank accounts",
+      "noOpeningBalance": "Opening balance not set; cash is estimated from ledger only"
+    }
   },
   "hr": {
     "tabs": {

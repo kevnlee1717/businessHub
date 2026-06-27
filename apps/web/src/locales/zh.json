@@ -62,7 +62,103 @@
     "unknown_error": "发生未知错误"
   },
   "dashboard": {
-    "welcome": "欢迎，{{name}}"
+    "welcome": "欢迎，{{name}}",
+    "title": "财务总面板",
+    "subtitle": "现金、盈亏、应收、付款日历和保本 KPI 一页看清。",
+    "scope": {
+      "global": "全局"
+    },
+    "globalBar": {
+      "title": "本月总览",
+      "asOf": "今天是本月第 {{day}} / {{days}} 天"
+    },
+    "metrics": {
+      "cash": "现金",
+      "projectedPl": "本月预计盈亏",
+      "receivable": "应收",
+      "fixedCost": "本月固定成本",
+      "upcoming": "本月还要付"
+    },
+    "health": {
+      "profit": "盈利",
+      "breakeven": "打平",
+      "loss": "亏损",
+      "tense": "现金紧张"
+    },
+    "progress": {
+      "income": "本月已收进度",
+      "time": "月时间进度",
+      "behind": "落后"
+    },
+    "paymentCalendar": {
+      "title": "{{scope}}付款日历",
+      "total": "本月待付 {{total}}，今天起还要付 {{remaining}}",
+      "type": {
+        "recurring": "固定支出",
+        "payroll": "工资"
+      }
+    },
+    "receivables": {
+      "title": "{{scope}}应收追款",
+      "total": "合计应收 {{total}}",
+      "goAcademy": "学院收款"
+    },
+    "kpi": {
+      "title": "{{scope}}KPI 反推",
+      "scope": {
+        "company": "公司层",
+        "business": "业务层"
+      },
+      "companyBreakeven": "本月需收入 ≥ {{amount}} 保本",
+      "unitGap": "保本需 {{breakeven}} 单，缺口 {{gap}} 单",
+      "studentGap": "保本需招 {{breakeven}} 生，缺口 {{gap}} 生"
+    },
+    "whatIf": {
+      "title": "现金流 what-if",
+      "hint": "选择业务并输入新增单数，查看现金和本月盈亏改善。",
+      "selectCompany": "先点选一家公司，再做 what-if。",
+      "addLine": "新增一行",
+      "calculate": "计算",
+      "cash": "现金",
+      "projectedPl": "本月盈亏",
+      "addedProfit": "新增利润"
+    },
+    "settings": {
+      "title": "固定支出 & 期初余额",
+      "hint": "固定支出驱动付款日历；期初余额让“还有多少钱”更准。",
+      "readonly": "只读",
+      "recurringCosts": "固定支出",
+      "openingBalances": "账户期初余额",
+      "addCost": "新增支出"
+    },
+    "fields": {
+      "month": "月份",
+      "label": "名称",
+      "amount": "金额",
+      "currency": "币种",
+      "dueDay": "付款日",
+      "active": "启用",
+      "note": "备注",
+      "account": "账户",
+      "openingBalance": "期初余额",
+      "openingDate": "期初日期",
+      "source": "来源",
+      "studentOrClient": "学生/客户",
+      "periodOrRef": "月份/单号",
+      "overdueMonths": "逾期月",
+      "business": "业务",
+      "count": "单数"
+    },
+    "empty": {
+      "noTarget": "暂无目标",
+      "noCompanies": "暂无公司数据",
+      "noPayments": "本月暂无待付",
+      "noReceivables": "暂无应收",
+      "noKpi": "暂无 KPI 数据",
+      "noRecurringCosts": "暂无固定支出",
+      "noAccounts": "暂无对公账户",
+      "noOpeningBalance": "未设期初余额，现金仅按流水估算"
+    }
   },
   "hr": {
     "tabs": {

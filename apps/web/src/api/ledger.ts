@@ -23,6 +23,8 @@ export type BankAccount = {
   account_no?: string | null;
   currency: Currency;
   is_primary: boolean;
+  opening_balance: string;
+  opening_date?: string | null;
   active: boolean;
   note?: string | null;
   created_at: string;
