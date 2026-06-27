@@ -53,6 +53,19 @@ function inputStartPeriod(inputs: DealInputs): string {
   return typeof raw === "string" && /^\d{4}-\d{2}$/.test(raw) ? raw : currentSgtPeriod();
 }
 
+function inputsWithTotalPrice(
+  inputs: DealInputs | Record<string, number> | null | undefined,
+  totalPriceSgd: string | number | null | undefined
+): DealInputs | null | undefined {
+  const totalPrice = Number(totalPriceSgd);
+
+  if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+    return inputs as DealInputs | null | undefined;
+  }
+
+  return { ...(inputs ?? {}), price: totalPrice };
+}
+
 function addDaysAsDateString(base: Date, days: number): string {
   const next = new Date(base);
   next.setUTCDate(next.getUTCDate() + days);
@@ -242,14 +255,23 @@ async function refreshBillingChargesForRow(
 export async function refreshBillingCharges(billingId: string, tx: DbExecutor = db) {
   const [billingRow] = await tx.select().from(billing).where(eq(billing.id, billingId)).limit(1);
 
-  if (!billingRow?.schemeVersionId || !billingRow.inputs) {
+  if (!billingRow?.schemeVersionId) {
+    return;
+  }
+
+  const inputs = inputsWithTotalPrice(
+    billingRow.inputs as DealInputs | null | undefined,
+    billingRow.totalPriceSgd
+  );
+
+  if (!inputs) {
     return;
   }
 
   await refreshBillingChargesForRow(
     billingRow,
     billingRow.schemeVersionId,
-    billingRow.inputs as DealInputs,
+    inputs,
     tx
   );
 }
@@ -358,6 +380,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
   app.post("/billing", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
     const body = parseWithSchema(billingCreateSchema, request.body);
     const totalPriceSgd = toNumeric(body.total_price_sgd) ?? "0";
+    const inputs = inputsWithTotalPrice(body.inputs, totalPriceSgd);
     const commissionAmountSgd = computeCommission(
       body.commission_type,
       body.commission_value,
@@ -391,7 +414,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           commissionAmountSgd,
           businessId: body.business_id,
           schemeVersionId: body.scheme_version_id,
-          inputs: body.inputs
+          inputs
         })
         .returning();
 
@@ -400,16 +423,16 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       }
 
       const economics =
-        body.scheme_version_id && body.inputs
+        body.scheme_version_id && inputs
           ? await refreshBillingDealLineAmounts(
               billingRow.id,
               body.scheme_version_id,
-              body.inputs,
+              inputs,
               tx
             )
           : null;
 
-      if (body.scheme_version_id && body.inputs) {
+      if (body.scheme_version_id && inputs) {
         await refreshBillingCharges(billingRow.id, tx);
       }
 
@@ -461,6 +484,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       const nextInputs = hasOwn(body, "inputs")
         ? body.inputs
         : (current.inputs as Record<string, number> | null | undefined);
+      const pricedNextInputs = inputsWithTotalPrice(nextInputs, totalPriceSgd);
 
       if (nextSchemeVersionId) {
         const [version] = await tx
@@ -523,7 +547,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           status: body.status,
           businessId: hasOwn(body, "business_id") ? body.business_id : undefined,
           schemeVersionId: hasOwn(body, "scheme_version_id") ? body.scheme_version_id : undefined,
-          inputs: hasOwn(body, "inputs") ? body.inputs : undefined,
+          inputs: hasOwn(body, "inputs") || hasOwn(body, "total_price_sgd") ? pricedNextInputs : undefined,
           updatedAt: new Date()
         })
         .where(eq(billing.id, id))
@@ -535,15 +559,15 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
       const economics =
         nextSchemeVersionId &&
-        nextInputs &&
-        (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs"))
-          ? await refreshBillingDealLineAmounts(id, nextSchemeVersionId, nextInputs, tx)
+        pricedNextInputs &&
+        (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs") || hasOwn(body, "total_price_sgd"))
+          ? await refreshBillingDealLineAmounts(id, nextSchemeVersionId, pricedNextInputs, tx)
           : null;
 
       if (
         nextSchemeVersionId &&
-        nextInputs &&
-        (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs"))
+        pricedNextInputs &&
+        (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs") || hasOwn(body, "total_price_sgd"))
       ) {
         await refreshBillingCharges(updated.id, tx);
       }

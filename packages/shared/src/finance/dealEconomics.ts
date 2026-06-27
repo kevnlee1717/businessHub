@@ -80,6 +80,13 @@ function computeBaseAmount(line: SchemeLineInput, inputs: DealInputs): number {
 
   switch (line.basis) {
     case "fixed":
+      if (line.inputKey) {
+        const inputValue = finiteInput(inputs, line.inputKey);
+        if (inputValue !== null) {
+          return inputValue;
+        }
+      }
+
       return rate;
     case "per_unit":
       return rate * inputOrZero(inputs, line.inputKey);

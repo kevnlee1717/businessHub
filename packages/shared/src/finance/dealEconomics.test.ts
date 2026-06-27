@@ -34,6 +34,22 @@ describe("computeDealEconomics", () => {
     expect(result.totals.hasOpenEnded).toBe(false);
   });
 
+  it("uses fixed inputKey value when present and falls back to rate when missing", () => {
+    const lines: SchemeLineInput[] = [
+      {
+        kind: "revenue",
+        basis: "fixed",
+        recurrence: "one_time",
+        rate: 5000,
+        inputKey: "price",
+        label: "总价"
+      }
+    ];
+
+    expect(computeDealEconomics(lines, { price: 8000 }).perLine[0]?.amountPerPeriod).toBe(8000);
+    expect(computeDealEconomics(lines, {}).perLine[0]?.amountPerPeriod).toBe(5000);
+  });
+
   it("computes monthly margin with expected totals", () => {
     const lines: SchemeLineInput[] = [
       {

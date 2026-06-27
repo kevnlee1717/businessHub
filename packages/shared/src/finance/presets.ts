@@ -26,6 +26,7 @@ export const DEAL_PRESETS: DealPreset[] = [
         basis: "fixed",
         recurrence: "one_time",
         rate: 5000,
+        inputKey: "price",
         label: "总价"
       },
       {
