@@ -31,10 +31,17 @@
   - seed:9 支出类别 + 2 公司各 1 对公账户 + 恺德 DEMO 月租桥接流水 + 2 对账明细(1 可匹配 1 对不上)。
 - **本会话共 15 commit,全部待 push**;migration 到 **0013**(只 migrate 本地 cc docker postgres,**未 migrate 生产库**)。
   - 本地 dev DB 有测试数据可删:JUYI 占位「保安保洁派遣」业务、4 个 `[DEMO]` 学院学生、恺德 DEMO 流水/明细、一条测试 500 SGD 支出流水。
-- **下一步(财务剩余 ⑤⑥⑦,各需独立 spec + 多处要业主真实数字)**:
-  - ⑤ 销售跨业务分配/底薪/每单提成账本 → 汇入工资条(现 commission 写死在 billing,需独立提成台账)
-  - ⑥ 新加坡报表导出(Form C-S / GST / ACRA;简化录入→导出映射,业主的新加坡会计审)
-  - ⑦ KPI 反推(**招生缺口 = 月固定成本 ÷ 每生月净利 − 现有学生数**,③a /health 已雏形)+ **总数据面板**(各公司/业务健康度、第几天付房租/CPF/工资、还剩多少钱、应收要追、现金流预测)——这是业主要的「一眼看清」,依赖 ①③④ 的数据。
+- **第 3 层模块 ⑦(总数据面板 + 现金流 + KPI 反推)也已做完、commit、端到端验证 + 实跑截图**(spec `d4018b5`,数据层 `7a70ca8` / API `13befb9` / 前端 `c19066b`):
+  - spec:`docs/superpowers/specs/2026-06-27-finance-layer3-module7-dashboard-cashflow-design.md`;截图:`docs/superpowers/specs/2026-06-27-dashboard-screenshot.png`
+  - 数据层(migration **0014**):`recurring_costs`(周期固定支出+付款日)+ `bank_accounts` 加 `opening_balance/opening_date`(算现金)。
+  - API(纯聚合 `dashboardUtils.ts` + `routes/dashboard.ts`):`/dashboard/overview`(各公司现金/预期收入/固定成本/预计盈亏/健康度/落后/紧张)、`/payment-calendar`、`/receivables`、`/kpi`(公司层保本收入 + 业务层保本单数/学院保本生数)、`/whatif`(再进N单→现金/盈亏变化)。
+  - 前端:首页 DashboardPage 改造为财务总面板(全局条+公司健康度卡网格+付款日历+应收追款+KPI反推+现金流what-if+固定支出/期初余额设置)。
+  - 实跑验证(恺德):现金 15500(期初20000−流水4500)、固定成本 4120(房租+宽带)、预计盈亏 3000、健康=盈利、落后=True、应收 12500;付款日历列房租6-05/宽带6-10;what-if 再进3英语单→现金29000/盈亏16500;KPI 学院保本1生缺口0、英语/WSQ保本1单缺口1。**截图已发业主确认效果。**
+- **本会话共做完:第1层地基 + 模块③a + 模块④ + 模块⑦,4 大块全部端到端验证,migration 到 0014(仅本地)。约 23 commit 待 push,未部署生产。**
+- **下一步(财务剩余 ⑤⑥,各需独立 spec + 业主真实数字)**:
+  - ⑤ 销售跨业务分配/底薪/每单提成账本 → 汇入工资条(现 commission 写死在 billing,需独立提成台账;需各业务真实提成规则)
+  - ⑥ 新加坡报表导出(Form C-S / GST / ACRA;简化录入→导出映射,需业主的新加坡会计要的具体格式)
+- **DEMO 测试数据(本地 dev DB,可删)**:JUYI 占位「保安保洁派遣」业务、4 个 `[DEMO]` 学院学生及月度学费、恺德 DEMO 流水/明细/固定支出、两公司期初余额、一条测试 500 SGD 支出流水。业主录真实数据后总面板即显真实财务。
 
 ---
 
