@@ -4,7 +4,23 @@
 
 ---
 
-## 🔖 最新快照(2026-06-27 第八轮:收款名目目录 + 步骤关联收款)
+## 🔖 最新快照(2026-06-27 第九轮:外部分成人 + 对账单 + 业务员自助 + 业务收款详情页改版)
+
+- **业主提的两件事**:① 业务收款详情页一堆"工程化裸字段"看不懂(对象/基准/单位/input_key/标签覆盖)要白话化;② 分成的这几类人(介绍人/加盟商/落地方/担保人)要能管理、能看到自己的提成(哪个订单、是否结算、怎么算)。
+- **业务收款详情页改版**(已上线 + push,commit 到 `d81b2e3` 一带):页面改名「业务收款详情」;版本标识 `ep001`(业务码+序号);规则行/示范利润/收款里程碑改 **Tab**;状态全改 **Switch**(使用/停用,弃用 paused 第三态);业务加**结算币种**(SGD/RMB,migration 0019,一个业务一种币);规则行按类型重排(**对象只在分成显示**、基准收窄 固定金额/按收入比例、金额带币种后缀);**去掉 input_key + 单位 + 里程碑标签覆盖**(固定价靠 rate,价格不同→新建版本);里程碑只留收款名目下拉;「应收偏移天」改名「成交后几天应收」。分成对象加 **落地方/担保人**(共7个)。
+- **外部分成人 + 对账单 + 业务员自助**(本轮主线,全程 codex 写 + Claude 审/typecheck/端到端,已上线 + push 到 `e23f1b4`):
+  - spec:`docs/superpowers/specs/2026-06-27-external-commission-payees-design.md`
+  - **业主拍板**:外部人不登录、发**只读对账单 token 链接**;维护**外部分成人名单**、成交时挂人;结算**走收支台账出账+强制凭证**;业务员也加**我的提成**自助页。
+  - 数据层(**migration 0020**,已上生产共用库):`external_parties`(名单+statement_token)、`external_commission_entries`(外部提成台账,结算挂 ledger_entry_id)、`billing.external_payees jsonb`(成交挂人 sourceLineId→payeeId)、seed 加 `commission_payout`/分成支出 类别。
+  - API:externalParties CRUD + rotate-token;`refreshExternalCommissionEntries` 从 deal_line_amounts 物化外部角色提成(排除 us/sales,按 external_payees 挂人,删 pending 保 settled),billing 事务内调用;external-commission entries/summary/recompute + `:id/settle`(强制凭证→ledger 出账 commission_payout→标已结);**公开 `GET /statement/:token`(无 auth)**;`GET /commission/mine`(业务员自助,sales 角色补 `commission.view_own`)。
+  - 前端:设置区**外部分成人**页、财务**外部提成台账**页(筛选+合计+强制凭证结算)、**公开对账单页 `/statement/:token`**(ProtectedRoute 外、可打印)、**我的提成**页、**成交单挂人**(按方案外部分成行选 payee)。
+  - **端到端实测通过**:建张三(介绍人)→ EP 加介绍人10%行 → 成交10000挂张三 → 台账出现 1000 pending → 对账单显示未结1000 → 无凭证结算422、带凭证→settled+ledger 出账1000「分成支出」→ 对账单转已结。测试数据已清干净。
+- **DEMO/测试数据**:本轮 E2E 数据已清(clients/cases/billing/external_commission_entries/external_parties = 0)。真实框架保留:2公司、5业务+方案、7收款名目、**7分成对象(含落地方/担保人)**、9支出类别(含分成支出)、5里程碑名目挂接。
+- **下次可做**:业主录真实外部分成人 + 真实成交挂人;各业务真实价格/提成/成本(业主填);CPF 工资条扣项;新加坡报表精确模板(会计给);非案件业务(按摩椅/床垫/加盟)配方案版本。
+
+---
+
+## 🔖 旧快照(2026-06-27 第八轮:收款名目目录 + 步骤关联收款)
 
 - **业主看 EP 模板步骤编辑器后提出**:步骤能关联收款、收款方式(=**收款名目目录**,业主确认)要可管理、步骤跟收款怎么连。**结论:步骤绑"收款名目"(与版本无关),金额由每单实际版本供给**(业主选定)。
 - **已做完、commit、端到端验证 + 实跑截图**(spec `436fb35`,数据层 `52fc638` / API `7ccfac5` / 前端 `e3cfec1`):
