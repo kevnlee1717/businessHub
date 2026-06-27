@@ -22,8 +22,19 @@
   - **演示 seed**:`seedAcademyDemo`(4 个 `[DEMO]` 学生 + 报名 + 月度学费 + 恺德当月固定成本 4000,幂等)。**业主录真实学生后即看真实数据;DEMO 数据可删**。
   - 验证:health 当月在读 4、固定成本 4000、人均 2500、保本 2 人、缺口 0;collection/overdue 聚合手工核对正确。
 - **③b(scheme 驱动通用期数台账 `billing_periods`)未做**:目前无周期性成交单(按摩椅/床垫/保安尚无真实成交),YAGNI 待真实成交再起。
-- **本轮共 10 commit,全部待 push**;未 migrate 生产库(只 migrate 本地 cc docker postgres,migration 到 **0012**)。本地测试时在 JUYI 名下建过占位「保安保洁派遣」业务 + DEMO 学院数据(均可在 UI 删)。
-- **下一步(财务第 2 层剩余 + 第 3 层)**:④ 收支总账本 + 强制凭证 + 对公账户对账 → ⑤ 销售跨业务/底薪/提成账本 → ⑥ 新加坡报表导出(Form C-S/GST/ACRA)→ ⑦ KPI 反推(**招生缺口 = 月固定成本 ÷ 每生月净利 − 现有学生数**,已在 ③a /health 出雏形)+ 总现金流面板。每模块各自 spec;多处需业主补真实数字(各业务真实价格/提成/成本、CPF 费率等)。
+- **第 2 层模块 ④(收支总账本 + 强制凭证 + 对公账户对账)也已做完、commit、端到端验证**(spec `13e2a45`,数据层 `519e3bf` / API `afdd739` / 前端 `ffdfb0d`):
+  - spec:`docs/superpowers/specs/2026-06-27-finance-layer2-module4-ledger-proof-reconcile-design.md`
+  - 数据层(migration **0013**):`bank_accounts`(对公账户)/`expense_categories`(可配置支出类别,取代粗枚举)/`ledger_entries`(统一现金流水,强制凭证 + 对应业务或支出类别 + 桥接来源 + 对账状态)/`bank_statement_lines`(对公明细)。
+  - API:bankAccounts/expenseCategories/ledger/reconcile;**强制凭证**(无凭证 422 proof_required)、**归属校验**(in 需 business、out 需 category)、**对账自动建议 + 匹配闭环**;payment/company_expense 记账时**桥接**生成流水;`/ledger/proof-missing`、`/uncategorized` 查账兜底。
+  - 前端:财务导航改 FinanceLayout 父子(收款保留 + **收支流水**含强制凭证上传/筛选/合计/缺凭证红条 + **对账**并排未匹配+自动建议+合计对平 + **对公账户**)。
+  - HTTP 验证:无凭证 422、缺类别 422、4000 月租流水↔4000 明细自动建议并匹配后两侧对平、残差 500vs88 正确留为未对。
+  - seed:9 支出类别 + 2 公司各 1 对公账户 + 恺德 DEMO 月租桥接流水 + 2 对账明细(1 可匹配 1 对不上)。
+- **本会话共 15 commit,全部待 push**;migration 到 **0013**(只 migrate 本地 cc docker postgres,**未 migrate 生产库**)。
+  - 本地 dev DB 有测试数据可删:JUYI 占位「保安保洁派遣」业务、4 个 `[DEMO]` 学院学生、恺德 DEMO 流水/明细、一条测试 500 SGD 支出流水。
+- **下一步(财务剩余 ⑤⑥⑦,各需独立 spec + 多处要业主真实数字)**:
+  - ⑤ 销售跨业务分配/底薪/每单提成账本 → 汇入工资条(现 commission 写死在 billing,需独立提成台账)
+  - ⑥ 新加坡报表导出(Form C-S / GST / ACRA;简化录入→导出映射,业主的新加坡会计审)
+  - ⑦ KPI 反推(**招生缺口 = 月固定成本 ÷ 每生月净利 − 现有学生数**,③a /health 已雏形)+ **总数据面板**(各公司/业务健康度、第几天付房租/CPF/工资、还剩多少钱、应收要追、现金流预测)——这是业主要的「一眼看清」,依赖 ①③④ 的数据。
 
 ---
 
