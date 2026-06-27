@@ -1,4 +1,4 @@
-import { billing, db, payments, priceAdjustments } from "@bh/db";
+import { billing, db, payments, priceAdjustments, schemeVersions } from "@bh/db";
 import {
   billingCreateSchema,
   billingRefTypes,
@@ -10,6 +10,7 @@ import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { refreshBillingDealLineAmounts, serializeDealEconomics } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 const billingQuerySchema = z.object({
@@ -78,6 +79,9 @@ function serializeBilling(row: typeof billing.$inferSelect) {
     commission_type: row.commissionType,
     commission_value: row.commissionValue,
     commission_amount_sgd: row.commissionAmountSgd,
+    business_id: row.businessId,
+    scheme_version_id: row.schemeVersionId,
+    inputs: row.inputs,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
@@ -193,33 +197,69 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       totalPriceSgd
     ).toFixed(2);
 
-    const [billingRow] = await db
-      .insert(billing)
-      .values({
-        refType: body.ref_type,
-        refId: body.ref_id,
-        totalPriceSgd,
-        depositSgd: toNumeric(body.deposit_sgd) ?? "0",
-        status: "unpaid",
-        salesId: body.sales_id,
-        commissionType: body.commission_type,
-        commissionValue: toNumeric(body.commission_value),
-        commissionAmountSgd
-      })
-      .returning();
+    const result = await db.transaction(async (tx) => {
+      if (body.scheme_version_id) {
+        const [version] = await tx
+          .select()
+          .from(schemeVersions)
+          .where(eq(schemeVersions.id, body.scheme_version_id))
+          .limit(1);
 
-    if (!billingRow) {
-      throw new Error("billing_create_failed");
+        if (!version) {
+          return { error: "scheme_version_not_found" as const };
+        }
+      }
+
+      const [billingRow] = await tx
+        .insert(billing)
+        .values({
+          refType: body.ref_type,
+          refId: body.ref_id,
+          totalPriceSgd,
+          depositSgd: toNumeric(body.deposit_sgd) ?? "0",
+          status: "unpaid",
+          salesId: body.sales_id,
+          commissionType: body.commission_type,
+          commissionValue: toNumeric(body.commission_value),
+          commissionAmountSgd,
+          businessId: body.business_id,
+          schemeVersionId: body.scheme_version_id,
+          inputs: body.inputs
+        })
+        .returning();
+
+      if (!billingRow) {
+        throw new Error("billing_create_failed");
+      }
+
+      const economics =
+        body.scheme_version_id && body.inputs
+          ? await refreshBillingDealLineAmounts(
+              billingRow.id,
+              body.scheme_version_id,
+              body.inputs,
+              tx
+            )
+          : null;
+
+      return { billingRow, economics };
+    });
+
+    if ("error" in result) {
+      return reply.code(400).send({ error: result.error });
     }
 
-    return reply.code(201).send({ billing: serializeBilling(billingRow) });
+    return reply.code(201).send({
+      billing: serializeBilling(result.billingRow),
+      economics: result.economics ? serializeDealEconomics(result.economics).totals : undefined
+    });
   });
 
   app.patch("/billing/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(billingUpdateSchema, request.body);
 
-    const billingRow = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [current] = await tx.select().from(billing).where(eq(billing.id, id)).limit(1);
 
       if (!current) {
@@ -242,6 +282,24 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         hasOwn(body, "total_price_sgd") ||
         hasOwn(body, "commission_type") ||
         hasOwn(body, "commission_value");
+      const nextSchemeVersionId = hasOwn(body, "scheme_version_id")
+        ? body.scheme_version_id
+        : current.schemeVersionId;
+      const nextInputs = hasOwn(body, "inputs")
+        ? body.inputs
+        : (current.inputs as Record<string, number> | null | undefined);
+
+      if (nextSchemeVersionId) {
+        const [version] = await tx
+          .select()
+          .from(schemeVersions)
+          .where(eq(schemeVersions.id, nextSchemeVersionId))
+          .limit(1);
+
+        if (!version) {
+          return { error: "scheme_version_not_found" as const };
+        }
+      }
 
       const adjustmentCandidates = [
         {
@@ -290,23 +348,44 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
             ? computeCommission(commissionType, commissionValue, totalPriceSgd).toFixed(2)
             : undefined,
           status: body.status,
+          businessId: hasOwn(body, "business_id") ? body.business_id : undefined,
+          schemeVersionId: hasOwn(body, "scheme_version_id") ? body.scheme_version_id : undefined,
+          inputs: hasOwn(body, "inputs") ? body.inputs : undefined,
           updatedAt: new Date()
         })
         .where(eq(billing.id, id))
         .returning();
 
-      if (hasOwn(body, "total_price_sgd") && !hasOwn(body, "status")) {
-        return (await recomputeStatus(id, tx)) ?? updated;
+      if (!updated) {
+        return null;
       }
 
-      return updated;
+      const economics =
+        nextSchemeVersionId &&
+        nextInputs &&
+        (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs"))
+          ? await refreshBillingDealLineAmounts(id, nextSchemeVersionId, nextInputs, tx)
+          : null;
+
+      if (hasOwn(body, "total_price_sgd") && !hasOwn(body, "status")) {
+        return { billingRow: (await recomputeStatus(id, tx)) ?? updated, economics };
+      }
+
+      return { billingRow: updated, economics };
     });
 
-    if (!billingRow) {
+    if (!result) {
       return sendNotFound(reply);
     }
 
-    return { billing: serializeBilling(billingRow) };
+    if ("error" in result) {
+      return reply.code(400).send({ error: result.error });
+    }
+
+    return {
+      billing: serializeBilling(result.billingRow),
+      economics: result.economics ? serializeDealEconomics(result.economics).totals : undefined
+    };
   });
 
   app.post(
