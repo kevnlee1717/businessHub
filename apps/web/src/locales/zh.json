@@ -1597,7 +1597,11 @@
       "title": "里程碑分配",
       "empty": "请先在『收款里程碑』标签页添加阶段",
       "totalPercent": "合计%",
-      "totalWarning": "合计不是 100%，保存后将按当前填写比例拆分。"
+      "totalWarning": "合计不是 100%，保存后将按当前填写比例拆分。",
+      "basis": "拆分方式",
+      "basisPercent": "按比例 %",
+      "basisFixed": "按金额",
+      "mixedHint": "按比例的阶段合计建议=100%；按金额的阶段直接取该金额，余额自动归最后阶段。"
     },
     "preview": {
       "title": "示范利润率预览",

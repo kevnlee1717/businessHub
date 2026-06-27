@@ -1,4 +1,5 @@
 import type { SchemeLineBasis, SchemeLineKind, SchemeLineRecurrence } from "../enums";
+import type { MilestoneSplit } from "./splitCommissionByMilestones";
 
 export type SchemeLineInput = {
   kind: SchemeLineKind;
@@ -11,7 +12,7 @@ export type SchemeLineInput = {
   partyId?: string | null;
   partyCode?: string | null;
   schemeLineId?: string | null;
-  milestoneSplit?: Record<string, number> | null;
+  milestoneSplit?: MilestoneSplit | null;
 };
 
 export type DealInputs = Record<string, number>;

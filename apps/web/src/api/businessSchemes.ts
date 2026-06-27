@@ -64,7 +64,7 @@ export type SchemeLine = {
   rate?: string | null;
   unit_label?: string | null;
   input_key?: string | null;
-  milestone_split?: Record<string, number> | null;
+  milestone_split?: Record<string, { basis: "percent" | "fixed"; value: number }> | null;
   label: string;
   note?: string | null;
   created_at: string;

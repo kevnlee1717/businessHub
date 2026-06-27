@@ -5,7 +5,7 @@ import {
   schemeLines,
   type schemeVersions
 } from "@bh/db";
-import { computeDealEconomics, type DealInputs, type SchemeLineInput } from "@bh/shared";
+import { computeDealEconomics, type DealInputs, type MilestoneSplit, type SchemeLineInput } from "@bh/shared";
 import { eq, inArray } from "drizzle-orm";
 import { toNumeric } from "./hrUtils";
 
@@ -23,7 +23,7 @@ export type ResolvableSchemeLineInput = {
   label?: string | null | undefined;
   partyId?: string | null | undefined;
   partyCode?: string | null | undefined;
-  milestoneSplit?: Record<string, number> | null | undefined;
+  milestoneSplit?: MilestoneSplit | null | undefined;
   sortOrder?: number | undefined;
   note?: string | null | undefined;
 };

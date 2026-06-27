@@ -5,11 +5,18 @@ export type MilestoneStage = {
   value: number;
 };
 
+export type MilestoneSplitAllocation = {
+  basis: "percent" | "fixed";
+  value: number;
+};
+
+export type MilestoneSplit = Record<string, MilestoneSplitAllocation>;
+
 export type SplitCommissionByMilestonesArgs = {
   commissionTotal: number;
   revenueTotal: number;
   milestones: MilestoneStage[];
-  milestoneSplit?: Record<string, number> | null;
+  milestoneSplit?: MilestoneSplit | null;
 };
 
 export type SplitCommissionByMilestonesResult = {
@@ -20,6 +27,20 @@ export type SplitCommissionByMilestonesResult = {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function normalizeAllocation(
+  allocation: MilestoneSplitAllocation | number | undefined
+): MilestoneSplitAllocation | undefined {
+  if (allocation === undefined) {
+    return undefined;
+  }
+
+  if (typeof allocation === "number") {
+    return { basis: "percent", value: allocation };
+  }
+
+  return allocation;
 }
 
 export function splitCommissionByMilestones({
@@ -37,17 +58,28 @@ export function splitCommissionByMilestones({
 
   return sortedMilestones.map((stage, index) => {
     const isLast = index === sortedMilestones.length - 1;
-    const splitValue = milestoneSplit?.[String(stage.seq)];
-    const stageRevenue = stage.basis === "percent" ? (revenueTotal * stage.value) / 100 : stage.value;
-    const allocationPercent =
-      splitValue !== undefined
-        ? splitValue
-        : revenueTotal > 0
-          ? (stageRevenue / revenueTotal) * 100
-          : 100 / sortedMilestones.length;
-    const amount = isLast
-      ? round2(commissionTotal - allocated)
-      : round2((commissionTotal * allocationPercent) / 100);
+    const allocation = normalizeAllocation(
+      (milestoneSplit as Record<string, MilestoneSplitAllocation | number> | null | undefined)?.[
+        String(stage.seq)
+      ]
+    );
+    let amount: number;
+
+    if (isLast) {
+      amount = round2(commissionTotal - allocated);
+    } else if (allocation?.basis === "fixed") {
+      amount = round2(allocation.value);
+    } else {
+      const stageRevenue = stage.basis === "percent" ? (revenueTotal * stage.value) / 100 : stage.value;
+      const allocationPercent =
+        allocation?.basis === "percent"
+          ? allocation.value
+          : revenueTotal > 0
+            ? (stageRevenue / revenueTotal) * 100
+            : 100 / sortedMilestones.length;
+
+      amount = round2((commissionTotal * allocationPercent) / 100);
+    }
 
     allocated = round2(allocated + amount);
 

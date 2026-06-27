@@ -14,7 +14,7 @@ export const schemeLines = pgTable("scheme_lines", {
   rate: numeric("rate", { precision: 12, scale: 3 }),
   unitLabel: text("unit_label"),
   inputKey: text("input_key"),
-  milestoneSplit: jsonb("milestone_split").$type<Record<string, number>>(),
+  milestoneSplit: jsonb("milestone_split").$type<Record<string, { basis: "percent" | "fixed"; value: number }>>(),
   label: text("label").notNull(),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()

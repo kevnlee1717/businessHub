@@ -1597,7 +1597,11 @@
       "title": "Milestone Allocation",
       "empty": "Please add stages in the Collection Milestones tab first",
       "totalPercent": "Total %",
-      "totalWarning": "The total is not 100%. Saving will use the percentages currently entered."
+      "totalWarning": "The total is not 100%. Saving will use the percentages currently entered.",
+      "basis": "Split basis",
+      "basisPercent": "Percent %",
+      "basisFixed": "Fixed amount",
+      "mixedHint": "Percent-based stages should total 100%; fixed-amount stages use that amount directly, and the remaining balance is assigned to the final stage."
     },
     "preview": {
       "title": "Demo profit-rate preview",

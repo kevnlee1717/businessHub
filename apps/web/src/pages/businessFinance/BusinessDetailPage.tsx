@@ -87,7 +87,12 @@ type LineFormValues = {
   sort_order?: number | undefined;
 };
 
-type MilestoneSplitDraft = Record<string, number | "">;
+type MilestoneSplitDraftValue = {
+  basis: "percent" | "fixed";
+  value: number | "";
+};
+
+type MilestoneSplitDraft = Record<string, MilestoneSplitDraftValue>;
 
 type MilestoneFormValues = {
   seq: number | undefined;
@@ -718,8 +723,8 @@ function VersionEditor({
   function openSplitModal(line: SchemeLine) {
     const split = line.milestone_split ?? {};
     setSplitDraft(
-      Object.entries(split).reduce<MilestoneSplitDraft>((acc, [seq, percent]) => {
-        acc[seq] = percent;
+      Object.entries(split).reduce<MilestoneSplitDraft>((acc, [seq, splitValue]) => {
+        acc[seq] = splitValue;
         return acc;
       }, {})
     );
@@ -737,9 +742,11 @@ function VersionEditor({
       return;
     }
 
-    const milestoneSplit = Object.entries(splitDraft).reduce<Record<string, number>>((acc, [seq, percent]) => {
-      if (typeof percent === "number") {
-        acc[seq] = percent;
+    const milestoneSplit = Object.entries(splitDraft).reduce<
+      Record<string, { basis: "percent" | "fixed"; value: number }>
+    >((acc, [seq, splitValue]) => {
+      if (typeof splitValue.value === "number") {
+        acc[seq] = { basis: splitValue.basis, value: splitValue.value };
       }
       return acc;
     }, {});
@@ -847,6 +854,7 @@ function VersionEditor({
         loading={milestonesQuery.isLoading}
         error={milestonesQuery.error}
         draft={splitDraft}
+        currency={currency}
         onChange={setSplitDraft}
         onClose={closeSplitModal}
         onSave={() => void saveSplit()}
@@ -862,6 +870,7 @@ function MilestoneSplitModal({
   loading,
   error,
   draft,
+  currency,
   onChange,
   onClose,
   onSave,
@@ -872,23 +881,45 @@ function MilestoneSplitModal({
   loading: boolean;
   error: unknown;
   draft: MilestoneSplitDraft;
+  currency: Currency;
   onChange: (draft: MilestoneSplitDraft) => void;
   onClose: () => void;
   onSave: () => void;
   saving: boolean;
 }) {
   const { t } = useTranslation();
-  const total = Object.values(draft).reduce<number>(
-    (sum, value) => (typeof value === "number" ? sum + value : sum),
+  const totalPercent = Object.values(draft).reduce<number>(
+    (sum, splitValue) =>
+      splitValue.basis === "percent" && typeof splitValue.value === "number" ? sum + splitValue.value : sum,
     0
   );
-  const hasCustomSplit = Object.values(draft).some((value) => typeof value === "number");
+  const hasPercentSplit = Object.values(draft).some(
+    (splitValue) => splitValue.basis === "percent" && typeof splitValue.value === "number"
+  );
+  const hasFixedSplit = Object.values(draft).some(
+    (splitValue) => splitValue.basis === "fixed" && typeof splitValue.value === "number"
+  );
+  const allCustomSplitsArePercent = hasPercentSplit && !hasFixedSplit;
+  const basisOptions = [
+    { value: "percent", label: t("businessFinance.milestoneSplit.basisPercent") },
+    { value: "fixed", label: t("businessFinance.milestoneSplit.basisFixed") }
+  ];
 
   function updateSeq(seq: number, value: string | number) {
     const key = String(seq);
+    const current = draft[key] ?? { basis: "percent", value: "" };
     onChange({
       ...draft,
-      [key]: typeof value === "number" ? value : ""
+      [key]: { ...current, value: typeof value === "number" ? value : "" }
+    });
+  }
+
+  function updateBasis(seq: number, basis: "percent" | "fixed") {
+    const key = String(seq);
+    const current = draft[key] ?? { basis: "percent", value: "" };
+    onChange({
+      ...draft,
+      [key]: { ...current, basis }
     });
   }
 
@@ -919,22 +950,38 @@ function MilestoneSplitModal({
                       {t("businessFinance.milestones.fields.seq")} {milestone.seq}
                     </Text>
                   </Stack>
-                  <NumberInput
-                    value={draft[String(milestone.seq)] ?? ""}
-                    onChange={(value) => updateSeq(milestone.seq, value)}
-                    min={0}
-                    decimalScale={2}
-                    suffix="%"
-                    w={140}
-                  />
+                  <Group gap="xs" wrap="nowrap">
+                    <Select
+                      aria-label={t("businessFinance.milestoneSplit.basis")}
+                      data={basisOptions}
+                      value={draft[String(milestone.seq)]?.basis ?? "percent"}
+                      onChange={(value) => updateBasis(milestone.seq, value === "fixed" ? "fixed" : "percent")}
+                      allowDeselect={false}
+                      w={120}
+                    />
+                    <NumberInput
+                      value={draft[String(milestone.seq)]?.value ?? ""}
+                      onChange={(value) => updateSeq(milestone.seq, value)}
+                      min={0}
+                      step={draft[String(milestone.seq)]?.basis === "fixed" ? 100 : 1}
+                      decimalScale={2}
+                      suffix={draft[String(milestone.seq)]?.basis === "fixed" ? ` ${currency}` : "%"}
+                      w={150}
+                    />
+                  </Group>
                 </Group>
               ))}
             </Stack>
-            <Group justify="space-between">
-              <Text fw={600}>{t("businessFinance.milestoneSplit.totalPercent")}</Text>
-              <Text fw={600}>{total.toFixed(2)}%</Text>
-            </Group>
-            {hasCustomSplit && Math.abs(total - 100) > 0.000001 ? (
+            {allCustomSplitsArePercent ? (
+              <Group justify="space-between">
+                <Text fw={600}>{t("businessFinance.milestoneSplit.totalPercent")}</Text>
+                <Text fw={600}>{totalPercent.toFixed(2)}%</Text>
+              </Group>
+            ) : null}
+            <Text size="sm" c="dimmed">
+              {t("businessFinance.milestoneSplit.mixedHint")}
+            </Text>
+            {allCustomSplitsArePercent && Math.abs(totalPercent - 100) > 0.000001 ? (
               <Alert color="yellow" variant="light">
                 {t("businessFinance.milestoneSplit.totalWarning")}
               </Alert>

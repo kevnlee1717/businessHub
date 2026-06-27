@@ -18,6 +18,10 @@ const numericField = z.union([z.string(), z.number()]);
 const dealInputsRecordSchema = z.record(z.string(), z.number());
 const assumedInputsRecordSchema = z.record(z.string(), z.unknown());
 const externalPayeesRecordSchema = z.record(z.string(), uuidField);
+const milestoneSplitRecordSchema = z.record(
+  z.string(),
+  z.object({ basis: z.enum(["percent", "fixed"]), value: z.number() })
+);
 const dealPresetKeys = [
   "custom",
   "one_time",
@@ -58,7 +62,7 @@ export const schemeLineSchema = z.object({
   rate: numericField.nullable().optional(),
   unit_label: nullableOptionalText,
   input_key: nullableOptionalText,
-  milestone_split: z.record(z.string(), z.number()).nullable().optional(),
+  milestone_split: milestoneSplitRecordSchema.nullable().optional(),
   label: z.string().trim().min(1),
   note: nullableOptionalText,
   sort_order: z.number().int().optional()
