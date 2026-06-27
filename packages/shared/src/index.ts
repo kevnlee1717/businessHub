@@ -5,6 +5,7 @@ export * from "./finance/presets";
 export * from "./permissions";
 export * from "./schemas/auth";
 export * from "./schemas/cases";
+export * from "./schemas/commission";
 export * from "./schemas/dms";
 export * from "./schemas/education";
 export * from "./schemas/finance";

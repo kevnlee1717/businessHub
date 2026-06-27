@@ -1,5 +1,5 @@
 import {
-  billing,
+  commissionEntries,
   compensationTemplates,
   db,
   employeeCompensation,
@@ -12,6 +12,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import type { DbExecutor } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const payslipQuerySchema = z.object({
@@ -28,8 +29,8 @@ function money(value: number): string {
 }
 
 // 解析某员工生效薪酬:个人覆盖 ?? 公司×岗位模板
-async function resolveCompensation(employee: typeof employees.$inferSelect) {
-  const [employeeRow] = await db
+async function resolveCompensation(employee: typeof employees.$inferSelect, tx: DbExecutor = db) {
+  const [employeeRow] = await tx
     .select()
     .from(employeeCompensation)
     .where(eq(employeeCompensation.employeeId, employee.id))
@@ -37,7 +38,7 @@ async function resolveCompensation(employee: typeof employees.$inferSelect) {
 
   const [templateRow] =
     employee.companyId && employee.positionId
-      ? await db
+      ? await tx
           .select()
           .from(compensationTemplates)
           .where(
@@ -65,9 +66,9 @@ async function resolveCompensation(employee: typeof employees.$inferSelect) {
 }
 
 // 按 spec §3.3 公式算一张工资条(draft);法定扣项留待缴款环节填,见 progress.md「已知简化」
-async function buildPayslip(employee: typeof employees.$inferSelect, period: string) {
-  const comp = await resolveCompensation(employee);
-  const [perf] = await db
+async function buildPayslip(employee: typeof employees.$inferSelect, period: string, tx: DbExecutor = db) {
+  const comp = await resolveCompensation(employee, tx);
+  const [perf] = await tx
     .select()
     .from(performanceScores)
     .where(and(eq(performanceScores.employeeId, employee.id), eq(performanceScores.period, period)))
@@ -82,16 +83,17 @@ async function buildPayslip(employee: typeof employees.$inferSelect, period: str
   const taskCompletionBonusPaid = comp.taskCompletionBonus * (completionPct / 100);
   const taskSatisfactionBonusPaid = comp.taskSatisfactionBonus * (satisfactionPct / 100);
   const kpiBonusPaid = comp.kpiBonus * (kpiPct / 100);
-  // 按成交单据创建月归集提成
-  const [commissionRow] = await db
+  // 提成以 commission_entries 台账为准, 支持一次性/月度展开与业务覆盖重算。
+  const [commissionRow] = await tx
     .select({
-      total: sql<string>`coalesce(sum(${billing.commissionAmountSgd}),0)`
+      total: sql<string>`coalesce(sum(${commissionEntries.amountSgd}),0)`
     })
-    .from(billing)
+    .from(commissionEntries)
     .where(
       and(
-        eq(billing.salesId, employee.id),
-        sql`to_char(${billing.createdAt},'YYYY-MM') = ${period}`
+        eq(commissionEntries.salesId, employee.id),
+        eq(commissionEntries.period, period),
+        sql`${commissionEntries.status} <> 'void'`
       )
     );
   const commissionTotal = Number(commissionRow?.total ?? 0);
@@ -156,15 +158,47 @@ export async function registerPayslipRoutes(app: FastifyInstance): Promise<void>
 
       const generated = [];
       for (const employee of targets) {
-        const values = await buildPayslip(employee, input.period);
-        const [payslip] = await db
-          .insert(payslips)
-          .values(values)
-          .onConflictDoUpdate({
-            target: [payslips.employeeId, payslips.period],
-            set: values
-          })
-          .returning();
+        const payslip = await db.transaction(async (tx) => {
+          const [existing] = await tx
+            .select({ id: payslips.id })
+            .from(payslips)
+            .where(and(eq(payslips.employeeId, employee.id), eq(payslips.period, input.period)))
+            .limit(1);
+
+          if (existing) {
+            await tx
+              .update(commissionEntries)
+              .set({ status: "pending", payslipId: null })
+              .where(eq(commissionEntries.payslipId, existing.id));
+          }
+
+          const values = await buildPayslip(employee, input.period, tx);
+          const [upserted] = await tx
+            .insert(payslips)
+            .values(values)
+            .onConflictDoUpdate({
+              target: [payslips.employeeId, payslips.period],
+              set: values
+            })
+            .returning();
+
+          if (!upserted) {
+            throw new Error("payslip_generate_failed");
+          }
+
+          await tx
+            .update(commissionEntries)
+            .set({ status: "settled", payslipId: upserted.id })
+            .where(
+              and(
+                eq(commissionEntries.salesId, employee.id),
+                eq(commissionEntries.period, input.period),
+                sql`${commissionEntries.status} <> 'void'`
+              )
+            );
+
+          return upserted;
+        });
 
         generated.push(payslip);
       }

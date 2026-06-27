@@ -23,6 +23,7 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { generateCommissionEntries } from "./commissionUtils";
 import { refreshBillingDealLineAmounts, serializeDealEconomics, toEngineLines } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { bridgePaymentToLedger } from "./ledgerUtils";
@@ -383,6 +384,8 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         await refreshBillingCharges(billingRow, body.scheme_version_id, body.inputs, tx);
       }
 
+      await generateCommissionEntries(billingRow, tx);
+
       return { billingRow, economics };
     });
 
@@ -516,11 +519,14 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         await refreshBillingCharges(updated, nextSchemeVersionId, nextInputs, tx);
       }
 
-      if (hasOwn(body, "total_price_sgd") && !hasOwn(body, "status")) {
-        return { billingRow: (await recomputeStatus(id, tx)) ?? updated, economics };
-      }
+      const billingRow =
+        hasOwn(body, "total_price_sgd") && !hasOwn(body, "status")
+          ? (await recomputeStatus(id, tx)) ?? updated
+          : updated;
 
-      return { billingRow: updated, economics };
+      await generateCommissionEntries(billingRow, tx);
+
+      return { billingRow, economics };
     });
 
     if (!result) {
