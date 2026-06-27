@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { currencies, ledgerDirections, reconcileStatuses } from "../enums";
+import {
+  chargeKinds,
+  chargeStatuses,
+  currencies,
+  ledgerDirections,
+  milestoneBases,
+  reconcileStatuses
+} from "../enums";
 
 const nullableOptionalText = z.string().trim().min(1).nullable().optional();
 const uuidField = z.string().uuid();
@@ -95,6 +102,48 @@ export const matchSchema = z.object({
   statement_line_id: uuidField
 });
 
+export const milestoneCreateSchema = z.object({
+  seq: z.number().int().min(1),
+  label: z.string().trim().min(1),
+  basis: z.enum(milestoneBases),
+  value: numericField,
+  bind_step_order: z.number().int().min(1).nullable().optional(),
+  due_offset_days: z.number().int().nullable().optional(),
+  note: nullableOptionalText
+});
+
+export const milestoneUpdateSchema = milestoneCreateSchema.partial();
+
+export const chargeCreateSchema = z.object({
+  billing_id: uuidField,
+  label: z.string().trim().min(1),
+  amount_expected: numericField,
+  charge_kind: z.enum(chargeKinds).optional(),
+  period: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
+  due_date: z.string().date().nullable().optional(),
+  case_step_id: uuidField.nullable().optional(),
+  currency: z.enum(currencies).optional()
+});
+
+export const chargeUpdateSchema = z.object({
+  label: z.string().trim().min(1).optional(),
+  due_date: z.string().date().nullable().optional(),
+  amount_expected: numericField.optional(),
+  case_step_id: uuidField.nullable().optional(),
+  status: z.enum(chargeStatuses).optional(),
+  note: nullableOptionalText
+});
+
+export const chargeCollectSchema = z.object({
+  paid_amount: numericField,
+  currency: z.enum(currencies),
+  fx_rate: numericField.nullable().optional(),
+  paid_at: z.string().datetime(),
+  proof_document_ids: z.array(uuidField).min(1),
+  bank_account_id: uuidField.nullable().optional(),
+  note: nullableOptionalText
+});
+
 export const ledgerQuerySchema = z.object({
   company_id: uuidField.optional(),
   bank_account_id: uuidField.optional(),
@@ -116,3 +165,8 @@ export type LedgerCreateInput = z.infer<typeof ledgerCreateSchema>;
 export type LedgerUpdateInput = z.infer<typeof ledgerUpdateSchema>;
 export type StatementLinesImportInput = z.infer<typeof statementLinesImportSchema>;
 export type MatchInput = z.infer<typeof matchSchema>;
+export type MilestoneCreateInput = z.infer<typeof milestoneCreateSchema>;
+export type MilestoneUpdateInput = z.infer<typeof milestoneUpdateSchema>;
+export type ChargeCreateInput = z.infer<typeof chargeCreateSchema>;
+export type ChargeUpdateInput = z.infer<typeof chargeUpdateSchema>;
+export type ChargeCollectInput = z.infer<typeof chargeCollectSchema>;

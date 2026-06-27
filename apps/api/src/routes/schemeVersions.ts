@@ -1,7 +1,9 @@
-import { businesses, db, schemeLines, schemeVersions } from "@bh/db";
+import { businesses, db, schemeLines, schemeMilestones, schemeVersions } from "@bh/db";
 import {
   DEAL_PRESETS,
   dealInputsSchema,
+  milestoneCreateSchema,
+  milestoneUpdateSchema,
   schemeLineSchema,
   schemeVersionCreateSchema,
   schemeVersionUpdateSchema,
@@ -36,6 +38,21 @@ function serializeSchemeVersion(row: typeof schemeVersions.$inferSelect) {
     effective_to: row.effectiveTo,
     assumed_inputs: row.assumedInputs,
     profit_rate: row.profitRate,
+    note: row.note,
+    created_at: row.createdAt
+  };
+}
+
+function serializeMilestone(row: typeof schemeMilestones.$inferSelect) {
+  return {
+    id: row.id,
+    version_id: row.versionId,
+    seq: row.seq,
+    label: row.label,
+    basis: row.basis,
+    value: row.value,
+    bind_step_order: row.bindStepOrder,
+    due_offset_days: row.dueOffsetDays,
     note: row.note,
     created_at: row.createdAt
   };
@@ -193,6 +210,104 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
       }
     };
   });
+
+  app.get(
+    "/scheme-versions/:id/milestones",
+    { preHandler: requirePerm("finance.view") },
+    async (request, reply) => {
+      const { id } = parseWithSchema(idParamsSchema, request.params);
+      const [version] = await db.select().from(schemeVersions).where(eq(schemeVersions.id, id)).limit(1);
+
+      if (!version) {
+        return sendNotFound(reply);
+      }
+
+      const rows = await db
+        .select()
+        .from(schemeMilestones)
+        .where(eq(schemeMilestones.versionId, id))
+        .orderBy(schemeMilestones.seq, schemeMilestones.createdAt);
+
+      return { milestones: rows.map(serializeMilestone) };
+    }
+  );
+
+  app.post(
+    "/scheme-versions/:id/milestones",
+    { preHandler: requirePerm("finance.manage") },
+    async (request, reply) => {
+      const { id } = parseWithSchema(idParamsSchema, request.params);
+      const body = parseWithSchema(milestoneCreateSchema, request.body);
+      const [version] = await db.select().from(schemeVersions).where(eq(schemeVersions.id, id)).limit(1);
+
+      if (!version) {
+        return sendNotFound(reply);
+      }
+
+      const [milestone] = await db
+        .insert(schemeMilestones)
+        .values({
+          versionId: id,
+          seq: body.seq,
+          label: body.label,
+          basis: body.basis,
+          value: toNumeric(body.value) ?? "0",
+          bindStepOrder: body.bind_step_order,
+          dueOffsetDays: body.due_offset_days,
+          note: body.note
+        })
+        .returning();
+
+      if (!milestone) {
+        throw new Error("scheme_milestone_create_failed");
+      }
+
+      return reply.code(201).send({ milestone: serializeMilestone(milestone) });
+    }
+  );
+
+  app.patch(
+    "/scheme-milestones/:id",
+    { preHandler: requirePerm("finance.manage") },
+    async (request, reply) => {
+      const { id } = parseWithSchema(idParamsSchema, request.params);
+      const body = parseWithSchema(milestoneUpdateSchema, request.body);
+      const [milestone] = await db
+        .update(schemeMilestones)
+        .set({
+          seq: body.seq,
+          label: body.label,
+          basis: body.basis,
+          value: body.value === undefined ? undefined : toNumeric(body.value) ?? "0",
+          bindStepOrder: body.bind_step_order,
+          dueOffsetDays: body.due_offset_days,
+          note: body.note
+        })
+        .where(eq(schemeMilestones.id, id))
+        .returning();
+
+      if (!milestone) {
+        return sendNotFound(reply);
+      }
+
+      return { milestone: serializeMilestone(milestone) };
+    }
+  );
+
+  app.delete(
+    "/scheme-milestones/:id",
+    { preHandler: requirePerm("finance.manage") },
+    async (request, reply) => {
+      const { id } = parseWithSchema(idParamsSchema, request.params);
+      const [milestone] = await db.delete(schemeMilestones).where(eq(schemeMilestones.id, id)).returning();
+
+      if (!milestone) {
+        return sendNotFound(reply);
+      }
+
+      return { ok: true };
+    }
+  );
 
   app.patch("/scheme-versions/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);

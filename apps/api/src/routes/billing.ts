@@ -1,16 +1,29 @@
-import { billing, db, payments, priceAdjustments, schemeVersions } from "@bh/db";
+import {
+  billing,
+  billingCharges,
+  caseSteps,
+  cases,
+  db,
+  payments,
+  priceAdjustments,
+  schemeLines,
+  schemeMilestones,
+  schemeVersions
+} from "@bh/db";
 import {
   billingCreateSchema,
   billingRefTypes,
   billingStatuses,
+  generateCharges,
+  type DealInputs,
   billingUpdateSchema,
   paymentCreateSchema
 } from "@bh/shared";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { refreshBillingDealLineAmounts, serializeDealEconomics } from "./financeUtils";
+import { refreshBillingDealLineAmounts, serializeDealEconomics, toEngineLines } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { bridgePaymentToLedger } from "./ledgerUtils";
 
@@ -22,6 +35,28 @@ const billingQuerySchema = z.object({
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbExecutor = typeof db | DbTransaction;
+
+function currentSgtPeriod(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit"
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  return `${year}-${month}`;
+}
+
+function inputStartPeriod(inputs: DealInputs): string {
+  const raw = (inputs as Record<string, unknown>).start_period ?? (inputs as Record<string, unknown>).startPeriod;
+  return typeof raw === "string" && /^\d{4}-\d{2}$/.test(raw) ? raw : currentSgtPeriod();
+}
+
+function addDaysAsDateString(base: Date, days: number): string {
+  const next = new Date(base);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next.toISOString().slice(0, 10);
+}
 
 function computeCommission(
   type: "percent" | "fixed" | null | undefined,
@@ -86,6 +121,107 @@ function serializeBilling(row: typeof billing.$inferSelect) {
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
+}
+
+async function refreshBillingCharges(
+  billingRow: typeof billing.$inferSelect,
+  schemeVersionId: string,
+  inputs: DealInputs,
+  tx: DbExecutor = db
+) {
+  const lineRows = await tx
+    .select()
+    .from(schemeLines)
+    .where(eq(schemeLines.versionId, schemeVersionId))
+    .orderBy(asc(schemeLines.sortOrder), asc(schemeLines.createdAt));
+  const milestoneRows = await tx
+    .select()
+    .from(schemeMilestones)
+    .where(eq(schemeMilestones.versionId, schemeVersionId))
+    .orderBy(asc(schemeMilestones.seq), asc(schemeMilestones.createdAt));
+  const [caseRow] = await tx
+    .select({ id: cases.id })
+    .from(cases)
+    .where(eq(cases.billingId, billingRow.id))
+    .limit(1);
+  const stepRows = caseRow
+    ? await tx
+        .select({ id: caseSteps.id, stepOrder: caseSteps.stepOrder })
+        .from(caseSteps)
+        .where(eq(caseSteps.caseId, caseRow.id))
+    : [];
+  const stepIdByOrder = new Map(stepRows.map((step) => [step.stepOrder, step.id]));
+  const milestoneBySeq = new Map(milestoneRows.map((milestone) => [milestone.seq, milestone]));
+  const drafts = generateCharges(
+    toEngineLines(lineRows),
+    milestoneRows.map((milestone) => ({
+      seq: milestone.seq,
+      label: milestone.label,
+      basis: milestone.basis,
+      value: Number(milestone.value),
+      bindStepOrder: milestone.bindStepOrder,
+      dueOffsetDays: milestone.dueOffsetDays,
+      note: milestone.note
+    })),
+    inputs,
+    { startPeriod: inputStartPeriod(inputs) }
+  );
+  const existingRows = await tx
+    .select()
+    .from(billingCharges)
+    .where(eq(billingCharges.billingId, billingRow.id));
+  const preservedKeys = new Set(
+    existingRows
+      .filter((charge) => charge.status !== "pending")
+      .map((charge) => `${charge.chargeKind}:${charge.seq}`)
+  );
+  const pendingByKey = new Map(
+    existingRows
+      .filter((charge) => charge.status === "pending")
+      .map((charge) => [`${charge.chargeKind}:${charge.seq}`, charge])
+  );
+
+  for (const draft of drafts) {
+    const key = `${draft.chargeKind}:${draft.seq}`;
+    if (preservedKeys.has(key)) {
+      continue;
+    }
+
+      const milestone = draft.chargeKind === "milestone" ? milestoneBySeq.get(draft.seq) : undefined;
+      const dueDate =
+        milestone?.dueOffsetDays === null || milestone?.dueOffsetDays === undefined
+          ? draft.dueDate
+          : addDaysAsDateString(billingRow.createdAt ?? new Date(), milestone.dueOffsetDays);
+    const values = {
+        billingId: billingRow.id,
+        schemeLineId: draft.schemeLineId ?? null,
+        chargeKind: draft.chargeKind,
+        seq: draft.seq,
+        label: draft.label,
+        period: draft.chargeKind === "period" ? (draft.period ?? null) : draft.period ?? null,
+        dueDate,
+        caseStepId:
+          draft.bindStepOrder === null || draft.bindStepOrder === undefined
+            ? draft.caseStepId ?? null
+            : stepIdByOrder.get(draft.bindStepOrder) ?? null,
+        amountExpected: toNumeric(draft.amountExpected) ?? "0",
+        amountCollected: "0",
+        status: "pending" as const,
+        currency: "SGD" as const
+      };
+
+    const existing = pendingByKey.get(key);
+    if (existing) {
+      await tx.update(billingCharges).set(values).where(eq(billingCharges.id, existing.id));
+      pendingByKey.delete(key);
+    } else {
+      await tx.insert(billingCharges).values(values);
+    }
+  }
+
+  for (const stale of pendingByKey.values()) {
+    await tx.delete(billingCharges).where(eq(billingCharges.id, stale.id));
+  }
 }
 
 function serializePayment(row: typeof payments.$inferSelect) {
@@ -243,6 +379,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
             )
           : null;
 
+      if (body.scheme_version_id && body.inputs) {
+        await refreshBillingCharges(billingRow, body.scheme_version_id, body.inputs, tx);
+      }
+
       return { billingRow, economics };
     });
 
@@ -368,6 +508,14 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           ? await refreshBillingDealLineAmounts(id, nextSchemeVersionId, nextInputs, tx)
           : null;
 
+      if (
+        nextSchemeVersionId &&
+        nextInputs &&
+        (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs"))
+      ) {
+        await refreshBillingCharges(updated, nextSchemeVersionId, nextInputs, tx);
+      }
+
       if (hasOwn(body, "total_price_sgd") && !hasOwn(body, "status")) {
         return { billingRow: (await recomputeStatus(id, tx)) ?? updated, economics };
       }
@@ -428,7 +576,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
         const updatedBilling = await recomputeStatus(id, tx);
         if (payment && updatedBilling) {
-          const ledgerEntry = await bridgePaymentToLedger(payment, billingRow, request.user.id, tx);
+          const ledgerEntry = await bridgePaymentToLedger(payment, billingRow, request.user.id, {}, tx);
           if (!ledgerEntry) {
             request.log.warn({ payment_id: payment.id }, "payment_ledger_bridge_skipped");
           }

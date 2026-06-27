@@ -6,6 +6,7 @@ import { registerBankAccountRoutes } from "./bankAccounts";
 import { registerBillingRoutes } from "./billing";
 import { registerBusinessRoutes } from "./businesses";
 import { registerCaseRoutes } from "./cases";
+import { registerChargeRoutes } from "./charges";
 import { registerClientRoutes } from "./clients";
 import { registerClockPointRoutes } from "./clockPoints";
 import { registerCompanyRoutes } from "./companies";
@@ -47,6 +48,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerHealthRoutes);
   await app.register(registerAuthRoutes);
   await app.register(registerBillingRoutes);
+  await app.register(registerChargeRoutes);
   await app.register(registerBusinessRoutes);
   await app.register(registerSchemeVersionRoutes);
   await app.register(registerDealPartyRoutes);

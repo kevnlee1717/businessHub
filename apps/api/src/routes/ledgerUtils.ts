@@ -156,6 +156,10 @@ export async function bridgePaymentToLedger(
   payment: typeof payments.$inferSelect,
   billingRow: typeof billing.$inferSelect,
   recordedBy: string,
+  options: {
+    proofDocumentIds?: string[];
+    bankAccountId?: string | null;
+  } = {},
   tx: DbExecutor = db
 ) {
   if (!billingRow.businessId) {
@@ -172,16 +176,22 @@ export async function bridgePaymentToLedger(
     return null;
   }
 
-  const proofRows = await tx
-    .select({ id: documents.id })
-    .from(documents)
-    .where(and(eq(documents.subjectType, "payment"), eq(documents.subjectId, payment.id)));
-  const proofDocumentIds = proofRows.map((row) => row.id);
+  const proofDocumentIds =
+    options.proofDocumentIds ??
+    (
+      await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(and(eq(documents.subjectType, "payment"), eq(documents.subjectId, payment.id)))
+    ).map((row) => row.id);
 
   return upsertLedgerBySource(
     {
       companyId: business.companyId,
-      bankAccountId: await primaryBankAccountId(business.companyId, tx),
+      bankAccountId:
+        options.bankAccountId === undefined
+          ? await primaryBankAccountId(business.companyId, tx)
+          : options.bankAccountId,
       direction: "in",
       amount: payment.paidAmount,
       currency: payment.paidCurrency,
