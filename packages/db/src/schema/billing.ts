@@ -23,6 +23,7 @@ export const billing = pgTable("billing", {
   businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
   schemeVersionId: uuid("scheme_version_id").references(() => schemeVersions.id, { onDelete: "set null" }),
   inputs: jsonb("inputs").$type<Record<string, unknown>>(),
+  externalPayees: jsonb("external_payees").$type<Record<string, string>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });

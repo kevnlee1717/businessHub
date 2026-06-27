@@ -953,6 +953,7 @@ async function seedFinanceLedgerDemo() {
     { code: "levy", name: "劳工税", nameEn: "Levy", reportSection: "operating_expense" },
     { code: "marketing", name: "市场推广", nameEn: "Marketing", reportSection: "operating_expense" },
     { code: "office", name: "办公杂费", nameEn: "Office", reportSection: "operating_expense" },
+    { code: "commission_payout", name: "分成支出", nameEn: "Commission Payout", reportSection: "operating_expense" },
     { code: "other", name: "其它", nameEn: "Other", reportSection: "other" }
   ] as const;
 

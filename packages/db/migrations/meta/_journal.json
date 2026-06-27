@@ -141,6 +141,13 @@
       "when": 1782555869462,
       "tag": "0019_thankful_adam_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1782562849479,
+      "tag": "0020_light_apocalypse",
+      "breakpoints": true
     }
   ]
 }

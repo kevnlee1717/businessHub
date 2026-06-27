@@ -51,6 +51,8 @@ export * from "./payrollSettings";
 export * from "./payslips";
 export * from "./statutoryPayments";
 export * from "./commissionEntries";
+export * from "./externalParties";
+export * from "./externalCommissionEntries";
 export * from "./tasks";
 export * from "./faceBaselines";
 export * from "./faceChallenges";
