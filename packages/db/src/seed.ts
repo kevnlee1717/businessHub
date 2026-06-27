@@ -364,7 +364,9 @@ const dealPartySeeds = [
   { code: "sales", name: "业务员", nameEn: "Sales" },
   { code: "hr_source", name: "HR 来源", nameEn: "HR Source" },
   { code: "partner", name: "加盟商", nameEn: "Partner" },
-  { code: "referrer", name: "介绍人", nameEn: "Referrer" }
+  { code: "referrer", name: "介绍人", nameEn: "Referrer" },
+  { code: "landing", name: "落地方", nameEn: "Landing Party" },
+  { code: "guarantor", name: "担保人", nameEn: "Guarantor" }
 ] as const;
 
 let upsertedDealParties = 0;
