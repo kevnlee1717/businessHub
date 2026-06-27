@@ -24,6 +24,7 @@ import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { generateCommissionEntries } from "./commissionUtils";
+import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
 import { refreshBillingDealLineAmounts, serializeDealEconomics, toEngineLines } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { bridgePaymentToLedger } from "./ledgerUtils";
@@ -132,6 +133,7 @@ function serializeBilling(row: typeof billing.$inferSelect) {
     business_id: row.businessId,
     scheme_version_id: row.schemeVersionId,
     inputs: row.inputs,
+    external_payees: row.externalPayees,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
@@ -414,7 +416,8 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           commissionAmountSgd,
           businessId: body.business_id,
           schemeVersionId: body.scheme_version_id,
-          inputs
+          inputs,
+          externalPayees: body.external_payees
         })
         .returning();
 
@@ -437,6 +440,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       }
 
       await generateCommissionEntries(billingRow, tx);
+      await refreshExternalCommissionEntries(tx, billingRow);
 
       return { billingRow, economics };
     });
@@ -548,6 +552,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           businessId: hasOwn(body, "business_id") ? body.business_id : undefined,
           schemeVersionId: hasOwn(body, "scheme_version_id") ? body.scheme_version_id : undefined,
           inputs: hasOwn(body, "inputs") || hasOwn(body, "total_price_sgd") ? pricedNextInputs : undefined,
+          externalPayees: hasOwn(body, "external_payees") ? body.external_payees : undefined,
           updatedAt: new Date()
         })
         .where(eq(billing.id, id))
@@ -578,6 +583,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           : updated;
 
       await generateCommissionEntries(billingRow, tx);
+      await refreshExternalCommissionEntries(tx, billingRow);
 
       return { billingRow, economics };
     });

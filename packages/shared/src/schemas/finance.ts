@@ -17,6 +17,7 @@ const uuidField = z.string().uuid();
 const numericField = z.union([z.string(), z.number()]);
 const dealInputsRecordSchema = z.record(z.string(), z.number());
 const assumedInputsRecordSchema = z.record(z.string(), z.unknown());
+const externalPayeesRecordSchema = z.record(z.string(), uuidField);
 const dealPresetKeys = [
   "custom",
   "one_time",
@@ -108,7 +109,8 @@ export const billingCreateSchema = z.object({
   commission_value: numericField.nullable().optional(),
   business_id: uuidField.nullable().optional(),
   scheme_version_id: uuidField.nullable().optional(),
-  inputs: dealInputsRecordSchema.nullable().optional()
+  inputs: dealInputsRecordSchema.nullable().optional(),
+  external_payees: externalPayeesRecordSchema.optional()
 });
 
 export const billingUpdateSchema = z.object({
@@ -120,7 +122,8 @@ export const billingUpdateSchema = z.object({
   status: z.enum(billingStatuses).optional(),
   business_id: uuidField.nullable().optional(),
   scheme_version_id: uuidField.nullable().optional(),
-  inputs: dealInputsRecordSchema.nullable().optional()
+  inputs: dealInputsRecordSchema.nullable().optional(),
+  external_payees: externalPayeesRecordSchema.optional()
 });
 
 export const paymentCreateSchema = z.object({

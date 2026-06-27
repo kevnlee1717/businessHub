@@ -105,6 +105,40 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
     };
   });
 
+  app.get("/commission/mine", { preHandler: requirePerm("commission.view_own") }, async (request) => {
+    const rows = await db
+      .select({
+        entry: commissionEntries,
+        billing: {
+          id: billing.id
+        },
+        business: {
+          id: businesses.id,
+          code: businesses.code,
+          name: businesses.name,
+          nameEn: businesses.nameEn
+        }
+      })
+      .from(commissionEntries)
+      .leftJoin(billing, eq(commissionEntries.billingId, billing.id))
+      .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+      .where(eq(commissionEntries.salesId, request.user.id))
+      .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt));
+
+    return {
+      entries: rows.map((row) => ({
+        billing_id: row.entry.billingId,
+        business: row.business,
+        period: row.entry.period,
+        amount_sgd: row.entry.amountSgd,
+        status: row.entry.status,
+        payslip_id: row.entry.payslipId,
+        recurrence: row.entry.recurrence,
+        created_at: row.entry.createdAt
+      }))
+    };
+  });
+
   app.post(
     "/commission/recompute",
     { preHandler: requirePerm("commission.manage") },
