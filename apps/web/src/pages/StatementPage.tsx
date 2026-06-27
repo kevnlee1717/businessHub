@@ -30,11 +30,29 @@ function statusColor(status: StatementStatus) {
   switch (status) {
     case "settled":
       return "green";
-    case "pending":
+    case "partial":
       return "yellow";
+    case "pending":
+      return "gray";
     default:
       return "gray";
   }
+}
+
+function settlementStatus(entry: { amount_sgd: string; amount_settled?: string | null; status: StatementStatus }) {
+  if (entry.status === "void") {
+    return "void";
+  }
+
+  const payable = Number(entry.amount_sgd);
+  const settled = Number(entry.amount_settled ?? 0);
+  if (settled <= 0) {
+    return "pending";
+  }
+  if (settled < payable) {
+    return "partial";
+  }
+  return "settled";
 }
 
 function businessLabel(entry: { business?: { code?: string | null; name?: string | null; name_en?: string | null } | null }) {
@@ -118,34 +136,42 @@ export function StatementPage() {
                   <Table.Th>{t("statement.fields.customer")}</Table.Th>
                   <Table.Th>{t("statement.fields.dealAt")}</Table.Th>
                   <Table.Th>{t("statement.fields.period")}</Table.Th>
-                  <Table.Th>{t("statement.fields.amount")}</Table.Th>
+                  <Table.Th>{t("statement.fields.payable")}</Table.Th>
+                  <Table.Th>{t("statement.fields.settled")}</Table.Th>
+                  <Table.Th>{t("statement.fields.outstanding")}</Table.Th>
                   <Table.Th>{t("statement.fields.status")}</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {statement.entries.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={6}>
+                    <Table.Td colSpan={8}>
                       <Text ta="center" c="dimmed" py="lg">
                         {t("statement.empty")}
                       </Text>
                     </Table.Td>
                   </Table.Tr>
                 ) : (
-                  statement.entries.map((entry, index) => (
-                    <Table.Tr key={entry.id ?? `${entry.billing_id ?? "entry"}-${index}`}>
-                      <Table.Td>{businessLabel(entry)}</Table.Td>
-                      <Table.Td>{displayName(entry.customer?.name, entry.customer?.name_en)}</Table.Td>
-                      <Table.Td>{formatDate(entry.billing?.deal_at)}</Table.Td>
-                      <Table.Td>{entry.period ?? "-"}</Table.Td>
-                      <Table.Td>{formatMoney(entry.amount_sgd)}</Table.Td>
-                      <Table.Td>
-                        <Badge color={statusColor(entry.status)} variant="light">
-                          {t(`statement.status.${entry.status}`)}
-                        </Badge>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))
+                  statement.entries.map((entry, index) => {
+                    const status = settlementStatus(entry);
+
+                    return (
+                      <Table.Tr key={entry.id ?? `${entry.billing_id ?? "entry"}-${index}`}>
+                        <Table.Td>{businessLabel(entry)}</Table.Td>
+                        <Table.Td>{displayName(entry.customer?.name, entry.customer?.name_en)}</Table.Td>
+                        <Table.Td>{formatDate(entry.billing?.deal_at)}</Table.Td>
+                        <Table.Td>{entry.period ?? "-"}</Table.Td>
+                        <Table.Td>{formatMoney(entry.amount_sgd)}</Table.Td>
+                        <Table.Td>{formatMoney(entry.amount_settled)}</Table.Td>
+                        <Table.Td>{formatMoney(entry.outstanding)}</Table.Td>
+                        <Table.Td>
+                          <Badge color={statusColor(status)} variant="light">
+                            {t(`statement.status.${status}`)}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })
                 )}
               </Table.Tbody>
             </Table>

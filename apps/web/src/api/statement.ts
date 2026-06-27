@@ -1,6 +1,6 @@
 import { api } from "./client";
 
-export type StatementStatus = "pending" | "settled" | "void";
+export type StatementStatus = "pending" | "partial" | "settled" | "void";
 
 export type StatementResponse = {
   payee: {
@@ -32,6 +32,8 @@ export type StatementResponse = {
     } | null;
     period?: string | null;
     amount_sgd: string;
+    amount_settled?: string | null;
+    outstanding?: string | null;
     status: StatementStatus;
   }[];
   totals: {

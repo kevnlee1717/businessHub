@@ -6,6 +6,7 @@ import {
   Group,
   Loader,
   Modal,
+  NumberInput,
   Paper,
   ScrollArea,
   Select,
@@ -28,6 +29,7 @@ import {
   listExternalCommissionEntries,
   recomputeExternalCommission,
   settleExternalCommission,
+  updateExternalCommission,
   type ExternalCommissionEntry,
   type ExternalCommissionSummaryResponse
 } from "../../api/externalCommission";
@@ -35,6 +37,7 @@ import { listExternalParties } from "../../api/externalParties";
 import { listBankAccounts, uploadProofDocument } from "../../api/ledger";
 
 type SettleForm = {
+  amount: number | null;
   bank_account_id: string | null;
   occurred_at: string;
   proof_files: File[];
@@ -42,10 +45,16 @@ type SettleForm = {
 };
 
 const defaultSettleForm: SettleForm = {
+  amount: null,
   bank_account_id: null,
   occurred_at: "",
   proof_files: [],
   note: ""
+};
+
+type AmountForm = {
+  amount_sgd: number | null;
+  note: string;
 };
 
 const entriesQueryKey = ["finance", "external-commission", "entries"] as const;
@@ -86,6 +95,52 @@ function statusColor(status: CommissionEntryStatus) {
   }
 }
 
+function settlementStatus(entry: { amount_sgd?: string | null; amount?: string | null; amount_settled?: string | null }) {
+  const payable = Number(entry.amount_sgd ?? entry.amount ?? 0);
+  const settled = Number(entry.amount_settled ?? 0);
+
+  if (settled <= 0) {
+    return "pending";
+  }
+  if (settled < payable) {
+    return "partial";
+  }
+  return "settled";
+}
+
+function settlementStatusColor(status: "pending" | "partial" | "settled") {
+  switch (status) {
+    case "settled":
+      return "green";
+    case "partial":
+      return "yellow";
+    default:
+      return "gray";
+  }
+}
+
+function moneyToNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isNaN(numberValue) ? null : numberValue;
+}
+
+function outstandingAmount(entry: { outstanding?: string | null; amount_sgd?: string | null; amount?: string | null; amount_settled?: string | null }) {
+  const outstanding = moneyToNumber(entry.outstanding);
+  if (outstanding !== null) {
+    return outstanding;
+  }
+
+  return Math.max(0, Number(entry.amount_sgd ?? entry.amount ?? 0) - Number(entry.amount_settled ?? 0));
+}
+
+function toNumberOrNull(value: string | number) {
+  return typeof value === "number" ? value : null;
+}
+
 function toDateTimeLocal(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
@@ -118,6 +173,8 @@ export function ExternalCommissionPage() {
   const [statusFilter, setStatusFilter] = useState<CommissionEntryStatus | null>(null);
   const [settleEntry, setSettleEntry] = useState<ExternalCommissionEntry | null>(null);
   const [settleForm, setSettleForm] = useState<SettleForm>(defaultSettleForm);
+  const [amountEntry, setAmountEntry] = useState<ExternalCommissionEntry | null>(null);
+  const [amountForm, setAmountForm] = useState<AmountForm>({ amount_sgd: null, note: "" });
   const [formError, setFormError] = useState<string | null>(null);
 
   const payeesQuery = useQuery({
@@ -191,6 +248,7 @@ export function ExternalCommissionPage() {
       }
 
       return settleExternalCommission(settleEntry.entry.id, {
+        amount: settleForm.amount,
         bank_account_id: settleForm.bank_account_id,
         occurred_at: toIsoDateTime(settleForm.occurred_at),
         proof_document_ids: uploaded.map((document) => document.id),
@@ -207,10 +265,30 @@ export function ExternalCommissionPage() {
     },
     onError: (error) => setFormError(errorMessage(error, t))
   });
+  const updateAmountMutation = useMutation({
+    mutationFn: () => {
+      if (!amountEntry || amountForm.amount_sgd === null) {
+        throw new Error("missing_required_fields");
+      }
+
+      return updateExternalCommission(amountEntry.entry.id, {
+        amount_sgd: amountForm.amount_sgd,
+        note: amountForm.note.trim() || null
+      });
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: entriesQueryKey }),
+        queryClient.invalidateQueries({ queryKey: summaryQueryKey })
+      ]);
+      closeAmountModal();
+    },
+    onError: (error) => setFormError(errorMessage(error, t))
+  });
 
   function openSettleModal(entry: ExternalCommissionEntry) {
     setSettleEntry(entry);
-    setSettleForm({ ...defaultSettleForm, occurred_at: toDateTimeLocal() });
+    setSettleForm({ ...defaultSettleForm, amount: outstandingAmount(entry.entry), occurred_at: toDateTimeLocal() });
     setFormError(null);
   }
 
@@ -220,7 +298,22 @@ export function ExternalCommissionPage() {
     setFormError(null);
   }
 
-  const settleDisabled = settleForm.proof_files.length === 0;
+  function openAmountModal(entry: ExternalCommissionEntry) {
+    setAmountEntry(entry);
+    setAmountForm({
+      amount_sgd: moneyToNumber(entry.entry.amount_sgd ?? entry.entry.amount),
+      note: entry.entry.note ?? ""
+    });
+    setFormError(null);
+  }
+
+  function closeAmountModal() {
+    setAmountEntry(null);
+    setAmountForm({ amount_sgd: null, note: "" });
+    setFormError(null);
+  }
+
+  const settleDisabled = settleForm.amount === null || settleForm.proof_files.length === 0;
 
   return (
     <Stack gap="lg">
@@ -245,10 +338,10 @@ export function ExternalCommissionPage() {
       <SimpleGrid cols={{ base: 1, md: 3 }}>
         <Paper withBorder p="md">
           <Text c="dimmed" size="sm">
-            {t("externalCommission.totals.earned")}
+            {t("externalCommission.totals.total")}
           </Text>
           <Text fw={700} size="xl">
-            {formatMoney(summary?.earned)}
+            {formatMoney(summary?.total ?? summary?.earned)}
           </Text>
         </Paper>
         <Paper withBorder p="md">
@@ -261,10 +354,10 @@ export function ExternalCommissionPage() {
         </Paper>
         <Paper withBorder p="md">
           <Text c="dimmed" size="sm">
-            {t("externalCommission.totals.pending")}
+            {t("externalCommission.totals.outstanding")}
           </Text>
           <Text fw={700} size="xl">
-            {formatMoney(summary?.pending)}
+            {formatMoney(summary?.outstanding ?? summary?.pending)}
           </Text>
         </Paper>
       </SimpleGrid>
@@ -305,7 +398,9 @@ export function ExternalCommissionPage() {
                 <Table.Th>{t("externalCommission.fields.payee")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.business")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.period")}</Table.Th>
-                <Table.Th>{t("externalCommission.fields.amount")}</Table.Th>
+                <Table.Th>{t("externalCommission.fields.payable")}</Table.Th>
+                <Table.Th>{t("externalCommission.fields.settled")}</Table.Th>
+                <Table.Th>{t("externalCommission.fields.outstanding")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.status")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
@@ -313,7 +408,7 @@ export function ExternalCommissionPage() {
             <Table.Tbody>
               {entriesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={8}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -321,7 +416,7 @@ export function ExternalCommissionPage() {
                 </Table.Tr>
               ) : entries.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={8}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("externalCommission.empty")}
                     </Text>
@@ -331,6 +426,7 @@ export function ExternalCommissionPage() {
                 entries.map((row) => {
                   const entry = row.entry;
                   const amount = entry.amount_sgd ?? entry.amount;
+                  const computedStatus = settlementStatus(entry);
 
                   return (
                     <Table.Tr key={entry.id}>
@@ -338,19 +434,26 @@ export function ExternalCommissionPage() {
                       <Table.Td>{businessLabel(row.business)}</Table.Td>
                       <Table.Td>{entry.period}</Table.Td>
                       <Table.Td>{formatMoney(amount)}</Table.Td>
+                      <Table.Td>{formatMoney(entry.amount_settled)}</Table.Td>
+                      <Table.Td>{formatMoney(entry.outstanding ?? outstandingAmount(entry))}</Table.Td>
                       <Table.Td>
-                        <Badge color={statusColor(entry.status)} variant="light">
-                          {t(`externalCommission.status.${entry.status}`)}
+                        <Badge color={entry.status === "void" ? statusColor(entry.status) : settlementStatusColor(computedStatus)} variant="light">
+                          {entry.status === "void"
+                            ? t("externalCommission.status.void")
+                            : t(`externalCommission.status.${computedStatus}`)}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        {entry.status === "pending" ? (
-                          <Button size="xs" variant="light" onClick={() => openSettleModal(row)}>
-                            {t("externalCommission.settle")}
+                        <Group gap="xs" wrap="nowrap">
+                          <Button size="xs" variant="light" onClick={() => openAmountModal(row)}>
+                            {t("externalCommission.editAmount")}
                           </Button>
-                        ) : (
-                          "-"
-                        )}
+                          {entry.status !== "void" ? (
+                            <Button size="xs" variant="light" onClick={() => openSettleModal(row)}>
+                              {t("externalCommission.settle")}
+                            </Button>
+                          ) : null}
+                        </Group>
                       </Table.Td>
                     </Table.Tr>
                   );
@@ -365,6 +468,14 @@ export function ExternalCommissionPage() {
         <Stack gap="md">
           {formError ? <Alert color="red">{formError}</Alert> : null}
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
+            <NumberInput
+              label={t("externalCommission.fields.settleAmount")}
+              value={settleForm.amount ?? ""}
+              onChange={(value) => setSettleForm((current) => ({ ...current, amount: toNumberOrNull(value) }))}
+              min={0}
+              decimalScale={2}
+              required
+            />
             <Select
               label={t("finance.fields.bankAccount")}
               data={accountOptions}
@@ -401,6 +512,37 @@ export function ExternalCommissionPage() {
             </Button>
             <Button onClick={() => settleMutation.mutate()} loading={settleMutation.isPending} disabled={settleDisabled}>
               {t("externalCommission.settle")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={Boolean(amountEntry)} onClose={closeAmountModal} title={t("externalCommission.editAmount")} size="md">
+        <Stack gap="md">
+          {formError ? <Alert color="red">{formError}</Alert> : null}
+          <NumberInput
+            label={t("externalCommission.fields.payable")}
+            value={amountForm.amount_sgd ?? ""}
+            onChange={(value) => setAmountForm((current) => ({ ...current, amount_sgd: toNumberOrNull(value) }))}
+            min={0}
+            decimalScale={2}
+            required
+          />
+          <Textarea
+            label={t("finance.fields.note")}
+            value={amountForm.note}
+            onChange={(event) => setAmountForm((current) => ({ ...current, note: event.currentTarget.value }))}
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={closeAmountModal}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => updateAmountMutation.mutate()}
+              loading={updateAmountMutation.isPending}
+              disabled={amountForm.amount_sgd === null}
+            >
+              {t("common.save")}
             </Button>
           </Group>
         </Stack>

@@ -33,6 +33,7 @@ export type CommissionEntry = {
   recurrence: CommissionRecurrence;
   seq: number;
   amount_sgd: string;
+  amount_override?: string | null;
   status: CommissionEntryStatus;
   payslip_id?: string | null;
   source_line_id?: string | null;
@@ -50,6 +51,10 @@ export type CommissionEntryListParams = {
 };
 
 export type CommissionTotals = Partial<Record<CommissionEntryStatus, string>>;
+
+export type CommissionEntryAmountOverrideInput = {
+  amount_override?: number | null;
+};
 
 function queryString(params: Record<string, string | null | undefined>) {
   const searchParams = new URLSearchParams();
@@ -123,7 +128,7 @@ export function createCommissionEntry(body: CommissionEntryCreateInput): Promise
 
 export function updateCommissionEntry(
   id: string,
-  body: CommissionEntryUpdateInput
+  body: CommissionEntryUpdateInput & CommissionEntryAmountOverrideInput
 ): Promise<{ entry: CommissionEntry }> {
   return api<{ entry: CommissionEntry }>(`/commission/entries/${id}`, {
     method: "PATCH",

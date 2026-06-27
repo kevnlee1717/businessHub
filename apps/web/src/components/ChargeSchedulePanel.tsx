@@ -28,6 +28,7 @@ import {
   createCharge,
   listBillingCharges,
   listCaseCharges,
+  updateCharge,
   type Charge
 } from "../api/charges";
 import { listBankAccounts } from "../api/ledger";
@@ -126,6 +127,8 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [collectCharge, setCollectCharge] = useState<Charge | null>(null);
+  const [editingChargeId, setEditingChargeId] = useState<string | null>(null);
+  const [editingExpected, setEditingExpected] = useState<number | null>(null);
   const [collectForm, setCollectForm] = useState<CollectForm>(defaultCollectForm);
   const [eventOpened, setEventOpened] = useState(false);
   const [eventForm, setEventForm] = useState<EventForm>({
@@ -214,6 +217,15 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
     },
     onError: (error) => setFormError(errorMessage(error, t))
   });
+  const updateChargeMutation = useMutation({
+    mutationFn: ({ id, amount_expected }: { id: string; amount_expected: number }) =>
+      updateCharge(id, { amount_expected }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["finance", "charges"] });
+      closeExpectedEditor();
+    },
+    onError: (error) => setFormError(errorMessage(error, t))
+  });
 
   function openCollectModal(charge: Charge) {
     setCollectCharge(charge);
@@ -224,6 +236,26 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
       paid_at: toDateTimeLocal()
     });
     setFormError(null);
+  }
+
+  function openExpectedEditor(charge: Charge) {
+    setEditingChargeId(charge.id);
+    setEditingExpected(Number(charge.amount_expected));
+    setFormError(null);
+  }
+
+  function closeExpectedEditor() {
+    setEditingChargeId(null);
+    setEditingExpected(null);
+    setFormError(null);
+  }
+
+  function saveExpected(charge: Charge) {
+    if (editingExpected === null) {
+      return;
+    }
+
+    updateChargeMutation.mutate({ id: charge.id, amount_expected: editingExpected });
   }
 
   function closeCollectModal() {
@@ -320,11 +352,16 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
                     <Table.Td>{charge.case_step_id ?? "-"}</Table.Td>
                     <Table.Td>{displayDate(charge.due_date)}</Table.Td>
                     <Table.Td>
+                      <Group gap="xs" wrap="nowrap">
+                        <Button size="xs" variant="subtle" onClick={() => openExpectedEditor(charge)}>
+                          {t("chargeSchedule.editExpected")}
+                        </Button>
                       {charge.status === "pending" || charge.status === "partial" ? (
                         <Button size="xs" variant="light" onClick={() => openCollectModal(charge)}>
                           {t("chargeSchedule.collect")}
                         </Button>
                       ) : null}
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))
@@ -401,6 +438,37 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
             </Button>
             <Button onClick={() => collectMutation.mutate()} loading={collectMutation.isPending} disabled={collectDisabled}>
               {t("chargeSchedule.collect")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={Boolean(editingChargeId)} onClose={closeExpectedEditor} title={t("chargeSchedule.editExpected")} size="md">
+        <Stack gap="md">
+          {formError ? <Alert color="red">{formError}</Alert> : null}
+          <NumberInput
+            label={t("chargeSchedule.fields.expected")}
+            value={editingExpected ?? ""}
+            onChange={(value) => setEditingExpected(typeof value === "number" ? value : null)}
+            min={0}
+            decimalScale={2}
+            required
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={closeExpectedEditor}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                const charge = charges.find((item) => item.id === editingChargeId);
+                if (charge) {
+                  saveExpected(charge);
+                }
+              }}
+              loading={updateChargeMutation.isPending}
+              disabled={editingExpected === null}
+            >
+              {t("common.save")}
             </Button>
           </Group>
         </Stack>

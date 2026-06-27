@@ -57,7 +57,7 @@ type AssignmentDraft = {
 };
 
 type EntryDraft = {
-  amount_sgd: number | null;
+  amount_override: number | null;
   period: string;
 };
 
@@ -133,7 +133,7 @@ function assignmentDraftFrom(assignment: SalesBusinessAssignment): AssignmentDra
 
 function entryDraftFrom(entry: CommissionEntry): EntryDraft {
   return {
-    amount_sgd: moneyToNumber(entry.amount_sgd),
+    amount_override: moneyToNumber(entry.amount_override),
     period: entry.period
   };
 }
@@ -288,7 +288,7 @@ export function SalesCommissionPage() {
   const updateEntryMutation = useMutation({
     mutationFn: ({ id, draft }: { id: string; draft: EntryDraft }) =>
       updateCommissionEntry(id, {
-        amount_sgd: draft.amount_sgd ?? undefined,
+        amount_override: draft.amount_override,
         period: draft.period
       }),
     onSuccess: async () => {
@@ -879,16 +879,23 @@ function CommissionEntryRow({
       <Table.Td>{businessLabel(business)}</Table.Td>
       <Table.Td>{t(`commissionRecurrence.${entry.recurrence}`)}</Table.Td>
       <Table.Td>
-        {isPending ? (
+        <Group gap="xs" wrap="nowrap">
           <NumberInput
-            value={draft.amount_sgd ?? ""}
-            onChange={(value) => setDraft((current) => ({ ...current, amount_sgd: toNumberOrNull(value) }))}
+            value={draft.amount_override ?? ""}
+            onChange={(value) => setDraft((current) => ({ ...current, amount_override: toNumberOrNull(value) }))}
             min={0}
             decimalScale={2}
+            placeholder={formatMoney(entry.amount_sgd)}
+            w={130}
           />
-        ) : (
-          formatMoney(entry.amount_sgd)
-        )}
+          <Button
+            size="xs"
+            variant="subtle"
+            onClick={() => setDraft((current) => ({ ...current, amount_override: null }))}
+          >
+            {t("commission.restoreDefault")}
+          </Button>
+        </Group>
       </Table.Td>
       <Table.Td>
         <Badge color={statusColor(entry.status)} variant="light">
@@ -897,18 +904,16 @@ function CommissionEntryRow({
       </Table.Td>
       <Table.Td>{entry.payslip_id ?? "-"}</Table.Td>
       <Table.Td>
-        {isPending ? (
-          <Group gap="xs" wrap="nowrap">
-            <Button size="xs" variant="light" onClick={() => void onSave(draft)} loading={saving}>
-              {t("common.save")}
-            </Button>
+        <Group gap="xs" wrap="nowrap">
+          <Button size="xs" variant="light" onClick={() => void onSave(draft)} loading={saving}>
+            {t("common.save")}
+          </Button>
+          {isPending ? (
             <Button size="xs" color="red" variant="light" onClick={() => void onVoid()} loading={voiding}>
               {t("commission.void")}
             </Button>
-          </Group>
-        ) : (
-          "-"
-        )}
+          ) : null}
+        </Group>
       </Table.Td>
     </Table.Tr>
   );

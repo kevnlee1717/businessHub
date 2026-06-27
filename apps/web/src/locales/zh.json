@@ -1253,7 +1253,8 @@
       "fx_rate_required": "非 SGD 必须填写汇率",
       "statement_parse_failed": "明细格式无法识别，请按每行 日期 方向 金额 摘要 录入",
       "account_required": "请先选择对公账户",
-      "source_locked": "桥接流水只能修改凭证、备注和归属信息"
+      "source_locked": "桥接流水只能修改凭证、备注和归属信息",
+      "missing_required_fields": "请填写必填项"
     },
     "bankAccounts": {
       "title": "对公账户",
@@ -1372,6 +1373,7 @@
       "note": "备注"
     },
     "useScheme": "用方案",
+    "restoreDefault": "恢复默认",
     "recompute": "重算",
     "manualAdd": "手工加一笔",
     "void": "作废",
@@ -1404,20 +1406,28 @@
     "empty": "暂无外部提成记录",
     "recompute": "重算",
     "settle": "结算",
+    "editAmount": "编辑金额",
     "totals": {
       "earned": "应得 SGD",
+      "total": "应付 SGD",
       "settled": "已结 SGD",
-      "pending": "未结 SGD"
+      "pending": "未结 SGD",
+      "outstanding": "未结 SGD"
     },
     "fields": {
       "payee": "外部人",
       "business": "业务",
       "period": "期间",
       "amount": "金额 SGD",
+      "payable": "应付",
+      "settled": "已结",
+      "outstanding": "未结",
+      "settleAmount": "本次金额",
       "status": "状态"
     },
     "status": {
       "pending": "待结",
+      "partial": "部分",
       "settled": "已结",
       "void": "作废"
     }
@@ -1471,10 +1481,14 @@
       "dealAt": "成交日",
       "period": "期间",
       "amount": "金额 SGD",
+      "payable": "应付",
+      "settled": "已结",
+      "outstanding": "未结",
       "status": "状态"
     },
     "status": {
       "pending": "待结",
+      "partial": "部分",
       "settled": "已结",
       "void": "作废"
     }
@@ -1617,6 +1631,7 @@
   "chargeSchedule": {
     "title": "收款计划",
     "collect": "收款",
+    "editExpected": "编辑应收",
     "addEvent": "加一笔事件收入",
     "empty": "暂无收款计划",
     "expected": "应收",

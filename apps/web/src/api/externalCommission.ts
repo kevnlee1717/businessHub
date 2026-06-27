@@ -13,6 +13,8 @@ export type ExternalCommissionEntryRecord = {
   period: string;
   amount?: string | null;
   amount_sgd?: string | null;
+  amount_settled?: string | null;
+  outstanding?: string | null;
   status: ExternalCommissionEntryStatus;
   settled_at?: string | null;
   bank_account_id?: string | null;
@@ -34,17 +36,25 @@ export type ExternalCommissionEntryFilters = {
 };
 
 export type ExternalCommissionSummary = {
-  earned: string;
+  earned?: string;
+  pending?: string;
+  total: string;
   settled: string;
-  pending: string;
+  outstanding: string;
 };
 
 export type ExternalCommissionSummaryResponse = ExternalCommissionSummary | { summary: ExternalCommissionSummary };
 
 export type ExternalCommissionSettleInput = {
+  amount?: number | null;
   bank_account_id?: string | null;
   occurred_at?: string | null;
   proof_document_ids: string[];
+  note?: string | null;
+};
+
+export type ExternalCommissionUpdateInput = {
+  amount_sgd?: number;
   note?: string | null;
 };
 
@@ -84,6 +94,16 @@ export function settleExternalCommission(
 ): Promise<{ entry: ExternalCommissionEntryRecord }> {
   return api<{ entry: ExternalCommissionEntryRecord }>(`/external-commission/${id}/settle`, {
     method: "POST",
+    body
+  });
+}
+
+export function updateExternalCommission(
+  id: string,
+  body: ExternalCommissionUpdateInput
+): Promise<{ entry: ExternalCommissionEntryRecord }> {
+  return api<{ entry: ExternalCommissionEntryRecord }>(`/external-commission/${id}`, {
+    method: "PATCH",
     body
   });
 }

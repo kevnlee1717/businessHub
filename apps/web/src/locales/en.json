@@ -1253,7 +1253,8 @@
       "fx_rate_required": "Non-SGD entries require an FX rate",
       "statement_parse_failed": "Could not parse statement lines. Use one line per Date Direction Amount Description.",
       "account_required": "Select a bank account first",
-      "source_locked": "Bridged ledger entries only allow proof, note, and relation changes"
+      "source_locked": "Bridged ledger entries only allow proof, note, and relation changes",
+      "missing_required_fields": "Fill in the required fields"
     },
     "bankAccounts": {
       "title": "Bank Accounts",
@@ -1372,6 +1373,7 @@
       "note": "Note"
     },
     "useScheme": "Use scheme",
+    "restoreDefault": "Restore default",
     "recompute": "Recompute",
     "manualAdd": "Add manual entry",
     "void": "Void",
@@ -1404,20 +1406,28 @@
     "empty": "No external commission entries",
     "recompute": "Recompute",
     "settle": "Settle",
+    "editAmount": "Edit amount",
     "totals": {
       "earned": "Earned SGD",
+      "total": "Payable SGD",
       "settled": "Settled SGD",
-      "pending": "Pending SGD"
+      "pending": "Pending SGD",
+      "outstanding": "Outstanding SGD"
     },
     "fields": {
       "payee": "External party",
       "business": "Business",
       "period": "Period",
       "amount": "Amount SGD",
+      "payable": "Payable",
+      "settled": "Settled",
+      "outstanding": "Outstanding",
+      "settleAmount": "This amount",
       "status": "Status"
     },
     "status": {
       "pending": "Pending",
+      "partial": "Partial",
       "settled": "Settled",
       "void": "Void"
     }
@@ -1471,10 +1481,14 @@
       "dealAt": "Deal date",
       "period": "Period",
       "amount": "Amount SGD",
+      "payable": "Payable",
+      "settled": "Settled",
+      "outstanding": "Outstanding",
       "status": "Status"
     },
     "status": {
       "pending": "Pending",
+      "partial": "Partial",
       "settled": "Settled",
       "void": "Void"
     }
@@ -1617,6 +1631,7 @@
   "chargeSchedule": {
     "title": "Collection Schedule",
     "collect": "Collect",
+    "editExpected": "Edit expected",
     "addEvent": "Add event income",
     "empty": "No scheduled charges yet",
     "expected": "Expected",
