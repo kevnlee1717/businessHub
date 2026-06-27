@@ -33,7 +33,7 @@ import {
   type CaseStepUpdateInput
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -65,6 +65,8 @@ import {
 import { fileUrl, listDocumentCategories, type DocumentCategory } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { ChargeSchedulePanel } from "../../components/ChargeSchedulePanel";
+import { type Charge } from "../../api/charges";
 
 type DocFormValues = {
   doc_name?: string | undefined;
@@ -326,6 +328,7 @@ function DocumentRow({ doc, caseId, canManageCases, categoryById }: DocumentRowP
 type StepCardProps = {
   step: CaseStep;
   caseId: string;
+  stepCharges: Charge[];
   employees: Employee[];
   employeeById: Map<string, Employee>;
   canManageCases: boolean;
@@ -337,6 +340,7 @@ type StepCardProps = {
 function StepCard({
   step,
   caseId,
+  stepCharges,
   employees,
   employeeById,
   canManageCases,
@@ -442,6 +446,11 @@ function StepCard({
   const canReviewStep =
     Boolean(currentUserId && step.reviewer_id === currentUserId) ||
     Boolean(currentUserRole && caseReviewAdminRoles.has(currentUserRole));
+  const stepChargeOutstanding = stepCharges.reduce(
+    (sum, charge) => sum + Math.max(0, Number(charge.amount_expected) - Number(charge.amount_collected)),
+    0
+  );
+  const stepChargesPaid = stepCharges.length > 0 && stepCharges.every((charge) => charge.status === "paid" || charge.status === "waived");
 
   useEffect(() => {
     setAppointmentDraft(toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null));
@@ -545,6 +554,13 @@ function StepCard({
               <Badge color={reviewStatusColor(step.review_status)} variant="light">
                 {t(`reviewStatus.${step.review_status}`)}
               </Badge>
+              {stepCharges.length > 0 ? (
+                <Badge color={stepChargesPaid ? "green" : "orange"} variant="light">
+                  {stepChargesPaid
+                    ? t("chargeSchedule.stepPaid")
+                    : t("chargeSchedule.stepOutstanding", { amount: stepChargeOutstanding.toFixed(2) })}
+                </Badge>
+              ) : null}
             </Group>
             {step.description ? <Text c="dimmed">{step.description}</Text> : null}
             <Text size="sm" c="dimmed">
@@ -1312,6 +1328,7 @@ export function CaseDetailPage() {
   const { id } = useParams();
   const [statusDraft, setStatusDraft] = useState<CaseStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [caseCharges, setCaseCharges] = useState<Charge[]>([]);
 
   const caseQuery = useQuery({
     queryKey: ["business", "case", id],
@@ -1363,6 +1380,19 @@ export function CaseDetailPage() {
     () => new Map(employees.map((employee) => [employee.id, employee] as const)),
     [employees]
   );
+  const chargesByStepId = useMemo(() => {
+    const grouped = new Map<string, Charge[]>();
+    caseCharges.forEach((charge) => {
+      if (!charge.case_step_id) {
+        return;
+      }
+      grouped.set(charge.case_step_id, [...(grouped.get(charge.case_step_id) ?? []), charge]);
+    });
+    return grouped;
+  }, [caseCharges]);
+  const handleChargesLoaded = useCallback((charges: Charge[]) => {
+    setCaseCharges(charges);
+  }, []);
   const statusOptions = caseStatuses.map((status) => ({
     value: status,
     label: t(`caseStatus.${status}`)
@@ -1532,6 +1562,10 @@ export function CaseDetailPage() {
             />
           ) : null}
 
+          {caseItem.business_type === "ep" || caseItem.business_type === "ica" ? (
+            <ChargeSchedulePanel caseId={caseItem.id} onChargesLoaded={handleChargesLoaded} />
+          ) : null}
+
           <Stack gap="md">
             <Title order={3}>{t("caseStep.title")}</Title>
             {steps.length === 0 ? (
@@ -1546,6 +1580,7 @@ export function CaseDetailPage() {
                   key={step.id}
                   step={step}
                   caseId={caseItem.id}
+                  stepCharges={chargesByStepId.get(step.id) ?? []}
                   employees={employees}
                   employeeById={employeeById}
                   canManageCases={canManageCases}

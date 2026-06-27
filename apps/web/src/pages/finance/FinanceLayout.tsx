@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
   { value: "billing", path: "/finance/billing", labelKey: "finance.tabs.billing" },
+  { value: "receivables-ledger", path: "/finance/receivables-ledger", labelKey: "finance.tabs.receivablesLedger" },
   { value: "ledger", path: "/finance/ledger", labelKey: "finance.tabs.ledger" },
   { value: "bank-accounts", path: "/finance/bank-accounts", labelKey: "finance.tabs.bankAccounts" },
   { value: "reconcile", path: "/finance/reconcile", labelKey: "finance.tabs.reconcile" }

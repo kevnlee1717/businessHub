@@ -24,6 +24,7 @@ import { BankAccountsPage } from "./pages/finance/BankAccountsPage";
 import { BillingPage } from "./pages/finance/BillingPage";
 import { FinanceLayout } from "./pages/finance/FinanceLayout";
 import { LedgerPage } from "./pages/finance/LedgerPage";
+import { ReceivablesLedgerPage } from "./pages/finance/ReceivablesLedgerPage";
 import { ReconcilePage } from "./pages/finance/ReconcilePage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
@@ -81,6 +82,7 @@ export function App() {
           <Route path="finance" element={<FinanceLayout />}>
             <Route index element={<Navigate to="billing" replace />} />
             <Route path="billing" element={<BillingPage />} />
+            <Route path="receivables-ledger" element={<ReceivablesLedgerPage />} />
             <Route path="ledger" element={<LedgerPage />} />
             <Route path="bank-accounts" element={<BankAccountsPage />} />
             <Route path="reconcile" element={<ReconcilePage />} />

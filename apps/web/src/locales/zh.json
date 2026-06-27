@@ -22,6 +22,7 @@
     "documents": "文档",
     "finance": "财务",
     "finance_billing": "收款",
+    "finance_receivables_ledger": "应收台账",
     "finance_ledger": "收支流水",
     "finance_bank_accounts": "对公账户",
     "finance_reconcile": "对账",
@@ -1154,6 +1155,7 @@
   "finance": {
     "tabs": {
       "billing": "收款",
+      "receivablesLedger": "应收台账",
       "ledger": "收支流水",
       "bankAccounts": "对公账户",
       "reconcile": "对账"
@@ -1342,6 +1344,19 @@
       "add": "增行",
       "empty": "暂无规则行"
     },
+    "milestones": {
+      "title": "收款里程碑",
+      "hint": "里程碑决定一次性收入怎么拆首付/尾款。",
+      "add": "加里程碑",
+      "empty": "暂无里程碑",
+      "fields": {
+        "seq": "序号",
+        "basis": "拆分方式",
+        "value": "值",
+        "bindStepOrder": "绑第几步",
+        "dueOffsetDays": "应收偏移天"
+      }
+    },
     "preview": {
       "title": "示范利润率预览",
       "inputKey": "输入键",
@@ -1376,6 +1391,50 @@
       "unitLabel": "单位",
       "inputKey": "input_key"
     }
+  },
+  "chargeSchedule": {
+    "title": "收款计划",
+    "collect": "收款",
+    "addEvent": "加一笔事件收入",
+    "empty": "暂无收款计划",
+    "expected": "应收",
+    "collected": "已收",
+    "outstanding": "未收",
+    "stepPaid": "已收 ✓",
+    "stepOutstanding": "待收 {{amount}}",
+    "fields": {
+      "label": "项目",
+      "kind": "类型",
+      "expected": "应收",
+      "collected": "已收",
+      "status": "状态",
+      "caseStep": "绑定步骤",
+      "dueDate": "应收日",
+      "paidAmount": "收款金额",
+      "paidAt": "收款时间",
+      "period": "期间"
+    }
+  },
+  "receivablesLedger": {
+    "title": "应收台账",
+    "empty": "暂无应收",
+    "overdue": "逾期",
+    "overdueOnly": "只看逾期"
+  },
+  "chargeKind": {
+    "milestone": "里程碑",
+    "period": "每月",
+    "event": "事件"
+  },
+  "chargeStatus": {
+    "pending": "待收",
+    "partial": "部分收款",
+    "paid": "已收清",
+    "waived": "已豁免"
+  },
+  "milestoneBasis": {
+    "percent": "按比例",
+    "fixed": "固定额"
   },
   "dealParty": {
     "title": "分成对象",

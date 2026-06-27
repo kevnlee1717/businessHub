@@ -42,6 +42,15 @@ import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  createSchemeMilestone,
+  deleteSchemeMilestone,
+  listSchemeMilestones,
+  updateSchemeMilestone,
+  type MilestoneBasis,
+  type SchemeMilestone,
+  type SchemeMilestoneInput
+} from "../../api/charges";
+import {
   createSchemeLine,
   createSchemeVersion,
   deleteSchemeLine,
@@ -77,6 +86,15 @@ type LineFormValues = {
   input_key?: string | null | undefined;
   label?: string | undefined;
   sort_order?: number | undefined;
+};
+
+type MilestoneFormValues = {
+  seq: number | undefined;
+  label: string;
+  basis: MilestoneBasis;
+  value: number | undefined;
+  bind_step_order: number | null;
+  due_offset_days: number | null;
 };
 
 const commonInputKeys = [
@@ -147,6 +165,28 @@ function lineToForm(line: SchemeLine): LineFormValues {
     input_key: line.input_key ?? null,
     label: line.label,
     sort_order: line.sort_order ?? undefined
+  };
+}
+
+function milestoneDefaults(): MilestoneFormValues {
+  return {
+    seq: undefined,
+    label: "",
+    basis: "percent",
+    value: undefined,
+    bind_step_order: null,
+    due_offset_days: null
+  };
+}
+
+function milestoneToForm(milestone: SchemeMilestone): MilestoneFormValues {
+  return {
+    seq: milestone.seq,
+    label: milestone.label,
+    basis: milestone.basis,
+    value: Number(milestone.value),
+    bind_step_order: milestone.bind_step_order ?? null,
+    due_offset_days: milestone.due_offset_days ?? null
   };
 }
 
@@ -616,74 +656,372 @@ function VersionEditor({
   }
 
   return (
-    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-      <Paper withBorder radius="md" p="md">
-        <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <Title order={3}>{t("businessFinance.lines.title")}</Title>
-            {versionQuery.isFetching ? <Loader size="sm" /> : null}
-          </Group>
-          {versionQuery.error || editorError ? (
-            <Alert color="red" variant="light">
-              {editorError ?? (versionQuery.error instanceof Error ? versionQuery.error.message : t("common.unknown_error"))}
-            </Alert>
-          ) : null}
-          <ScrollArea>
-            <Table miw={1200} verticalSpacing="sm" striped>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("businessFinance.fields.kind")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.basis")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.recurrence")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.party")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.rate")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.unitLabel")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.inputKey")}</Table.Th>
-                  <Table.Th>{t("businessFinance.fields.label")}</Table.Th>
-                  <Table.Th>{t("common.actions")}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {(version?.lines ?? []).length === 0 ? (
+    <Stack gap="md">
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+        <Paper withBorder radius="md" p="md">
+          <Stack gap="md">
+            <Group justify="space-between" align="center">
+              <Title order={3}>{t("businessFinance.lines.title")}</Title>
+              {versionQuery.isFetching ? <Loader size="sm" /> : null}
+            </Group>
+            {versionQuery.error || editorError ? (
+              <Alert color="red" variant="light">
+                {editorError ?? (versionQuery.error instanceof Error ? versionQuery.error.message : t("common.unknown_error"))}
+              </Alert>
+            ) : null}
+            <ScrollArea>
+              <Table miw={1200} verticalSpacing="sm" striped>
+                <Table.Thead>
                   <Table.Tr>
-                    <Table.Td colSpan={9}>
-                      <Text ta="center" c="dimmed" py="md">
-                        {t("businessFinance.lines.empty")}
-                      </Text>
-                    </Table.Td>
+                    <Table.Th>{t("businessFinance.fields.kind")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.basis")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.recurrence")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.party")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.rate")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.unitLabel")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.inputKey")}</Table.Th>
+                    <Table.Th>{t("businessFinance.fields.label")}</Table.Th>
+                    <Table.Th>{t("common.actions")}</Table.Th>
                   </Table.Tr>
-                ) : (
-                  (version?.lines ?? []).map((line) => (
-                    <EditableLineRow
-                      key={line.id}
-                      line={line}
-                      defaults={lineForms.get(line.id) ?? lineToForm(line)}
-                      partyOptions={partyOptions}
-                      kindOptions={kindOptions}
-                      basisOptions={basisOptions}
-                      recurrenceOptions={recurrenceOptions}
-                      onSave={saveLine}
-                      onDelete={removeLine}
-                      loading={updateLineMutation.isPending || deleteLineMutation.isPending}
-                    />
-                  ))
-                )}
-                <AddLineRow
-                  form={addForm}
-                  partyOptions={partyOptions}
-                  kindOptions={kindOptions}
-                  basisOptions={basisOptions}
-                  recurrenceOptions={recurrenceOptions}
-                  onSubmit={onAddSubmit}
-                  loading={createLineMutation.isPending}
-                />
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
-        </Stack>
-      </Paper>
-      <PreviewPanel version={version ?? null} />
-    </SimpleGrid>
+                </Table.Thead>
+                <Table.Tbody>
+                  {(version?.lines ?? []).length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={9}>
+                        <Text ta="center" c="dimmed" py="md">
+                          {t("businessFinance.lines.empty")}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : (
+                    (version?.lines ?? []).map((line) => (
+                      <EditableLineRow
+                        key={line.id}
+                        line={line}
+                        defaults={lineForms.get(line.id) ?? lineToForm(line)}
+                        partyOptions={partyOptions}
+                        kindOptions={kindOptions}
+                        basisOptions={basisOptions}
+                        recurrenceOptions={recurrenceOptions}
+                        onSave={saveLine}
+                        onDelete={removeLine}
+                        loading={updateLineMutation.isPending || deleteLineMutation.isPending}
+                      />
+                    ))
+                  )}
+                  <AddLineRow
+                    form={addForm}
+                    partyOptions={partyOptions}
+                    kindOptions={kindOptions}
+                    basisOptions={basisOptions}
+                    recurrenceOptions={recurrenceOptions}
+                    onSubmit={onAddSubmit}
+                    loading={createLineMutation.isPending}
+                  />
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Stack>
+        </Paper>
+        <PreviewPanel version={version ?? null} />
+      </SimpleGrid>
+      <MilestonesPanel versionId={versionId} />
+    </Stack>
+  );
+}
+
+function MilestonesPanel({ versionId }: { versionId: string }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const milestonesQuery = useQuery({
+    queryKey: ["business-finance", "scheme-version-milestones", versionId],
+    queryFn: () => listSchemeMilestones(versionId)
+  });
+  const createMutation = useMutation({
+    mutationFn: (body: SchemeMilestoneInput) => createSchemeMilestone(versionId, body),
+    onSuccess: onChanged
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<SchemeMilestoneInput> }) => updateSchemeMilestone(id, body),
+    onSuccess: onChanged
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteSchemeMilestone,
+    onSuccess: onChanged
+  });
+  const addForm = useForm<MilestoneFormValues>({ defaultValues: milestoneDefaults() });
+  const milestoneForms = useMemo(
+    () => new Map((milestonesQuery.data?.milestones ?? []).map((milestone) => [milestone.id, milestoneToForm(milestone)])),
+    [milestonesQuery.data?.milestones]
+  );
+  const basisOptions = [
+    { value: "percent", label: t("milestoneBasis.percent") },
+    { value: "fixed", label: t("milestoneBasis.fixed") }
+  ];
+
+  async function onChanged() {
+    await queryClient.invalidateQueries({ queryKey: ["business-finance", "scheme-version-milestones", versionId] });
+  }
+
+  function toInput(values: MilestoneFormValues): SchemeMilestoneInput {
+    return {
+      seq: values.seq ?? 1,
+      label: values.label,
+      basis: values.basis,
+      value: values.value ?? 0,
+      bind_step_order: values.bind_step_order,
+      due_offset_days: values.due_offset_days
+    };
+  }
+
+  const onAddSubmit = addForm.handleSubmit(async (values) => {
+    setError(null);
+    try {
+      await createMutation.mutateAsync(toInput(values));
+      addForm.reset(milestoneDefaults());
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : t("common.unknown_error"));
+    }
+  });
+
+  async function saveMilestone(milestone: SchemeMilestone, values: MilestoneFormValues) {
+    setError(null);
+    try {
+      await updateMutation.mutateAsync({ id: milestone.id, body: toInput(values) });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : t("common.unknown_error"));
+    }
+  }
+
+  async function removeMilestone(id: string) {
+    setError(null);
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : t("common.unknown_error"));
+    }
+  }
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Stack gap="md">
+        <Group justify="space-between" align="flex-start">
+          <Stack gap={2}>
+            <Title order={3}>{t("businessFinance.milestones.title")}</Title>
+            <Text size="sm" c="dimmed">
+              {t("businessFinance.milestones.hint")}
+            </Text>
+          </Stack>
+          {milestonesQuery.isFetching ? <Loader size="sm" /> : null}
+        </Group>
+        {error || milestonesQuery.error ? (
+          <Alert color="red" variant="light">
+            {error ?? (milestonesQuery.error instanceof Error ? milestonesQuery.error.message : t("common.unknown_error"))}
+          </Alert>
+        ) : null}
+        <ScrollArea>
+          <Table miw={920} verticalSpacing="sm" striped>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("businessFinance.milestones.fields.seq")}</Table.Th>
+                <Table.Th>{t("businessFinance.fields.label")}</Table.Th>
+                <Table.Th>{t("businessFinance.milestones.fields.basis")}</Table.Th>
+                <Table.Th>{t("businessFinance.milestones.fields.value")}</Table.Th>
+                <Table.Th>{t("businessFinance.milestones.fields.bindStepOrder")}</Table.Th>
+                <Table.Th>{t("businessFinance.milestones.fields.dueOffsetDays")}</Table.Th>
+                <Table.Th>{t("common.actions")}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {(milestonesQuery.data?.milestones ?? []).length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={7}>
+                    <Text c="dimmed" ta="center" py="md">
+                      {t("businessFinance.milestones.empty")}
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              ) : (
+                (milestonesQuery.data?.milestones ?? []).map((milestone) => (
+                  <EditableMilestoneRow
+                    key={milestone.id}
+                    milestone={milestone}
+                    defaults={milestoneForms.get(milestone.id) ?? milestoneToForm(milestone)}
+                    basisOptions={basisOptions}
+                    onSave={saveMilestone}
+                    onDelete={removeMilestone}
+                    loading={updateMutation.isPending || deleteMutation.isPending}
+                  />
+                ))
+              )}
+              <AddMilestoneRow
+                form={addForm}
+                basisOptions={basisOptions}
+                onSubmit={onAddSubmit}
+                loading={createMutation.isPending}
+              />
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Stack>
+    </Paper>
+  );
+}
+
+function EditableMilestoneRow({
+  milestone,
+  defaults,
+  basisOptions,
+  onSave,
+  onDelete,
+  loading
+}: {
+  milestone: SchemeMilestone;
+  defaults: MilestoneFormValues;
+  basisOptions: { value: string; label: string }[];
+  onSave: (milestone: SchemeMilestone, values: MilestoneFormValues) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+  const form = useForm<MilestoneFormValues>({ defaultValues: defaults });
+
+  useEffect(() => {
+    form.reset(defaults);
+  }, [defaults, form]);
+
+  const onSubmit = form.handleSubmit((values) => onSave(milestone, values));
+
+  return (
+    <Table.Tr>
+      <MilestoneCells form={form} basisOptions={basisOptions} />
+      <Table.Td>
+        <Group gap="xs" wrap="nowrap">
+          <Button size="xs" variant="light" onClick={() => void onSubmit()} loading={loading}>
+            {t("common.save")}
+          </Button>
+          <Button size="xs" variant="light" color="red" onClick={() => void onDelete(milestone.id)} loading={loading}>
+            {t("common.delete")}
+          </Button>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
+  );
+}
+
+function AddMilestoneRow({
+  form,
+  basisOptions,
+  onSubmit,
+  loading
+}: {
+  form: ReturnType<typeof useForm<MilestoneFormValues>>;
+  basisOptions: { value: string; label: string }[];
+  onSubmit: () => void;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Table.Tr>
+      <MilestoneCells form={form} basisOptions={basisOptions} />
+      <Table.Td>
+        <Button size="xs" onClick={() => void onSubmit()} loading={loading}>
+          {t("businessFinance.milestones.add")}
+        </Button>
+      </Table.Td>
+    </Table.Tr>
+  );
+}
+
+function MilestoneCells({
+  form,
+  basisOptions
+}: {
+  form: ReturnType<typeof useForm<MilestoneFormValues>>;
+  basisOptions: { value: string; label: string }[];
+}) {
+  return (
+    <>
+      <Table.Td>
+        <Controller
+          control={form.control}
+          name="seq"
+          render={({ field }) => (
+            <NumberInput
+              size="xs"
+              w={90}
+              value={field.value ?? ""}
+              onChange={(value) => field.onChange(typeof value === "number" ? value : undefined)}
+              min={1}
+            />
+          )}
+        />
+      </Table.Td>
+      <Table.Td>
+        <Controller
+          control={form.control}
+          name="label"
+          render={({ field }) => (
+            <TextInput size="xs" w={180} value={field.value} onChange={field.onChange} />
+          )}
+        />
+      </Table.Td>
+      <Table.Td>
+        <Controller
+          control={form.control}
+          name="basis"
+          render={({ field }) => (
+            <Select size="xs" w={130} data={basisOptions} value={field.value} onChange={(value) => field.onChange(value ?? "percent")} />
+          )}
+        />
+      </Table.Td>
+      <Table.Td>
+        <Controller
+          control={form.control}
+          name="value"
+          render={({ field }) => (
+            <NumberInput
+              size="xs"
+              w={120}
+              value={field.value ?? ""}
+              onChange={(value) => field.onChange(typeof value === "number" ? value : undefined)}
+              min={0}
+            />
+          )}
+        />
+      </Table.Td>
+      <Table.Td>
+        <Controller
+          control={form.control}
+          name="bind_step_order"
+          render={({ field }) => (
+            <NumberInput
+              size="xs"
+              w={120}
+              value={field.value ?? ""}
+              onChange={(value) => field.onChange(typeof value === "number" ? value : null)}
+              min={1}
+            />
+          )}
+        />
+      </Table.Td>
+      <Table.Td>
+        <Controller
+          control={form.control}
+          name="due_offset_days"
+          render={({ field }) => (
+            <NumberInput
+              size="xs"
+              w={120}
+              value={field.value ?? ""}
+              onChange={(value) => field.onChange(typeof value === "number" ? value : null)}
+            />
+          )}
+        />
+      </Table.Td>
+    </>
   );
 }
 

@@ -22,6 +22,7 @@
     "documents": "Documents",
     "finance": "Finance",
     "finance_billing": "Collections",
+    "finance_receivables_ledger": "Receivables Ledger",
     "finance_ledger": "Ledger",
     "finance_bank_accounts": "Bank Accounts",
     "finance_reconcile": "Reconcile",
@@ -1154,6 +1155,7 @@
   "finance": {
     "tabs": {
       "billing": "Collections",
+      "receivablesLedger": "Receivables Ledger",
       "ledger": "Ledger",
       "bankAccounts": "Bank Accounts",
       "reconcile": "Reconcile"
@@ -1342,6 +1344,19 @@
       "add": "Add line",
       "empty": "No rule lines yet"
     },
+    "milestones": {
+      "title": "Collection Milestones",
+      "hint": "Milestones split one-time revenue into deposit, progress, and final payments.",
+      "add": "Add milestone",
+      "empty": "No milestones yet",
+      "fields": {
+        "seq": "Seq",
+        "basis": "Basis",
+        "value": "Value",
+        "bindStepOrder": "Bind step",
+        "dueOffsetDays": "Due offset days"
+      }
+    },
     "preview": {
       "title": "Demo profit-rate preview",
       "inputKey": "Input key",
@@ -1376,6 +1391,50 @@
       "unitLabel": "Unit",
       "inputKey": "input_key"
     }
+  },
+  "chargeSchedule": {
+    "title": "Collection Schedule",
+    "collect": "Collect",
+    "addEvent": "Add event income",
+    "empty": "No scheduled charges yet",
+    "expected": "Expected",
+    "collected": "Collected",
+    "outstanding": "Outstanding",
+    "stepPaid": "Collected ✓",
+    "stepOutstanding": "Due {{amount}}",
+    "fields": {
+      "label": "Item",
+      "kind": "Kind",
+      "expected": "Expected",
+      "collected": "Collected",
+      "status": "Status",
+      "caseStep": "Bound step",
+      "dueDate": "Due date",
+      "paidAmount": "Paid amount",
+      "paidAt": "Paid at",
+      "period": "Period"
+    }
+  },
+  "receivablesLedger": {
+    "title": "Receivables Ledger",
+    "empty": "No receivables",
+    "overdue": "Overdue",
+    "overdueOnly": "Overdue only"
+  },
+  "chargeKind": {
+    "milestone": "Milestone",
+    "period": "Monthly",
+    "event": "Event"
+  },
+  "chargeStatus": {
+    "pending": "Pending",
+    "partial": "Partial",
+    "paid": "Paid",
+    "waived": "Waived"
+  },
+  "milestoneBasis": {
+    "percent": "Percent",
+    "fixed": "Fixed"
   },
   "dealParty": {
     "title": "Deal Parties",
