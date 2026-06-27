@@ -15,8 +15,15 @@
   - **批4 seed**:5 系统 `deal_parties` + 现有 5 业务建实体(ep/ica→JUYI 咨询,diploma/english/wsq→恺德学校)+ 各 v1 默认版本(一次性卖断);**幂等已验**。billing 0 行无回填。
   - **批5 前端**:「业务方案」导航区 —— 业务列表(按公司分组)/ 业务详情 + 方案版本编辑器(预设模板 + 规则行表格 + 示范利润率实时 preview)/ 分成对象;i18n 中英。`pnpm --filter @bh/web build` 过。
   - **端到端冒烟**(真实 HTTP):建「保安保洁/按人头多方抽成」业务 → preview headcount=10/12月 → 每月净利 2950、年 35400、profit_rate 0.8429,与 spec 算例一致。
-- **本轮未 push**(6 commit 待 push);未 migrate 生产库(只 migrate 了本地 cc docker postgres)。本地测试时在 JUYI 名下建过一个占位「保安保洁派遣」业务(可在 UI 删)。
-- **下一步(财务第 2 层起)**:③ 期数台账 + 每业务月度面板(**学院当月收款进度 + 欠款学生名单**,脊柱 `diplomaPayments` 已在)→ ④ 收支总账本 + 强制凭证 + 对公账户对账 → ⑤ 销售跨业务/底薪/提成账本 → ⑥ 新加坡报表导出 → ⑦ KPI 反推(**招生缺口 = 月固定成本 ÷ 每生月净利 − 现有学生数**)+ 总现金流面板。每模块各自 spec。
+- **第 2 层模块 ③a(学院月度收款面板)也已做完、commit、端到端验证**(spec `6185cf6`,后端 `8d10fb0`,前端 `79b2c4e`):
+  - spec:`docs/superpowers/specs/2026-06-27-finance-layer2-module3a-academy-collection-design.md`
+  - 读现有 `diploma_payments`,不改大专既有逻辑。API:`GET /academy/collection|/overdue|/health`(收款进度/欠款名单/招生缺口雏形)+ 复用 `PATCH /diploma-payments/:id` 标记已交。
+  - 前端:教育导航「学院收款」`/education/academy-collection`(月份选择 + 收款进度卡 + 欠款名单可标记已交 + 当月期数 + 近 6 月趋势 + 缺口健康卡)。
+  - **演示 seed**:`seedAcademyDemo`(4 个 `[DEMO]` 学生 + 报名 + 月度学费 + 恺德当月固定成本 4000,幂等)。**业主录真实学生后即看真实数据;DEMO 数据可删**。
+  - 验证:health 当月在读 4、固定成本 4000、人均 2500、保本 2 人、缺口 0;collection/overdue 聚合手工核对正确。
+- **③b(scheme 驱动通用期数台账 `billing_periods`)未做**:目前无周期性成交单(按摩椅/床垫/保安尚无真实成交),YAGNI 待真实成交再起。
+- **本轮共 10 commit,全部待 push**;未 migrate 生产库(只 migrate 本地 cc docker postgres,migration 到 **0012**)。本地测试时在 JUYI 名下建过占位「保安保洁派遣」业务 + DEMO 学院数据(均可在 UI 删)。
+- **下一步(财务第 2 层剩余 + 第 3 层)**:④ 收支总账本 + 强制凭证 + 对公账户对账 → ⑤ 销售跨业务/底薪/提成账本 → ⑥ 新加坡报表导出(Form C-S/GST/ACRA)→ ⑦ KPI 反推(**招生缺口 = 月固定成本 ÷ 每生月净利 − 现有学生数**,已在 ③a /health 出雏形)+ 总现金流面板。每模块各自 spec;多处需业主补真实数字(各业务真实价格/提成/成本、CPF 费率等)。
 
 ---
 
