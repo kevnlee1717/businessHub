@@ -21,6 +21,10 @@
     "students": "Students",
     "documents": "Documents",
     "finance": "Finance",
+    "finance_billing": "Collections",
+    "finance_ledger": "Ledger",
+    "finance_bank_accounts": "Bank Accounts",
+    "finance_reconcile": "Reconcile",
     "business_finance": "Business Schemes",
     "business_finance_list": "Business List",
     "deal_parties": "Deal Parties",
@@ -1050,6 +1054,108 @@
     "enrollment": "Enrollment",
     "company": "Company",
     "client": "Client"
+  },
+  "finance": {
+    "tabs": {
+      "billing": "Collections",
+      "ledger": "Ledger",
+      "bankAccounts": "Bank Accounts",
+      "reconcile": "Reconcile"
+    },
+    "fields": {
+      "company": "Company",
+      "accountName": "Account name",
+      "bankName": "Bank",
+      "accountNo": "Account no.",
+      "currency": "Currency",
+      "status": "Status",
+      "note": "Note",
+      "bankAccount": "Bank account",
+      "direction": "Direction",
+      "expenseCategory": "Expense category",
+      "business": "Business",
+      "from": "From",
+      "to": "To",
+      "date": "Date",
+      "amount": "Amount",
+      "relatedTo": "Related to",
+      "counterparty": "Counterparty",
+      "proof": "Proof",
+      "reconcileStatus": "Reconcile status",
+      "fxRate": "FX rate",
+      "occurredAt": "Occurred at",
+      "description": "Description"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "direction": {
+      "in": "In",
+      "out": "Out"
+    },
+    "reconcileStatus": {
+      "unreconciled": "Unreconciled",
+      "reconciled": "Reconciled",
+      "ignored": "Ignored"
+    },
+    "errors": {
+      "proof_required": "Upload proof first",
+      "business_required": "Income entries require a business",
+      "category_required": "Expense entries require an expense category",
+      "fx_rate_required": "Non-SGD entries require an FX rate",
+      "statement_parse_failed": "Could not parse statement lines. Use one line per Date Direction Amount Description.",
+      "account_required": "Select a bank account first",
+      "source_locked": "Bridged ledger entries only allow proof, note, and relation changes"
+    },
+    "bankAccounts": {
+      "title": "Bank Accounts",
+      "subtitle": "Maintain company bank accounts and primary accounts.",
+      "add": "Add account",
+      "edit": "Edit account",
+      "empty": "No accounts yet",
+      "primary": "Primary",
+      "setPrimary": "Set primary",
+      "required": "Company and account name are required"
+    },
+    "ledger": {
+      "title": "Ledger",
+      "add": "New ledger entry",
+      "empty": "No ledger entries",
+      "totalIn": "Income total SGD",
+      "totalOut": "Expense total SGD",
+      "net": "Net SGD",
+      "ignore": "Mark ignored",
+      "proofCount": "{{count}} files",
+      "proofRequired": "Upload at least one proof file first",
+      "noProof": "No proof",
+      "proofMissingTitle": "{{count}} entries missing proof",
+      "proofMissingHint": "Some bridged or historical entries are missing proof. Fill them before audit.",
+      "filterMissing": "Filter missing proof",
+      "missingOnly": "Missing proof only"
+    },
+    "reconcile": {
+      "title": "Reconcile",
+      "systemVsStatement": "System ledger vs bank statement",
+      "balanced": "Balanced",
+      "unbalanced": "Unbalanced",
+      "inCompare": "Income: system / statement",
+      "outCompare": "Expense: system / statement",
+      "diff": "Diff",
+      "importTitle": "Statement import",
+      "importPlaceholder": "One line: 2026-06-01 out 1200 Rent\nComma format also works: 2026-06-01,out,1200,Rent",
+      "import": "Import lines",
+      "suggestions": "Auto match suggestions",
+      "systemEntry": "System entry",
+      "statementLine": "Statement line",
+      "dayDiff": "Day diff",
+      "confirmMatch": "Confirm match",
+      "unmatch": "Unmatch",
+      "systemUnreconciled": "System unreconciled",
+      "statementUnmatched": "Statement unmatched",
+      "empty": "No records",
+      "noSuggestions": "No suggestions"
+    }
   },
   "billing": {
     "title": "Billing",

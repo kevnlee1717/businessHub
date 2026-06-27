@@ -21,6 +21,10 @@
     "students": "学生",
     "documents": "文档",
     "finance": "财务",
+    "finance_billing": "收款",
+    "finance_ledger": "收支流水",
+    "finance_bank_accounts": "对公账户",
+    "finance_reconcile": "对账",
     "business_finance": "业务方案",
     "business_finance_list": "业务列表",
     "deal_parties": "分成对象",
@@ -1050,6 +1054,108 @@
     "enrollment": "报名",
     "company": "公司",
     "client": "客户"
+  },
+  "finance": {
+    "tabs": {
+      "billing": "收款",
+      "ledger": "收支流水",
+      "bankAccounts": "对公账户",
+      "reconcile": "对账"
+    },
+    "fields": {
+      "company": "公司",
+      "accountName": "账户名称",
+      "bankName": "开户行",
+      "accountNo": "账号",
+      "currency": "币种",
+      "status": "状态",
+      "note": "备注",
+      "bankAccount": "对公账户",
+      "direction": "方向",
+      "expenseCategory": "支出类别",
+      "business": "业务",
+      "from": "开始日期",
+      "to": "结束日期",
+      "date": "日期",
+      "amount": "金额",
+      "relatedTo": "对应",
+      "counterparty": "对方",
+      "proof": "凭证",
+      "reconcileStatus": "对账状态",
+      "fxRate": "汇率",
+      "occurredAt": "发生时间",
+      "description": "摘要"
+    },
+    "status": {
+      "active": "启用",
+      "inactive": "停用"
+    },
+    "direction": {
+      "in": "收",
+      "out": "付"
+    },
+    "reconcileStatus": {
+      "unreconciled": "未对账",
+      "reconciled": "已对账",
+      "ignored": "已忽略"
+    },
+    "errors": {
+      "proof_required": "请先上传凭证",
+      "business_required": "收入必须选择业务",
+      "category_required": "支出必须选择支出类别",
+      "fx_rate_required": "非 SGD 必须填写汇率",
+      "statement_parse_failed": "明细格式无法识别，请按每行 日期 方向 金额 摘要 录入",
+      "account_required": "请先选择对公账户",
+      "source_locked": "桥接流水只能修改凭证、备注和归属信息"
+    },
+    "bankAccounts": {
+      "title": "对公账户",
+      "subtitle": "按公司维护对公账户和主账户。",
+      "add": "新增账户",
+      "edit": "编辑账户",
+      "empty": "暂无账户",
+      "primary": "主账户",
+      "setPrimary": "设为主账户",
+      "required": "公司和账户名称必填"
+    },
+    "ledger": {
+      "title": "收支流水",
+      "add": "新增流水",
+      "empty": "暂无流水",
+      "totalIn": "收入合计 SGD",
+      "totalOut": "支出合计 SGD",
+      "net": "净额 SGD",
+      "ignore": "标记忽略",
+      "proofCount": "{{count}} 张",
+      "proofRequired": "请先上传至少一张凭证",
+      "noProof": "暂无凭证",
+      "proofMissingTitle": "{{count}} 笔缺凭证待补",
+      "proofMissingHint": "桥接或历史流水存在缺凭证记录，请补齐后再查账。",
+      "filterMissing": "筛出缺凭证",
+      "missingOnly": "只看缺凭证"
+    },
+    "reconcile": {
+      "title": "对账",
+      "systemVsStatement": "系统流水 vs 账户明细",
+      "balanced": "已对平",
+      "unbalanced": "未对平",
+      "inCompare": "收入：系统 / 明细",
+      "outCompare": "支出：系统 / 明细",
+      "diff": "差额",
+      "importTitle": "明细导入",
+      "importPlaceholder": "每行：2026-06-01 out 1200 房租\n也支持逗号：2026-06-01,out,1200,房租",
+      "import": "导入明细",
+      "suggestions": "自动建议配对",
+      "systemEntry": "系统流水",
+      "statementLine": "账户明细",
+      "dayDiff": "日期差",
+      "confirmMatch": "确认匹配",
+      "unmatch": "取消匹配",
+      "systemUnreconciled": "系统流水未对账",
+      "statementUnmatched": "账户明细未匹配",
+      "empty": "暂无记录",
+      "noSuggestions": "暂无建议配对"
+    }
   },
   "billing": {
     "title": "账单管理",

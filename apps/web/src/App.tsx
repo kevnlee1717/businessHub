@@ -20,7 +20,11 @@ import { WsqSection } from "./pages/education/WsqSection";
 import { BusinessDetailPage } from "./pages/businessFinance/BusinessDetailPage";
 import { BusinessListPage } from "./pages/businessFinance/BusinessListPage";
 import { DealPartiesPage } from "./pages/businessFinance/DealPartiesPage";
+import { BankAccountsPage } from "./pages/finance/BankAccountsPage";
 import { BillingPage } from "./pages/finance/BillingPage";
+import { FinanceLayout } from "./pages/finance/FinanceLayout";
+import { LedgerPage } from "./pages/finance/LedgerPage";
+import { ReconcilePage } from "./pages/finance/ReconcilePage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
 import { CompensationPage } from "./pages/hr/CompensationPage";
@@ -74,7 +78,13 @@ export function App() {
             <Route path="contracts" element={<ContractsPage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
-          <Route path="finance" element={<BillingPage />} />
+          <Route path="finance" element={<FinanceLayout />}>
+            <Route index element={<Navigate to="billing" replace />} />
+            <Route path="billing" element={<BillingPage />} />
+            <Route path="ledger" element={<LedgerPage />} />
+            <Route path="bank-accounts" element={<BankAccountsPage />} />
+            <Route path="reconcile" element={<ReconcilePage />} />
+          </Route>
           <Route path="business-finance" element={<BusinessListPage />} />
           <Route path="business-finance/parties" element={<DealPartiesPage />} />
           <Route path="business-finance/:id" element={<BusinessDetailPage />} />
