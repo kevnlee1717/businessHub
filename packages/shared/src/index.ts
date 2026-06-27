@@ -1,4 +1,6 @@
 export * from "./enums";
+export * from "./finance/dealEconomics";
+export * from "./finance/presets";
 export * from "./permissions";
 export * from "./schemas/auth";
 export * from "./schemas/cases";
