@@ -26,6 +26,7 @@
     "finance_ledger": "收支流水",
     "finance_bank_accounts": "对公账户",
     "finance_reconcile": "对账",
+    "finance_commission": "销售提成",
     "business_finance": "业务方案",
     "business_finance_list": "业务列表",
     "deal_parties": "分成对象",
@@ -808,6 +809,15 @@
     "percent": "百分比",
     "fixed": "固定金额"
   },
+  "commissionRecurrence": {
+    "one_time": "一次性",
+    "monthly": "每月"
+  },
+  "commissionEntryStatus": {
+    "pending": "待发",
+    "settled": "已入工资条",
+    "void": "作废"
+  },
   "compensation": {
     "templates": {
       "title": "薪酬模板",
@@ -898,11 +908,13 @@
       "employee": "员工",
       "period": "期间",
       "gross": "应发",
+      "commissionTotal": "提成",
       "netPay": "实发",
       "currency": "币种",
       "payday": "发薪日",
       "status": "状态"
-    }
+    },
+    "commissionDetails": "提成明细"
   },
   "payslipStatus": {
     "draft": "草稿",
@@ -1158,7 +1170,8 @@
       "receivablesLedger": "应收台账",
       "ledger": "收支流水",
       "bankAccounts": "对公账户",
-      "reconcile": "对账"
+      "reconcile": "对账",
+      "commission": "销售提成"
     },
     "fields": {
       "company": "公司",
@@ -1254,6 +1267,52 @@
       "empty": "暂无记录",
       "noSuggestions": "暂无建议配对"
     }
+  },
+  "commission": {
+    "title": "销售提成",
+    "tabs": {
+      "assignments": "业务分配",
+      "ledger": "提成台账"
+    },
+    "sales": {
+      "title": "销售员工",
+      "empty": "暂无销售员工"
+    },
+    "assignments": {
+      "title": "业务分配",
+      "add": "加业务",
+      "empty": "暂无业务分配",
+      "selectSales": "请选择销售查看业务分配。"
+    },
+    "ledger": {
+      "empty": "暂无提成记录"
+    },
+    "totals": {
+      "pending": "待发",
+      "settled": "已发",
+      "void": "作废"
+    },
+    "fields": {
+      "sales": "销售",
+      "company": "所属公司",
+      "baseSalary": "底薪",
+      "business": "业务",
+      "overrideType": "提成覆盖类型",
+      "overrideValue": "提成覆盖值",
+      "active": "启用",
+      "period": "期间",
+      "billingId": "账单 ID",
+      "recurrence": "周期",
+      "amountSgd": "金额 SGD",
+      "status": "状态",
+      "payslip": "工资条",
+      "note": "备注"
+    },
+    "useScheme": "用方案",
+    "recompute": "重算",
+    "manualAdd": "手工加一笔",
+    "void": "作废",
+    "confirmDeleteAssignment": "确定删除 {{business}} 的业务分配？"
   },
   "billing": {
     "title": "账单管理",

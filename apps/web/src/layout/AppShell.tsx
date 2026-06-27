@@ -44,7 +44,8 @@ const navItems = [
       { to: "/finance/receivables-ledger", key: "nav.finance_receivables_ledger" },
       { to: "/finance/ledger", key: "nav.finance_ledger" },
       { to: "/finance/bank-accounts", key: "nav.finance_bank_accounts" },
-      { to: "/finance/reconcile", key: "nav.finance_reconcile" }
+      { to: "/finance/reconcile", key: "nav.finance_reconcile" },
+      { to: "/finance/commission", key: "nav.finance_commission" }
     ]
   },
   {

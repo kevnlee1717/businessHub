@@ -26,6 +26,7 @@
     "finance_ledger": "Ledger",
     "finance_bank_accounts": "Bank Accounts",
     "finance_reconcile": "Reconcile",
+    "finance_commission": "Sales Commission",
     "business_finance": "Business Schemes",
     "business_finance_list": "Business List",
     "deal_parties": "Deal Parties",
@@ -808,6 +809,15 @@
     "percent": "Percent",
     "fixed": "Fixed amount"
   },
+  "commissionRecurrence": {
+    "one_time": "One-time",
+    "monthly": "Monthly"
+  },
+  "commissionEntryStatus": {
+    "pending": "Pending",
+    "settled": "In payslip",
+    "void": "Void"
+  },
   "compensation": {
     "templates": {
       "title": "Compensation templates",
@@ -898,11 +908,13 @@
       "employee": "Employee",
       "period": "Period",
       "gross": "Gross",
+      "commissionTotal": "Commission",
       "netPay": "Net pay",
       "currency": "Currency",
       "payday": "Payday",
       "status": "Status"
-    }
+    },
+    "commissionDetails": "Commission details"
   },
   "payslipStatus": {
     "draft": "Draft",
@@ -1158,7 +1170,8 @@
       "receivablesLedger": "Receivables Ledger",
       "ledger": "Ledger",
       "bankAccounts": "Bank Accounts",
-      "reconcile": "Reconcile"
+      "reconcile": "Reconcile",
+      "commission": "Sales Commission"
     },
     "fields": {
       "company": "Company",
@@ -1254,6 +1267,52 @@
       "empty": "No records",
       "noSuggestions": "No suggestions"
     }
+  },
+  "commission": {
+    "title": "Sales Commission",
+    "tabs": {
+      "assignments": "Business assignments",
+      "ledger": "Commission ledger"
+    },
+    "sales": {
+      "title": "Sales employees",
+      "empty": "No sales employees yet"
+    },
+    "assignments": {
+      "title": "Business assignments",
+      "add": "Add business",
+      "empty": "No business assignments yet",
+      "selectSales": "Select a sales employee to view assignments."
+    },
+    "ledger": {
+      "empty": "No commission entries"
+    },
+    "totals": {
+      "pending": "Pending",
+      "settled": "Paid",
+      "void": "Void"
+    },
+    "fields": {
+      "sales": "Sales",
+      "company": "Company",
+      "baseSalary": "Base salary",
+      "business": "Business",
+      "overrideType": "Override type",
+      "overrideValue": "Override value",
+      "active": "Active",
+      "period": "Period",
+      "billingId": "Billing ID",
+      "recurrence": "Recurrence",
+      "amountSgd": "Amount SGD",
+      "status": "Status",
+      "payslip": "Payslip",
+      "note": "Note"
+    },
+    "useScheme": "Use scheme",
+    "recompute": "Recompute",
+    "manualAdd": "Add manual entry",
+    "void": "Void",
+    "confirmDeleteAssignment": "Delete assignment for {{business}}?"
   },
   "billing": {
     "title": "Billing",

@@ -7,7 +7,8 @@ const tabs = [
   { value: "receivables-ledger", path: "/finance/receivables-ledger", labelKey: "finance.tabs.receivablesLedger" },
   { value: "ledger", path: "/finance/ledger", labelKey: "finance.tabs.ledger" },
   { value: "bank-accounts", path: "/finance/bank-accounts", labelKey: "finance.tabs.bankAccounts" },
-  { value: "reconcile", path: "/finance/reconcile", labelKey: "finance.tabs.reconcile" }
+  { value: "reconcile", path: "/finance/reconcile", labelKey: "finance.tabs.reconcile" },
+  { value: "commission", path: "/finance/commission", labelKey: "finance.tabs.commission" }
 ] as const;
 
 export function FinanceLayout() {

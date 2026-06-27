@@ -27,6 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { getCommissionSummary, type CommissionEntry } from "../../api/commission";
 import {
   createStatutory,
   generatePayslips,
@@ -96,6 +97,7 @@ export function PayrollPage() {
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState("");
   const [modalOpened, setModalOpened] = useState(false);
+  const [commissionDetail, setCommissionDetail] = useState<{ employeeId: string; period: string } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const employeesQuery = useQuery({
@@ -109,6 +111,11 @@ export function PayrollPage() {
   const statutoryQuery = useQuery({
     queryKey: statutoryQueryKey,
     queryFn: () => listStatutory()
+  });
+  const commissionSummaryQuery = useQuery({
+    queryKey: ["finance", "commission-summary", commissionDetail?.employeeId, commissionDetail?.period],
+    queryFn: () => getCommissionSummary(commissionDetail?.employeeId ?? "", commissionDetail?.period ?? ""),
+    enabled: Boolean(commissionDetail)
   });
 
   const statutoryForm = useForm<StatutoryFormValues>({
@@ -180,6 +187,10 @@ export function PayrollPage() {
     await payMutation.mutateAsync(payslip.id);
   }
 
+  function openCommissionDetail(payslip: Payslip) {
+    setCommissionDetail({ employeeId: payslip.employeeId, period: payslip.period });
+  }
+
   const onStatutorySubmit = statutoryForm.handleSubmit(async (values) => {
     setFormError(null);
 
@@ -230,6 +241,7 @@ export function PayrollPage() {
                   <Table.Th>{t("payslip.fields.employee")}</Table.Th>
                   <Table.Th>{t("payslip.fields.period")}</Table.Th>
                   <Table.Th>{t("payslip.fields.gross")}</Table.Th>
+                  <Table.Th>{t("payslip.fields.commissionTotal")}</Table.Th>
                   <Table.Th>{t("payslip.fields.netPay")}</Table.Th>
                   <Table.Th>{t("payslip.fields.currency")}</Table.Th>
                   <Table.Th>{t("payslip.fields.payday")}</Table.Th>
@@ -240,7 +252,7 @@ export function PayrollPage() {
               <Table.Tbody>
                 {payslipsQuery.isLoading || employeesQuery.isLoading ? (
                   <Table.Tr>
-                    <Table.Td colSpan={8}>
+                    <Table.Td colSpan={9}>
                       <Group justify="center" py="lg">
                         <Loader size="sm" />
                       </Group>
@@ -248,7 +260,7 @@ export function PayrollPage() {
                   </Table.Tr>
                 ) : payslips.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={8}>
+                    <Table.Td colSpan={9}>
                       <Text ta="center" c="dimmed" py="lg">
                         {t("payslip.empty")}
                       </Text>
@@ -260,6 +272,14 @@ export function PayrollPage() {
                       <Table.Td>{employeeName(employeeById, payslip.employeeId)}</Table.Td>
                       <Table.Td>{payslip.period}</Table.Td>
                       <Table.Td>{payslip.gross}</Table.Td>
+                      <Table.Td>
+                        <Group gap="xs" wrap="nowrap">
+                          <Text size="sm">{payslip.commissionTotal}</Text>
+                          <Button size="xs" variant="subtle" onClick={() => openCommissionDetail(payslip)}>
+                            {t("payslip.commissionDetails")}
+                          </Button>
+                        </Group>
+                      </Table.Td>
                       <Table.Td>{payslip.netPay}</Table.Td>
                       <Table.Td>{t(`currency.${payslip.currency}`)}</Table.Td>
                       <Table.Td>{payslip.payday ?? t("common.not_available")}</Table.Td>
@@ -449,6 +469,104 @@ export function PayrollPage() {
           </Stack>
         </form>
       </Modal>
+
+      <Modal
+        opened={Boolean(commissionDetail)}
+        onClose={() => setCommissionDetail(null)}
+        title={t("payslip.commissionDetails")}
+        size="xl"
+      >
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">
+              {commissionDetail
+                ? `${employeeName(employeeById, commissionDetail.employeeId)} · ${commissionDetail.period}`
+                : ""}
+            </Text>
+            <Badge variant="light">
+              {t("payslip.fields.commissionTotal")}: {commissionSummaryQuery.data?.total ?? "-"}
+            </Badge>
+          </Group>
+          {commissionSummaryQuery.error ? (
+            <Alert color="red" variant="light">
+              {commissionSummaryQuery.error instanceof Error
+                ? commissionSummaryQuery.error.message
+                : t("common.unknown_error")}
+            </Alert>
+          ) : null}
+          <Paper withBorder radius="md">
+            <ScrollArea>
+              <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t("commission.fields.billingId")}</Table.Th>
+                    <Table.Th>{t("commission.fields.period")}</Table.Th>
+                    <Table.Th>{t("commission.fields.recurrence")}</Table.Th>
+                    <Table.Th>{t("commission.fields.amountSgd")}</Table.Th>
+                    <Table.Th>{t("commission.fields.status")}</Table.Th>
+                    <Table.Th>{t("commission.fields.payslip")}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {commissionSummaryQuery.isLoading ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={6}>
+                        <Group justify="center" py="lg">
+                          <Loader size="sm" />
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : (commissionSummaryQuery.data?.entries ?? []).length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={6}>
+                        <Text ta="center" c="dimmed" py="lg">
+                          {t("commission.ledger.empty")}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : (
+                    (commissionSummaryQuery.data?.entries ?? []).map((entry) => (
+                      <CommissionSummaryRow key={entry.id} entry={entry} />
+                    ))
+                  )}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Paper>
+        </Stack>
+      </Modal>
     </Stack>
+  );
+}
+
+function commissionStatusColor(status: CommissionEntry["status"]) {
+  switch (status) {
+    case "pending":
+      return "yellow";
+    case "settled":
+      return "green";
+    case "void":
+      return "gray";
+    default:
+      return "gray";
+  }
+}
+
+function CommissionSummaryRow({ entry }: { entry: CommissionEntry }) {
+  const { t } = useTranslation();
+
+  return (
+    <Table.Tr>
+      <Table.Td>{entry.billing_id}</Table.Td>
+      <Table.Td>{entry.period}</Table.Td>
+      <Table.Td>{t(`commissionRecurrence.${entry.recurrence}`)}</Table.Td>
+      <Table.Td>{entry.amount_sgd}</Table.Td>
+      <Table.Td>
+        <Badge color={commissionStatusColor(entry.status)} variant="light">
+          {t(`commissionEntryStatus.${entry.status}`)}
+        </Badge>
+      </Table.Td>
+      <Table.Td>{entry.payslip_id ?? "-"}</Table.Td>
+    </Table.Tr>
   );
 }
