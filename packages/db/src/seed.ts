@@ -6,14 +6,18 @@ import { db, pool } from "./index";
 import {
   billing,
   businesses,
+  companyExpenses,
   companies,
   dealParties,
   documentCategories,
+  diplomaEnrollments,
+  diplomaPayments,
   employees,
   industries,
   payrollSettings,
   schemeLines,
   schemeVersions,
+  students,
   templateSteps,
   workflowTemplates,
   workShifts
@@ -315,12 +319,29 @@ for (const templateSeed of workflowTemplateSeeds) {
 const toNumeric = (value: number | null | undefined, digits = 3) =>
   value === null || value === undefined || !Number.isFinite(value) ? null : value.toFixed(digits);
 
+const toMoney = (value: number) => value.toFixed(2);
+
 const today = () => {
   const date = new Date();
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const currentPeriod = () => {
+  const date = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const addMonthsToPeriod = (period: string, months: number) => {
+  const [yearText, monthText] = period.split("-");
+  const yearValue = Number(yearText);
+  const monthValue = Number(monthText);
+  const totalMonths = yearValue * 12 + (monthValue - 1) + months;
+  const year = Math.floor(totalMonths / 12);
+  const month = (totalMonths % 12) + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
 };
 
 const oneTimePreset = DEAL_PRESETS.find((preset) => preset.key === "one_time");
@@ -572,8 +593,144 @@ if (!fallbackCompany) {
   }
 }
 
+async function seedAcademyDemo() {
+  const existingDemoStudent = await db.query.students.findFirst({
+    where: sql`${students.name} like '[DEMO]%'`
+  });
+
+  if (existingDemoStudent) {
+    return {
+      demoSkipped: true,
+      demoStudents: 0,
+      demoEnrollments: 0,
+      demoPayments: 0,
+      demoPaid: 0,
+      demoExpenses: 0
+    };
+  }
+
+  const period = currentPeriod();
+  const demoNames = ["[DEMO] 张三", "[DEMO] 李四", "[DEMO] 王五", "[DEMO] 赵六"];
+  const startOffsets = [-3, -2, -1, 0];
+  let demoPaid = 0;
+
+  const result = await db.transaction(async (tx) => {
+    const createdStudents = await tx
+      .insert(students)
+      .values(
+        demoNames.map((name, index) => ({
+          name,
+          phone: `+65 8000 100${index}`,
+          note: "[DEMO] 学院月度收款演示数据"
+        }))
+      )
+      .returning({ id: students.id });
+
+    const createdEnrollments: { id: string }[] = [];
+    const paymentRows: (typeof diplomaPayments.$inferInsert)[] = [];
+
+    for (const [index, student] of createdStudents.entries()) {
+      const startPeriod = addMonthsToPeriod(period, startOffsets[index] ?? 0);
+      const [enrollment] = await tx
+        .insert(diplomaEnrollments)
+        .values({
+          studentId: student.id,
+          program: "城市轨道交通运营管理",
+          courseId: null,
+          enrollDate: `${startPeriod}-01`,
+          billingId: null,
+          installmentsCount: 6,
+          startPeriod,
+          depositAmount: toMoney(1000),
+          graduated: false
+        })
+        .returning({ id: diplomaEnrollments.id });
+
+      if (!enrollment) {
+        throw new Error("academy_demo_enrollment_create_failed");
+      }
+
+      createdEnrollments.push(enrollment);
+
+      for (let monthIndex = 0; monthIndex < 6; monthIndex += 1) {
+        const paymentPeriod = addMonthsToPeriod(startPeriod, monthIndex);
+        const isDue = paymentPeriod <= period;
+        const paid = isDue && (index + monthIndex) % 2 === 0;
+
+        if (paid) {
+          demoPaid += 1;
+        }
+
+        paymentRows.push({
+          enrollmentId: enrollment.id,
+          period: paymentPeriod,
+          amount: toMoney(2500),
+          paid,
+          paidAt: paid ? new Date(`${paymentPeriod}-15T04:00:00.000Z`) : null,
+          note: "[DEMO] 学院月度收款"
+        });
+      }
+    }
+
+    await tx.insert(diplomaPayments).values(paymentRows);
+
+    let demoExpenses = 0;
+    let [existingKaideCompany] = await tx
+      .select({ id: companies.id })
+      .from(companies)
+      .where(eq(companies.name, "恺德学校"))
+      .limit(1);
+
+    if (!existingKaideCompany) {
+      [existingKaideCompany] = await tx
+        .insert(companies)
+        .values({ name: "恺德学校", status: "active", note: "[DEMO] 学院收款演示公司" })
+        .returning({ id: companies.id });
+    }
+
+    if (existingKaideCompany) {
+      const [existingExpense] = await tx
+        .select({ id: companyExpenses.id })
+        .from(companyExpenses)
+        .where(
+          and(
+            eq(companyExpenses.companyId, existingKaideCompany.id),
+            eq(companyExpenses.period, period),
+            eq(companyExpenses.note, "[DEMO] 月租")
+          )
+        )
+        .limit(1);
+
+      if (!existingExpense) {
+        await tx.insert(companyExpenses).values({
+          companyId: existingKaideCompany.id,
+          type: "rent",
+          amount: toMoney(4000),
+          currency: "SGD",
+          period,
+          note: "[DEMO] 月租"
+        });
+        demoExpenses = 1;
+      }
+    }
+
+    return {
+      demoSkipped: false,
+      demoStudents: createdStudents.length,
+      demoEnrollments: createdEnrollments.length,
+      demoPayments: paymentRows.length,
+      demoPaid,
+      demoExpenses
+    };
+  });
+
+  return result;
+}
+
+const academyDemoStats = await seedAcademyDemo();
+
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

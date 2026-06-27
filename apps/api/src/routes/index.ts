@@ -1,4 +1,5 @@
 import { type FastifyInstance } from "fastify";
+import { registerAcademyFinanceRoutes } from "./academyFinance";
 import { registerAttendanceRoutes } from "./attendance";
 import { registerAuthRoutes } from "./auth";
 import { registerBillingRoutes } from "./billing";
@@ -71,6 +72,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerStudentRoutes);
   await app.register(registerDiplomaCourseRoutes);
   await app.register(registerDiplomaRoutes);
+  await app.register(registerAcademyFinanceRoutes);
   await app.register(registerWsqRoutes);
   await app.register(registerEnglishRoutes);
 }
