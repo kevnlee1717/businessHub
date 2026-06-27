@@ -398,6 +398,7 @@ export function ExternalCommissionPage() {
                 <Table.Th>{t("externalCommission.fields.payee")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.business")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.period")}</Table.Th>
+                <Table.Th>{t("externalCommission.fields.stage")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.payable")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.settled")}</Table.Th>
                 <Table.Th>{t("externalCommission.fields.outstanding")}</Table.Th>
@@ -408,7 +409,7 @@ export function ExternalCommissionPage() {
             <Table.Tbody>
               {entriesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={8}>
+                  <Table.Td colSpan={9}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -416,7 +417,7 @@ export function ExternalCommissionPage() {
                 </Table.Tr>
               ) : entries.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={8}>
+                  <Table.Td colSpan={9}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("externalCommission.empty")}
                     </Text>
@@ -433,6 +434,7 @@ export function ExternalCommissionPage() {
                       <Table.Td>{row.payee ? displayName(row.payee.name, row.payee.name_en) : entry.payee_id}</Table.Td>
                       <Table.Td>{businessLabel(row.business)}</Table.Td>
                       <Table.Td>{entry.period}</Table.Td>
+                      <Table.Td>{entry.note ?? "-"}</Table.Td>
                       <Table.Td>{formatMoney(amount)}</Table.Td>
                       <Table.Td>{formatMoney(entry.amount_settled)}</Table.Td>
                       <Table.Td>{formatMoney(entry.outstanding ?? outstandingAmount(entry))}</Table.Td>

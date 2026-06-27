@@ -136,6 +136,7 @@ export function StatementPage() {
                   <Table.Th>{t("statement.fields.customer")}</Table.Th>
                   <Table.Th>{t("statement.fields.dealAt")}</Table.Th>
                   <Table.Th>{t("statement.fields.period")}</Table.Th>
+                  <Table.Th>{t("statement.fields.stage")}</Table.Th>
                   <Table.Th>{t("statement.fields.payable")}</Table.Th>
                   <Table.Th>{t("statement.fields.settled")}</Table.Th>
                   <Table.Th>{t("statement.fields.outstanding")}</Table.Th>
@@ -145,7 +146,7 @@ export function StatementPage() {
               <Table.Tbody>
                 {statement.entries.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={8}>
+                    <Table.Td colSpan={9}>
                       <Text ta="center" c="dimmed" py="lg">
                         {t("statement.empty")}
                       </Text>
@@ -161,6 +162,7 @@ export function StatementPage() {
                         <Table.Td>{displayName(entry.customer?.name, entry.customer?.name_en)}</Table.Td>
                         <Table.Td>{formatDate(entry.billing?.deal_at)}</Table.Td>
                         <Table.Td>{entry.period ?? "-"}</Table.Td>
+                        <Table.Td>{entry.note ?? "-"}</Table.Td>
                         <Table.Td>{formatMoney(entry.amount_sgd)}</Table.Td>
                         <Table.Td>{formatMoney(entry.amount_settled)}</Table.Td>
                         <Table.Td>{formatMoney(entry.outstanding)}</Table.Td>

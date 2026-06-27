@@ -1370,6 +1370,7 @@
       "amountSgd": "Amount SGD",
       "status": "Status",
       "payslip": "Payslip",
+      "stage": "Stage",
       "note": "Note"
     },
     "useScheme": "Use scheme",
@@ -1423,6 +1424,7 @@
       "settled": "Settled",
       "outstanding": "Outstanding",
       "settleAmount": "This amount",
+      "stage": "Stage",
       "status": "Status"
     },
     "status": {
@@ -1484,6 +1486,7 @@
       "payable": "Payable",
       "settled": "Settled",
       "outstanding": "Outstanding",
+      "stage": "Stage",
       "status": "Status"
     },
     "status": {
@@ -1589,6 +1592,12 @@
         "bindStepOrder": "Bind step",
         "dueOffsetDays": "Days after deal"
       }
+    },
+    "milestoneSplit": {
+      "title": "Milestone Allocation",
+      "empty": "Please add stages in the Collection Milestones tab first",
+      "totalPercent": "Total %",
+      "totalWarning": "The total is not 100%. Saving will use the percentages currently entered."
     },
     "preview": {
       "title": "Demo profit-rate preview",

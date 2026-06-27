@@ -1370,6 +1370,7 @@
       "amountSgd": "金额 SGD",
       "status": "状态",
       "payslip": "工资条",
+      "stage": "阶段",
       "note": "备注"
     },
     "useScheme": "用方案",
@@ -1423,6 +1424,7 @@
       "settled": "已结",
       "outstanding": "未结",
       "settleAmount": "本次金额",
+      "stage": "阶段",
       "status": "状态"
     },
     "status": {
@@ -1484,6 +1486,7 @@
       "payable": "应付",
       "settled": "已结",
       "outstanding": "未结",
+      "stage": "阶段",
       "status": "状态"
     },
     "status": {
@@ -1589,6 +1592,12 @@
         "bindStepOrder": "绑第几步",
         "dueOffsetDays": "成交后几天应收"
       }
+    },
+    "milestoneSplit": {
+      "title": "里程碑分配",
+      "empty": "请先在『收款里程碑』标签页添加阶段",
+      "totalPercent": "合计%",
+      "totalWarning": "合计不是 100%，保存后将按当前填写比例拆分。"
     },
     "preview": {
       "title": "示范利润率预览",

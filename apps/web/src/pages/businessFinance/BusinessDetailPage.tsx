@@ -87,6 +87,8 @@ type LineFormValues = {
   sort_order?: number | undefined;
 };
 
+type MilestoneSplitDraft = Record<string, number | "">;
+
 type MilestoneFormValues = {
   seq: number | undefined;
   label: string;
@@ -109,6 +111,7 @@ const commonInputKeys = [
 ] as const;
 const businessQueryKey = (id: string | undefined) => ["business-finance", "business", id] as const;
 const versionQueryKey = (id: string | null | undefined) => ["business-finance", "scheme-version", id] as const;
+const milestonesQueryKey = (versionId: string) => ["business-finance", "scheme-version-milestones", versionId] as const;
 const partiesQueryKey = ["business-finance", "deal-parties"] as const;
 
 function formatDate(value?: string | null) {
@@ -156,6 +159,22 @@ function lineToForm(line: SchemeLine): LineFormValues {
     party_id: line.party_id ?? null,
     rate: line.rate === null || line.rate === undefined ? null : Number(line.rate),
     label: line.label,
+    sort_order: line.sort_order ?? undefined
+  };
+}
+
+function lineToInput(line: SchemeLine): SchemeLineInputSchema {
+  return {
+    kind: line.kind,
+    basis: line.basis,
+    recurrence: line.recurrence,
+    party_id: line.party_id ?? null,
+    rate: line.rate === null || line.rate === undefined ? null : Number(line.rate),
+    unit_label: line.unit_label ?? null,
+    input_key: line.input_key ?? null,
+    milestone_split: line.milestone_split ?? null,
+    label: line.label,
+    note: line.note ?? null,
     sort_order: line.sort_order ?? undefined
   };
 }
@@ -613,9 +632,16 @@ function VersionEditor({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [splitLine, setSplitLine] = useState<SchemeLine | null>(null);
+  const [splitDraft, setSplitDraft] = useState<MilestoneSplitDraft>({});
   const versionQuery = useQuery({
     queryKey: versionQueryKey(versionId),
     queryFn: () => getSchemeVersion(versionId)
+  });
+  const milestonesQuery = useQuery({
+    queryKey: milestonesQueryKey(versionId),
+    queryFn: () => listSchemeMilestones(versionId),
+    enabled: Boolean(splitLine)
   });
   const createLineMutation = useMutation({
     mutationFn: (body: SchemeLineInputSchema) => createSchemeLine(versionId, body),
@@ -689,14 +715,59 @@ function VersionEditor({
     }
   }
 
+  function openSplitModal(line: SchemeLine) {
+    const split = line.milestone_split ?? {};
+    setSplitDraft(
+      Object.entries(split).reduce<MilestoneSplitDraft>((acc, [seq, percent]) => {
+        acc[seq] = percent;
+        return acc;
+      }, {})
+    );
+    setSplitLine(line);
+    setEditorError(null);
+  }
+
+  function closeSplitModal() {
+    setSplitLine(null);
+    setSplitDraft({});
+  }
+
+  async function saveSplit() {
+    if (!splitLine) {
+      return;
+    }
+
+    const milestoneSplit = Object.entries(splitDraft).reduce<Record<string, number>>((acc, [seq, percent]) => {
+      if (typeof percent === "number") {
+        acc[seq] = percent;
+      }
+      return acc;
+    }, {});
+
+    setEditorError(null);
+    try {
+      await updateLineMutation.mutateAsync({
+        lineId: splitLine.id,
+        body: {
+          ...lineToInput(splitLine),
+          milestone_split: Object.keys(milestoneSplit).length > 0 ? milestoneSplit : null
+        }
+      });
+      closeSplitModal();
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  }
+
   return (
-    <Tabs defaultValue="lines" keepMounted={false}>
-      <Tabs.List>
-        <Tabs.Tab value="lines">{t("businessFinance.lines.title")}</Tabs.Tab>
-        <Tabs.Tab value="preview">{t("businessFinance.preview.title")}</Tabs.Tab>
-        <Tabs.Tab value="milestones">{t("businessFinance.milestones.title")}</Tabs.Tab>
-      </Tabs.List>
-      <Tabs.Panel value="lines" pt="md">
+    <>
+      <Tabs defaultValue="lines" keepMounted={false}>
+        <Tabs.List>
+          <Tabs.Tab value="lines">{t("businessFinance.lines.title")}</Tabs.Tab>
+          <Tabs.Tab value="preview">{t("businessFinance.preview.title")}</Tabs.Tab>
+          <Tabs.Tab value="milestones">{t("businessFinance.milestones.title")}</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="lines" pt="md">
         <Paper withBorder radius="md" p="md">
           <Stack gap="md">
             <Group justify="space-between" align="center">
@@ -742,6 +813,7 @@ function VersionEditor({
                         recurrenceOptions={recurrenceOptions}
                         onSave={saveLine}
                         onDelete={removeLine}
+                        onOpenMilestoneSplit={openSplitModal}
                         loading={updateLineMutation.isPending || deleteLineMutation.isPending}
                       />
                     ))
@@ -760,14 +832,125 @@ function VersionEditor({
             </ScrollArea>
           </Stack>
         </Paper>
-      </Tabs.Panel>
-      <Tabs.Panel value="preview" pt="md">
-        <PreviewPanel version={version ?? null} />
-      </Tabs.Panel>
-      <Tabs.Panel value="milestones" pt="md">
-        <MilestonesPanel versionId={versionId} />
-      </Tabs.Panel>
-    </Tabs>
+        </Tabs.Panel>
+        <Tabs.Panel value="preview" pt="md">
+          <PreviewPanel version={version ?? null} />
+        </Tabs.Panel>
+        <Tabs.Panel value="milestones" pt="md">
+          <MilestonesPanel versionId={versionId} />
+        </Tabs.Panel>
+      </Tabs>
+
+      <MilestoneSplitModal
+        opened={Boolean(splitLine)}
+        milestones={milestonesQuery.data?.milestones ?? []}
+        loading={milestonesQuery.isLoading}
+        error={milestonesQuery.error}
+        draft={splitDraft}
+        onChange={setSplitDraft}
+        onClose={closeSplitModal}
+        onSave={() => void saveSplit()}
+        saving={updateLineMutation.isPending}
+      />
+    </>
+  );
+}
+
+function MilestoneSplitModal({
+  opened,
+  milestones,
+  loading,
+  error,
+  draft,
+  onChange,
+  onClose,
+  onSave,
+  saving
+}: {
+  opened: boolean;
+  milestones: SchemeMilestone[];
+  loading: boolean;
+  error: unknown;
+  draft: MilestoneSplitDraft;
+  onChange: (draft: MilestoneSplitDraft) => void;
+  onClose: () => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const { t } = useTranslation();
+  const total = Object.values(draft).reduce<number>(
+    (sum, value) => (typeof value === "number" ? sum + value : sum),
+    0
+  );
+  const hasCustomSplit = Object.values(draft).some((value) => typeof value === "number");
+
+  function updateSeq(seq: number, value: string | number) {
+    const key = String(seq);
+    onChange({
+      ...draft,
+      [key]: typeof value === "number" ? value : ""
+    });
+  }
+
+  return (
+    <Modal opened={opened} onClose={onClose} title={t("businessFinance.milestoneSplit.title")} size="md">
+      <Stack gap="md">
+        {error ? (
+          <Alert color="red" variant="light">
+            {error instanceof Error ? error.message : t("common.unknown_error")}
+          </Alert>
+        ) : null}
+        {loading ? (
+          <Group justify="center" py="lg">
+            <Loader size="sm" />
+          </Group>
+        ) : milestones.length === 0 ? (
+          <Alert color="yellow" variant="light">
+            {t("businessFinance.milestoneSplit.empty")}
+          </Alert>
+        ) : (
+          <>
+            <Stack gap="sm">
+              {milestones.map((milestone) => (
+                <Group key={milestone.id} justify="space-between" align="flex-end" wrap="nowrap">
+                  <Stack gap={0}>
+                    <Text fw={500}>{milestone.label}</Text>
+                    <Text size="xs" c="dimmed">
+                      {t("businessFinance.milestones.fields.seq")} {milestone.seq}
+                    </Text>
+                  </Stack>
+                  <NumberInput
+                    value={draft[String(milestone.seq)] ?? ""}
+                    onChange={(value) => updateSeq(milestone.seq, value)}
+                    min={0}
+                    decimalScale={2}
+                    suffix="%"
+                    w={140}
+                  />
+                </Group>
+              ))}
+            </Stack>
+            <Group justify="space-between">
+              <Text fw={600}>{t("businessFinance.milestoneSplit.totalPercent")}</Text>
+              <Text fw={600}>{total.toFixed(2)}%</Text>
+            </Group>
+            {hasCustomSplit && Math.abs(total - 100) > 0.000001 ? (
+              <Alert color="yellow" variant="light">
+                {t("businessFinance.milestoneSplit.totalWarning")}
+              </Alert>
+            ) : null}
+          </>
+        )}
+        <Group justify="flex-end">
+          <Button variant="light" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button onClick={onSave} loading={saving} disabled={loading || Boolean(error) || milestones.length === 0}>
+            {t("common.save")}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 
@@ -776,7 +959,7 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const milestonesQuery = useQuery({
-    queryKey: ["business-finance", "scheme-version-milestones", versionId],
+    queryKey: milestonesQueryKey(versionId),
     queryFn: () => listSchemeMilestones(versionId)
   });
   const collectionItemsQuery = useQuery({
@@ -815,7 +998,7 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
   );
 
   async function onChanged() {
-    await queryClient.invalidateQueries({ queryKey: ["business-finance", "scheme-version-milestones", versionId] });
+    await queryClient.invalidateQueries({ queryKey: milestonesQueryKey(versionId) });
   }
 
   function toInput(values: MilestoneFormValues): SchemeMilestoneInput {
@@ -1130,6 +1313,7 @@ function EditableLineRow({
   recurrenceOptions,
   onSave,
   onDelete,
+  onOpenMilestoneSplit,
   loading
 }: {
   line: SchemeLine;
@@ -1140,6 +1324,7 @@ function EditableLineRow({
   recurrenceOptions: { value: string; label: string }[];
   onSave: (line: SchemeLine, values: LineFormValues) => Promise<void>;
   onDelete: (lineId: string) => Promise<void>;
+  onOpenMilestoneSplit: (line: SchemeLine) => void;
   loading: boolean;
 }) {
   const { t } = useTranslation();
@@ -1167,6 +1352,11 @@ function EditableLineRow({
           <Button size="xs" variant="light" onClick={() => void onSubmit()} loading={loading}>
             {t("common.save")}
           </Button>
+          {line.kind === "commission" ? (
+            <Button size="xs" variant="light" onClick={() => onOpenMilestoneSplit(line)}>
+              {t("businessFinance.milestoneSplit.title")}
+            </Button>
+          ) : null}
           <Button size="xs" variant="light" color="red" onClick={() => void onDelete(line.id)} loading={loading}>
             {t("common.delete")}
           </Button>

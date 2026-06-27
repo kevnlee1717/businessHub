@@ -647,6 +647,7 @@ export function SalesCommissionPage() {
                       <Table.Th>{t("commission.fields.billingId")}</Table.Th>
                       <Table.Th>{t("commission.fields.business")}</Table.Th>
                       <Table.Th>{t("commission.fields.recurrence")}</Table.Th>
+                      <Table.Th>{t("commission.fields.stage")}</Table.Th>
                       <Table.Th>{t("commission.fields.amountSgd")}</Table.Th>
                       <Table.Th>{t("commission.fields.status")}</Table.Th>
                       <Table.Th>{t("commission.fields.payslip")}</Table.Th>
@@ -656,7 +657,7 @@ export function SalesCommissionPage() {
                   <Table.Tbody>
                     {entriesQuery.isLoading ? (
                       <Table.Tr>
-                        <Table.Td colSpan={9}>
+                        <Table.Td colSpan={10}>
                           <Group justify="center" py="lg">
                             <Loader size="sm" />
                           </Group>
@@ -664,7 +665,7 @@ export function SalesCommissionPage() {
                       </Table.Tr>
                     ) : entries.length === 0 ? (
                       <Table.Tr>
-                        <Table.Td colSpan={9}>
+                        <Table.Td colSpan={10}>
                           <Text ta="center" c="dimmed" py="lg">
                             {t("commission.ledger.empty")}
                           </Text>
@@ -878,6 +879,7 @@ function CommissionEntryRow({
       <Table.Td>{entry.billing_id}</Table.Td>
       <Table.Td>{businessLabel(business)}</Table.Td>
       <Table.Td>{t(`commissionRecurrence.${entry.recurrence}`)}</Table.Td>
+      <Table.Td>{entry.note ?? "-"}</Table.Td>
       <Table.Td>
         <Group gap="xs" wrap="nowrap">
           <NumberInput

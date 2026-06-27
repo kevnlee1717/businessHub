@@ -31,6 +31,7 @@ export type StatementResponse = {
       name_en?: string | null;
     } | null;
     period?: string | null;
+    note?: string | null;
     amount_sgd: string;
     amount_settled?: string | null;
     outstanding?: string | null;
