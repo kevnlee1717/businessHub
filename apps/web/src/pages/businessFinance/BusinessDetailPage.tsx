@@ -819,9 +819,11 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
   }
 
   function toInput(values: MilestoneFormValues): SchemeMilestoneInput {
+    // 显示名直接跟随收款名目(已去掉手填的标签覆盖框)
+    const item = values.collection_item_id ? collectionItemById.get(values.collection_item_id) : undefined;
     return {
       seq: values.seq ?? 1,
-      label: values.label,
+      label: item ? item.name : values.label,
       collection_item_id: values.collection_item_id,
       basis: values.basis,
       value: values.value ?? 0,
@@ -1054,31 +1056,16 @@ function MilestoneCells({
             <Select
               size="xs"
               w={220}
+              placeholder={t("businessFinance.fields.collectionItem")}
               data={collectionItemOptions}
               value={field.value ?? null}
               onChange={(value) => {
                 field.onChange(value);
                 const item = value ? collectionItemById.get(value) : undefined;
-                if (item) {
-                  form.setValue("label", item.name, { shouldDirty: true });
-                }
+                form.setValue("label", item ? item.name : "", { shouldDirty: true });
               }}
               searchable
               clearable
-            />
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="label"
-          render={({ field }) => (
-            <TextInput
-              size="xs"
-              mt={4}
-              w={220}
-              value={field.value}
-              onChange={field.onChange}
-              placeholder={t("businessFinance.milestones.fields.labelOverride")}
             />
           )}
         />
