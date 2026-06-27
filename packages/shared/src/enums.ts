@@ -130,3 +130,18 @@ export type ContractVersionStatus = (typeof contractVersionStatuses)[number];
 
 export const contractSubjectTypes = ["case", "enrollment", "company", "client"] as const;
 export type ContractSubjectType = (typeof contractSubjectTypes)[number];
+
+export const businessStatuses = ["active", "paused", "closed"] as const;
+export type BusinessStatus = (typeof businessStatuses)[number];
+
+export const schemeVersionStatuses = ["active", "closed"] as const;
+export type SchemeVersionStatus = (typeof schemeVersionStatuses)[number];
+
+export const schemeLineKinds = ["revenue", "cost", "commission"] as const;
+export type SchemeLineKind = (typeof schemeLineKinds)[number];
+
+export const schemeLineBases = ["fixed", "percent_of_revenue", "per_unit", "margin"] as const;
+export type SchemeLineBasis = (typeof schemeLineBases)[number];
+
+export const schemeLineRecurrences = ["one_time", "monthly", "per_event"] as const;
+export type SchemeLineRecurrence = (typeof schemeLineRecurrences)[number];

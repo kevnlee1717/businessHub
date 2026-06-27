@@ -3,6 +3,7 @@ import {
   attendanceDayStatuses,
   attendanceKinds,
   appStates,
+  businessStatuses,
   businessTypes,
   billingRefTypes,
   billingStatuses,
@@ -29,6 +30,10 @@ import {
   paymentTypes,
   payrollSchemes,
   payslipStatuses,
+  schemeLineBases,
+  schemeLineKinds,
+  schemeLineRecurrences,
+  schemeVersionStatuses,
   siteVisitFaceStatuses,
   siteVisitStatuses,
   roles,
@@ -72,3 +77,8 @@ export const companyExpenseTypeEnum = pgEnum("company_expense_type", companyExpe
 export const contractStatusEnum = pgEnum("contract_status", contractStatuses);
 export const contractVersionStatusEnum = pgEnum("contract_version_status", contractVersionStatuses);
 export const contractSubjectTypeEnum = pgEnum("contract_subject_type", contractSubjectTypes);
+export const businessStatusEnum = pgEnum("business_status", businessStatuses);
+export const schemeVersionStatusEnum = pgEnum("scheme_version_status", schemeVersionStatuses);
+export const schemeLineKindEnum = pgEnum("scheme_line_kind", schemeLineKinds);
+export const schemeLineBasisEnum = pgEnum("scheme_line_basis", schemeLineBases);
+export const schemeLineRecurrenceEnum = pgEnum("scheme_line_recurrence", schemeLineRecurrences);

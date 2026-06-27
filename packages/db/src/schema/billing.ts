@@ -1,11 +1,13 @@
-import { numeric, timestamp, uuid } from "drizzle-orm/pg-core";
+import { jsonb, numeric, timestamp, uuid } from "drizzle-orm/pg-core";
 import { pgTable } from "drizzle-orm/pg-core";
 import {
   billingRefTypeEnum,
   billingStatusEnum,
   commissionTypeEnum
 } from "./enums";
+import { businesses } from "./businesses";
 import { employees } from "./employees";
+import { schemeVersions } from "./schemeVersions";
 
 export const billing = pgTable("billing", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -18,6 +20,9 @@ export const billing = pgTable("billing", {
   commissionType: commissionTypeEnum("commission_type"),
   commissionValue: numeric("commission_value", { precision: 12, scale: 2 }),
   commissionAmountSgd: numeric("commission_amount_sgd", { precision: 12, scale: 2 }),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
+  schemeVersionId: uuid("scheme_version_id").references(() => schemeVersions.id, { onDelete: "set null" }),
+  inputs: jsonb("inputs").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
