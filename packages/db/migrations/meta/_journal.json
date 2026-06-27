@@ -155,6 +155,13 @@
       "when": 1782568940938,
       "tag": "0021_lyrical_lila_cheney",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1782600925598,
+      "tag": "0022_regular_green_goblin",
+      "breakpoints": true
     }
   ]
 }

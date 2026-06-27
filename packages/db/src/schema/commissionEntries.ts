@@ -13,6 +13,7 @@ export const commissionEntries = pgTable("commission_entries", {
   period: text("period").notNull(),
   recurrence: commissionRecurrenceEnum("recurrence").notNull(),
   seq: integer("seq").notNull().default(1),
+  milestoneSeq: integer("milestone_seq"),
   amountSgd: numeric("amount_sgd", { precision: 12, scale: 2 }).notNull(),
   amountOverride: numeric("amount_override", { precision: 12, scale: 2 }),
   status: commissionEntryStatusEnum("status").notNull().default("pending"),
