@@ -1,5 +1,6 @@
 import { numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { pgTable } from "drizzle-orm/pg-core";
+import { billingCharges } from "./billingCharges";
 import { billing } from "./billing";
 import { currencyEnum, paymentTypeEnum } from "./enums";
 import { employees } from "./employees";
@@ -7,6 +8,7 @@ import { employees } from "./employees";
 export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().defaultRandom(),
   billingId: uuid("billing_id").notNull().references(() => billing.id, { onDelete: "cascade" }),
+  chargeId: uuid("charge_id").references(() => billingCharges.id, { onDelete: "set null" }),
   paidCurrency: currencyEnum("paid_currency").notNull(),
   paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }).notNull(),
   fxRate: numeric("fx_rate", { precision: 12, scale: 6 }),

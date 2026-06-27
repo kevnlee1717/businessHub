@@ -11,6 +11,8 @@ import {
   caseSubmissionResults,
   caseStepDocStatuses,
   caseStepStatuses,
+  chargeKinds,
+  chargeStatuses,
   stepReviewActions,
   stepReviewStatuses,
   commissionTypes,
@@ -29,6 +31,7 @@ import {
   gpsTriggers,
   ledgerDirections,
   ledgerSources,
+  milestoneBases,
   paymentTypes,
   payrollSchemes,
   payslipStatuses,
@@ -88,3 +91,6 @@ export const schemeVersionStatusEnum = pgEnum("scheme_version_status", schemeVer
 export const schemeLineKindEnum = pgEnum("scheme_line_kind", schemeLineKinds);
 export const schemeLineBasisEnum = pgEnum("scheme_line_basis", schemeLineBases);
 export const schemeLineRecurrenceEnum = pgEnum("scheme_line_recurrence", schemeLineRecurrences);
+export const milestoneBasisEnum = pgEnum("milestone_basis", milestoneBases);
+export const chargeKindEnum = pgEnum("charge_kind", chargeKinds);
+export const chargeStatusEnum = pgEnum("charge_status", chargeStatuses);

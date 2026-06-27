@@ -154,3 +154,12 @@ export type SchemeLineBasis = (typeof schemeLineBases)[number];
 
 export const schemeLineRecurrences = ["one_time", "monthly", "per_event"] as const;
 export type SchemeLineRecurrence = (typeof schemeLineRecurrences)[number];
+
+export const milestoneBases = ["percent", "fixed"] as const;
+export type MilestoneBasis = (typeof milestoneBases)[number];
+
+export const chargeKinds = ["milestone", "period", "event"] as const;
+export type ChargeKind = (typeof chargeKinds)[number];
+
+export const chargeStatuses = ["pending", "partial", "paid", "waived"] as const;
+export type ChargeStatus = (typeof chargeStatuses)[number];

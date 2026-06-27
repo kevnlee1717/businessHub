@@ -21,6 +21,7 @@ import {
   payrollSettings,
   recurringCosts,
   schemeLines,
+  schemeMilestones,
   schemeVersions,
   students,
   templateSteps,
@@ -397,6 +398,7 @@ let insertedSchemeVersions = 0;
 let skippedSchemeVersions = 0;
 let insertedSchemeLines = 0;
 let updatedBillingRows = 0;
+let schemeMilestonesUpserted = 0;
 const financeSeedWarnings: string[] = [];
 
 if (!fallbackCompany) {
@@ -565,6 +567,73 @@ if (!fallbackCompany) {
       .update(businesses)
       .set({ defaultVersionId: version.id })
       .where(eq(businesses.id, business.id));
+  }
+
+  const [epBusiness] = await db
+    .select({
+      id: businesses.id,
+      defaultVersionId: businesses.defaultVersionId
+    })
+    .from(businesses)
+    .where(eq(businesses.code, "ep"))
+    .limit(1);
+
+  if (!epBusiness) {
+    financeSeedWarnings.push("未找到业务 ep, 跳过 EP 默认里程碑 seed");
+  } else {
+    let epDefaultVersionId = epBusiness.defaultVersionId;
+
+    if (!epDefaultVersionId) {
+      const [firstEpVersion] = await db
+        .select({ id: schemeVersions.id })
+        .from(schemeVersions)
+        .where(eq(schemeVersions.businessId, epBusiness.id))
+        .orderBy(schemeVersions.createdAt)
+        .limit(1);
+
+      epDefaultVersionId = firstEpVersion?.id ?? null;
+    }
+
+    if (!epDefaultVersionId) {
+      financeSeedWarnings.push("EP 未找到默认方案版本, 跳过 EP 默认里程碑 seed");
+    } else {
+      const milestoneSeeds = [
+        { seq: 1, label: "首付", basis: "percent" as const, value: "30.00", bindStepOrder: 1 },
+        { seq: 2, label: "尾款", basis: "percent" as const, value: "70.00", bindStepOrder: 8 }
+      ];
+
+      for (const milestoneSeed of milestoneSeeds) {
+        const [existingMilestone] = await db
+          .select({ id: schemeMilestones.id })
+          .from(schemeMilestones)
+          .where(
+            and(
+              eq(schemeMilestones.versionId, epDefaultVersionId),
+              eq(schemeMilestones.seq, milestoneSeed.seq)
+            )
+          )
+          .limit(1);
+
+        const row = {
+          versionId: epDefaultVersionId,
+          seq: milestoneSeed.seq,
+          label: milestoneSeed.label,
+          basis: milestoneSeed.basis,
+          value: milestoneSeed.value,
+          bindStepOrder: milestoneSeed.bindStepOrder,
+          dueOffsetDays: null,
+          note: "[DEMO] EP 默认收款里程碑"
+        };
+
+        if (existingMilestone) {
+          await db.update(schemeMilestones).set(row).where(eq(schemeMilestones.id, existingMilestone.id));
+        } else {
+          await db.insert(schemeMilestones).values(row);
+        }
+
+        schemeMilestonesUpserted += 1;
+      }
+    }
   }
 
   const [billingCountRow] = await db.select({ count: sql<number>`count(*)::int` }).from(billing);
@@ -1058,5 +1127,5 @@ const financeLedgerDemoStats = await seedFinanceLedgerDemo();
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );
