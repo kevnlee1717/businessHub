@@ -4,7 +4,23 @@
 
 ---
 
-## 🔖 最新快照(2026-06-26 第五轮:上线 + EP/ICA 域深化)
+## 🔖 最新快照(2026-06-27 第七轮:财务系统第 1 层地基)
+
+- **业主提了一整套财务系统大需求**(业务绑公司、公司财务数据/新加坡报表导出、KPI 反推不亏损、总现金流面板、灵活收入模型/方案版本、强制凭证、对公账户对账…)。已拆成 **3 层 7 模块**,设计 + 实现都**自下而上一层层来**。
+- **设计 spec**:`docs/superpowers/specs/2026-06-27-finance-layer1-businesses-schemes-design.md`(含整套分层表 + 第 1 层详设)。**会计走「简化录入 + 生成专业报表导出」**;收入模型用**通用条目规则引擎 + 预设模板**(业主确认方向)。
+- **第 1 层地基(模块 ①②)已全部做完、commit、运行时验证**(commit `33d7788`→`bc9cefa`,codex 写 + Claude 审/typecheck/端到端冒烟):
+  - **批1 数据层**:`businesses`(绑公司)/`deal_parties`/`scheme_versions`/`scheme_lines`/`deal_line_amounts` 5 表 + 5 枚举 + `billing` 加 `business_id`/`scheme_version_id`/`inputs`。**migration `0012` 已 migrate 本地库**。
+  - **批2 计算引擎**:`@bh/shared` 的 `computeDealEconomics` 纯函数(两遍求值 percent_of_revenue/margin/per_unit/fixed,one_time/monthly/per_event)+ 4 业态预设 `DEAL_PRESETS` + **vitest 6 单测全绿**(项目首次引入 vitest)。
+  - **批3 API**:`businesses`/`schemeVersions`(preset 展开 + `/preview` + profit_rate 重算)/`dealParties` 路由 + `billing` 事务写 `deal_line_amounts` 快照;`financeUtils.ts` 复用层。
+  - **批4 seed**:5 系统 `deal_parties` + 现有 5 业务建实体(ep/ica→JUYI 咨询,diploma/english/wsq→恺德学校)+ 各 v1 默认版本(一次性卖断);**幂等已验**。billing 0 行无回填。
+  - **批5 前端**:「业务方案」导航区 —— 业务列表(按公司分组)/ 业务详情 + 方案版本编辑器(预设模板 + 规则行表格 + 示范利润率实时 preview)/ 分成对象;i18n 中英。`pnpm --filter @bh/web build` 过。
+  - **端到端冒烟**(真实 HTTP):建「保安保洁/按人头多方抽成」业务 → preview headcount=10/12月 → 每月净利 2950、年 35400、profit_rate 0.8429,与 spec 算例一致。
+- **本轮未 push**(6 commit 待 push);未 migrate 生产库(只 migrate 了本地 cc docker postgres)。本地测试时在 JUYI 名下建过一个占位「保安保洁派遣」业务(可在 UI 删)。
+- **下一步(财务第 2 层起)**:③ 期数台账 + 每业务月度面板(**学院当月收款进度 + 欠款学生名单**,脊柱 `diplomaPayments` 已在)→ ④ 收支总账本 + 强制凭证 + 对公账户对账 → ⑤ 销售跨业务/底薪/提成账本 → ⑥ 新加坡报表导出 → ⑦ KPI 反推(**招生缺口 = 月固定成本 ÷ 每生月净利 − 现有学生数**)+ 总现金流面板。每模块各自 spec。
+
+---
+
+## 🔖 旧快照(2026-06-26 第五轮:上线 + EP/ICA 域深化)
 
 - **已上线** https://bh.youjia.sg(单进程同源 systemd `bh-prod`:3011 → frpc 3099 → byte nginx + certbot SSL;postgres 在 cc docker)。改代码后 `XDG_RUNTIME_DIR=/run/user/1000 systemctl --user restart bh-prod`。owner=admin@bh.local/**changeme**(待改)。
 - **本轮新增并上线**:① 行业可管理实体(移民/留学/学院)+ 公司关联行业 + 公司状态枚举下拉;② EP「申请」8步 / ICA「申诉」7步 / DP「申请」5步 流程模板(seed);③ EP 挂多个 DP 子申请(parent_case_id);④ 担保人库(guarantors)+ ICA 选担保人;⑤ 提交/拒绝周期(case_submissions,ICA 失败重提记时间);⑥ 补材料中(need_materials)步骤状态;⑦ 步骤 meta(KYC 预约时间)。migrations 到 **0007**,均已 migrate 生产库。
