@@ -4,6 +4,8 @@ import { DEAL_PRESETS, computeDealEconomics, type SchemeLineInput } from "@bh/sh
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
+  bankAccounts,
+  bankStatementLines,
   billing,
   businesses,
   companyExpenses,
@@ -13,7 +15,9 @@ import {
   diplomaEnrollments,
   diplomaPayments,
   employees,
+  expenseCategories,
   industries,
+  ledgerEntries,
   payrollSettings,
   schemeLines,
   schemeVersions,
@@ -729,8 +733,243 @@ async function seedAcademyDemo() {
 
 const academyDemoStats = await seedAcademyDemo();
 
+async function seedFinanceLedgerDemo() {
+  const expenseCategorySeeds = [
+    { code: "rent", name: "房租", nameEn: "Rent" },
+    { code: "utility", name: "水电", nameEn: "Utilities" },
+    { code: "broadband", name: "宽带", nameEn: "Broadband" },
+    { code: "salary", name: "工资", nameEn: "Salary" },
+    { code: "cpf", name: "CPF", nameEn: "CPF" },
+    { code: "levy", name: "劳工税", nameEn: "Levy" },
+    { code: "marketing", name: "市场推广", nameEn: "Marketing" },
+    { code: "office", name: "办公杂费", nameEn: "Office" },
+    { code: "other", name: "其它", nameEn: "Other" }
+  ] as const;
+
+  let expenseCategoriesUpserted = 0;
+  let bankAccountsUpserted = 0;
+  let ledgerBridged = 0;
+  let statementLinesDemo = 0;
+
+  const result = await db.transaction(async (tx) => {
+    for (const category of expenseCategorySeeds) {
+      await tx
+        .insert(expenseCategories)
+        .values({
+          code: category.code,
+          name: category.name,
+          nameEn: category.nameEn,
+          active: true,
+          isSystem: true
+        })
+        .onConflictDoUpdate({
+          target: expenseCategories.code,
+          set: {
+            name: category.name,
+            nameEn: category.nameEn,
+            active: true,
+            isSystem: true
+          }
+        });
+      expenseCategoriesUpserted += 1;
+    }
+
+    const ensureCompany = async (name: string, note: string) => {
+      const [existingCompany] = await tx
+        .select({ id: companies.id })
+        .from(companies)
+        .where(eq(companies.name, name))
+        .limit(1);
+
+      if (existingCompany) {
+        return existingCompany;
+      }
+
+      const [createdCompany] = await tx
+        .insert(companies)
+        .values({ name, status: "active", note })
+        .returning({ id: companies.id });
+
+      if (!createdCompany) {
+        throw new Error(`company_create_failed:${name}`);
+      }
+
+      return createdCompany;
+    };
+
+    const ensureBankAccount = async (companyId: string) => {
+      const accountName = "主账户";
+      const [existingAccount] = await tx
+        .select({ id: bankAccounts.id })
+        .from(bankAccounts)
+        .where(and(eq(bankAccounts.companyId, companyId), eq(bankAccounts.name, accountName)))
+        .limit(1);
+
+      if (existingAccount) {
+        await tx
+          .update(bankAccounts)
+          .set({
+            currency: "SGD",
+            isPrimary: true,
+            active: true
+          })
+          .where(eq(bankAccounts.id, existingAccount.id));
+        bankAccountsUpserted += 1;
+        return existingAccount;
+      }
+
+      const [createdAccount] = await tx
+        .insert(bankAccounts)
+        .values({
+          companyId,
+          name: accountName,
+          currency: "SGD",
+          isPrimary: true,
+          active: true
+        })
+        .returning({ id: bankAccounts.id });
+
+      if (!createdAccount) {
+        throw new Error(`bank_account_create_failed:${companyId}`);
+      }
+
+      bankAccountsUpserted += 1;
+      return createdAccount;
+    };
+
+    const juyiCompany = await ensureCompany("JUYI 咨询", "Seed company for finance demo");
+    const kaideCompany = await ensureCompany("恺德学校", "[DEMO] 学院收款演示公司");
+    await ensureBankAccount(juyiCompany.id);
+    const kaideAccount = await ensureBankAccount(kaideCompany.id);
+
+    const [rentCategory] = await tx
+      .select({ id: expenseCategories.id })
+      .from(expenseCategories)
+      .where(eq(expenseCategories.code, "rent"))
+      .limit(1);
+
+    const [demoExpense] = await tx
+      .select({
+        id: companyExpenses.id,
+        amount: companyExpenses.amount,
+        currency: companyExpenses.currency,
+        paidAt: companyExpenses.paidAt,
+        createdAt: companyExpenses.createdAt,
+        documentId: companyExpenses.documentId
+      })
+      .from(companyExpenses)
+      .where(and(eq(companyExpenses.companyId, kaideCompany.id), eq(companyExpenses.note, "[DEMO] 月租")))
+      .limit(1);
+
+    if (demoExpense && rentCategory) {
+      const proofDocumentIds = demoExpense.documentId ? [demoExpense.documentId] : [];
+      const occurredAt = demoExpense.paidAt ?? demoExpense.createdAt;
+      const [existingLedger] = await tx
+        .select({ id: ledgerEntries.id })
+        .from(ledgerEntries)
+        .where(
+          and(
+            eq(ledgerEntries.sourceType, "company_expense"),
+            eq(ledgerEntries.sourceId, demoExpense.id)
+          )
+        )
+        .limit(1);
+
+      if (existingLedger) {
+        await tx
+          .update(ledgerEntries)
+          .set({
+            companyId: kaideCompany.id,
+            bankAccountId: kaideAccount.id,
+            direction: "out",
+            amount: demoExpense.amount,
+            currency: demoExpense.currency,
+            sgdEquivalent: demoExpense.amount,
+            occurredAt,
+            expenseCategoryId: rentCategory.id,
+            proofDocumentIds,
+            note: "[DEMO]"
+          })
+          .where(eq(ledgerEntries.id, existingLedger.id));
+        ledgerBridged = 1;
+      } else {
+        await tx.insert(ledgerEntries).values({
+          companyId: kaideCompany.id,
+          bankAccountId: kaideAccount.id,
+          direction: "out",
+          amount: demoExpense.amount,
+          currency: demoExpense.currency,
+          sgdEquivalent: demoExpense.amount,
+          occurredAt,
+          expenseCategoryId: rentCategory.id,
+          proofDocumentIds,
+          sourceType: "company_expense",
+          sourceId: demoExpense.id,
+          note: "[DEMO]"
+        });
+        ledgerBridged = 1;
+      }
+
+      const statementSeeds = [
+        {
+          amount: demoExpense.amount,
+          description: "[DEMO] 月租",
+          occurredAt
+        },
+        {
+          amount: toMoney(88),
+          description: "[DEMO] 银行手续费",
+          occurredAt
+        }
+      ] as const;
+
+      for (const statementSeed of statementSeeds) {
+        const [existingStatementLine] = await tx
+          .select({ id: bankStatementLines.id })
+          .from(bankStatementLines)
+          .where(
+            and(
+              eq(bankStatementLines.bankAccountId, kaideAccount.id),
+              eq(bankStatementLines.importBatch, "[DEMO]"),
+              eq(bankStatementLines.amount, statementSeed.amount),
+              eq(bankStatementLines.description, statementSeed.description)
+            )
+          )
+          .limit(1);
+
+        if (existingStatementLine) {
+          continue;
+        }
+
+        await tx.insert(bankStatementLines).values({
+          bankAccountId: kaideAccount.id,
+          occurredAt: statementSeed.occurredAt,
+          direction: "out",
+          amount: statementSeed.amount,
+          currency: "SGD",
+          description: statementSeed.description,
+          importBatch: "[DEMO]",
+          note: "[DEMO]"
+        });
+        statementLinesDemo += 1;
+      }
+    }
+
+    return {
+      expenseCategoriesUpserted,
+      bankAccountsUpserted,
+      ledgerBridged,
+      statementLinesDemo
+    };
+  });
+
+  return result;
+}
+
+const financeLedgerDemoStats = await seedFinanceLedgerDemo();
+
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

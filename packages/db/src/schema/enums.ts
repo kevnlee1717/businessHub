@@ -27,9 +27,12 @@ import {
   facePurposes,
   genders,
   gpsTriggers,
+  ledgerDirections,
+  ledgerSources,
   paymentTypes,
   payrollSchemes,
   payslipStatuses,
+  reconcileStatuses,
   schemeLineBases,
   schemeLineKinds,
   schemeLineRecurrences,
@@ -74,6 +77,9 @@ export const diplomaAssignmentActionEnum = pgEnum("diploma_assignment_action", d
 export const genderEnum = pgEnum("gender", genders);
 export const caseSubmissionResultEnum = pgEnum("case_submission_result", caseSubmissionResults);
 export const companyExpenseTypeEnum = pgEnum("company_expense_type", companyExpenseTypes);
+export const ledgerDirectionEnum = pgEnum("ledger_direction", ledgerDirections);
+export const ledgerSourceEnum = pgEnum("ledger_source", ledgerSources);
+export const reconcileStatusEnum = pgEnum("reconcile_status", reconcileStatuses);
 export const contractStatusEnum = pgEnum("contract_status", contractStatuses);
 export const contractVersionStatusEnum = pgEnum("contract_version_status", contractVersionStatuses);
 export const contractSubjectTypeEnum = pgEnum("contract_subject_type", contractSubjectTypes);

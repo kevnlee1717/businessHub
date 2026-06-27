@@ -122,6 +122,15 @@ export type CaseSubmissionResult = (typeof caseSubmissionResults)[number];
 export const companyExpenseTypes = ["rent", "utility", "other"] as const;
 export type CompanyExpenseType = (typeof companyExpenseTypes)[number];
 
+export const ledgerDirections = ["in", "out"] as const;
+export type LedgerDirection = (typeof ledgerDirections)[number];
+
+export const ledgerSources = ["manual", "payment", "company_expense"] as const;
+export type LedgerSource = (typeof ledgerSources)[number];
+
+export const reconcileStatuses = ["unreconciled", "reconciled", "ignored"] as const;
+export type ReconcileStatus = (typeof reconcileStatuses)[number];
+
 export const contractStatuses = ["draft", "active", "expired", "terminated"] as const;
 export type ContractStatus = (typeof contractStatuses)[number];
 
