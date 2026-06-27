@@ -5,6 +5,7 @@ import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
+import { bridgeCompanyExpenseToLedger } from "./ledgerUtils";
 
 const expenseQuerySchema = z.object({
   company_id: z.string().uuid().optional(),
@@ -55,19 +56,30 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
 
   app.post("/company-expenses", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
     const body = parseWithSchema(companyExpenseCreateSchema, request.body);
-    const [expense] = await db
-      .insert(companyExpenses)
-      .values({
-        companyId: body.company_id,
-        type: body.type,
-        amount: toNumeric(body.amount) ?? "0",
-        currency: body.currency,
-        period: body.period,
-        paidAt: body.paid_at ? new Date(body.paid_at) : undefined,
-        note: body.note,
-        documentId: body.document_id
-      })
-      .returning();
+    const expense = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(companyExpenses)
+        .values({
+          companyId: body.company_id,
+          type: body.type,
+          amount: toNumeric(body.amount) ?? "0",
+          currency: body.currency,
+          period: body.period,
+          paidAt: body.paid_at ? new Date(body.paid_at) : undefined,
+          note: body.note,
+          documentId: body.document_id
+        })
+        .returning();
+
+      if (created) {
+        const ledgerEntry = await bridgeCompanyExpenseToLedger(created, request.user.id, tx);
+        if (!ledgerEntry) {
+          request.log.warn({ company_expense_id: created.id }, "company_expense_ledger_bridge_skipped");
+        }
+      }
+
+      return created ?? null;
+    });
 
     if (!expense) {
       throw new Error("company_expense_create_failed");
@@ -80,20 +92,31 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(companyExpenseUpdateSchema, request.body);
     const amount = body.amount === undefined ? undefined : (toNumeric(body.amount) as string);
-    const [expense] = await db
-      .update(companyExpenses)
-      .set({
-        companyId: body.company_id,
-        type: body.type,
-        amount,
-        currency: body.currency,
-        period: body.period,
-        paidAt: body.paid_at ? new Date(body.paid_at) : undefined,
-        note: body.note,
-        documentId: body.document_id
-      })
-      .where(eq(companyExpenses.id, id))
-      .returning();
+    const expense = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(companyExpenses)
+        .set({
+          companyId: body.company_id,
+          type: body.type,
+          amount,
+          currency: body.currency,
+          period: body.period,
+          paidAt: body.paid_at ? new Date(body.paid_at) : undefined,
+          note: body.note,
+          documentId: body.document_id
+        })
+        .where(eq(companyExpenses.id, id))
+        .returning();
+
+      if (updated) {
+        const ledgerEntry = await bridgeCompanyExpenseToLedger(updated, request.user.id, tx);
+        if (!ledgerEntry) {
+          request.log.warn({ company_expense_id: updated.id }, "company_expense_ledger_bridge_skipped");
+        }
+      }
+
+      return updated ?? null;
+    });
 
     if (!expense) {
       return sendNotFound(reply);

@@ -12,6 +12,7 @@ import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { refreshBillingDealLineAmounts, serializeDealEconomics } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
+import { bridgePaymentToLedger } from "./ledgerUtils";
 
 const billingQuerySchema = z.object({
   ref_type: z.enum(billingRefTypes).optional(),
@@ -426,6 +427,12 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           .returning();
 
         const updatedBilling = await recomputeStatus(id, tx);
+        if (payment && updatedBilling) {
+          const ledgerEntry = await bridgePaymentToLedger(payment, billingRow, request.user.id, tx);
+          if (!ledgerEntry) {
+            request.log.warn({ payment_id: payment.id }, "payment_ledger_bridge_skipped");
+          }
+        }
 
         return payment && updatedBilling ? { payment, billing: updatedBilling } : null;
       });
