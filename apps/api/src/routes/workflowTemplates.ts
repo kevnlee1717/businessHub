@@ -28,12 +28,14 @@ function serializeTemplateStep(step: typeof templateSteps.$inferSelect) {
     name_en: step.nameEn,
     description: step.description,
     required_documents: step.requiredDocuments,
+    collections: step.collections,
     default_assignee_role: step.defaultAssigneeRole,
     created_at: step.createdAt
   };
 }
 
 type RequiredDocument = (typeof templateSteps.$inferSelect)["requiredDocuments"][number];
+type StepCollection = (typeof templateSteps.$inferSelect)["collections"][number];
 
 function normalizeRequiredDocuments(
   items:
@@ -54,6 +56,24 @@ function normalizeRequiredDocuments(
     ...(item.name_en === undefined ? {} : { name_en: item.name_en }),
     required: item.required ?? true,
     ...(item.category_id === undefined ? {} : { category_id: item.category_id })
+  }));
+}
+
+function normalizeCollections(
+  items:
+    | {
+        collection_item_id: string;
+        required?: boolean | undefined;
+      }[]
+    | undefined
+): StepCollection[] | undefined {
+  if (items === undefined) {
+    return undefined;
+  }
+
+  return items.map((item) => ({
+    collection_item_id: item.collection_item_id,
+    required: item.required ?? true
   }));
 }
 
@@ -147,6 +167,7 @@ export async function registerWorkflowTemplateRoutes(app: FastifyInstance): Prom
         nameEn: body.name_en,
         description: body.description,
         requiredDocuments: normalizeRequiredDocuments(body.required_documents) ?? [],
+        collections: normalizeCollections(body.collections) ?? [],
         defaultAssigneeRole: body.default_assignee_role
       })
       .returning();
@@ -169,6 +190,7 @@ export async function registerWorkflowTemplateRoutes(app: FastifyInstance): Prom
         nameEn: body.name_en,
         description: body.description,
         requiredDocuments: normalizeRequiredDocuments(body.required_documents),
+        collections: normalizeCollections(body.collections),
         defaultAssigneeRole: body.default_assignee_role
       })
       .where(eq(templateSteps.id, id))

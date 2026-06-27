@@ -22,6 +22,11 @@ export const requiredDocItemSchema = z.object({
   required: z.boolean().default(true)
 });
 
+export const stepCollectionItemSchema = z.object({
+  collection_item_id: uuidField,
+  required: z.boolean().optional()
+});
+
 export const workflowTemplateCreateSchema = z.object({
   business_type: z.enum(businessTypes),
   name: z.string().trim().min(1)
@@ -35,6 +40,7 @@ export const templateStepCreateSchema = z.object({
   name_en: optionalText,
   description: nullableOptionalText,
   required_documents: z.array(requiredDocItemSchema).optional(),
+  collections: z.array(stepCollectionItemSchema).optional(),
   default_assignee_role: z.enum(roles).nullable().optional()
 });
 
@@ -127,6 +133,7 @@ export const followUpCreateSchema = z.object({
 export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
 export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 export type RequiredDocItemInput = z.infer<typeof requiredDocItemSchema>;
+export type StepCollectionItemInput = z.infer<typeof stepCollectionItemSchema>;
 export type WorkflowTemplateCreateInput = z.infer<typeof workflowTemplateCreateSchema>;
 export type WorkflowTemplateUpdateInput = z.infer<typeof workflowTemplateUpdateSchema>;
 export type TemplateStepCreateInput = z.infer<typeof templateStepCreateSchema>;

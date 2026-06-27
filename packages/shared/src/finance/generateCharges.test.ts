@@ -4,7 +4,7 @@ import { generateCharges, type MilestoneInput } from "./generateCharges";
 import type { SchemeLineInput } from "./dealEconomics";
 
 describe("generateCharges", () => {
-  it("splits one-time revenue by milestones and keeps bound step orders", () => {
+  it("splits one-time revenue by milestones and keeps collection items and bound step orders", () => {
     const charges = generateCharges(
       [
         {
@@ -16,7 +16,7 @@ describe("generateCharges", () => {
         }
       ],
       [
-        { seq: 1, label: "首付", basis: "percent", value: 30, bindStepOrder: 1 },
+        { seq: 1, label: "首付", basis: "percent", value: 30, collectionItemId: "item-down-payment", bindStepOrder: 1 },
         { seq: 2, label: "尾款", basis: "percent", value: 70, bindStepOrder: 8 }
       ],
       {}
@@ -24,7 +24,14 @@ describe("generateCharges", () => {
 
     expect(charges).toHaveLength(2);
     expect(charges).toMatchObject([
-      { chargeKind: "milestone", seq: 1, label: "首付", bindStepOrder: 1, amountExpected: 3000 },
+      {
+        chargeKind: "milestone",
+        seq: 1,
+        label: "首付",
+        collectionItemId: "item-down-payment",
+        bindStepOrder: 1,
+        amountExpected: 3000
+      },
       { chargeKind: "milestone", seq: 2, label: "尾款", bindStepOrder: 8, amountExpected: 7000 }
     ]);
   });

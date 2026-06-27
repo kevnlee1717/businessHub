@@ -6,6 +6,7 @@ export type MilestoneInput = {
   label: string;
   basis: MilestoneBasis;
   value: number;
+  collectionItemId?: string | null;
   bindStepOrder?: number | null;
   dueOffsetDays?: number | null;
   note?: string | null;
@@ -18,6 +19,7 @@ export type ChargeDraft = {
   period?: string | null;
   dueDate?: string | null;
   caseStepId?: string | null;
+  collectionItemId?: string | null;
   schemeLineId?: string | null;
   bindStepOrder?: number | null;
   amountExpected: number;
@@ -82,6 +84,7 @@ export function generateCharges(
         seq: milestone.seq,
         label: milestone.label,
         dueDate: null,
+        collectionItemId: milestone.collectionItemId ?? null,
         bindStepOrder: milestone.bindStepOrder ?? null,
         amountExpected: amount
       });

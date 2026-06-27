@@ -30,6 +30,7 @@ import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { refreshBillingCharges } from "./billing";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 function serializeCase(row: typeof cases.$inferSelect) {
@@ -63,6 +64,7 @@ function serializeCaseStep(row: typeof caseSteps.$inferSelect) {
     reviewer_id: row.reviewerId,
     review_status: row.reviewStatus,
     meta: row.meta,
+    collections: row.collections,
     completed_at: row.completedAt,
     created_at: row.createdAt
   };
@@ -174,6 +176,10 @@ const caseQuerySchema = z.object({
   client_id: z.string().uuid().optional(),
   parent_case_id: z.string().uuid().optional()
 });
+
+function hasOwn(input: object, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(input, field);
+}
 
 async function recalculateCurrentStep(caseId: string): Promise<void> {
   const stepRows = await db
@@ -363,6 +369,9 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (!body.template_id) {
+        if (body.billing_id) {
+          await refreshBillingCharges(body.billing_id, tx);
+        }
         return { caseRow, stepRows: [] };
       }
 
@@ -382,6 +391,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
             name: templateStep.name,
             nameEn: templateStep.nameEn,
             description: templateStep.description,
+            collections: templateStep.collections,
             assigneeId: null
           })
           .returning();
@@ -412,7 +422,15 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(cases.id, caseRow.id))
           .returning();
 
+        if (body.billing_id) {
+          await refreshBillingCharges(body.billing_id, tx);
+        }
+
         return { caseRow: updatedCase ?? caseRow, stepRows };
+      }
+
+      if (body.billing_id) {
+        await refreshBillingCharges(body.billing_id, tx);
       }
 
       return { caseRow, stepRows };
@@ -426,21 +444,40 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   app.patch("/cases/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseUpdateSchema, request.body);
-    const [caseRow] = await db
-      .update(cases)
-      .set({
-        clientId: body.client_id,
-        billingId: body.billing_id,
-        status: body.status,
-        currentStep: body.current_step,
-        guarantorId: body.guarantor_id,
-        guarantorName: body.guarantor_name,
-        guarantorRelation: body.guarantor_relation,
-        guarantorContact: body.guarantor_contact,
-        updatedAt: new Date()
-      })
-      .where(eq(cases.id, id))
-      .returning();
+
+    const caseRow = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(cases).where(eq(cases.id, id)).limit(1);
+
+      if (!current) {
+        return null;
+      }
+
+      const [updated] = await tx
+        .update(cases)
+        .set({
+          clientId: body.client_id,
+          billingId: body.billing_id,
+          status: body.status,
+          currentStep: body.current_step,
+          guarantorId: body.guarantor_id,
+          guarantorName: body.guarantor_name,
+          guarantorRelation: body.guarantor_relation,
+          guarantorContact: body.guarantor_contact,
+          updatedAt: new Date()
+        })
+        .where(eq(cases.id, id))
+        .returning();
+
+      if (!updated) {
+        return null;
+      }
+
+      if (hasOwn(body, "billing_id") && body.billing_id && body.billing_id !== current.billingId) {
+        await refreshBillingCharges(body.billing_id, tx);
+      }
+
+      return updated;
+    });
 
     if (!caseRow) {
       return sendNotFound(reply);

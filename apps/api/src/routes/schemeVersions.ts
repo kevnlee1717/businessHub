@@ -1,4 +1,4 @@
-import { businesses, db, schemeLines, schemeMilestones, schemeVersions } from "@bh/db";
+import { businesses, collectionItems, db, schemeLines, schemeMilestones, schemeVersions } from "@bh/db";
 import {
   DEAL_PRESETS,
   dealInputsSchema,
@@ -49,6 +49,7 @@ function serializeMilestone(row: typeof schemeMilestones.$inferSelect) {
     version_id: row.versionId,
     seq: row.seq,
     label: row.label,
+    collection_item_id: row.collectionItemId,
     basis: row.basis,
     value: row.value,
     bind_step_order: row.bindStepOrder,
@@ -56,6 +57,26 @@ function serializeMilestone(row: typeof schemeMilestones.$inferSelect) {
     note: row.note,
     created_at: row.createdAt
   };
+}
+
+async function resolveMilestoneLabel(
+  label: string | undefined,
+  collectionItemId: string | null | undefined
+): Promise<string | null> {
+  if (label) {
+    return label;
+  }
+  if (!collectionItemId) {
+    return null;
+  }
+
+  const [item] = await db
+    .select({ name: collectionItems.name })
+    .from(collectionItems)
+    .where(eq(collectionItems.id, collectionItemId))
+    .limit(1);
+
+  return item?.name ?? null;
 }
 
 function presetByKey(key: string | undefined) {
@@ -244,12 +265,18 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
         return sendNotFound(reply);
       }
 
+      const label = await resolveMilestoneLabel(body.label, body.collection_item_id);
+      if (!label) {
+        return reply.code(400).send({ error: "collection_item_not_found" });
+      }
+
       const [milestone] = await db
         .insert(schemeMilestones)
         .values({
           versionId: id,
           seq: body.seq,
-          label: body.label,
+          label,
+          collectionItemId: body.collection_item_id,
           basis: body.basis,
           value: toNumeric(body.value) ?? "0",
           bindStepOrder: body.bind_step_order,
@@ -272,11 +299,13 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(milestoneUpdateSchema, request.body);
+      const label = await resolveMilestoneLabel(body.label, body.collection_item_id);
       const [milestone] = await db
         .update(schemeMilestones)
         .set({
           seq: body.seq,
-          label: body.label,
+          label: label ?? undefined,
+          collectionItemId: body.collection_item_id,
           basis: body.basis,
           value: body.value === undefined ? undefined : toNumeric(body.value) ?? "0",
           bindStepOrder: body.bind_step_order,

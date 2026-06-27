@@ -124,7 +124,14 @@ function serializeBilling(row: typeof billing.$inferSelect) {
   };
 }
 
-async function refreshBillingCharges(
+function caseStepHasCollection(
+  step: Pick<typeof caseSteps.$inferSelect, "collections">,
+  collectionItemId: string
+): boolean {
+  return step.collections.some((item) => item.collection_item_id === collectionItemId);
+}
+
+async function refreshBillingChargesForRow(
   billingRow: typeof billing.$inferSelect,
   schemeVersionId: string,
   inputs: DealInputs,
@@ -147,9 +154,10 @@ async function refreshBillingCharges(
     .limit(1);
   const stepRows = caseRow
     ? await tx
-        .select({ id: caseSteps.id, stepOrder: caseSteps.stepOrder })
+        .select({ id: caseSteps.id, stepOrder: caseSteps.stepOrder, collections: caseSteps.collections })
         .from(caseSteps)
         .where(eq(caseSteps.caseId, caseRow.id))
+        .orderBy(asc(caseSteps.stepOrder))
     : [];
   const stepIdByOrder = new Map(stepRows.map((step) => [step.stepOrder, step.id]));
   const milestoneBySeq = new Map(milestoneRows.map((milestone) => [milestone.seq, milestone]));
@@ -160,6 +168,7 @@ async function refreshBillingCharges(
       label: milestone.label,
       basis: milestone.basis,
       value: Number(milestone.value),
+      collectionItemId: milestone.collectionItemId,
       bindStepOrder: milestone.bindStepOrder,
       dueOffsetDays: milestone.dueOffsetDays,
       note: milestone.note
@@ -188,28 +197,33 @@ async function refreshBillingCharges(
       continue;
     }
 
-      const milestone = draft.chargeKind === "milestone" ? milestoneBySeq.get(draft.seq) : undefined;
-      const dueDate =
-        milestone?.dueOffsetDays === null || milestone?.dueOffsetDays === undefined
-          ? draft.dueDate
-          : addDaysAsDateString(billingRow.createdAt ?? new Date(), milestone.dueOffsetDays);
+    const milestone = draft.chargeKind === "milestone" ? milestoneBySeq.get(draft.seq) : undefined;
+    const dueDate =
+      milestone?.dueOffsetDays === null || milestone?.dueOffsetDays === undefined
+        ? draft.dueDate
+        : addDaysAsDateString(billingRow.createdAt ?? new Date(), milestone.dueOffsetDays);
+    const collectionItemId = draft.collectionItemId;
+    const collectionMatchedStepId = collectionItemId
+      ? (stepRows.find((step) => caseStepHasCollection(step, collectionItemId))?.id ?? null)
+      : null;
     const values = {
-        billingId: billingRow.id,
-        schemeLineId: draft.schemeLineId ?? null,
-        chargeKind: draft.chargeKind,
-        seq: draft.seq,
-        label: draft.label,
-        period: draft.chargeKind === "period" ? (draft.period ?? null) : draft.period ?? null,
-        dueDate,
-        caseStepId:
-          draft.bindStepOrder === null || draft.bindStepOrder === undefined
-            ? draft.caseStepId ?? null
-            : stepIdByOrder.get(draft.bindStepOrder) ?? null,
-        amountExpected: toNumeric(draft.amountExpected) ?? "0",
-        amountCollected: "0",
-        status: "pending" as const,
-        currency: "SGD" as const
-      };
+      billingId: billingRow.id,
+      schemeLineId: draft.schemeLineId ?? null,
+      chargeKind: draft.chargeKind,
+      seq: draft.seq,
+      label: draft.label,
+      period: draft.chargeKind === "period" ? (draft.period ?? null) : draft.period ?? null,
+      dueDate,
+      caseStepId:
+        collectionMatchedStepId ??
+        (draft.bindStepOrder === null || draft.bindStepOrder === undefined
+          ? draft.caseStepId ?? null
+          : stepIdByOrder.get(draft.bindStepOrder) ?? null),
+      amountExpected: toNumeric(draft.amountExpected) ?? "0",
+      amountCollected: "0",
+      status: "pending" as const,
+      currency: "SGD" as const
+    };
 
     const existing = pendingByKey.get(key);
     if (existing) {
@@ -223,6 +237,21 @@ async function refreshBillingCharges(
   for (const stale of pendingByKey.values()) {
     await tx.delete(billingCharges).where(eq(billingCharges.id, stale.id));
   }
+}
+
+export async function refreshBillingCharges(billingId: string, tx: DbExecutor = db) {
+  const [billingRow] = await tx.select().from(billing).where(eq(billing.id, billingId)).limit(1);
+
+  if (!billingRow?.schemeVersionId || !billingRow.inputs) {
+    return;
+  }
+
+  await refreshBillingChargesForRow(
+    billingRow,
+    billingRow.schemeVersionId,
+    billingRow.inputs as DealInputs,
+    tx
+  );
 }
 
 function serializePayment(row: typeof payments.$inferSelect) {
@@ -381,7 +410,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
           : null;
 
       if (body.scheme_version_id && body.inputs) {
-        await refreshBillingCharges(billingRow, body.scheme_version_id, body.inputs, tx);
+        await refreshBillingCharges(billingRow.id, tx);
       }
 
       await generateCommissionEntries(billingRow, tx);
@@ -516,7 +545,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         nextInputs &&
         (hasOwn(body, "scheme_version_id") || hasOwn(body, "inputs"))
       ) {
-        await refreshBillingCharges(updated, nextSchemeVersionId, nextInputs, tx);
+        await refreshBillingCharges(updated.id, tx);
       }
 
       const billingRow =

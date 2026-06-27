@@ -104,9 +104,10 @@ export const matchSchema = z.object({
   statement_line_id: uuidField
 });
 
-export const milestoneCreateSchema = z.object({
+const milestoneBaseSchema = z.object({
   seq: z.number().int().min(1),
-  label: z.string().trim().min(1),
+  label: z.string().trim().min(1).optional(),
+  collection_item_id: uuidField.nullable().optional(),
   basis: z.enum(milestoneBases),
   value: numericField,
   bind_step_order: z.number().int().min(1).nullable().optional(),
@@ -114,7 +115,17 @@ export const milestoneCreateSchema = z.object({
   note: nullableOptionalText
 });
 
-export const milestoneUpdateSchema = milestoneCreateSchema.partial();
+export const milestoneCreateSchema = milestoneBaseSchema.superRefine((value, ctx) => {
+  if (!value.label && !value.collection_item_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["label"],
+      message: "label_or_collection_item_id_required"
+    });
+  }
+});
+
+export const milestoneUpdateSchema = milestoneBaseSchema.partial();
 
 export const chargeCreateSchema = z.object({
   billing_id: uuidField,
