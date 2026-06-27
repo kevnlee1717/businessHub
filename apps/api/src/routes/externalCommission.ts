@@ -7,7 +7,11 @@ import {
   externalParties,
   ledgerEntries
 } from "@bh/db";
-import { commissionEntryStatusSchema, externalCommissionSettleSchema } from "@bh/shared";
+import {
+  commissionEntryStatusSchema,
+  externalCommissionSettleSchema,
+  externalCommissionUpdateSchema
+} from "@bh/shared";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -31,6 +35,8 @@ const recomputeSchema = z.object({
 });
 
 function serializeExternalCommissionEntry(row: typeof externalCommissionEntries.$inferSelect) {
+  const amountSgd = Number(row.amountSgd);
+  const amountSettled = Number(row.amountSettled);
   return {
     id: row.id,
     payee_id: row.payeeId,
@@ -41,6 +47,8 @@ function serializeExternalCommissionEntry(row: typeof externalCommissionEntries.
     recurrence: row.recurrence,
     seq: row.seq,
     amount_sgd: row.amountSgd,
+    amount_settled: row.amountSettled,
+    outstanding: (amountSgd - amountSettled).toFixed(2),
     status: row.status,
     ledger_entry_id: row.ledgerEntryId,
     source_line_id: row.sourceLineId,
@@ -49,19 +57,11 @@ function serializeExternalCommissionEntry(row: typeof externalCommissionEntries.
   };
 }
 
-function totalsFromRows(rows: Array<{ status: string; total: string }>) {
-  const total = rows.reduce((sum, row) => (row.status === "void" ? sum : sum + Number(row.total)), 0);
-  const settled = rows
-    .filter((row) => row.status === "settled")
-    .reduce((sum, row) => sum + Number(row.total), 0);
-  const outstanding = rows
-    .filter((row) => row.status === "pending")
-    .reduce((sum, row) => sum + Number(row.total), 0);
-
+function totalsFromRow(row: { total: string; settled: string; outstanding: string } | undefined) {
   return {
-    total: total.toFixed(2),
-    settled: settled.toFixed(2),
-    outstanding: outstanding.toFixed(2)
+    total: Number(row?.total ?? 0).toFixed(2),
+    settled: Number(row?.settled ?? 0).toFixed(2),
+    outstanding: Number(row?.outstanding ?? 0).toFixed(2)
   };
 }
 
@@ -113,45 +113,72 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
 
     const overallRows = await db
       .select({
-        status: externalCommissionEntries.status,
-        total: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd}),0)`
+        total: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`,
+        settled: sql<string>`coalesce(sum(${externalCommissionEntries.amountSettled}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`,
+        outstanding: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd} - ${externalCommissionEntries.amountSettled}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`
       })
       .from(externalCommissionEntries)
-      .where(where)
-      .groupBy(externalCommissionEntries.status);
+      .where(where);
 
     const byPayeeRows = await db
       .select({
         payeeId: externalCommissionEntries.payeeId,
         payeeName: externalParties.name,
-        status: externalCommissionEntries.status,
-        total: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd}),0)`
+        total: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`,
+        settled: sql<string>`coalesce(sum(${externalCommissionEntries.amountSettled}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`,
+        outstanding: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd} - ${externalCommissionEntries.amountSettled}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`
       })
       .from(externalCommissionEntries)
       .leftJoin(externalParties, eq(externalCommissionEntries.payeeId, externalParties.id))
       .where(where)
-      .groupBy(externalCommissionEntries.payeeId, externalParties.name, externalCommissionEntries.status);
-
-    const byPayee = new Map<string, { payee_id: string; payee_name: string | null; rows: typeof overallRows }>();
-    for (const row of byPayeeRows) {
-      const current = byPayee.get(row.payeeId) ?? {
-        payee_id: row.payeeId,
-        payee_name: row.payeeName,
-        rows: []
-      };
-      current.rows.push({ status: row.status, total: row.total });
-      byPayee.set(row.payeeId, current);
-    }
+      .groupBy(externalCommissionEntries.payeeId, externalParties.name);
 
     return {
-      summary: totalsFromRows(overallRows),
-      by_payee: Array.from(byPayee.values()).map((row) => ({
-        payee_id: row.payee_id,
-        payee_name: row.payee_name,
-        ...totalsFromRows(row.rows)
+      summary: totalsFromRow(overallRows[0]),
+      by_payee: byPayeeRows.map((row) => ({
+        payee_id: row.payeeId,
+        payee_name: row.payeeName,
+        ...totalsFromRow(row)
       }))
     };
   });
+
+  app.patch(
+    "/external-commission/:id",
+    { preHandler: requirePerm("finance.manage") },
+    async (request, reply) => {
+      const { id } = parseWithSchema(idParamsSchema, request.params);
+      const body = parseWithSchema(externalCommissionUpdateSchema, request.body);
+
+      const [current] = await db
+        .select()
+        .from(externalCommissionEntries)
+        .where(eq(externalCommissionEntries.id, id))
+        .limit(1);
+
+      if (!current) {
+        return sendNotFound(reply);
+      }
+
+      const nextAmountSgd = body.amount_sgd === undefined ? current.amountSgd : toNumeric(body.amount_sgd) ?? "0";
+      const nextStatus = Number(current.amountSettled) >= Number(nextAmountSgd) ? "settled" : "pending";
+      const [entry] = await db
+        .update(externalCommissionEntries)
+        .set({
+          amountSgd: body.amount_sgd === undefined ? undefined : nextAmountSgd,
+          note: body.note,
+          status: current.status === "void" ? "void" : nextStatus
+        })
+        .where(eq(externalCommissionEntries.id, id))
+        .returning();
+
+      if (!entry) {
+        return sendNotFound(reply);
+      }
+
+      return { entry: serializeExternalCommissionEntry(entry) };
+    }
+  );
 
   app.post(
     "/external-commission/recompute",
@@ -205,7 +232,9 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
         if (!current) {
           return { error: "not_found" as const };
         }
-        if (current.status === "settled") {
+        const currentAmountSgd = Number(current.amountSgd);
+        const currentAmountSettled = Number(current.amountSettled);
+        if (currentAmountSettled >= currentAmountSgd) {
           return { error: "already_settled" as const };
         }
         if (!current.businessId) {
@@ -230,16 +259,24 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
           return { error: "category_required" as const };
         }
 
+        const remaining = currentAmountSgd - currentAmountSettled;
+        const thisAmount = body.amount === undefined ? remaining : Number(body.amount);
+        if (!(thisAmount > 0)) {
+          return { error: "amount_required" as const };
+        }
+        const thisAmountNumeric = toNumeric(thisAmount.toFixed(2)) ?? "0";
+        const nextAmountSettled = currentAmountSettled + thisAmount;
+
         const [ledgerEntry] = await tx
           .insert(ledgerEntries)
           .values({
             companyId: business.companyId,
             bankAccountId: body.bank_account_id ?? null,
             direction: "out",
-            amount: toNumeric(current.amountSgd) ?? "0",
+            amount: thisAmountNumeric,
             currency: "SGD",
             fxRate: null,
-            sgdEquivalent: toNumeric(current.amountSgd) ?? "0",
+            sgdEquivalent: thisAmountNumeric,
             occurredAt: body.occurred_at ? new Date(body.occurred_at) : new Date(),
             businessId: current.businessId,
             billingId: current.billingId,
@@ -258,7 +295,11 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
 
         const [entry] = await tx
           .update(externalCommissionEntries)
-          .set({ status: "settled", ledgerEntryId: ledgerEntry.id })
+          .set({
+            amountSettled: sql`${externalCommissionEntries.amountSettled} + ${thisAmountNumeric}`,
+            status: nextAmountSettled >= currentAmountSgd ? "settled" : "pending",
+            ledgerEntryId: ledgerEntry.id
+          })
           .where(eq(externalCommissionEntries.id, current.id))
           .returning();
 

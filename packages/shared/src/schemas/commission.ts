@@ -39,6 +39,7 @@ export const commissionEntryCreateSchema = z.object({
 
 export const commissionEntryUpdateSchema = z.object({
   amount_sgd: numericField.optional(),
+  amount_override: numericField.nullable().optional(),
   period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
   status: z.literal("void").optional()
 });

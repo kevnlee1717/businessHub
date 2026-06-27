@@ -32,6 +32,7 @@ const commissionSummaryQuerySchema = z.object({
 });
 
 function serializeCommissionEntry(row: typeof commissionEntries.$inferSelect) {
+  const effectiveAmountSgd = row.amountOverride ?? row.amountSgd;
   return {
     id: row.id,
     sales_id: row.salesId,
@@ -41,6 +42,8 @@ function serializeCommissionEntry(row: typeof commissionEntries.$inferSelect) {
     recurrence: row.recurrence,
     seq: row.seq,
     amount_sgd: row.amountSgd,
+    amount_override: row.amountOverride,
+    effective_amount_sgd: effectiveAmountSgd,
     status: row.status,
     payslip_id: row.payslipId,
     source_line_id: row.sourceLineId,
@@ -86,7 +89,7 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
     const totals = await db
       .select({
         status: commissionEntries.status,
-        total: sql<string>`coalesce(sum(${commissionEntries.amountSgd}),0)`
+        total: sql<string>`coalesce(sum(coalesce(${commissionEntries.amountOverride}, ${commissionEntries.amountSgd})),0)`
       })
       .from(commissionEntries)
       .where(where)
@@ -131,6 +134,8 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
         business: row.business,
         period: row.entry.period,
         amount_sgd: row.entry.amountSgd,
+        amount_override: row.entry.amountOverride,
+        effective_amount_sgd: row.entry.amountOverride ?? row.entry.amountSgd,
         status: row.entry.status,
         payslip_id: row.entry.payslipId,
         recurrence: row.entry.recurrence,
@@ -219,6 +224,7 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
         .update(commissionEntries)
         .set({
           amountSgd: body.amount_sgd === undefined ? undefined : String(body.amount_sgd),
+          amountOverride: body.amount_override === undefined ? undefined : toNumeric(body.amount_override),
           period: body.period,
           status: body.status,
           payslipId: body.status === "void" ? null : undefined
@@ -248,7 +254,7 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
         )
       )
       .orderBy(desc(commissionEntries.createdAt));
-    const total = rows.reduce((sum, row) => sum + Number(row.amountSgd), 0);
+    const total = rows.reduce((sum, row) => sum + Number(row.amountOverride ?? row.amountSgd), 0);
 
     return {
       sales_id: id,

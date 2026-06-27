@@ -5,7 +5,7 @@ import {
   db,
   externalCommissionEntries
 } from "@bh/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import type { DbExecutor } from "./financeUtils";
 import { toNumeric } from "./hrUtils";
 
@@ -47,10 +47,28 @@ export async function refreshExternalCommissionEntries(
 
   const externalPayees = billingRow.externalPayees ?? {};
   const startPeriod = inputStartPeriod(billingRow.inputs, billingRow.createdAt ?? new Date());
+  const retainedRows = await tx
+    .select({ sourceLineId: externalCommissionEntries.sourceLineId })
+    .from(externalCommissionEntries)
+    .where(
+      and(
+        eq(externalCommissionEntries.billingId, billingRow.id),
+        or(
+          sql`${externalCommissionEntries.amountSettled} > 0`,
+          eq(externalCommissionEntries.status, "settled")
+        )
+      )
+    );
+  const retainedSourceLineIds = new Set(
+    retainedRows.map((row) => row.sourceLineId).filter((sourceLineId): sourceLineId is string => Boolean(sourceLineId))
+  );
   const drafts: Array<typeof externalCommissionEntries.$inferInsert> = [];
 
   for (const line of lineRows) {
     if (!line.partyId || systemPartyIds.has(line.partyId) || !line.schemeLineId) {
+      continue;
+    }
+    if (retainedSourceLineIds.has(line.schemeLineId)) {
       continue;
     }
 
@@ -91,7 +109,8 @@ export async function refreshExternalCommissionEntries(
     .where(
       and(
         eq(externalCommissionEntries.billingId, billingRow.id),
-        eq(externalCommissionEntries.status, "pending")
+        eq(externalCommissionEntries.status, "pending"),
+        sql`${externalCommissionEntries.amountSettled} = 0`
       )
     )
     .returning({ id: externalCommissionEntries.id });

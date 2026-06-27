@@ -156,6 +156,19 @@ export async function generateCommissionEntries(
     .select()
     .from(commissionEntries)
     .where(eq(commissionEntries.billingId, billingRow.id));
+  const overrideByKey = new Map(
+    existingRows
+      .filter((entry) => entry.amountOverride !== null && entry.sourceLineId)
+      .map((entry) => [
+        entryKey({
+          billingId: entry.billingId,
+          sourceLineId: entry.sourceLineId as string,
+          period: entry.period,
+          seq: entry.seq
+        }),
+        entry.amountOverride as string
+      ])
+  );
   const protectedKeys = new Set(
     existingRows
       .filter((entry) => entry.status !== "pending" && entry.sourceLineId)
@@ -183,6 +196,7 @@ export async function generateCommissionEntries(
   );
 
   let generated = 0;
+  const materializedIdsByKey = new Map<string, string>();
   for (const draft of drafts) {
     const key = entryKey(draft);
     if (protectedKeys.has(key)) {
@@ -206,11 +220,26 @@ export async function generateCommissionEntries(
 
     if (existing) {
       await tx.update(commissionEntries).set(values).where(eq(commissionEntries.id, existing.id));
+      materializedIdsByKey.set(key, existing.id);
       pendingByKey.delete(key);
     } else {
-      await tx.insert(commissionEntries).values(values);
+      const [inserted] = await tx.insert(commissionEntries).values(values).returning({ id: commissionEntries.id });
+      if (inserted) {
+        materializedIdsByKey.set(key, inserted.id);
+      }
       generated += 1;
     }
+  }
+
+  for (const [key, amountOverride] of overrideByKey) {
+    const id = materializedIdsByKey.get(key);
+    if (!id) {
+      continue;
+    }
+    await tx
+      .update(commissionEntries)
+      .set({ amountOverride })
+      .where(eq(commissionEntries.id, id));
   }
 
   let deletedPending = 0;

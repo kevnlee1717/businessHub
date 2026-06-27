@@ -70,14 +70,11 @@ export async function registerStatementRoutes(app: FastifyInstance): Promise<voi
     const totals = rows.reduce(
       (acc, row) => {
         const amount = Number(row.entry.amountSgd);
+        const amountSettled = Number(row.entry.amountSettled);
         if (row.entry.status !== "void") {
           acc.total += amount;
-        }
-        if (row.entry.status === "settled") {
-          acc.settled += amount;
-        }
-        if (row.entry.status === "pending") {
-          acc.outstanding += amount;
+          acc.settled += amountSettled;
+          acc.outstanding += amount - amountSettled;
         }
         return acc;
       },
@@ -110,6 +107,8 @@ export async function registerStatementRoutes(app: FastifyInstance): Promise<voi
         recurrence: row.entry.recurrence,
         seq: row.entry.seq,
         amount_sgd: row.entry.amountSgd,
+        amount_settled: row.entry.amountSettled,
+        outstanding: (Number(row.entry.amountSgd) - Number(row.entry.amountSettled)).toFixed(2),
         status: row.entry.status,
         created_at: row.entry.createdAt
       })),

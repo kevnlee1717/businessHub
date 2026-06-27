@@ -86,7 +86,7 @@ async function buildPayslip(employee: typeof employees.$inferSelect, period: str
   // 提成以 commission_entries 台账为准, 支持一次性/月度展开与业务覆盖重算。
   const [commissionRow] = await tx
     .select({
-      total: sql<string>`coalesce(sum(${commissionEntries.amountSgd}),0)`
+      total: sql<string>`coalesce(sum(coalesce(${commissionEntries.amountOverride}, ${commissionEntries.amountSgd})),0)`
     })
     .from(commissionEntries)
     .where(
