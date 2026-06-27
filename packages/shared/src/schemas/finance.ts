@@ -32,6 +32,7 @@ export const businessCreateSchema = z.object({
   name_en: nullableOptionalText,
   category: nullableOptionalText,
   status: z.enum(businessStatuses).optional(),
+  currency: z.enum(currencies).optional(),
   sort_order: z.number().int().optional()
 });
 
@@ -42,6 +43,7 @@ export const businessUpdateSchema = z.object({
   name_en: nullableOptionalText,
   category: nullableOptionalText,
   status: z.enum(businessStatuses).optional(),
+  currency: z.enum(currencies).optional(),
   sort_order: z.number().int().optional(),
   default_version_id: uuidField.nullable().optional()
 });

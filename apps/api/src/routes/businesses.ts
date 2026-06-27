@@ -34,6 +34,7 @@ function serializeBusiness(row: typeof businesses.$inferSelect) {
     name_en: row.nameEn,
     category: row.category,
     status: row.status,
+    currency: row.currency,
     default_version_id: row.defaultVersionId,
     sort_order: row.sortOrder,
     note: row.note,
@@ -104,6 +105,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         nameEn: body.name_en,
         category: body.category,
         status: body.status,
+        currency: body.currency,
         sortOrder: body.sort_order
       })
       .returning();
@@ -142,6 +144,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         nameEn: body.name_en,
         category: body.category,
         status: body.status,
+        currency: body.currency,
         defaultVersionId: body.default_version_id,
         sortOrder: body.sort_order
       })

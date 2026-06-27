@@ -1,0 +1,1 @@
+ALTER TABLE "businesses" ADD COLUMN "currency" "currency" DEFAULT 'SGD' NOT NULL;

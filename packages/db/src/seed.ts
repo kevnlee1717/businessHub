@@ -616,25 +616,7 @@ if (!fallbackCompany) {
       .where(eq(businesses.id, business.id));
   }
 
-  const patchedOneTimePriceLines = await db
-    .update(schemeLines)
-    .set({ inputKey: "price" })
-    .where(
-      and(
-        eq(schemeLines.kind, "revenue"),
-        eq(schemeLines.recurrence, "one_time"),
-        eq(schemeLines.basis, "fixed"),
-        sql`${schemeLines.versionId} in (
-          select default_version_id
-          from businesses
-          where code in ('ep', 'ica', 'diploma', 'english', 'wsq')
-            and default_version_id is not null
-        )`,
-        sql`(${schemeLines.inputKey} is null or ${schemeLines.inputKey} = '')`
-      )
-    )
-    .returning({ id: schemeLines.id });
-  oneTimePriceLinesPatched += patchedOneTimePriceLines.length;
+  // 已弃用「每单录入总价」:一次性收入靠 scheme_line.rate 的固定价,不再回填 input_key='price'
 
   const [epBusiness] = await db
     .select({
