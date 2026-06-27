@@ -1,12 +1,19 @@
 import { config } from "dotenv";
 import bcrypt from "bcryptjs";
-import { and, eq } from "drizzle-orm";
+import { DEAL_PRESETS, computeDealEconomics, type SchemeLineInput } from "@bh/shared";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
+  billing,
+  businesses,
+  companies,
+  dealParties,
   documentCategories,
   employees,
   industries,
   payrollSettings,
+  schemeLines,
+  schemeVersions,
   templateSteps,
   workflowTemplates,
   workShifts
@@ -305,8 +312,268 @@ for (const templateSeed of workflowTemplateSeeds) {
   }
 }
 
+const toNumeric = (value: number | null | undefined, digits = 3) =>
+  value === null || value === undefined || !Number.isFinite(value) ? null : value.toFixed(digits);
+
+const today = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const oneTimePreset = DEAL_PRESETS.find((preset) => preset.key === "one_time");
+
+if (!oneTimePreset) {
+  throw new Error("one_time_deal_preset_missing");
+}
+
+const dealPartySeeds = [
+  { code: "us", name: "我们", nameEn: "We" },
+  { code: "sales", name: "业务员", nameEn: "Sales" },
+  { code: "hr_source", name: "HR 来源", nameEn: "HR Source" },
+  { code: "partner", name: "加盟商", nameEn: "Partner" },
+  { code: "referrer", name: "介绍人", nameEn: "Referrer" }
+] as const;
+
+let upsertedDealParties = 0;
+
+for (const party of dealPartySeeds) {
+  await db
+    .insert(dealParties)
+    .values({
+      code: party.code,
+      name: party.name,
+      nameEn: party.nameEn,
+      active: true,
+      isSystem: true
+    })
+    .onConflictDoUpdate({
+      target: dealParties.code,
+      set: {
+        name: party.name,
+        nameEn: party.nameEn,
+        active: true,
+        isSystem: true
+      }
+    });
+  upsertedDealParties += 1;
+}
+
+const partyRows = await db.select().from(dealParties);
+const partyIdByCode = new Map(partyRows.map((party) => [party.code, party.id]));
+
+const [fallbackCompany] = await db.select().from(companies).limit(1);
+
+let upsertedBusinesses = 0;
+let insertedSchemeVersions = 0;
+let skippedSchemeVersions = 0;
+let insertedSchemeLines = 0;
+let updatedBillingRows = 0;
+const financeSeedWarnings: string[] = [];
+
+if (!fallbackCompany) {
+  financeSeedWarnings.push("未找到任何 companies, 跳过 businesses/scheme/billing 财务 seed");
+} else {
+  const findCompanyId = async (name: string) => {
+    const [company] = await db.select().from(companies).where(eq(companies.name, name)).limit(1);
+
+    if (company) {
+      return company.id;
+    }
+
+    financeSeedWarnings.push(`未找到公司 ${name}, 使用 ${fallbackCompany.name} 兜底`);
+    return fallbackCompany.id;
+  };
+
+  const juyiCompanyId = await findCompanyId("JUYI 咨询");
+  const kaideCompanyId = await findCompanyId("恺德学校");
+
+  const businessSeeds = [
+    {
+      code: "ep",
+      name: "EP 申请",
+      nameEn: "EP Application",
+      companyId: juyiCompanyId,
+      category: "移民",
+      sortOrder: 10
+    },
+    {
+      code: "ica",
+      name: "ICA 申诉",
+      nameEn: "ICA Appeal",
+      companyId: juyiCompanyId,
+      category: "移民",
+      sortOrder: 20
+    },
+    {
+      code: "diploma",
+      name: "成人大专",
+      nameEn: "Adult Diploma",
+      companyId: kaideCompanyId,
+      category: "教育",
+      sortOrder: 30
+    },
+    {
+      code: "english",
+      name: "成人英语",
+      nameEn: "Adult English",
+      companyId: kaideCompanyId,
+      category: "教育",
+      sortOrder: 40
+    },
+    {
+      code: "wsq",
+      name: "WSQ 课程",
+      nameEn: "WSQ Course",
+      companyId: kaideCompanyId,
+      category: "教育",
+      sortOrder: 50
+    }
+  ] as const;
+
+  for (const businessSeed of businessSeeds) {
+    const [business] = await db
+      .insert(businesses)
+      .values({
+        code: businessSeed.code,
+        name: businessSeed.name,
+        nameEn: businessSeed.nameEn,
+        companyId: businessSeed.companyId,
+        category: businessSeed.category,
+        status: "active",
+        sortOrder: businessSeed.sortOrder
+      })
+      .onConflictDoUpdate({
+        target: businesses.code,
+        set: {
+          name: businessSeed.name,
+          nameEn: businessSeed.nameEn,
+          companyId: businessSeed.companyId,
+          category: businessSeed.category,
+          status: "active",
+          sortOrder: businessSeed.sortOrder
+        }
+      })
+      .returning();
+
+    if (!business) {
+      continue;
+    }
+
+    upsertedBusinesses += 1;
+
+    const existingVersions = await db
+      .select()
+      .from(schemeVersions)
+      .where(eq(schemeVersions.businessId, business.id))
+      .orderBy(schemeVersions.createdAt)
+      .limit(1);
+
+    if (existingVersions[0]) {
+      skippedSchemeVersions += 1;
+
+      if (!business.defaultVersionId) {
+        await db
+          .update(businesses)
+          .set({ defaultVersionId: existingVersions[0].id })
+          .where(eq(businesses.id, business.id));
+      }
+
+      continue;
+    }
+
+    const engineLines: SchemeLineInput[] = oneTimePreset.lines.map((line) => {
+      const partyId = line.partyCode ? partyIdByCode.get(line.partyCode) : undefined;
+
+      if (line.partyCode && !partyId) {
+        throw new Error(`deal_party_missing:${line.partyCode}`);
+      }
+
+      const engineLine: SchemeLineInput = { ...line };
+
+      if (partyId) {
+        engineLine.partyId = partyId;
+      }
+
+      return engineLine;
+    });
+    const economics = computeDealEconomics(engineLines, oneTimePreset.assumedInputs);
+
+    const [version] = await db
+      .insert(schemeVersions)
+      .values({
+        businessId: business.id,
+        label: "v1",
+        status: "active",
+        effectiveFrom: today(),
+        assumedInputs: oneTimePreset.assumedInputs,
+        profitRate: toNumeric(economics.totals.profitRate) ?? "0"
+      })
+      .returning();
+
+    if (!version) {
+      throw new Error(`scheme_version_create_failed:${business.code}`);
+    }
+
+    insertedSchemeVersions += 1;
+
+    await db.insert(schemeLines).values(
+      oneTimePreset.lines.map((line, index) => ({
+        versionId: version.id,
+        sortOrder: index,
+        kind: line.kind,
+        basis: line.basis,
+        recurrence: line.recurrence,
+        partyId: line.partyCode ? partyIdByCode.get(line.partyCode) ?? null : line.partyId ?? null,
+        rate: toNumeric(line.rate),
+        unitLabel: line.unitLabel,
+        inputKey: line.inputKey,
+        label: line.label ?? ""
+      }))
+    );
+    insertedSchemeLines += oneTimePreset.lines.length;
+
+    await db
+      .update(businesses)
+      .set({ defaultVersionId: version.id })
+      .where(eq(businesses.id, business.id));
+  }
+
+  const [billingCountRow] = await db.select({ count: sql<number>`count(*)::int` }).from(billing);
+  const billingCount = billingCountRow?.count ?? 0;
+
+  if (billingCount === 0) {
+    financeSeedWarnings.push("billing 当前 0 行, 跳过 billing business_id/scheme_version_id 回填");
+  } else {
+    const seededBusinesses = await db.select().from(businesses);
+    const businessByCode = new Map(seededBusinesses.map((business) => [business.code, business]));
+
+    for (const code of ["ep", "ica", "diploma", "english", "wsq"] as const) {
+      const business = businessByCode.get(code);
+
+      if (!business) {
+        financeSeedWarnings.push(`未找到业务 ${code}, 跳过对应 billing 回填`);
+        continue;
+      }
+
+      const updated = await db
+        .update(billing)
+        .set({
+          businessId: business.id,
+          schemeVersionId: business.defaultVersionId
+        })
+        .where(and(eq(billing.refType, code), isNull(billing.businessId)))
+        .returning({ id: billing.id });
+
+      updatedBillingRows += updated.length;
+    }
+  }
+}
+
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, billingRowsBackfilled=${updatedBillingRows}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );
