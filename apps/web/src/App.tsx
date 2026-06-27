@@ -16,6 +16,9 @@ import { DiplomaSection } from "./pages/education/DiplomaSection";
 import { EducationLayout } from "./pages/education/EducationLayout";
 import { EnglishSection } from "./pages/education/EnglishSection";
 import { WsqSection } from "./pages/education/WsqSection";
+import { BusinessDetailPage } from "./pages/businessFinance/BusinessDetailPage";
+import { BusinessListPage } from "./pages/businessFinance/BusinessListPage";
+import { DealPartiesPage } from "./pages/businessFinance/DealPartiesPage";
 import { BillingPage } from "./pages/finance/BillingPage";
 import { AttendancePage } from "./pages/hr/AttendancePage";
 import { ClockPointsPage } from "./pages/hr/ClockPointsPage";
@@ -70,6 +73,9 @@ export function App() {
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
           <Route path="finance" element={<BillingPage />} />
+          <Route path="business-finance" element={<BusinessListPage />} />
+          <Route path="business-finance/parties" element={<DealPartiesPage />} />
+          <Route path="business-finance/:id" element={<BusinessDetailPage />} />
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />
             <Route path="companies" element={<CompaniesPage />} />

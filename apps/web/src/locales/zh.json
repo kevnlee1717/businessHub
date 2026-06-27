@@ -20,6 +20,9 @@
     "students": "学生",
     "documents": "文档",
     "finance": "财务",
+    "business_finance": "业务方案",
+    "business_finance_list": "业务列表",
+    "deal_parties": "分成对象",
     "settings": "设置"
   },
   "auth": {
@@ -1069,5 +1072,97 @@
       "newValue": "新值",
       "changedAt": "修改时间"
     }
+  },
+  "businessFinance": {
+    "list": {
+      "title": "业务方案",
+      "add": "新增业务",
+      "detail": "详情",
+      "empty": "暂无业务"
+    },
+    "detail": {
+      "title": "业务详情",
+      "addVersion": "新增版本",
+      "editVersion": "编辑规则",
+      "setDefault": "设为默认",
+      "noVersions": "暂无方案版本"
+    },
+    "lines": {
+      "title": "规则行",
+      "add": "增行",
+      "empty": "暂无规则行"
+    },
+    "preview": {
+      "title": "示范利润率预览",
+      "inputKey": "输入键",
+      "revenue": "收入",
+      "cost": "成本",
+      "commission": "分成",
+      "profit": "利润",
+      "expected": "预期利润合计",
+      "profitRate": "利润率",
+      "openEnded": "未封口",
+      "openEndedHint": "有周期缺少 months 或 events，预期合计未包含这些开放周期。"
+    },
+    "fields": {
+      "company": "公司",
+      "code": "业务码",
+      "name": "中文名",
+      "nameEn": "英文名",
+      "category": "分类",
+      "status": "状态",
+      "defaultVersion": "默认版本",
+      "profitRate": "利润率",
+      "label": "标签",
+      "effectiveFrom": "生效日",
+      "isDefault": "默认",
+      "preset": "预设模板",
+      "assumedInputs": "假设输入",
+      "kind": "类型",
+      "basis": "基准",
+      "recurrence": "周期",
+      "party": "对象",
+      "rate": "rate",
+      "unitLabel": "单位",
+      "inputKey": "input_key"
+    }
+  },
+  "dealParty": {
+    "title": "分成对象",
+    "add": "新增对象",
+    "edit": "编辑对象",
+    "empty": "暂无分成对象",
+    "fields": {
+      "code": "对象码",
+      "name": "中文名",
+      "nameEn": "英文名",
+      "active": "启用",
+      "isSystem": "系统项"
+    }
+  },
+  "businessStatus": {
+    "active": "启用",
+    "paused": "暂停",
+    "closed": "关闭"
+  },
+  "schemeVersionStatus": {
+    "active": "在用",
+    "closed": "关闭"
+  },
+  "schemeLineKind": {
+    "revenue": "收入",
+    "cost": "成本",
+    "commission": "分成"
+  },
+  "schemeLineBasis": {
+    "fixed": "固定额",
+    "percent_of_revenue": "按收入%",
+    "per_unit": "数量×单价",
+    "margin": "差价"
+  },
+  "schemeLineRecurrence": {
+    "one_time": "一次性",
+    "monthly": "每月",
+    "per_event": "每次事件"
   }
 }

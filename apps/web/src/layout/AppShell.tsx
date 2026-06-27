@@ -36,6 +36,14 @@ const navItems = [
   },
   { to: "/documents", key: "nav.documents" },
   { to: "/finance", key: "nav.finance" },
+  {
+    key: "nav.business_finance",
+    defaultOpened: false,
+    children: [
+      { to: "/business-finance", key: "nav.business_finance_list" },
+      { to: "/business-finance/parties", key: "nav.deal_parties" }
+    ]
+  },
   { to: "/settings", key: "nav.settings" }
 ] as const;
 

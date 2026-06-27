@@ -20,6 +20,9 @@
     "students": "Students",
     "documents": "Documents",
     "finance": "Finance",
+    "business_finance": "Business Schemes",
+    "business_finance_list": "Business List",
+    "deal_parties": "Deal Parties",
     "settings": "Settings"
   },
   "auth": {
@@ -1069,5 +1072,97 @@
       "newValue": "New value",
       "changedAt": "Changed at"
     }
+  },
+  "businessFinance": {
+    "list": {
+      "title": "Business Schemes",
+      "add": "Add business",
+      "detail": "Details",
+      "empty": "No businesses yet"
+    },
+    "detail": {
+      "title": "Business detail",
+      "addVersion": "Add version",
+      "editVersion": "Edit rules",
+      "setDefault": "Set default",
+      "noVersions": "No scheme versions yet"
+    },
+    "lines": {
+      "title": "Rule lines",
+      "add": "Add line",
+      "empty": "No rule lines yet"
+    },
+    "preview": {
+      "title": "Demo profit-rate preview",
+      "inputKey": "Input key",
+      "revenue": "Revenue",
+      "cost": "Cost",
+      "commission": "Commission",
+      "profit": "Profit",
+      "expected": "Expected profit total",
+      "profitRate": "Profit rate",
+      "openEnded": "Open-ended",
+      "openEndedHint": "Some recurring periods are missing months or events, so those open-ended totals are not included."
+    },
+    "fields": {
+      "company": "Company",
+      "code": "Code",
+      "name": "Chinese name",
+      "nameEn": "English name",
+      "category": "Category",
+      "status": "Status",
+      "defaultVersion": "Default version",
+      "profitRate": "Profit rate",
+      "label": "Label",
+      "effectiveFrom": "Effective from",
+      "isDefault": "Default",
+      "preset": "Preset",
+      "assumedInputs": "Assumed inputs",
+      "kind": "Kind",
+      "basis": "Basis",
+      "recurrence": "Recurrence",
+      "party": "Party",
+      "rate": "Rate",
+      "unitLabel": "Unit",
+      "inputKey": "input_key"
+    }
+  },
+  "dealParty": {
+    "title": "Deal Parties",
+    "add": "Add party",
+    "edit": "Edit party",
+    "empty": "No deal parties yet",
+    "fields": {
+      "code": "Code",
+      "name": "Chinese name",
+      "nameEn": "English name",
+      "active": "Active",
+      "isSystem": "System"
+    }
+  },
+  "businessStatus": {
+    "active": "Active",
+    "paused": "Paused",
+    "closed": "Closed"
+  },
+  "schemeVersionStatus": {
+    "active": "Active",
+    "closed": "Closed"
+  },
+  "schemeLineKind": {
+    "revenue": "Revenue",
+    "cost": "Cost",
+    "commission": "Commission"
+  },
+  "schemeLineBasis": {
+    "fixed": "Fixed amount",
+    "percent_of_revenue": "% of revenue",
+    "per_unit": "Quantity x unit price",
+    "margin": "Margin"
+  },
+  "schemeLineRecurrence": {
+    "one_time": "One-time",
+    "monthly": "Monthly",
+    "per_event": "Per event"
   }
 }
