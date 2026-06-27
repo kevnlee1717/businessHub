@@ -14,12 +14,14 @@ import {
   documentCategories,
   diplomaEnrollments,
   diplomaPayments,
+  employeeCompensation,
   employees,
   expenseCategories,
   industries,
   ledgerEntries,
   payrollSettings,
   recurringCosts,
+  salesBusinessAssignments,
   schemeLines,
   schemeMilestones,
   schemeVersions,
@@ -1124,8 +1126,159 @@ async function seedFinanceLedgerDemo() {
 
 const financeLedgerDemoStats = await seedFinanceLedgerDemo();
 
+async function seedDemoSales() {
+  let demoSalesUpserted = 0;
+  let salesAssignmentsUpserted = 0;
+
+  const result = await db.transaction(async (tx) => {
+    const [existingJuyiCompany] = await tx
+      .select({ id: companies.id })
+      .from(companies)
+      .where(eq(companies.name, "JUYI 咨询"))
+      .limit(1);
+
+    const [juyiCompany] = existingJuyiCompany
+      ? [existingJuyiCompany]
+      : await tx
+          .insert(companies)
+          .values({ name: "JUYI 咨询", status: "active", note: "Seed company for finance demo" })
+          .returning({ id: companies.id });
+
+    if (!juyiCompany) {
+      throw new Error("demo_sales_company_create_failed");
+    }
+
+    const businessSeeds = [
+      {
+        code: "ep",
+        name: "EP 申请",
+        nameEn: "EP Application",
+        category: "移民",
+        sortOrder: 10
+      },
+      {
+        code: "ica",
+        name: "ICA 申诉",
+        nameEn: "ICA Appeal",
+        category: "移民",
+        sortOrder: 20
+      }
+    ] as const;
+
+    const assignmentBusinesses: { id: string }[] = [];
+
+    for (const businessSeed of businessSeeds) {
+      const [business] = await tx
+        .insert(businesses)
+        .values({
+          ...businessSeed,
+          companyId: juyiCompany.id,
+          status: "active"
+        })
+        .onConflictDoUpdate({
+          target: businesses.code,
+          set: {
+            name: businessSeed.name,
+            nameEn: businessSeed.nameEn,
+            companyId: juyiCompany.id,
+            category: businessSeed.category,
+            status: "active",
+            sortOrder: businessSeed.sortOrder
+          }
+        })
+        .returning({ id: businesses.id });
+
+      if (business) {
+        assignmentBusinesses.push(business);
+      }
+    }
+
+    const demoSalesEmail = "demo.sales@bh.local";
+    const [demoSales] = await tx
+      .insert(employees)
+      .values({
+        email: demoSalesEmail,
+        name: "[DEMO] 销售小陈",
+        passwordHash,
+        role: "sales",
+        companyId: juyiCompany.id,
+        employmentType: "full_time",
+        status: "active",
+        salaryCurrency: "SGD"
+      })
+      .onConflictDoUpdate({
+        target: employees.email,
+        set: {
+          name: "[DEMO] 销售小陈",
+          passwordHash,
+          role: "sales",
+          companyId: juyiCompany.id,
+          employmentType: "full_time",
+          status: "active",
+          salaryCurrency: "SGD",
+          updatedAt: new Date()
+        }
+      })
+      .returning({ id: employees.id });
+
+    if (!demoSales) {
+      throw new Error("demo_sales_upsert_failed");
+    }
+
+    demoSalesUpserted = 1;
+
+    await tx
+      .insert(employeeCompensation)
+      .values({
+        employeeId: demoSales.id,
+        baseSalary: toMoney(2000),
+        salaryCurrency: "SGD"
+      })
+      .onConflictDoUpdate({
+        target: employeeCompensation.employeeId,
+        set: {
+          baseSalary: toMoney(2000),
+          salaryCurrency: "SGD",
+          updatedAt: new Date()
+        }
+      });
+
+    for (const business of assignmentBusinesses) {
+      await tx
+        .insert(salesBusinessAssignments)
+        .values({
+          salesId: demoSales.id,
+          businessId: business.id,
+          commissionType: null,
+          commissionValue: null,
+          active: true,
+          note: "[DEMO] 提成留空=用方案"
+        })
+        .onConflictDoUpdate({
+          target: [salesBusinessAssignments.salesId, salesBusinessAssignments.businessId],
+          set: {
+            commissionType: null,
+            commissionValue: null,
+            active: true,
+            note: "[DEMO] 提成留空=用方案"
+          }
+        });
+      salesAssignmentsUpserted += 1;
+    }
+
+    return {
+      demoSalesUpserted,
+      salesAssignmentsUpserted
+    };
+  });
+
+  return result;
+}
+
+const demoSalesStats = await seedDemoSales();
+
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

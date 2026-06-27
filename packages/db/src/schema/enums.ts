@@ -13,6 +13,8 @@ import {
   caseStepStatuses,
   chargeKinds,
   chargeStatuses,
+  commissionEntryStatuses,
+  commissionRecurrences,
   stepReviewActions,
   stepReviewStatuses,
   commissionTypes,
@@ -56,6 +58,8 @@ export const currencyEnum = pgEnum("currency", currencies);
 export const billingRefTypeEnum = pgEnum("billing_ref_type", billingRefTypes);
 export const billingStatusEnum = pgEnum("billing_status", billingStatuses);
 export const commissionTypeEnum = pgEnum("commission_type", commissionTypes);
+export const commissionRecurrenceEnum = pgEnum("commission_recurrence", commissionRecurrences);
+export const commissionEntryStatusEnum = pgEnum("commission_entry_status", commissionEntryStatuses);
 export const paymentTypeEnum = pgEnum("payment_type", paymentTypes);
 export const taskStatusEnum = pgEnum("task_status", taskStatuses);
 export const taskPriorityEnum = pgEnum("task_priority", taskPriorities);

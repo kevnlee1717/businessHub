@@ -34,6 +34,12 @@ export type BillingStatus = (typeof billingStatuses)[number];
 export const commissionTypes = ["percent", "fixed"] as const;
 export type CommissionType = (typeof commissionTypes)[number];
 
+export const commissionRecurrences = ["one_time", "monthly"] as const;
+export type CommissionRecurrence = (typeof commissionRecurrences)[number];
+
+export const commissionEntryStatuses = ["pending", "settled", "void"] as const;
+export type CommissionEntryStatus = (typeof commissionEntryStatuses)[number];
+
 export const paymentTypes = ["deposit", "final", "installment"] as const;
 export type PaymentType = (typeof paymentTypes)[number];
 
