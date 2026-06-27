@@ -57,7 +57,17 @@ const navItems = [
       { to: "/business-finance/parties", key: "nav.deal_parties" }
     ]
   },
-  { to: "/settings", key: "nav.settings" }
+  {
+    key: "nav.settings",
+    defaultOpened: false,
+    children: [
+      { to: "/settings/companies", key: "settings.tabs.companies" },
+      { to: "/settings/positions", key: "settings.tabs.positions" },
+      { to: "/settings/work-shifts", key: "settings.tabs.workShifts" },
+      { to: "/settings/industries", key: "settings.tabs.industries" },
+      { to: "/settings/collection-items", key: "nav.collection_items" }
+    ]
+  }
 ] as const;
 
 export function AppShell() {

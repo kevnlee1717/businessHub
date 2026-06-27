@@ -42,6 +42,7 @@ import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../auth/AuthContext";
 import { CategorySelect } from "../../components/CategorySelect";
+import { getCollectionItems } from "../../api/collectionItems";
 import {
   createTemplate,
   createTemplateStep,
@@ -66,7 +67,13 @@ type StepFormValues = {
   name_en?: string | undefined;
   description?: string | null | undefined;
   required_documents?: RequiredDocItemInput[] | undefined;
+  collections?: StepCollectionFormValue[] | undefined;
   default_assignee_role?: Role | null | undefined;
+};
+
+type StepCollectionFormValue = {
+  collection_item_id: string;
+  required?: boolean | undefined;
 };
 
 const templateQueryKey = ["business", "workflow-templates"] as const;
@@ -113,6 +120,7 @@ function getStepDefaultValues(step?: TemplateStep): StepFormValues {
     name_en: step?.name_en ?? undefined,
     description: step?.description ?? null,
     required_documents: step?.required_documents ?? [],
+    collections: step?.collections ?? [],
     default_assignee_role: step?.default_assignee_role ?? null
   };
 }
@@ -121,7 +129,8 @@ function normalizeStepValues(values: StepFormValues): TemplateStepCreateInput {
   return {
     ...values,
     step_order: values.step_order ?? undefined,
-    required_documents: values.required_documents ?? []
+    required_documents: values.required_documents ?? [],
+    collections: values.collections ?? []
   } as TemplateStepCreateInput;
 }
 
@@ -138,6 +147,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   const [editingStep, setEditingStep] = useState<TemplateStep | null>(null);
   const [stepFormError, setStepFormError] = useState<string | null>(null);
   const [requiredDocs, setRequiredDocs] = useState<RequiredDocItemInput[]>([]);
+  const [stepCollections, setStepCollections] = useState<StepCollectionFormValue[]>([]);
   const canManageCases = user ? caseManageRoles.has(user.role) : false;
 
   const templatesQuery = useQuery({
@@ -152,6 +162,10 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   const documentCategoriesQuery = useQuery({
     queryKey: ["documents", "categories"],
     queryFn: listDocumentCategories
+  });
+  const collectionItemsQuery = useQuery({
+    queryKey: ["collection-items"],
+    queryFn: getCollectionItems
   });
 
   const templateForm = useForm<TemplateFormValues>({
@@ -223,9 +237,18 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     label: t(`role.${role}`)
   }));
   const documentCategories = documentCategoriesQuery.data?.categories ?? [];
+  const collectionItems = collectionItemsQuery.data?.collection_items ?? [];
+  const collectionItemOptions = collectionItems.map((item) => ({
+    value: item.id,
+    label: displayName(item.name, item.name_en)
+  }));
   const documentCategoryNameById = useMemo(
     () => new Map(documentCategories.map((category) => [category.id, displayName(category.name, category.name_en)])),
     [documentCategories]
+  );
+  const collectionItemNameById = useMemo(
+    () => new Map(collectionItems.map((item) => [item.id, displayName(item.name, item.name_en)])),
+    [collectionItems]
   );
   const selectedTemplateInList = useMemo(
     () => templates.some((template) => template.id === selectedTemplateId),
@@ -247,6 +270,11 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   function syncRequiredDocs(nextDocs: RequiredDocItemInput[]) {
     setRequiredDocs(nextDocs);
     stepForm.setValue("required_documents", nextDocs, { shouldDirty: true, shouldValidate: false });
+  }
+
+  function syncStepCollections(nextCollections: StepCollectionFormValue[]) {
+    setStepCollections(nextCollections);
+    stepForm.setValue("collections", nextCollections, { shouldDirty: true, shouldValidate: false });
   }
 
   function openCreateTemplateModal() {
@@ -274,6 +302,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     setEditingStep(null);
     setStepFormError(null);
     syncRequiredDocs([]);
+    syncStepCollections([]);
     stepForm.reset(getStepDefaultValues());
     setStepModalOpened(true);
   }
@@ -282,6 +311,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     setEditingStep(step);
     setStepFormError(null);
     setRequiredDocs(step.required_documents);
+    setStepCollections(step.collections);
     stepForm.reset(getStepDefaultValues(step));
     setStepModalOpened(true);
   }
@@ -291,6 +321,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     setEditingStep(null);
     setStepFormError(null);
     setRequiredDocs([]);
+    setStepCollections([]);
     stepForm.reset(getStepDefaultValues());
   }
 
@@ -307,8 +338,29 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     syncRequiredDocs(requiredDocs.filter((_doc, docIndex) => docIndex !== index));
   }
 
+  function addStepCollection() {
+    syncStepCollections([...stepCollections, { collection_item_id: "", required: true }]);
+  }
+
+  function updateStepCollection(index: number, patch: Partial<StepCollectionFormValue>) {
+    const nextCollections = stepCollections.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, ...patch } : item
+    );
+    syncStepCollections(nextCollections);
+  }
+
+  function removeStepCollection(index: number) {
+    syncStepCollections(stepCollections.filter((_item, itemIndex) => itemIndex !== index));
+  }
+
   function getDocumentCategoryName(categoryId?: string | null) {
     return categoryId ? documentCategoryNameById.get(categoryId) ?? t("common.uncategorized") : t("common.uncategorized");
+  }
+
+  function getCollectionItemName(collectionItemId?: string | null) {
+    return collectionItemId
+      ? collectionItemNameById.get(collectionItemId) ?? t("collectionItem.unknown")
+      : t("collectionItem.unknown");
   }
 
   async function handleDeleteStep(step: TemplateStep) {
@@ -348,7 +400,8 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     setStepFormError(null);
 
     try {
-      const body = normalizeStepValues({ ...values, required_documents: requiredDocs });
+      const collections = stepCollections.filter((item) => item.collection_item_id);
+      const body = normalizeStepValues({ ...values, required_documents: requiredDocs, collections });
       if (editingStep) {
         await updateStepMutation.mutateAsync({ id: editingStep.id, body: body as TemplateStepUpdateInput });
         return;
@@ -553,6 +606,28 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
                           ))
                         )}
                       </Stack>
+
+                      <Stack gap={6}>
+                        <Text size="xs" c="dimmed">
+                          {t("collectionBinding.title")}
+                        </Text>
+                        {step.collections.length === 0 ? (
+                          <Text size="sm" c="dimmed">
+                            {t("collectionBinding.empty")}
+                          </Text>
+                        ) : (
+                          step.collections.map((item, index) => (
+                            <Group key={`${item.collection_item_id}-${index}`} gap="xs" wrap="wrap">
+                              <Text size="sm">{getCollectionItemName(item.collection_item_id)}</Text>
+                              <Badge size="sm" color={item.required ? "green" : "gray"} variant="light">
+                                {item.required
+                                  ? t("collectionBinding.fields.required")
+                                  : t("collectionBinding.fields.optional")}
+                              </Badge>
+                            </Group>
+                          ))
+                        )}
+                      </Stack>
                     </Stack>
                   </Paper>
                 ))}
@@ -722,6 +797,61 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
               {stepErrors.required_documents ? (
                 <Text size="sm" c="red">
                   {t("requiredDoc.invalid")}
+                </Text>
+              ) : null}
+            </Stack>
+
+            <Stack gap="xs">
+              <Group justify="space-between" align="center">
+                <Text fw={500}>{t("collectionBinding.title")}</Text>
+                <Button size="xs" variant="light" onClick={addStepCollection}>
+                  {t("collectionBinding.add")}
+                </Button>
+              </Group>
+              {collectionItemsQuery.error ? (
+                <Alert color="red" variant="light">
+                  {collectionItemsQuery.error instanceof Error
+                    ? collectionItemsQuery.error.message
+                    : t("common.unknown_error")}
+                </Alert>
+              ) : null}
+              {stepCollections.length === 0 ? (
+                <Text size="sm" c="dimmed">
+                  {t("collectionBinding.empty")}
+                </Text>
+              ) : (
+                stepCollections.map((item, index) => (
+                  <Group key={index} align="flex-end" wrap="wrap">
+                    <Select
+                      label={t("collectionBinding.fields.collectionItem")}
+                      data={collectionItemOptions}
+                      value={item.collection_item_id || null}
+                      onChange={(value) => updateStepCollection(index, { collection_item_id: value ?? "" })}
+                      searchable
+                      disabled={collectionItemsQuery.isLoading}
+                      style={{ flex: "1 1 280px" }}
+                    />
+                    <Checkbox
+                      label={t("collectionBinding.fields.required")}
+                      checked={item.required ?? true}
+                      onChange={(event) => updateStepCollection(index, { required: event.currentTarget.checked })}
+                      pb={8}
+                    />
+                    <ActionIcon
+                      color="red"
+                      variant="light"
+                      aria-label={t("common.delete")}
+                      onClick={() => removeStepCollection(index)}
+                      mb={2}
+                    >
+                      x
+                    </ActionIcon>
+                  </Group>
+                ))
+              )}
+              {stepErrors.collections ? (
+                <Text size="sm" c="red">
+                  {t("collectionBinding.invalid")}
                 </Text>
               ) : null}
             </Stack>

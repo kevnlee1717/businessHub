@@ -31,7 +31,8 @@
     "business_finance": "Business Schemes",
     "business_finance_list": "Business List",
     "deal_parties": "Deal Parties",
-    "settings": "Settings"
+    "settings": "Settings",
+    "collection_items": "Collection Items"
   },
   "auth": {
     "login": "Sign in",
@@ -201,7 +202,8 @@
       "companies": "Companies",
       "positions": "Positions",
       "workShifts": "Work shifts",
-      "industries": "Industries"
+      "industries": "Industries",
+      "collectionItems": "Collection Items"
     }
   },
   "business": {
@@ -618,6 +620,33 @@
     },
     "placeholders": {
       "category": "Select document type, e.g. passport/education"
+    }
+  },
+  "collectionBinding": {
+    "title": "Linked collections",
+    "add": "Add collection",
+    "empty": "No linked collections yet",
+    "invalid": "Select a collection item.",
+    "fields": {
+      "collectionItem": "Collection item",
+      "required": "Required",
+      "optional": "Optional"
+    }
+  },
+  "collectionItem": {
+    "title": "Collection Item Management",
+    "add": "Add item",
+    "edit": "Edit item",
+    "empty": "No collection items yet",
+    "unknown": "Unknown item",
+    "fields": {
+      "code": "Code",
+      "name": "Chinese name",
+      "nameEn": "English name",
+      "defaultRecurrence": "Default recurrence",
+      "active": "Active",
+      "isSystem": "System",
+      "sortOrder": "Sort order"
     }
   },
   "categorySelect": {
@@ -1439,6 +1468,7 @@
       "empty": "No milestones yet",
       "fields": {
         "seq": "Seq",
+        "labelOverride": "Label override",
         "basis": "Basis",
         "value": "Value",
         "bindStepOrder": "Bind step",
@@ -1466,6 +1496,7 @@
       "status": "Status",
       "defaultVersion": "Default version",
       "profitRate": "Profit rate",
+      "collectionItem": "Collection item",
       "label": "Label",
       "effectiveFrom": "Effective from",
       "isDefault": "Default",

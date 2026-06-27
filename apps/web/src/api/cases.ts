@@ -56,6 +56,7 @@ export type TemplateStep = {
   name_en?: string | null;
   description?: string | null;
   required_documents: RequiredDocItemInput[];
+  collections: { collection_item_id: string; required?: boolean }[];
   default_assignee_role?: Role | null;
   created_at: string;
 };

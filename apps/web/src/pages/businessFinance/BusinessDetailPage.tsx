@@ -41,6 +41,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import { getCollectionItems, type CollectionItem } from "../../api/collectionItems";
 import {
   createSchemeMilestone,
   deleteSchemeMilestone,
@@ -91,6 +92,7 @@ type LineFormValues = {
 type MilestoneFormValues = {
   seq: number | undefined;
   label: string;
+  collection_item_id: string | null;
   basis: MilestoneBasis;
   value: number | undefined;
   bind_step_order: number | null;
@@ -172,6 +174,7 @@ function milestoneDefaults(): MilestoneFormValues {
   return {
     seq: undefined,
     label: "",
+    collection_item_id: null,
     basis: "percent",
     value: undefined,
     bind_step_order: null,
@@ -183,6 +186,7 @@ function milestoneToForm(milestone: SchemeMilestone): MilestoneFormValues {
   return {
     seq: milestone.seq,
     label: milestone.label,
+    collection_item_id: milestone.collection_item_id ?? null,
     basis: milestone.basis,
     value: Number(milestone.value),
     bind_step_order: milestone.bind_step_order ?? null,
@@ -738,6 +742,10 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
     queryKey: ["business-finance", "scheme-version-milestones", versionId],
     queryFn: () => listSchemeMilestones(versionId)
   });
+  const collectionItemsQuery = useQuery({
+    queryKey: ["collection-items"],
+    queryFn: getCollectionItems
+  });
   const createMutation = useMutation({
     mutationFn: (body: SchemeMilestoneInput) => createSchemeMilestone(versionId, body),
     onSuccess: onChanged
@@ -759,6 +767,15 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
     { value: "percent", label: t("milestoneBasis.percent") },
     { value: "fixed", label: t("milestoneBasis.fixed") }
   ];
+  const collectionItems = collectionItemsQuery.data?.collection_items ?? [];
+  const collectionItemOptions = collectionItems.map((item) => ({
+    value: item.id,
+    label: displayName(item.name, item.name_en)
+  }));
+  const collectionItemById = useMemo(
+    () => new Map(collectionItems.map((item) => [item.id, item])),
+    [collectionItems]
+  );
 
   async function onChanged() {
     await queryClient.invalidateQueries({ queryKey: ["business-finance", "scheme-version-milestones", versionId] });
@@ -768,6 +785,7 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
     return {
       seq: values.seq ?? 1,
       label: values.label,
+      collection_item_id: values.collection_item_id,
       basis: values.basis,
       value: values.value ?? 0,
       bind_step_order: values.bind_step_order,
@@ -815,20 +833,24 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
           </Stack>
           {milestonesQuery.isFetching ? <Loader size="sm" /> : null}
         </Group>
-        {error || milestonesQuery.error ? (
+        {error || milestonesQuery.error || collectionItemsQuery.error ? (
           <Alert color="red" variant="light">
-            {error ?? (milestonesQuery.error instanceof Error ? milestonesQuery.error.message : t("common.unknown_error"))}
+            {error ??
+              (milestonesQuery.error instanceof Error
+                ? milestonesQuery.error.message
+                : collectionItemsQuery.error instanceof Error
+                  ? collectionItemsQuery.error.message
+                  : t("common.unknown_error"))}
           </Alert>
         ) : null}
         <ScrollArea>
-          <Table miw={920} verticalSpacing="sm" striped>
+          <Table miw={900} verticalSpacing="sm" striped>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("businessFinance.milestones.fields.seq")}</Table.Th>
-                <Table.Th>{t("businessFinance.fields.label")}</Table.Th>
+                <Table.Th>{t("businessFinance.fields.collectionItem")}</Table.Th>
                 <Table.Th>{t("businessFinance.milestones.fields.basis")}</Table.Th>
                 <Table.Th>{t("businessFinance.milestones.fields.value")}</Table.Th>
-                <Table.Th>{t("businessFinance.milestones.fields.bindStepOrder")}</Table.Th>
                 <Table.Th>{t("businessFinance.milestones.fields.dueOffsetDays")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
@@ -836,7 +858,7 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
             <Table.Tbody>
               {(milestonesQuery.data?.milestones ?? []).length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7}>
+                  <Table.Td colSpan={6}>
                     <Text c="dimmed" ta="center" py="md">
                       {t("businessFinance.milestones.empty")}
                     </Text>
@@ -849,6 +871,8 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
                     milestone={milestone}
                     defaults={milestoneForms.get(milestone.id) ?? milestoneToForm(milestone)}
                     basisOptions={basisOptions}
+                    collectionItemOptions={collectionItemOptions}
+                    collectionItemById={collectionItemById}
                     onSave={saveMilestone}
                     onDelete={removeMilestone}
                     loading={updateMutation.isPending || deleteMutation.isPending}
@@ -858,6 +882,8 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
               <AddMilestoneRow
                 form={addForm}
                 basisOptions={basisOptions}
+                collectionItemOptions={collectionItemOptions}
+                collectionItemById={collectionItemById}
                 onSubmit={onAddSubmit}
                 loading={createMutation.isPending}
               />
@@ -873,6 +899,8 @@ function EditableMilestoneRow({
   milestone,
   defaults,
   basisOptions,
+  collectionItemOptions,
+  collectionItemById,
   onSave,
   onDelete,
   loading
@@ -880,6 +908,8 @@ function EditableMilestoneRow({
   milestone: SchemeMilestone;
   defaults: MilestoneFormValues;
   basisOptions: { value: string; label: string }[];
+  collectionItemOptions: { value: string; label: string }[];
+  collectionItemById: Map<string, CollectionItem>;
   onSave: (milestone: SchemeMilestone, values: MilestoneFormValues) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   loading: boolean;
@@ -895,7 +925,12 @@ function EditableMilestoneRow({
 
   return (
     <Table.Tr>
-      <MilestoneCells form={form} basisOptions={basisOptions} />
+      <MilestoneCells
+        form={form}
+        basisOptions={basisOptions}
+        collectionItemOptions={collectionItemOptions}
+        collectionItemById={collectionItemById}
+      />
       <Table.Td>
         <Group gap="xs" wrap="nowrap">
           <Button size="xs" variant="light" onClick={() => void onSubmit()} loading={loading}>
@@ -913,11 +948,15 @@ function EditableMilestoneRow({
 function AddMilestoneRow({
   form,
   basisOptions,
+  collectionItemOptions,
+  collectionItemById,
   onSubmit,
   loading
 }: {
   form: ReturnType<typeof useForm<MilestoneFormValues>>;
   basisOptions: { value: string; label: string }[];
+  collectionItemOptions: { value: string; label: string }[];
+  collectionItemById: Map<string, CollectionItem>;
   onSubmit: () => void;
   loading: boolean;
 }) {
@@ -925,7 +964,12 @@ function AddMilestoneRow({
 
   return (
     <Table.Tr>
-      <MilestoneCells form={form} basisOptions={basisOptions} />
+      <MilestoneCells
+        form={form}
+        basisOptions={basisOptions}
+        collectionItemOptions={collectionItemOptions}
+        collectionItemById={collectionItemById}
+      />
       <Table.Td>
         <Button size="xs" onClick={() => void onSubmit()} loading={loading}>
           {t("businessFinance.milestones.add")}
@@ -937,11 +981,17 @@ function AddMilestoneRow({
 
 function MilestoneCells({
   form,
-  basisOptions
+  basisOptions,
+  collectionItemOptions,
+  collectionItemById
 }: {
   form: ReturnType<typeof useForm<MilestoneFormValues>>;
   basisOptions: { value: string; label: string }[];
+  collectionItemOptions: { value: string; label: string }[];
+  collectionItemById: Map<string, CollectionItem>;
 }) {
+  const { t } = useTranslation();
+
   return (
     <>
       <Table.Td>
@@ -962,9 +1012,37 @@ function MilestoneCells({
       <Table.Td>
         <Controller
           control={form.control}
+          name="collection_item_id"
+          render={({ field }) => (
+            <Select
+              size="xs"
+              w={220}
+              data={collectionItemOptions}
+              value={field.value ?? null}
+              onChange={(value) => {
+                field.onChange(value);
+                const item = value ? collectionItemById.get(value) : undefined;
+                if (item) {
+                  form.setValue("label", item.name, { shouldDirty: true });
+                }
+              }}
+              searchable
+              clearable
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
           name="label"
           render={({ field }) => (
-            <TextInput size="xs" w={180} value={field.value} onChange={field.onChange} />
+            <TextInput
+              size="xs"
+              mt={4}
+              w={220}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder={t("businessFinance.milestones.fields.labelOverride")}
+            />
           )}
         />
       </Table.Td>
@@ -988,21 +1066,6 @@ function MilestoneCells({
               value={field.value ?? ""}
               onChange={(value) => field.onChange(typeof value === "number" ? value : undefined)}
               min={0}
-            />
-          )}
-        />
-      </Table.Td>
-      <Table.Td>
-        <Controller
-          control={form.control}
-          name="bind_step_order"
-          render={({ field }) => (
-            <NumberInput
-              size="xs"
-              w={120}
-              value={field.value ?? ""}
-              onChange={(value) => field.onChange(typeof value === "number" ? value : null)}
-              min={1}
             />
           )}
         />

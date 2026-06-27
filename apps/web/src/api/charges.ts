@@ -77,6 +77,7 @@ export type SchemeMilestone = {
   version_id: string;
   seq: number;
   label: string;
+  collection_item_id?: string | null;
   basis: MilestoneBasis;
   value: string;
   bind_step_order?: number | null;
@@ -86,7 +87,8 @@ export type SchemeMilestone = {
 
 export type SchemeMilestoneInput = {
   seq: number;
-  label: string;
+  label?: string;
+  collection_item_id?: string | null;
   basis: MilestoneBasis;
   value: number;
   bind_step_order?: number | null;

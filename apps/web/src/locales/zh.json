@@ -31,7 +31,8 @@
     "business_finance": "业务方案",
     "business_finance_list": "业务列表",
     "deal_parties": "分成对象",
-    "settings": "设置"
+    "settings": "设置",
+    "collection_items": "收款名目"
   },
   "auth": {
     "login": "登录",
@@ -201,7 +202,8 @@
       "companies": "公司",
       "positions": "岗位",
       "workShifts": "班次",
-      "industries": "行业"
+      "industries": "行业",
+      "collectionItems": "收款名目"
     }
   },
   "business": {
@@ -618,6 +620,33 @@
     },
     "placeholders": {
       "category": "选择文件类型如护照/学历"
+    }
+  },
+  "collectionBinding": {
+    "title": "关联收款",
+    "add": "新增收款",
+    "empty": "暂无关联收款",
+    "invalid": "请选择收款名目。",
+    "fields": {
+      "collectionItem": "收款名目",
+      "required": "必收",
+      "optional": "非必收"
+    }
+  },
+  "collectionItem": {
+    "title": "收款名目管理",
+    "add": "新增名目",
+    "edit": "编辑名目",
+    "empty": "暂无收款名目",
+    "unknown": "未知名目",
+    "fields": {
+      "code": "编码",
+      "name": "中文名",
+      "nameEn": "英文名",
+      "defaultRecurrence": "默认周期",
+      "active": "启用",
+      "isSystem": "系统项",
+      "sortOrder": "排序"
     }
   },
   "categorySelect": {
@@ -1439,6 +1468,7 @@
       "empty": "暂无里程碑",
       "fields": {
         "seq": "序号",
+        "labelOverride": "标签覆盖",
         "basis": "拆分方式",
         "value": "值",
         "bindStepOrder": "绑第几步",
@@ -1466,6 +1496,7 @@
       "status": "状态",
       "defaultVersion": "默认版本",
       "profitRate": "利润率",
+      "collectionItem": "收款名目",
       "label": "标签",
       "effectiveFrom": "生效日",
       "isDefault": "默认",
