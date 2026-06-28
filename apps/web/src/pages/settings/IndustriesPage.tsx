@@ -153,7 +153,6 @@ export function IndustriesPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("industry.title")}</Title>
         <Button onClick={openCreateModal}>{t("industry.add")}</Button>
       </Group>
 

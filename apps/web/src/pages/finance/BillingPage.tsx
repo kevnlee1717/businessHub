@@ -417,7 +417,6 @@ export function BillingPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("billing.title")}</Title>
         <Button onClick={openCreateModal}>{t("billing.add")}</Button>
       </Group>
 

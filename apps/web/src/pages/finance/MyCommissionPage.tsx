@@ -71,7 +71,6 @@ export function MyCommissionPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("myCommission.title")}</Title>
 
       {commissionQuery.error ? (
         <Alert color="red" variant="light">

@@ -263,7 +263,6 @@ export function ReconcilePage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("finance.reconcile.title")}</Title>
 
       <Paper withBorder p="md">
         <SimpleGrid cols={{ base: 1, md: 4 }}>

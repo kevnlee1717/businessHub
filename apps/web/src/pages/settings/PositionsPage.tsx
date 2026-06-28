@@ -140,7 +140,6 @@ export function PositionsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("position.title")}</Title>
         <Button onClick={openCreateModal}>{t("position.add")}</Button>
       </Group>
 

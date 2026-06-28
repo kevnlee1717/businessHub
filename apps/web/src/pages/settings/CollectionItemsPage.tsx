@@ -161,7 +161,6 @@ export function CollectionItemsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("collectionItem.title")}</Title>
         <Button onClick={openCreateModal}>{t("collectionItem.add")}</Button>
       </Group>
 

@@ -237,7 +237,6 @@ export function ContractsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("contract.title")}</Title>
         <Button onClick={openModal}>{t("contract.add")}</Button>
       </Group>
 

@@ -148,7 +148,6 @@ export function WorkShiftsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("workShift.title")}</Title>
         <Button onClick={openCreateModal}>{t("workShift.add")}</Button>
       </Group>
 

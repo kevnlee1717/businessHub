@@ -318,7 +318,6 @@ export function ExternalCommissionPage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
-        <Title order={2}>{t("externalCommission.title")}</Title>
         <Button variant="light" onClick={() => recomputeMutation.mutate()} loading={recomputeMutation.isPending}>
           {t("externalCommission.recompute")}
         </Button>

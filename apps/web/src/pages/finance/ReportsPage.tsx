@@ -135,7 +135,6 @@ export function ReportsPage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
-        <Title order={2}>{t("finance.reports.title")}</Title>
         <Button onClick={() => exportMutation.mutate()} loading={exportMutation.isPending}>
           {t("finance.reports.exportCsv")}
         </Button>

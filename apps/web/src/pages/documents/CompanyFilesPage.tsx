@@ -185,7 +185,6 @@ export function CompanyFilesPage() {
 
   return (
     <Stack gap="md">
-      <Title order={2}>{t("companyFiles.title")}</Title>
 
       <Paper withBorder radius="md" p="md">
         <Select

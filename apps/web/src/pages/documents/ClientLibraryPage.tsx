@@ -50,7 +50,6 @@ export function ClientLibraryPage() {
 
   return (
     <Stack gap="md">
-      <Title order={2}>{t("document.clientLibrary.title")}</Title>
 
       <Paper withBorder radius="md" p="md">
         <Select

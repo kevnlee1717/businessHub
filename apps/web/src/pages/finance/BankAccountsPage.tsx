@@ -160,7 +160,6 @@ export function BankAccountsPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
         <Stack gap={4}>
-          <Title order={2}>{t("finance.bankAccounts.title")}</Title>
           <Text c="dimmed" size="sm">
             {t("finance.bankAccounts.subtitle")}
           </Text>

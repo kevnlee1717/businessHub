@@ -258,7 +258,6 @@ export function LedgerPage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
-        <Title order={2}>{t("finance.ledger.title")}</Title>
         <Button onClick={openCreateModal}>{t("finance.ledger.add")}</Button>
       </Group>
 

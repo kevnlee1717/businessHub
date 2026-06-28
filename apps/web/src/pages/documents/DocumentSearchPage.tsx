@@ -166,7 +166,6 @@ export function DocumentSearchPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("document.search.title")}</Title>
         <Button onClick={() => setUploadOpened(true)}>{t("document.upload.title")}</Button>
       </Group>
 

@@ -131,7 +131,6 @@ export function CategoriesPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("documentCategory.title")}</Title>
         <Button onClick={openCreateModal}>{t("documentCategory.add")}</Button>
       </Group>
 

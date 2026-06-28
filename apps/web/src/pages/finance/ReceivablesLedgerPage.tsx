@@ -216,7 +216,6 @@ export function ReceivablesLedgerPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("receivablesLedger.title")}</Title>
 
       {(chargesQuery.error ?? companiesQuery.error ?? businessesQuery.error) ? (
         <Alert color="red" variant="light">

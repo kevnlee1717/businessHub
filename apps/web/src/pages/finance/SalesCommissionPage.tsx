@@ -386,7 +386,6 @@ export function SalesCommissionPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("commission.title")}</Title>
 
       {loadError ? (
         <Alert color="red" variant="light">
