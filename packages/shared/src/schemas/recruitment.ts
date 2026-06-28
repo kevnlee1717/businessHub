@@ -21,10 +21,16 @@ const nullableOptionalUuid = uuidField.nullable().optional();
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const timeString = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/);
 const booleanQuery = z.enum(["0", "1", "true", "false"]).optional();
+const bilingualText = z.string().nullable().optional();
+const sourceLang = z.enum(["zh", "en"]).optional();
 
 export const recruitmentIndustryCreateSchema = z.object({
   company_id: uuidField,
   name: z.string().trim().min(1).max(120),
+  nameZh: bilingualText,
+  nameEn: bilingualText,
+  sourceLang,
+  nameSourceLang: sourceLang,
   sort_order: z.number().int().optional(),
   active: z.boolean().optional()
 });
@@ -39,12 +45,25 @@ export const recruitmentIndustryListQuerySchema = z.object({
 const recruitmentJobBaseSchema = z.object({
   industry_id: nullableOptionalUuid,
   title: z.string().trim().min(1).max(200),
+  titleZh: bilingualText,
+  titleEn: bilingualText,
+  titleSourceLang: sourceLang,
   headcount: z.number().int().min(1).optional(),
   salary_min: z.number().int().min(0).nullable().optional(),
   salary_max: z.number().int().min(0).nullable().optional(),
   salary_note: z.string().trim().min(1).max(200).nullable().optional(),
+  salaryNoteZh: bilingualText,
+  salaryNoteEn: bilingualText,
+  salaryNoteSourceLang: sourceLang,
   job_content: nullableOptionalText,
+  jobContentZh: bilingualText,
+  jobContentEn: bilingualText,
+  jobContentSourceLang: sourceLang,
   requirements: nullableOptionalText,
+  requirementsZh: bilingualText,
+  requirementsEn: bilingualText,
+  requirementsSourceLang: sourceLang,
+  sourceLang,
   nationalities: z.array(z.string().trim().min(1)).optional(),
   status: z.enum(recruitmentJobStatuses).optional(),
   priority: z.enum(recruitmentJobPriorities).optional(),

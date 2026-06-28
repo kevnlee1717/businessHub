@@ -85,6 +85,13 @@
     "original": "原文",
     "comingSoon": "敬请期待"
   },
+  "bilingual": {
+    "zh": "中",
+    "en": "EN",
+    "retranslate": "重新翻译",
+    "translating": "翻译中…",
+    "titleRequired": "请至少填写一种语言"
+  },
   "dashboard": {
     "welcome": "欢迎，{{name}}",
     "title": "财务总面板",

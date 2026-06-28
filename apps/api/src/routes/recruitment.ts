@@ -44,6 +44,8 @@ import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { generateRecruitmentCopy } from "../lib/ai";
 import { saveUpload } from "../lib/files";
+import { getTranslations, saveTranslationPair, type TranslationValue } from "../lib/translationStore";
+import { type Lang } from "../lib/translate";
 import { idParamsSchema, isUniqueViolation, parseWithSchema, sendConflict, sendNotFound } from "./hrUtils";
 
 const uuidArrayBodySchema = z.object({
@@ -51,8 +53,36 @@ const uuidArrayBodySchema = z.object({
   material_ids: z.array(z.string().uuid()).optional()
 });
 
+const RECRUITMENT_JOB_ENTITY = "recruitment_job";
+const RECRUITMENT_INDUSTRY_ENTITY = "recruitment_industry";
+const JOB_TRANSLATION_FIELDS = ["title", "jobContent", "requirements", "salaryNote"] as const;
+const INDUSTRY_NAME_FIELD = "name";
+
+type TranslationFieldValue = { zh: string | null; en: string | null };
+type JobTranslationField = (typeof JOB_TRANSLATION_FIELDS)[number];
+
 function hasOwn(input: object, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(input, field);
+}
+
+function nonEmptyOrNull(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  return value.trim() ? value : null;
+}
+
+function looksChinese(value: string | null | undefined): boolean {
+  return Boolean(value && /[一-鿿]/.test(value));
+}
+
+function inferSourceLang(zh: string | null, en: string | null, fallback: string | null | undefined, explicit?: Lang): Lang {
+  if (explicit) return explicit;
+  if (zh) return "zh";
+  if (en) return "en";
+  return looksChinese(fallback) ? "zh" : "en";
+}
+
+function i18nValue(value: TranslationValue | undefined): TranslationFieldValue {
+  return { zh: value?.zh ?? null, en: value?.en ?? null };
 }
 
 function booleanValue(value: unknown) {
@@ -155,6 +185,81 @@ function serializeJob(row: typeof recruitmentJobs.$inferSelect) {
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
+}
+
+async function serializeIndustriesWithI18n(rows: (typeof recruitmentIndustries.$inferSelect)[]) {
+  const serialized = rows.map(serializeIndustry);
+  const ids = rows.map((row) => row.id);
+  const nameMap = await getTranslations(RECRUITMENT_INDUSTRY_ENTITY, INDUSTRY_NAME_FIELD, ids);
+
+  return serialized.map((industry) => ({
+    ...industry,
+    name_i18n: i18nValue(nameMap.get(industry.id))
+  }));
+}
+
+async function serializeJobsWithI18n(rows: (typeof recruitmentJobs.$inferSelect)[]) {
+  const serialized = rows.map(serializeJob);
+  const ids = rows.map((row) => row.id);
+  const translationEntries = await Promise.all(
+    JOB_TRANSLATION_FIELDS.map(async (field) => [field, await getTranslations(RECRUITMENT_JOB_ENTITY, field, ids)] as const)
+  );
+  const translationMaps = new Map<JobTranslationField, Map<string, TranslationValue>>(translationEntries);
+
+  return serialized.map((job) => {
+    const withI18n: ReturnType<typeof serializeJob> & Record<`${JobTranslationField}_i18n`, TranslationFieldValue> = {
+      ...job,
+      title_i18n: i18nValue(translationMaps.get("title")?.get(job.id)),
+      jobContent_i18n: i18nValue(translationMaps.get("jobContent")?.get(job.id)),
+      requirements_i18n: i18nValue(translationMaps.get("requirements")?.get(job.id)),
+      salaryNote_i18n: i18nValue(translationMaps.get("salaryNote")?.get(job.id))
+    };
+    return withI18n;
+  });
+}
+
+function getSourceLang(record: Record<string, unknown>, key: string, fallbackKey = "sourceLang"): Lang | undefined {
+  const value = record[key] ?? record[fallbackKey];
+  return value === "zh" || value === "en" ? value : undefined;
+}
+
+async function saveJobTranslationPairs(
+  job: typeof recruitmentJobs.$inferSelect,
+  body: object
+): Promise<void> {
+  const record = body as Record<string, string | null | undefined>;
+  const fallbackByField: Record<JobTranslationField, string | null> = {
+    title: job.title,
+    jobContent: job.jobContent,
+    requirements: job.requirements,
+    salaryNote: job.salaryNote
+  };
+
+  await Promise.all(
+    JOB_TRANSLATION_FIELDS.map(async (field) => {
+      const zhKey = `${field}Zh`;
+      const enKey = `${field}En`;
+      if (!hasOwn(record, zhKey) && !hasOwn(record, enKey)) return;
+
+      const zh = nonEmptyOrNull(record[zhKey]);
+      const en = nonEmptyOrNull(record[enKey]);
+      const sourceLang = inferSourceLang(zh, en, fallbackByField[field], getSourceLang(record, `${field}SourceLang`));
+      await saveTranslationPair(RECRUITMENT_JOB_ENTITY, job.id, field, zh, en, sourceLang);
+    })
+  );
+}
+
+async function saveIndustryTranslationPair(
+  industry: typeof recruitmentIndustries.$inferSelect,
+  body: object
+): Promise<void> {
+  const record = body as Record<string, string | null | undefined>;
+  if (!hasOwn(record, "nameZh") && !hasOwn(record, "nameEn")) return;
+
+  const zh = nonEmptyOrNull(record.nameZh);
+  const en = nonEmptyOrNull(record.nameEn);
+  const sourceLang = inferSourceLang(zh, en, industry.name, getSourceLang(record, "nameSourceLang"));
+  await saveTranslationPair(RECRUITMENT_INDUSTRY_ENTITY, industry.id, INDUSTRY_NAME_FIELD, zh, en, sourceLang);
 }
 
 function serializeMaterial(
@@ -567,7 +672,8 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       .where(filters.length ? and(...filters) : sql`true`)
       .orderBy(asc(recruitmentIndustries.sortOrder), asc(recruitmentIndustries.name));
 
-    return { industries: rows.map(serializeIndustry), resources: rows.map(serializeIndustry) };
+    const resources = await serializeIndustriesWithI18n(rows);
+    return { industries: resources, resources };
   });
 
   app.post("/recruitment/industries", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
@@ -585,7 +691,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         })
         .returning();
 
-      const resource = serializeIndustry(mustReturn(industry));
+      const savedIndustry = mustReturn(industry);
+      await saveIndustryTranslationPair(savedIndustry, body);
+      const [resource] = await serializeIndustriesWithI18n([savedIndustry]);
       return reply.code(201).send({ industry: resource, resource });
     } catch (error) {
       if (isUniqueViolation(error)) return sendConflict(reply, "recruitment_industry_exists");
@@ -607,7 +715,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
 
     try {
       const [industry] = await db.update(recruitmentIndustries).set(update).where(eq(recruitmentIndustries.id, id)).returning();
-      const resource = serializeIndustry(mustReturn(industry));
+      const savedIndustry = mustReturn(industry);
+      await saveIndustryTranslationPair(savedIndustry, body);
+      const [resource] = await serializeIndustriesWithI18n([savedIndustry]);
       return { industry: resource, resource };
     } catch (error) {
       if (isUniqueViolation(error)) return sendConflict(reply, "recruitment_industry_exists");
@@ -631,7 +741,8 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       .where(filters.length ? and(...filters) : sql`true`)
       .orderBy(desc(recruitmentJobs.createdAt));
 
-    return { jobs: rows.map(serializeJob), resources: rows.map(serializeJob) };
+    const resources = await serializeJobsWithI18n(rows);
+    return { jobs: resources, resources };
   });
 
   app.post("/recruitment/jobs", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
@@ -657,7 +768,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       })
       .returning();
 
-    const resource = serializeJob(mustReturn(job));
+    const savedJob = mustReturn(job);
+    await saveJobTranslationPairs(savedJob, body);
+    const [resource] = await serializeJobsWithI18n([savedJob]);
     return reply.code(201).send({ job: resource, resource });
   });
 
@@ -691,9 +804,11 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
 
     const serializedMaterials = await serializeMaterialsWithUsage(materials);
 
+    const [serializedJob] = await serializeJobsWithI18n([job]);
+
     return {
-      job: serializeJob(job),
-      resource: serializeJob(job),
+      job: serializedJob,
+      resource: serializedJob,
       materials: serializedMaterials,
       postings: serializedPostings,
       campaigns: campaignLinks.map((row) => serializeCampaign(row.campaign)),
@@ -727,7 +842,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (hasOwn(body, "owner_id")) update.ownerId = body.owner_id;
 
     const [job] = await db.update(recruitmentJobs).set(update).where(eq(recruitmentJobs.id, id)).returning();
-    const resource = serializeJob(mustReturn(job));
+    const savedJob = mustReturn(job);
+    await saveJobTranslationPairs(savedJob, body);
+    const [resource] = await serializeJobsWithI18n([savedJob]);
     return { job: resource, resource };
   });
 

@@ -21,6 +21,18 @@
 - 详见 `docs/runbooks/deploy-pitfalls.md`(🔒 段)。dev 库是 6-28 prod 数据快照,之后各自演进。
 - ⚠️ 仍是 codex 写代码 / 我审验。改前端 build 完必须 restart(否则黑屏,见 runbook)。
 
+## 🔖 快照(2026-06-28:招聘管理模块 + AI文案走订阅 + 迁移0030欠账解决)
+
+- **招聘模块(一期)全栈完成并上 dev**:`/recruitment` 11 页(看板/岗位/岗位详情/线上发布/线下活动/活动详情/候选人/候选人详情/人才库/现场登记/设置);DB 11 表+2 关联表(行业/岗位/物料/发布/活动/候选人/跟进/面试/设置+campaign_jobs/campaign_materials),迁移 0026;权限 `recruitment.manage|view|candidate.manage`(owner/admin 默认全开)。范围:岗位库(按行业)、物料(文案/图片/传单/展架,可复用)、线上发布、线下活动(计划vs实际+现场快速登记)、候选人全链路(来源/状态流转/指派邀约文员/人才库/以后可用)、跟进、面试、系统内超时提醒、Dashboard(缺口/紧急/每日新增趋势/活动战报/平台效果对比/待跟进)。设计 spec:`docs/superpowers/specs/2026-06-28-recruitment-module-design.md`。
+- **AI 文案走 Claude 订阅(不用 API key)**:后端 spawn 本机已登录的 `claude` CLI headless(`claude -p --output-format text`),走 `~/.claude.json` 订阅凭据;`apps/api/src/lib/ai.ts`;dev 实测 200、约 10–12s。可选兜底:`RECRUITMENT_AI_BACKEND=api`+`ANTHROPIC_API_KEY` 时走 Messages API。模型默认 `sonnet`(`RECRUITMENT_AI_MODEL` 覆盖)。**⚠️ 发 prod 需 prod 那台机 `claude` 也已登录订阅**,否则 AI 按钮报错(其它功能不受影响)。
+- **多轮 UI 增强(迁移 0027/0028/0029)**:行业=可创建搜索下拉、岗位名/平台/活动地点=Autocomplete/可搜索;发布加 邀约人(invite_clerk_id)+平台链接(share_url)+截图(screenshot_document_id,`POST /postings/:id/screenshot`)+新建时隐藏咨询数;选好岗位+平台后按平台过滤「选用文案/图片」(只列在用);物料加 适用平台(platforms TagsInput)+在用(active)+使用次数(usage_count)+可编辑/换图;物料原文(source_text)+AI 基于原文改写+react-markdown 预览+图片预览+弹窗放宽可滚动。新增依赖 `react-markdown`。
+- **迁移 0030:补齐欠账**(commit `8dbddb1`):并发"岗位即权限"会话用 drizzle push 把 `positions.permissions/data_scope/is_system/sort_order`、`employees.role` 改可空推到 dev 库未留迁移 + 我的 `source_text` 直接 ALTER 补 dev → 生成迁移 0030 统一覆盖,`ADD COLUMN` 改 `IF NOT EXISTS`(dev 列已存在→空操作并登记;prod 全新→正常加列),dev migrate 登记 0030、链条恢复一致(止于 0030)。**发 prod 时 0030 可直接在 `businesshub` 库跑**(注意加盟会话另有 0031)。
+- **全程 dev 验证**:typecheck/build/migrate/鉴权读写/截图 multipart 上传/AI 生成 全绿;冒烟造的 `__smoke__`/`PF_*` 测试数据(5岗位/4物料/4发布/1行业)已清。
+- **未提交(按业主指示不管)**:`apps/web/src/layout/TagsView.tsx` 是别的会话留的 3 行 bugfix(右键菜单 stopPropagation)。
+- **下次/发 prod**:① 迁移跑到 0030(并核对加盟会话 0031 顺序);② prod 机 claude 登录订阅;③ 本地 master 未 push,按需 `git push`;④ 已知偏差:招聘前端表单用自写 useSimpleForm 而非 react-hook-form+zod。
+
+---
+
 ## 🔖 快照(2026-06-28 第十轮:按金额里程碑 + 版本名字 + UI主题 + 员工 + 环境分离)
 
 - **提成里程碑分配支持「按金额」**(不止%):`milestone_split` 升级 `Record<seq,{basis:percent|fixed,value}>`;`splitCommissionByMilestones` 纯函数支持金额/比例混合+末阶段吃余额(单测全绿);前端 Modal 每阶段 拆分方式(按比例%/按金额+币种)。E2E:首付按金额300→尾款吃余额700。
