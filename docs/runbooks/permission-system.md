@@ -32,17 +32,22 @@ owner→`all`;admin/accountant/principal→`company`;sales/clerk/teacher/photogr
 - **改角色默认**:只动 `packages/shared/src/permissions.ts` 的 `ROLE_PERMISSIONS`,未被个人覆盖的人自动跟随。
 - **新增权限项**:在 `permissions` 数组加,在 `permissionCatalog` 加 label(授权界面才看得到),在各角色默认里按需加,后端路由用 `requirePerm("新.权限")`。
 
-## 公司闸覆盖情况(经一轮对抗式安全复查 2026-06-28)
+## 公司闸覆盖情况(经两轮对抗式安全复查 + 实测 2026-06-28)
 
-**已应用公司闸(② 已隔离)** —— 直接带 `companyId` 列的端点:
-- 列表过滤:`/companies`、`/employees`、`/businesses`、`/ledger`、`/bank-accounts`、`/company-expenses`、`/recurring-costs`
-- 详情/按 id 越权 403:`/companies/:id`、`/employees/:id`、`/businesses/:id`、`/ledger/proof-missing`、`/ledger/uncategorized`、`/companies/:id/expenses/summary`
-- cases:`/cases`、`/cases/:id` 经 ③self 行级 + billing 关联间接隔离(cases 无 companyId 列)
+**② 公司闸已全面应用** —— 三类端点:
+- **直接 companyId 列**:`/companies`、`/employees`、`/businesses`、`/ledger`、`/bank-accounts`、`/company-expenses`、`/recurring-costs`(列表 `companyFilter`;详情/按 id 越权 403)。
+- **经 business→company 间接关联**(join businesses 后过滤):`/billing`(+ `/billing/:id`、`/billing/:id/payments`、`/billing/:id/charges`)、`/charges`、`/cases/:id/charges`、`/commission/entries`、`/sales/:id/commission-summary`、`/external-commission/entries`、`/external-commission/summary`。
+- **聚合报表/看板**(底层 `ledgerEntries.companyId` / recurring / payroll / academy 全部限定到可访问公司,显式 company_id 越权 403):`/reports/pnl`、`/reports/pnl.csv`、`/reports/gst`、`/dashboard/*`(overview/receivables/payment-calendar/kpi/whatif)。
+- **cases**:`/cases`、`/cases/:id` 经 ③self 行级 + billing 关联隔离(cases 无 companyId 列)。
 
-**⚠️ 仍未隔离(下一期 Phase 7,需谨慎——多为 prod 高频财务功能):**
-- **经 business→company 间接归属**(无直接 companyId,需 join businesses 再 `companyFilter`):`/billing`、`/charges`、`/commission/entries`、`/sales/:id/commission-summary`、`/external-commission`。`finance.view` 会计目前仍可跨公司读这些账单/提成。
-- **聚合类报表**(默认聚合全部公司,需把 companyIds 注入聚合):`/reports/*`(pnl/gst/receivables)、`/dashboard`。本分支未改这两个文件(pre-existing),但公司闸理应套上。
-- 这些改动面大、触碰 prod 高频财务功能,需单独评估;改时复用 `companyFilter` + `getAccessibleCompanyIds`,join 模板见 `getVisibleCaseIds`。
+> 实现要点:`companyIds === "all"`(owner / dataScope=all)一律不加过滤;空可访问集走 `sql\`false\`` 或 sentinel UUID → 查不到,fail-closed。改新端点照 `companyFilter` + `getAccessibleCompanyIds`,间接 join 模板见 `getVisibleCaseIds` / billing 各端点。
+
+**实测结论(对 dev 库 + 起真实 API):** ①sales 无 finance.view 调 `/ledger`→403、admin→200;②clerk 临时设 company+只授权 JUYI → `/companies` 只返回 JUYI 一家、owner 返回 2 家、跨公司详情 403;⑥学院应收旁路已堵。行级 cases 因 dev 库无 case 数据未实测(逻辑由单测 + 复查覆盖)。
+
+## admin 默认 dataScope = all(重要)
+
+回填映射:owner + **admin → `all`**;accountant + principal → `company`;sales/clerk/teacher/photographer → `self`。
+**为什么 admin 是 all 而非 company**:多数 admin 无单一 `companyId`,若设 company 而无公司访问行,公司闸会 `sql\`false\`` 把他们**锁死看不到任何数据**(实测发现 8 个 admin 全无 companyId)。admin 是组织级管理员,默认 all 合理;要做"公司受限 admin",用授权界面把该 admin 单独改成 company + 指定公司即可。
 
 ## 其它已知边界
 
@@ -58,3 +63,6 @@ pnpm --filter @bh/db migrate   # 应用 migrations/0023_*.sql(新增 2 表 + emp
 pnpm --filter @bh/db seed      # 回填:按角色设 dataScope + 用现有 companyId 建 employee_company_access(幂等)
 ```
 迁移是 additive(新表 + 带默认值的非空列),对现有数据安全。seed 的回填部分幂等(onConflictDoNothing)。
+
+> **dev 库已处理(2026-06-28):** 已对本机 dev 库(`businesshub`)跑过 `migrate`(0023 已应用)+ **定向回填**(只跑权限相关的 dataScope/employee_company_access,未跑全量 seed 以免污染 demo 数据)。当前 owner+admin=all、clerk/sales=self。prod 上线时跑上面两条即可(全量 seed 的回填段与定向回填等价)。
+> ⚠️ 回填后**多数员工没有 `companyId`** → 非 admin/owner 的 company/self 用户可访问公司清单可能为空(看不到公司级数据),需用「用户授权」界面给他们勾选可访问公司。
