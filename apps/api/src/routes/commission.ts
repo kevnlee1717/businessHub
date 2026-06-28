@@ -7,6 +7,7 @@ import {
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { generateCommissionEntries } from "./commissionUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
@@ -59,6 +60,10 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
   app.get("/commission/entries", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(commissionEntriesQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) filters.push(accessFilter);
 
     if (query.sales_id) filters.push(eq(commissionEntries.salesId, query.sales_id));
     if (query.period) filters.push(eq(commissionEntries.period, query.period));
@@ -93,6 +98,7 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
         total: sql<string>`coalesce(sum(coalesce(${commissionEntries.amountOverride}, ${commissionEntries.amountSgd})),0)`
       })
       .from(commissionEntries)
+      .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
       .where(where)
       .groupBy(commissionEntries.status);
 
@@ -244,24 +250,30 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
   app.get("/sales/:id/commission-summary", { preHandler: requirePerm("finance.view") }, async (request) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const query = parseWithSchema(commissionSummaryQuerySchema, request.query);
+    const companyIds = await getAccessibleCompanyIds(request);
+    const filters: SQL[] = [
+      eq(commissionEntries.salesId, id),
+      eq(commissionEntries.period, query.period),
+      sql`${commissionEntries.status} <> 'void'`
+    ];
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) filters.push(accessFilter);
+
     const rows = await db
-      .select()
+      .select({ entry: commissionEntries })
       .from(commissionEntries)
-      .where(
-        and(
-          eq(commissionEntries.salesId, id),
-          eq(commissionEntries.period, query.period),
-          sql`${commissionEntries.status} <> 'void'`
-        )
-      )
+      .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+      .where(and(...filters))
       .orderBy(desc(commissionEntries.createdAt));
-    const total = rows.reduce((sum, row) => sum + Number(row.amountOverride ?? row.amountSgd), 0);
+    const entries = rows.map((row) => row.entry);
+    const total = entries.reduce((sum, row) => sum + Number(row.amountOverride ?? row.amountSgd), 0);
 
     return {
       sales_id: id,
       period: query.period,
       total: total.toFixed(2),
-      entries: rows.map(serializeCommissionEntry)
+      entries: entries.map(serializeCommissionEntry)
     };
   });
 }

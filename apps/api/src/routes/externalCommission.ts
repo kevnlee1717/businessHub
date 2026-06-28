@@ -15,6 +15,7 @@ import {
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
@@ -72,6 +73,10 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
   app.get("/external-commission/entries", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(externalCommissionEntriesQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) filters.push(accessFilter);
 
     if (query.payee_id) filters.push(eq(externalCommissionEntries.payeeId, query.payee_id));
     if (query.business_id) filters.push(eq(externalCommissionEntries.businessId, query.business_id));
@@ -109,7 +114,12 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
 
   app.get("/external-commission/summary", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(externalCommissionSummaryQuerySchema, request.query);
-    const filters = query.payee_id ? [eq(externalCommissionEntries.payeeId, query.payee_id)] : [];
+    const filters: SQL[] = query.payee_id ? [eq(externalCommissionEntries.payeeId, query.payee_id)] : [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) filters.push(accessFilter);
+
     const where = filters.length > 0 ? and(...filters) : sql`true`;
 
     const overallRows = await db
@@ -119,6 +129,7 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
         outstanding: sql<string>`coalesce(sum(${externalCommissionEntries.amountSgd} - ${externalCommissionEntries.amountSettled}) filter (where ${externalCommissionEntries.status} <> 'void'),0)`
       })
       .from(externalCommissionEntries)
+      .leftJoin(businesses, eq(externalCommissionEntries.businessId, businesses.id))
       .where(where);
 
     const byPayeeRows = await db
@@ -131,6 +142,7 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
       })
       .from(externalCommissionEntries)
       .leftJoin(externalParties, eq(externalCommissionEntries.payeeId, externalParties.id))
+      .leftJoin(businesses, eq(externalCommissionEntries.businessId, businesses.id))
       .where(where)
       .groupBy(externalCommissionEntries.payeeId, externalParties.name);
 

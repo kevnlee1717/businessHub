@@ -5,7 +5,7 @@ import {
   expenseCategories,
   ledgerEntries
 } from "@bh/db";
-import { and, asc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
 import { endOfDate } from "./hrUtils";
 
 type MoneyLine = {
@@ -136,14 +136,29 @@ async function resolveCompany(companyId: string | null) {
   return company ?? { id: companyId, name: "未知公司" };
 }
 
-export async function listReportCompanies() {
-  return db
+export async function listReportCompanies(companyIds?: string[]) {
+  const query = db
     .select({ id: companies.id, name: companies.name })
     .from(companies)
-    .orderBy(asc(companies.name));
+    .$dynamic();
+
+  if (companyIds) {
+    if (companyIds.length === 0) {
+      return [];
+    }
+
+    query.where(inArray(companies.id, companyIds));
+  }
+
+  return query.orderBy(asc(companies.name));
 }
 
-export async function buildPnl(companyId: string | null, from: string, to: string): Promise<PnlReport> {
+export async function buildPnl(
+  companyId: string | null,
+  from: string,
+  to: string,
+  companyIds?: string[]
+): Promise<PnlReport> {
   const filters: SQL[] = [
     gte(ledgerEntries.occurredAt, new Date(from)),
     lte(ledgerEntries.occurredAt, endOfDate(to))
@@ -151,6 +166,12 @@ export async function buildPnl(companyId: string | null, from: string, to: strin
 
   if (companyId) {
     filters.push(eq(ledgerEntries.companyId, companyId));
+  } else if (companyIds) {
+    if (companyIds.length === 0) {
+      filters.push(inArray(ledgerEntries.companyId, ["00000000-0000-0000-0000-000000000000"]));
+    } else {
+      filters.push(inArray(ledgerEntries.companyId, companyIds));
+    }
   }
 
   const rows = await db
@@ -238,9 +259,10 @@ export async function buildGstEstimate(
   companyId: string | null,
   from: string,
   to: string,
-  rate: number
+  rate: number,
+  companyIds?: string[]
 ): Promise<GstEstimate> {
-  const pnl = await buildPnl(companyId, from, to);
+  const pnl = await buildPnl(companyId, from, to, companyIds);
   const revenueTotal = Number(pnl.revenue.total);
   const taxableExpenses = Number(pnl.cost_of_sales.total) + Number(pnl.operating_expenses.total);
   const outputTax = roundMoney((revenueTotal * rate) / (1 + rate));

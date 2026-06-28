@@ -16,6 +16,7 @@ import {
 import { and, asc, desc, eq, lt, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import type { DbExecutor } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
@@ -233,6 +234,10 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
   app.get("/charges", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(chargesQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) filters.push(accessFilter);
 
     if (query.business_id) filters.push(eq(billing.businessId, query.business_id));
     if (query.company_id) filters.push(eq(businesses.companyId, query.company_id));

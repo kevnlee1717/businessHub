@@ -128,13 +128,20 @@ export function monthDiff(fromPeriod: string, toPeriod: string): number {
   return (toYear - fromYear) * 12 + (toMonth - fromMonth);
 }
 
-export async function buildDashboardOverview(periodInput?: string): Promise<DashboardOverview> {
+export async function buildDashboardOverview(
+  periodInput?: string,
+  companyIds?: string[]
+): Promise<DashboardOverview> {
   const ctx = getPeriodContext(periodInput);
-  const companyRows = await db.select().from(companies).orderBy(asc(companies.name));
+  const companyRows = companyIds
+    ? companyIds.length === 0
+      ? []
+      : await db.select().from(companies).where(inArray(companies.id, companyIds)).orderBy(asc(companies.name))
+    : await db.select().from(companies).orderBy(asc(companies.name));
   const academyCompanyId = resolveAcademyCompanyId(companyRows);
-  const paymentCalendar = await buildPaymentCalendar(ctx.period);
+  const paymentCalendar = await buildPaymentCalendar(ctx.period, undefined, companyIds);
   const remainingByCompany = sumRowsByCompany(paymentCalendar.rows.filter((row) => row.date >= ctx.today));
-  const receivables = await buildReceivables(undefined, ctx.period);
+  const receivables = await buildReceivables(undefined, ctx.period, companyIds);
   const receivableByCompany = new Map<string, number>();
 
   if (academyCompanyId) {
@@ -190,10 +197,18 @@ export async function buildDashboardOverview(periodInput?: string): Promise<Dash
   };
 }
 
-export async function buildPaymentCalendar(periodInput?: string, companyId?: string) {
+export async function buildPaymentCalendar(periodInput?: string, companyId?: string, companyIds?: string[]) {
   const ctx = getPeriodContext(periodInput);
   const filters = [eq(recurringCosts.active, true)];
   if (companyId) filters.push(eq(recurringCosts.companyId, companyId));
+  if (!companyId && companyIds) {
+    filters.push(
+      inArray(
+        recurringCosts.companyId,
+        companyIds.length ? companyIds : ["00000000-0000-0000-0000-000000000000"]
+      )
+    );
+  }
 
   const recurringRows = await db
     .select()
@@ -203,6 +218,14 @@ export async function buildPaymentCalendar(periodInput?: string, companyId?: str
 
   const payrollFilters = [eq(payslips.period, ctx.period), ne(payslips.status, "paid" as const)];
   if (companyId) payrollFilters.push(eq(employees.companyId, companyId));
+  if (!companyId && companyIds) {
+    payrollFilters.push(
+      inArray(
+        employees.companyId,
+        companyIds.length ? companyIds : ["00000000-0000-0000-0000-000000000000"]
+      )
+    );
+  }
 
   const payrollRows = await db
     .select({
@@ -246,8 +269,14 @@ export async function buildPaymentCalendar(periodInput?: string, companyId?: str
   };
 }
 
-export async function buildReceivables(companyId?: string, asOfPeriod = currentSgtPeriod()) {
-  const companyRows = await db.select().from(companies).orderBy(asc(companies.name));
+export async function buildReceivables(companyId?: string, asOfPeriod = currentSgtPeriod(), companyIds?: string[]) {
+  const companyRows = companyId
+    ? await db.select().from(companies).where(eq(companies.id, companyId)).orderBy(asc(companies.name))
+    : companyIds
+      ? companyIds.length === 0
+        ? []
+        : await db.select().from(companies).where(inArray(companies.id, companyIds)).orderBy(asc(companies.name))
+      : await db.select().from(companies).orderBy(asc(companies.name));
   const academyCompanyId = resolveAcademyCompanyId(companyRows);
   const includeAcademy = !companyId || companyId === academyCompanyId;
   const rows: ReceivableRow[] = [];
@@ -283,11 +312,19 @@ export async function buildReceivables(companyId?: string, asOfPeriod = currentS
   };
 }
 
-export async function buildKpi(periodInput?: string, companyId?: string): Promise<KpiRow[]> {
+export async function buildKpi(
+  periodInput?: string,
+  companyId?: string,
+  accessibleCompanyIds?: string[]
+): Promise<KpiRow[]> {
   const ctx = getPeriodContext(periodInput);
   const companyRows = companyId
     ? await db.select().from(companies).where(eq(companies.id, companyId)).orderBy(asc(companies.name))
-    : await db.select().from(companies).orderBy(asc(companies.name));
+    : accessibleCompanyIds
+      ? accessibleCompanyIds.length === 0
+        ? []
+        : await db.select().from(companies).where(inArray(companies.id, accessibleCompanyIds)).orderBy(asc(companies.name))
+      : await db.select().from(companies).orderBy(asc(companies.name));
   const fixedCosts = new Map<string, number>();
   const rows: KpiRow[] = [];
 

@@ -1,5 +1,6 @@
 import { gstQuerySchema, reportQuerySchema } from "@bh/shared";
 import { type FastifyInstance } from "fastify";
+import { getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { parseWithSchema } from "./hrUtils";
 import { buildGstEstimate, buildPnl, listReportCompanies, pnlToCsv } from "./reportUtils";
@@ -30,15 +31,22 @@ function filenamePart(value: string): string {
 export async function registerReportRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/reports/pnl", { preHandler: requirePerm("finance.view") }, async (request) => {
+  app.get("/reports/pnl", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
     const query = withDefaultPeriod(parseWithSchema(reportQuerySchema, request.query));
-    const pnl = await buildPnl(query.company_id ?? null, query.from, query.to);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && query.company_id && !companyIds.includes(query.company_id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const allowedCompanyIds = companyIds === "all" ? undefined : companyIds;
+    const pnl = await buildPnl(query.company_id ?? null, query.from, query.to, allowedCompanyIds);
 
     if (query.company_id) {
       return pnl;
     }
 
-    const companyRows = await listReportCompanies();
+    const companyRows = await listReportCompanies(allowedCompanyIds);
     const byCompany = await Promise.all(
       companyRows.map((company) => buildPnl(company.id, query.from, query.to))
     );
@@ -51,7 +59,18 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
 
   app.get("/reports/pnl.csv", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
     const query = withDefaultPeriod(parseWithSchema(reportQuerySchema, request.query));
-    const pnl = await buildPnl(query.company_id ?? null, query.from, query.to);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && query.company_id && !companyIds.includes(query.company_id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const pnl = await buildPnl(
+      query.company_id ?? null,
+      query.from,
+      query.to,
+      companyIds === "all" ? undefined : companyIds
+    );
     const scope = query.company_id ? filenamePart(pnl.company.name) : "all";
 
     reply.header("Content-Type", "text/csv; charset=utf-8");
@@ -62,9 +81,21 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     return reply.send(pnlToCsv(pnl));
   });
 
-  app.get("/reports/gst", { preHandler: requirePerm("finance.view") }, async (request) => {
+  app.get("/reports/gst", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
     const query = withDefaultPeriod(parseWithSchema(gstQuerySchema, request.query));
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && query.company_id && !companyIds.includes(query.company_id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     const rate = typeof query.rate === "number" ? query.rate : 0.09;
-    return buildGstEstimate(query.company_id ?? null, query.from, query.to, rate);
+    return buildGstEstimate(
+      query.company_id ?? null,
+      query.from,
+      query.to,
+      rate,
+      companyIds === "all" ? undefined : companyIds
+    );
   });
 }
