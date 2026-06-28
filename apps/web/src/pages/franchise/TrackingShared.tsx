@@ -40,6 +40,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { MapPicker } from "../../components/MapPicker";
+import { CreatableCombobox } from "../../components/CreatableCombobox";
 import { listEmployees } from "../../api/hr";
 import {
   createFranchiseContact,
@@ -589,7 +590,6 @@ function ContactFormModal({ opened, onClose, contact }: { opened: boolean; onClo
   const { t } = useTranslation();
   const qc = useQueryClient();
   const base = useBaseOptions();
-  const [roleSearch, setRoleSearch] = useState(contact?.role ?? "");
   const form = useSimpleForm({
     name: contact?.name ?? "",
     role: contact?.role ?? "",
@@ -619,17 +619,15 @@ function ContactFormModal({ opened, onClose, contact }: { opened: boolean; onClo
   const roleOptions = useMemo(() => {
     const roles = new Set(base.contacts.map((row) => row.role?.trim()).filter((role): role is string => Boolean(role)));
     const currentRole = (form.values.role as string | undefined)?.trim();
-    const searchedRole = roleSearch.trim();
     if (currentRole) roles.add(currentRole);
-    if (searchedRole) roles.add(searchedRole);
     return [...roles].sort((a, b) => a.localeCompare(b)).map((role) => ({ value: role, label: role }));
-  }, [base.contacts, form.values.role, roleSearch]);
+  }, [base.contacts, form.values.role]);
   return (
     <FieldModal opened={opened} onClose={onClose} title={contact ? t("franchise.actions.editContact") : t("franchise.actions.newContact")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="xl">
       <ErrorAlert error={mutation.error ?? base.error} />
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
         <TextInput label={t("franchise.fields.name")} value={(form.values.name as string) ?? ""} onChange={(e) => form.set("name", e.currentTarget.value)} />
-        <Select label={t("franchise.fields.role")} data={roleOptions} value={(form.values.role as string) || null} onChange={(v) => form.set("role", v ?? "")} searchValue={roleSearch} onSearchChange={setRoleSearch} clearable searchable />
+        <CreatableCombobox label={t("franchise.fields.role")} options={roleOptions} value={(form.values.role as string) || null} onChange={(value) => form.set("role", value)} onCreate={async (name) => name} />
         <TextInput label={t("franchise.fields.phone")} value={(form.values.phone as string) ?? ""} onChange={(e) => form.set("phone", e.currentTarget.value)} />
         <OrgSelect label={t("franchise.fields.org")} value={form.values.org_id as string | null | undefined} onChange={(v) => form.set("org_id", v)} />
         <ContactPicker label={t("franchise.fields.referredBy")} value={form.values.referred_by_contact_id as string | null | undefined} onChange={(v) => form.set("referred_by_contact_id", v)} excludeId={contact?.id} />
