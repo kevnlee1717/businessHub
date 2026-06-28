@@ -2,7 +2,7 @@ import { Stack, Tabs } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-const tabs = [
+export const tabs = [
   { value: "billing", path: "/finance/billing", labelKey: "finance.tabs.billing" },
   { value: "receivables-ledger", path: "/finance/receivables-ledger", labelKey: "finance.tabs.receivablesLedger" },
   { value: "ledger", path: "/finance/ledger", labelKey: "finance.tabs.ledger" },

@@ -2,7 +2,7 @@ import { Paper, Stack, Tabs, Text, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-const tabs = [
+export const tabs = [
   { value: "search", path: "/documents/search", labelKey: "documents.tabs.search" },
   { value: "client-library", path: "/documents/client-library", labelKey: "documents.tabs.clientLibrary" },
   { value: "company", path: "/documents/company", labelKey: "documents.tabs.company" },

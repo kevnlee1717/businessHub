@@ -2,7 +2,7 @@ import { Stack, Tabs } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-const tabs = [
+export const tabs = [
   { value: "employees", path: "/hr/employees", labelKey: "hr.tabs.employees" },
   { value: "attendance", path: "/hr/attendance", labelKey: "hr.tabs.attendance" },
   { value: "payroll", path: "/hr/payroll", labelKey: "hr.tabs.payroll" },

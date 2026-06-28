@@ -2,7 +2,7 @@ import { Stack, Tabs } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-const tabs = [
+export const tabs = [
   { value: "companies", path: "/settings/companies", labelKey: "settings.tabs.companies" },
   { value: "positions", path: "/settings/positions", labelKey: "settings.tabs.positions" },
   { value: "work-shifts", path: "/settings/work-shifts", labelKey: "settings.tabs.workShifts" },

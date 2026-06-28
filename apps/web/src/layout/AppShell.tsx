@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { routeTitleEntries } from "./routeTitles";
 import { TagsView, type VisitedView } from "./TagsView";
 
 const navItems = [
@@ -86,7 +87,7 @@ export function AppShell() {
     return to === "/" ? pathname === "/" : pathname.startsWith(to);
   }
 
-  const leafItems = useMemo(() => {
+  const titleEntries = useMemo(() => {
     const out: { to: string; key: string }[] = [];
     for (const item of navItems) {
       if ("children" in item) {
@@ -95,13 +96,17 @@ export function AppShell() {
         out.push({ to: item.to, key: item.key });
       }
     }
+    // 路由式子 tab(如 /hr/attendance)→ 具体标题,比父级 /hr 更精确
+    for (const entry of routeTitleEntries) {
+      out.push({ to: entry.path, key: entry.key });
+    }
     return out;
   }, []);
 
   function resolveTitle(path: string) {
-    const exact = leafItems.find((i) => i.to === path);
+    const exact = titleEntries.find((i) => i.to === path);
     if (exact) return t(exact.key);
-    const prefix = leafItems
+    const prefix = titleEntries
       .filter((i) => i.to !== "/" && path.startsWith(i.to))
       .sort((a, b) => b.to.length - a.to.length)[0];
     if (prefix) return t(prefix.key);
@@ -140,15 +145,27 @@ export function AppShell() {
 
   // 顶栏面包屑(element-admin:navbar 只放面包屑,不放 app 标题)
   const crumbs: string[] = (() => {
+    const base: string[] = [];
     for (const item of navItems) {
       if ("children" in item) {
         const child = item.children.find((c) => isActivePath(c.to));
-        if (child) return [t(item.key), t(child.key)];
+        if (child) {
+          base.push(t(item.key), t(child.key));
+          break;
+        }
       } else if (isActivePath(item.to)) {
-        return [t(item.key)];
+        base.push(t(item.key));
+        break;
       }
     }
-    return [resolveTitle(pathname)];
+    if (base.length === 0) base.push(resolveTitle(pathname));
+    // 单叶模块(人事/文档)下的路由式子 tab:追加具体子页(人事 / 考勤)
+    const sub = routeTitleEntries.find((e) => e.path === pathname);
+    if (sub && base.length === 1) {
+      const subTitle = t(sub.key);
+      if (base[0] !== subTitle) base.push(subTitle);
+    }
+    return base;
   })();
 
   return (
