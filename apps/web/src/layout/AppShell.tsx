@@ -79,6 +79,7 @@ const navItems: NavItem[] = [
     defaultOpened: false,
     children: [
       { to: "/settings/companies", key: "settings.tabs.companies", perm: "settings.manage" },
+      { to: "/settings/permissions", key: "nav.permissions", perm: "settings.manage" },
       { to: "/settings/positions", key: "settings.tabs.positions", perm: "settings.manage" },
       { to: "/settings/work-shifts", key: "settings.tabs.workShifts", perm: "settings.manage" },
       { to: "/settings/industries", key: "settings.tabs.industries", perm: "settings.manage" },

@@ -35,6 +35,7 @@
     "deal_parties": "分成对象",
     "external_parties": "外部分成人",
     "settings": "设置",
+    "permissions": "用户授权",
     "collection_items": "收款名目"
   },
   "auth": {
@@ -203,6 +204,7 @@
   "settings": {
     "tabs": {
       "companies": "公司",
+      "permissions": "用户授权",
       "positions": "岗位",
       "workShifts": "班次",
       "industries": "行业",

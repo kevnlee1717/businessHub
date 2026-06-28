@@ -44,6 +44,7 @@ import { StatementPage } from "./pages/StatementPage";
 import { CollectionItemsPage } from "./pages/settings/CollectionItemsPage";
 import { CompaniesPage } from "./pages/settings/CompaniesPage";
 import { IndustriesPage } from "./pages/settings/IndustriesPage";
+import { PermissionsPage } from "./pages/settings/PermissionsPage";
 import { PositionsPage } from "./pages/settings/PositionsPage";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { WorkShiftsPage } from "./pages/settings/WorkShiftsPage";
@@ -106,6 +107,7 @@ export function App() {
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />
             <Route path="companies" element={<CompaniesPage />} />
+            <Route path="permissions" element={<PermissionsPage />} />
             <Route path="positions" element={<PositionsPage />} />
             <Route path="work-shifts" element={<WorkShiftsPage />} />
             <Route path="industries" element={<IndustriesPage />} />

@@ -35,6 +35,7 @@
     "deal_parties": "Deal Parties",
     "external_parties": "External Parties",
     "settings": "Settings",
+    "permissions": "Permissions",
     "collection_items": "Collection Items"
   },
   "auth": {
@@ -203,6 +204,7 @@
   "settings": {
     "tabs": {
       "companies": "Companies",
+      "permissions": "Permissions",
       "positions": "Positions",
       "workShifts": "Work shifts",
       "industries": "Industries",
