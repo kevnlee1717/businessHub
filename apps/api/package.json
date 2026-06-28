@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "backfill:recruitment-i18n": "tsx src/scripts/backfillRecruitmentTranslations.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
     "lint": "echo skip"

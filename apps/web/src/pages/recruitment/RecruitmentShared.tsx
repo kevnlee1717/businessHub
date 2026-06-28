@@ -495,6 +495,7 @@ function JobFormModal({
     mutation.mutate({
       ...form.values,
       title,
+      industry_id: emptyToNull(form.values.industry_id),
       job_content: nullableFirstText(form.values.jobContentZh, form.values.jobContentEn),
       requirements: nullableFirstText(form.values.requirementsZh, form.values.requirementsEn),
       salary_note: nullableFirstText(form.values.salaryNoteZh, form.values.salaryNoteEn),
