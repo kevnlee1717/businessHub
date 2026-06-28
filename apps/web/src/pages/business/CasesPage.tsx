@@ -51,8 +51,6 @@ type CasesPageProps = {
   businessType: CaseListBusinessType;
 };
 
-const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
-
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
     return undefined;
@@ -95,13 +93,13 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
 
 export function CasesPage({ businessType }: CasesPageProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<CaseStatus | null>(null);
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const canManageCases = user ? caseManageRoles.has(user.role) : false;
+  const canManageCases = can("case.manage");
 
   const casesQuery = useQuery({
     queryKey: ["business", "cases", businessType, statusFilter, clientFilter],

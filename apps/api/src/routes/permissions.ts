@@ -2,7 +2,8 @@ import {
   db,
   employeeCompanyAccess,
   employeePermissionOverrides,
-  employees
+  employees,
+  positions
 } from "@bh/db";
 import { updateEmployeePermissionsSchema } from "@bh/shared";
 import { eq } from "drizzle-orm";
@@ -16,10 +17,12 @@ type DbExecutor = typeof db | DbTransaction;
 async function getEmployeePermissions(employeeId: string, executor: DbExecutor = db) {
   const [employee] = await executor
     .select({
-      role: employees.role,
-      dataScope: employees.dataScope
+      positionId: employees.positionId,
+      dataScope: positions.dataScope,
+      positionIsSystem: positions.isSystem
     })
     .from(employees)
+    .leftJoin(positions, eq(employees.positionId, positions.id))
     .where(eq(employees.id, employeeId))
     .limit(1);
 
@@ -40,11 +43,23 @@ async function getEmployeePermissions(employeeId: string, executor: DbExecutor =
     .where(eq(employeePermissionOverrides.employeeId, employeeId));
 
   return {
-    role: employee.role,
-    dataScope: employee.dataScope,
+    positionId: employee.positionId,
+    dataScope: employee.dataScope ?? "self",
+    positionIsSystem: employee.positionIsSystem ?? false,
     companyIds: companyRows.map((row) => row.companyId),
     overrides: overrideRows
   };
+}
+
+async function employeeHasSystemPosition(employeeId: string, executor: DbExecutor = db): Promise<boolean> {
+  const [employee] = await executor
+    .select({ isSystem: positions.isSystem })
+    .from(employees)
+    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  return employee?.isSystem ?? false;
 }
 
 export async function registerPermissionRoutes(app: FastifyInstance): Promise<void> {
@@ -56,7 +71,12 @@ export async function registerPermissionRoutes(app: FastifyInstance): Promise<vo
       return sendNotFound(reply);
     }
 
-    return permissions;
+    return {
+      positionId: permissions.positionId,
+      dataScope: permissions.dataScope,
+      companyIds: permissions.companyIds,
+      overrides: permissions.overrides
+    };
   });
 
   app.put("/employees/:id/permissions", { preHandler: requirePerm("settings.manage") }, async (request, reply) => {
@@ -68,10 +88,18 @@ export async function registerPermissionRoutes(app: FastifyInstance): Promise<vo
       return sendNotFound(reply);
     }
 
-    if (
-      (currentPermissions.role === "owner" || body.role === "owner" || body.dataScope === "all") &&
-      request.user.role !== "owner"
-    ) {
+    const requesterIsSystem = await employeeHasSystemPosition(request.user.id);
+    const [nextPosition] = await db
+      .select({ id: positions.id, isSystem: positions.isSystem })
+      .from(positions)
+      .where(eq(positions.id, body.positionId))
+      .limit(1);
+
+    if (!nextPosition) {
+      return reply.code(400).send({ error: "position_not_found" });
+    }
+
+    if ((currentPermissions.positionIsSystem || nextPosition.isSystem) && !requesterIsSystem) {
       return reply.code(403).send({ error: "forbidden_owner_only" });
     }
 
@@ -79,8 +107,7 @@ export async function registerPermissionRoutes(app: FastifyInstance): Promise<vo
       const [employee] = await tx
         .update(employees)
         .set({
-          role: body.role,
-          dataScope: body.dataScope,
+          positionId: body.positionId,
           updatedAt: new Date()
         })
         .where(eq(employees.id, id))
@@ -125,6 +152,11 @@ export async function registerPermissionRoutes(app: FastifyInstance): Promise<vo
       return sendNotFound(reply);
     }
 
-    return updated;
+    return {
+      positionId: updated.positionId,
+      dataScope: updated.dataScope,
+      companyIds: updated.companyIds,
+      overrides: updated.overrides
+    };
   });
 }

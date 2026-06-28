@@ -4,7 +4,7 @@ import { loadAuthContext } from "./context";
 
 export type AuthUser = {
   id: string;
-  role: Role;
+  role: Role | null;
   email: string;
 };
 
@@ -37,7 +37,7 @@ export function requireRole(...roles: Role[]) {
       return;
     }
 
-    if (!roles.includes(request.user.role)) {
+    if (!request.user.role || !roles.includes(request.user.role)) {
       await reply.code(403).send({ error: "forbidden" });
     }
   };

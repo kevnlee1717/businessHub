@@ -40,9 +40,10 @@ export type Employee = {
   name_en?: string | null;
   email: string;
   phone?: string | null;
-  role: Role;
+  role?: Role | null;
   company_id?: string | null;
   position_id?: string | null;
+  position_name?: string | null;
   shift_id?: string | null;
   employment_type: EmploymentType;
   status: EmployeeStatus;
@@ -79,6 +80,10 @@ export type Position = {
   name: string;
   name_en?: string | null;
   note?: string | null;
+  permissions: string[];
+  data_scope: "all" | "company" | "self";
+  is_system: boolean;
+  sort_order: number;
   created_at: string;
 };
 

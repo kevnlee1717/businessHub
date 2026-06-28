@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 import bcrypt from "bcryptjs";
-import { DEAL_PRESETS, computeDealEconomics, type SchemeLineInput } from "@bh/shared";
+import { DEAL_PRESETS, ROLE_PERMISSIONS, allPermissions, computeDealEconomics, type SchemeLineInput } from "@bh/shared";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
@@ -22,6 +22,7 @@ import {
   industries,
   ledgerEntries,
   payrollSettings,
+  positions,
   recurringCosts,
   salesBusinessAssignments,
   schemeLines,
@@ -41,6 +42,56 @@ const ownerName = process.env.SEED_OWNER_NAME ?? "Owner";
 
 const passwordHash = await bcrypt.hash(ownerPassword, 10);
 
+const [existingSuperAdminPosition] = await db.select().from(positions).where(eq(positions.name, "超管")).limit(1);
+const [superAdminPosition] = existingSuperAdminPosition
+  ? await db
+      .update(positions)
+      .set({
+        permissions: allPermissions,
+        dataScope: "all",
+        isSystem: true,
+        sortOrder: 0
+      })
+      .where(eq(positions.id, existingSuperAdminPosition.id))
+      .returning({ id: positions.id })
+  : await db
+      .insert(positions)
+      .values({
+        name: "超管",
+        nameEn: "Super Admin",
+        permissions: allPermissions,
+        dataScope: "all",
+        isSystem: true,
+        sortOrder: 0
+      })
+      .returning({ id: positions.id });
+
+if (!superAdminPosition) {
+  throw new Error("super_admin_position_seed_failed");
+}
+
+const positionPermissionSeeds = [
+  { name: "文员", permissions: ROLE_PERMISSIONS.clerk, dataScope: "self", sortOrder: 10 },
+  { name: "会计", permissions: ROLE_PERMISSIONS.accountant, dataScope: "company", sortOrder: 20 },
+  { name: "主管", permissions: ROLE_PERMISSIONS.admin, dataScope: "all", sortOrder: 30 },
+  { name: "摄影", permissions: ROLE_PERMISSIONS.photographer, dataScope: "self", sortOrder: 40 }
+] as const;
+
+for (const seed of positionPermissionSeeds) {
+  const [position] = await db.select().from(positions).where(eq(positions.name, seed.name)).limit(1);
+
+  if (position) {
+    await db
+      .update(positions)
+      .set({
+        permissions: seed.permissions,
+        dataScope: seed.dataScope,
+        sortOrder: seed.sortOrder
+      })
+      .where(eq(positions.id, position.id));
+  }
+}
+
 const [owner] = await db
   .insert(employees)
   .values({
@@ -48,6 +99,7 @@ const [owner] = await db
     name: ownerName,
     passwordHash,
     role: "owner",
+    positionId: superAdminPosition.id,
     dataScope: "all",
     mustChangePassword: false
   })
@@ -57,6 +109,7 @@ const [owner] = await db
       name: ownerName,
       passwordHash,
       role: "owner",
+      positionId: superAdminPosition.id,
       status: "active",
       dataScope: "all",
       mustChangePassword: false,

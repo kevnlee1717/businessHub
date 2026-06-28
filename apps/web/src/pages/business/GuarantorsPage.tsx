@@ -49,7 +49,6 @@ type GuarantorFormValues = {
 };
 
 const guarantorQueryKey = ["business", "guarantors"] as const;
-const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
@@ -139,12 +138,12 @@ function IdCardUpload({ guarantor, canManageCases }: IdCardUploadProps) {
 
 export function GuarantorsPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const [editingGuarantor, setEditingGuarantor] = useState<Guarantor | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const canManageCases = user ? caseManageRoles.has(user.role) : false;
+  const canManageCases = can("case.manage");
 
   const guarantorsQuery = useQuery({
     queryKey: guarantorQueryKey,

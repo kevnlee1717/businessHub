@@ -1,4 +1,4 @@
-import { businesses, db, employees, salesBusinessAssignments } from "@bh/db";
+import { businesses, db, employees, positions, salesBusinessAssignments } from "@bh/db";
 import {
   salesAssignmentCreateSchema,
   salesAssignmentUpdateSchema
@@ -26,6 +26,21 @@ function serializeAssignment(row: typeof salesBusinessAssignments.$inferSelect) 
     note: row.note,
     created_at: row.createdAt
   };
+}
+
+async function employeeCanViewOwnCommission(employeeId: string): Promise<boolean | null> {
+  const [sales] = await db
+    .select({ permissions: positions.permissions })
+    .from(employees)
+    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  if (!sales) {
+    return null;
+  }
+
+  return (sales.permissions ?? []).includes("commission.view_own");
 }
 
 export async function registerSalesAssignmentRoutes(app: FastifyInstance): Promise<void> {
@@ -76,16 +91,12 @@ export async function registerSalesAssignmentRoutes(app: FastifyInstance): Promi
     { preHandler: requirePerm("commission.manage") },
     async (request, reply) => {
       const body = parseWithSchema(salesAssignmentCreateSchema, request.body);
-      const [sales] = await db
-        .select({ id: employees.id, role: employees.role })
-        .from(employees)
-        .where(eq(employees.id, body.sales_id))
-        .limit(1);
+      const canViewOwnCommission = await employeeCanViewOwnCommission(body.sales_id);
 
-      if (!sales) {
+      if (canViewOwnCommission === null) {
         return reply.code(400).send({ error: "sales_not_found" });
       }
-      if (sales.role !== "sales") {
+      if (!canViewOwnCommission) {
         return reply.code(400).send({ error: "employee_not_sales" });
       }
 
@@ -121,15 +132,11 @@ export async function registerSalesAssignmentRoutes(app: FastifyInstance): Promi
     const body = parseWithSchema(salesAssignmentUpdateSchema, request.body);
 
     if (body.sales_id) {
-      const [sales] = await db
-        .select({ role: employees.role })
-        .from(employees)
-        .where(eq(employees.id, body.sales_id))
-        .limit(1);
-      if (!sales) {
+      const canViewOwnCommission = await employeeCanViewOwnCommission(body.sales_id);
+      if (canViewOwnCommission === null) {
         return reply.code(400).send({ error: "sales_not_found" });
       }
-      if (sales.role !== "sales") {
+      if (!canViewOwnCommission) {
         return reply.code(400).send({ error: "employee_not_sales" });
       }
     }

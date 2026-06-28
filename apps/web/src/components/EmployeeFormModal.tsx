@@ -7,14 +7,12 @@ import {
   employeeUpdateSchema,
   employmentTypes,
   payrollSchemes,
-  roles,
   type Currency,
   type EmployeeCreateInput,
   type EmployeeStatus,
   type EmployeeUpdateInput,
   type EmploymentType,
-  type PayrollScheme,
-  type Role
+  type PayrollScheme
 } from "@bh/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -35,7 +33,6 @@ type EmployeeFormValues = {
   email?: string | undefined;
   phone?: string | undefined;
   password?: string | undefined;
-  role?: Role | undefined;
   company_id?: string | undefined;
   position_id?: string | undefined;
   shift_id?: string | undefined;
@@ -51,7 +48,7 @@ type EmployeeFormModalProps = {
   onClose: () => void;
   initialValues?: Employee | null;
   initialName?: string;
-  defaultRole?: Role;
+  defaultPositionId?: string | null;
   onSaved: (employee: Employee) => void | Promise<void>;
 };
 
@@ -69,7 +66,7 @@ const emptyToUndefined = (value: unknown) => {
 function getDefaultValues(
   employee?: Employee | null,
   initialName?: string,
-  defaultRole: Role = "clerk"
+  defaultPositionId?: string | null
 ): EmployeeFormValues {
   return {
     name: employee?.name ?? initialName ?? "",
@@ -77,13 +74,12 @@ function getDefaultValues(
     email: employee?.email ?? "",
     phone: employee?.phone ?? undefined,
     password: undefined,
-    role: employee?.role ?? defaultRole,
     employment_type: employee?.employment_type ?? "full_time",
     status: employee?.status ?? "active",
     salary_currency: employee?.salary_currency ?? "SGD",
     payroll_scheme: employee?.payroll_scheme ?? null,
     company_id: employee?.company_id ?? undefined,
-    position_id: employee?.position_id ?? undefined,
+    position_id: employee?.position_id ?? defaultPositionId ?? undefined,
     shift_id: employee?.shift_id ?? undefined,
     join_date: employee?.join_date ?? undefined
   };
@@ -98,7 +94,7 @@ export function EmployeeFormModal({
   onClose,
   initialValues,
   initialName,
-  defaultRole = "clerk",
+  defaultPositionId,
   onSaved
 }: EmployeeFormModalProps) {
   const { t } = useTranslation();
@@ -118,7 +114,7 @@ export function EmployeeFormModal({
     resolver: zodResolver(
       isEditing ? employeeUpdateSchema : employeeCreateSchema
     ) as Resolver<EmployeeFormValues>,
-    defaultValues: getDefaultValues(initialValues, initialName, defaultRole)
+    defaultValues: getDefaultValues(initialValues, initialName, defaultPositionId)
   });
 
   const createMutation = useMutation({
@@ -134,8 +130,8 @@ export function EmployeeFormModal({
     }
 
     setFormError(null);
-    form.reset(getDefaultValues(initialValues, initialName, defaultRole));
-  }, [defaultRole, form, initialName, initialValues, opened]);
+    form.reset(getDefaultValues(initialValues, initialName, defaultPositionId));
+  }, [defaultPositionId, form, initialName, initialValues, opened]);
 
   const companies = companiesQuery.data?.companies ?? [];
   const workShifts = workShiftsQuery.data?.work_shifts ?? [];
@@ -147,7 +143,6 @@ export function EmployeeFormModal({
     value: shift.id,
     label: shift.name
   }));
-  const roleOptions = roles.map((role) => ({ value: role, label: t(`role.${role}`) }));
   const employmentTypeOptions = employmentTypes.map((type) => ({
     value: type,
     label: t(`employmentType.${type}`)
@@ -181,11 +176,7 @@ export function EmployeeFormModal({
 
   const errors = form.formState.errors;
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const title = isEditing
-    ? t("hr.employees.edit")
-    : defaultRole === "teacher"
-      ? t("teacher.add")
-      : t("hr.employees.add");
+  const title = isEditing ? t("hr.employees.edit") : t("hr.employees.add");
 
   return (
     <Modal opened={opened} onClose={onClose} title={title} size="lg">
@@ -239,15 +230,14 @@ export function EmployeeFormModal({
           <Group grow align="flex-start">
             <Controller
               control={form.control}
-              name="role"
+              name="position_id"
               render={({ field }) => (
-                <Select
-                  label={t("hr.employees.fields.role")}
-                  data={roleOptions}
-                  value={field.value ?? null}
-                  onChange={(value) => field.onChange(value as Role)}
-                  error={errors.role?.message}
-                />
+                <Input.Wrapper label="岗位" error={errors.position_id?.message}>
+                  <PositionSelect
+                    value={field.value ?? null}
+                    onChange={(value) => field.onChange(value ?? undefined)}
+                  />
+                </Input.Wrapper>
               )}
             />
             <Controller
@@ -327,18 +317,6 @@ export function EmployeeFormModal({
                   error={errors.company_id?.message}
                   clearable
                 />
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="position_id"
-              render={({ field }) => (
-                <Input.Wrapper label={t("hr.employees.fields.position")} error={errors.position_id?.message}>
-                  <PositionSelect
-                    value={field.value ?? null}
-                    onChange={(value) => field.onChange(value ?? undefined)}
-                  />
-                </Input.Wrapper>
               )}
             />
           </Group>

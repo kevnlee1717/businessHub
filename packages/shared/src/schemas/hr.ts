@@ -33,7 +33,7 @@ const employeeBaseSchema = z.object({
   // 用户名(登录用),支持纯用户名或邮箱,不强制邮箱格式
   email: z.string().trim().min(1),
   phone: optionalText,
-  role: z.enum(roles),
+  role: z.enum(roles).optional(),
   company_id: optionalUuid,
   position_id: optionalUuid,
   shift_id: optionalUuid,
@@ -79,7 +79,10 @@ export const industryUpdateSchema = industryCreateSchema.partial();
 const positionBaseSchema = z.object({
   name: z.string().trim().min(1),
   name_en: optionalText,
-  note: nullableOptionalText
+  note: nullableOptionalText,
+  permissions: z.array(z.string()).optional(),
+  data_scope: z.enum(["all", "company", "self"]).optional(),
+  sort_order: z.number().int().optional()
 });
 
 export const positionCreateSchema = positionBaseSchema;

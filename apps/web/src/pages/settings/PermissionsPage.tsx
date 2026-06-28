@@ -8,7 +8,6 @@ import {
   Loader,
   MultiSelect,
   Paper,
-  Radio,
   ScrollArea,
   Select,
   SimpleGrid,
@@ -18,43 +17,29 @@ import {
   Title
 } from "@mantine/core";
 import {
-  ROLE_PERMISSIONS,
-  computeEffectivePermissions,
-  dataScopes,
+  allPermissions,
+  computeEffectivePermissionsFromBase,
   permissionCatalog,
-  roles,
   type DataScope,
-  type Permission,
-  type Role
+  type Permission
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { listCompanies, listEmployees, type Employee } from "../../api/hr";
+import { listCompanies, listEmployees, listPositions, type Employee } from "../../api/hr";
 import {
   getEmployeePermissions,
   updateEmployeePermissions,
-  type EmployeePermissions
+  type EmployeePermissions,
+  type EmployeePermissionsUpdate
 } from "../../api/permissions";
-import { useAuth } from "../../auth/AuthContext";
 
 type PermissionOverride = { permission: Permission; effect: "grant" | "revoke" };
 
 type Draft = {
-  role: Role;
   dataScope: DataScope;
+  positionId: string;
   companyIds: string[];
   overrides: PermissionOverride[];
-};
-
-const roleLabels: Record<Role, string> = {
-  owner: "老板",
-  admin: "管理员",
-  accountant: "会计",
-  clerk: "文员",
-  sales: "销售",
-  teacher: "老师",
-  principal: "校长",
-  photographer: "摄影"
 };
 
 const dataScopeLabels: Record<DataScope, string> = {
@@ -66,15 +51,22 @@ const dataScopeLabels: Record<DataScope, string> = {
 const permissionsQueryKey = ["settings", "permissions"] as const;
 const employeesQueryKey = ["hr", "employees"] as const;
 const companiesQueryKey = ["settings", "companies"] as const;
+const positionsQueryKey = ["hr", "positions"] as const;
 
 function employeeLabel(employee: Employee) {
   return employee.name_en ? `${employee.name} / ${employee.name_en}` : employee.name;
 }
 
+function normalizePermissions(permissions: string[]): Permission[] {
+  return permissions.filter((permission): permission is Permission =>
+    allPermissions.includes(permission as Permission)
+  );
+}
+
 function toDraft(data: EmployeePermissions): Draft {
   return {
-    role: data.role as Role,
     dataScope: data.dataScope,
+    positionId: data.positionId,
     companyIds: data.companyIds,
     overrides: data.overrides.map((override) => ({
       permission: override.permission as Permission,
@@ -83,23 +75,20 @@ function toDraft(data: EmployeePermissions): Draft {
   };
 }
 
-function toPayload(draft: Draft): EmployeePermissions {
+function toPayload(draft: Draft): EmployeePermissionsUpdate {
   return {
-    role: draft.role,
-    dataScope: draft.dataScope,
+    positionId: draft.positionId,
     companyIds: draft.companyIds,
     overrides: draft.overrides
   };
 }
 
 export function PermissionsPage() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saved, setSaved] = useState(false);
-  const canAssignOwner = user?.role === "owner";
 
   const employeesQuery = useQuery({
     queryKey: employeesQueryKey,
@@ -109,6 +98,10 @@ export function PermissionsPage() {
     queryKey: companiesQueryKey,
     queryFn: listCompanies
   });
+  const positionsQuery = useQuery({
+    queryKey: positionsQueryKey,
+    queryFn: listPositions
+  });
   const permissionsQuery = useQuery({
     queryKey: [...permissionsQueryKey, selectedEmployeeId],
     queryFn: () => getEmployeePermissions(selectedEmployeeId ?? ""),
@@ -116,7 +109,11 @@ export function PermissionsPage() {
   });
 
   const employees = employeesQuery.data?.employees ?? [];
+  const positions = positionsQuery.data?.positions ?? [];
   const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) ?? null;
+  const selectedPosition = draft
+    ? positions.find((position) => position.id === draft.positionId) ?? null
+    : null;
   const filteredEmployees = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -125,7 +122,7 @@ export function PermissionsPage() {
     }
 
     return employees.filter((employee) =>
-      [employee.name, employee.name_en, employee.email, employee.role]
+      [employee.name, employee.name_en, employee.email, employee.position_name]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(keyword))
     );
@@ -135,12 +132,19 @@ export function PermissionsPage() {
     value: company.id,
     label: company.name
   }));
-  const effectivePermissions = draft ? computeEffectivePermissions(draft.role, draft.overrides) : [];
-  const roleOptions = roles.map((role) => ({
-    value: role,
-    label: roleLabels[role],
-    disabled: role === "owner" && !canAssignOwner
+  const positionOptions = positions.map((position) => ({
+    value: position.id,
+    label: position.name_en ? `${position.name} / ${position.name_en}` : position.name
   }));
+  const basePermissions = selectedPosition
+    ? selectedPosition.is_system
+      ? allPermissions
+      : normalizePermissions(selectedPosition.permissions)
+    : [];
+  const effectivePermissions = draft
+    ? computeEffectivePermissionsFromBase(basePermissions, draft.overrides)
+    : [];
+  const effectiveDataScope = selectedPosition?.data_scope ?? draft?.dataScope ?? "self";
 
   const saveMutation = useMutation({
     mutationFn: (body: Draft) => updateEmployeePermissions(selectedEmployeeId ?? "", toPayload(body)),
@@ -149,6 +153,7 @@ export function PermissionsPage() {
       setSaved(true);
       await queryClient.invalidateQueries({ queryKey: [...permissionsQueryKey, selectedEmployeeId] });
       await queryClient.invalidateQueries({ queryKey: employeesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: positionsQueryKey });
     }
   });
 
@@ -171,10 +176,12 @@ export function PermissionsPage() {
         return current;
       }
 
-      const roleDefault = ROLE_PERMISSIONS[current.role].includes(permission);
+      const position = positions.find((item) => item.id === current.positionId);
+      const base = position?.is_system ? allPermissions : normalizePermissions(position?.permissions ?? []);
+      const positionDefault = base.includes(permission);
       const nextOverrides = current.overrides.filter((override) => override.permission !== permission);
 
-      if (checked !== roleDefault) {
+      if (checked !== positionDefault) {
         nextOverrides.push({ permission, effect: checked ? "grant" : "revoke" });
       }
 
@@ -193,7 +200,7 @@ export function PermissionsPage() {
         <Box>
           <Title order={2}>用户授权</Title>
           <Text size="sm" c="dimmed">
-            管理员工角色、数据范围、可访问公司和个人权限覆盖。
+            管理员工岗位、可访问公司和个人权限覆盖。数据范围继承岗位。
           </Text>
         </Box>
         {draft ? (
@@ -217,10 +224,10 @@ export function PermissionsPage() {
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         <Paper withBorder radius="md" p="md">
           <Stack gap="sm">
-            <TextInput
-              label="员工"
-              placeholder="搜索姓名、邮箱、角色"
-              value={search}
+              <TextInput
+                label="员工"
+                placeholder="搜索姓名、邮箱、岗位"
+                value={search}
               onChange={(event) => setSearch(event.currentTarget.value)}
             />
             <ScrollArea h={560}>
@@ -240,7 +247,7 @@ export function PermissionsPage() {
                     >
                       <span>{employeeLabel(employee)}</span>
                       <Badge size="xs" variant="light">
-                        {roleLabels[employee.role]}
+                        {employee.position_name ?? "—"}
                       </Badge>
                     </Button>
                   ))
@@ -271,46 +278,33 @@ export function PermissionsPage() {
                 </Button>
               </Group>
 
-              {!canAssignOwner ? (
-                <Alert color="yellow" variant="light">
-                  仅老板可分配 owner 角色或「全部公司+全部数据」范围。
-                </Alert>
-              ) : null}
-
               <Select
-                label="角色"
-                data={roleOptions}
-                value={draft.role}
-                onChange={(value) => value && updateDraft({ role: value as Role })}
+                label="岗位"
+                data={positionOptions}
+                value={draft.positionId}
+                onChange={(value) => value && updateDraft({ positionId: value })}
                 allowDeselect={false}
+                searchable
               />
 
-              <Radio.Group
-                label="数据范围"
-                value={draft.dataScope}
-                onChange={(value) => updateDraft({ dataScope: value as DataScope })}
-              >
-                <Group mt="xs">
-                  {dataScopes.map((scope) => (
-                    <Radio
-                      key={scope}
-                      value={scope}
-                      label={dataScopeLabels[scope]}
-                      disabled={scope === "all" && !canAssignOwner}
-                    />
-                  ))}
-                </Group>
-              </Radio.Group>
+              <Box>
+                <Text size="sm" fw={500}>
+                  数据范围
+                </Text>
+                <Badge mt={6} variant="light">
+                  {dataScopeLabels[effectiveDataScope]}
+                </Badge>
+              </Box>
 
               <MultiSelect
                 label="可访问公司"
-                description={draft.dataScope === "all" ? "全部公司,无需逐一选" : undefined}
+                description={effectiveDataScope === "all" ? "全部公司,无需逐一选" : undefined}
                 data={companyOptions}
                 value={draft.companyIds}
                 onChange={(companyIds) => updateDraft({ companyIds })}
                 searchable
                 clearable
-                disabled={draft.dataScope === "all"}
+                disabled={effectiveDataScope === "all"}
               />
 
               <Stack gap="md">
@@ -326,9 +320,9 @@ export function PermissionsPage() {
                     <Stack gap="xs">
                       <Text fw={700}>{group.label}</Text>
                       {group.permissions.map((permission) => {
-                        const roleDefault = ROLE_PERMISSIONS[draft.role].includes(permission.key);
+                        const positionDefault = basePermissions.includes(permission.key);
                         const override = draft.overrides.find((item) => item.permission === permission.key);
-                        const effectiveOn = override ? override.effect === "grant" : roleDefault;
+                        const effectiveOn = override ? override.effect === "grant" : positionDefault;
 
                         return (
                           <Group key={permission.key} justify="space-between" wrap="nowrap">
@@ -343,7 +337,7 @@ export function PermissionsPage() {
                               </Badge>
                             ) : (
                               <Badge color="gray" variant="light">
-                                跟随角色
+                                跟随岗位
                               </Badge>
                             )}
                           </Group>

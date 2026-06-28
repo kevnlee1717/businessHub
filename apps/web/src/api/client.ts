@@ -24,7 +24,7 @@ export type User = {
   name: string;
   name_en: string | null;
   email: string;
-  role: Role;
+  role?: Role | null;
   must_change_password: boolean;
 };
 

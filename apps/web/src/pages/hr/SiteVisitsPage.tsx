@@ -92,14 +92,14 @@ function getDefaultValues(siteVisit?: SiteVisit | null): SiteVisitOverrideFormVa
 
 export function SiteVisitsPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<SiteVisitStatus | null>(null);
   const [reviewingSiteVisit, setReviewingSiteVisit] = useState<SiteVisit | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const canOverride = user?.role === "owner" || user?.role === "admin";
+  const canOverride = can("attendance.manage");
 
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,

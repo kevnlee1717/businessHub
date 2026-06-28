@@ -1,10 +1,9 @@
 import { z } from "zod";
-import { dataScopes, permissionEffects, roles } from "../enums";
+import { permissionEffects } from "../enums";
 import { permissions } from "../permissions";
 
 export const updateEmployeePermissionsSchema = z.object({
-  role: z.enum(roles),
-  dataScope: z.enum(dataScopes),
+  positionId: z.string().uuid(),
   companyIds: z.array(z.string().uuid()),
   overrides: z.array(
     z.object({

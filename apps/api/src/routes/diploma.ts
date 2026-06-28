@@ -8,7 +8,6 @@ import {
   documents
 } from "@bh/db";
 import {
-  can,
   diplomaAssignmentMessageSchema,
   diplomaEnrollmentCreateSchema,
   diplomaEnrollmentUpdateSchema,
@@ -17,6 +16,7 @@ import {
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type FastifyInstance } from "fastify";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
@@ -371,7 +371,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     }
 
     const body = parseWithSchema(diplomaAssignmentMessageSchema, { action, content });
-    if ((body.action === "approve" || body.action === "reject") && !can(request.user.role, "education.manage")) {
+    if ((body.action === "approve" || body.action === "reject") && !(await ctxCan(request, "education.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 

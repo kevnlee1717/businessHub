@@ -201,7 +201,8 @@ export function SalesCommissionPage() {
   });
 
   const employees = employeesQuery.data?.employees ?? [];
-  const salesEmployees = employees.filter((employee) => employee.role === "sales");
+  // 岗位驱动权限后不再用 employee.role 判断销售人员；这里保留全部员工供佣金分配选择。
+  const salesEmployees = employees;
   const companies = companiesQuery.data?.companies ?? [];
   const businesses = businessesQuery.data?.businesses ?? [];
   const assignments = assignmentsQuery.data?.assignments ?? [];

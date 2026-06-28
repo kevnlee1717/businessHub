@@ -83,14 +83,14 @@ function getDefaultValues(): AttendanceClockFormValues {
 
 export function AttendancePage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [workDate, setWorkDate] = useState("");
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const canManageAttendance = user?.role === "owner" || user?.role === "admin";
+  const canManageAttendance = can("attendance.manage");
 
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,

@@ -34,7 +34,7 @@ export const permissions = [
 
 export type Permission = (typeof permissions)[number];
 
-const allPermissions = [...permissions];
+export const allPermissions = [...permissions];
 const permissionSet = new Set<string>(permissions);
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
@@ -253,8 +253,8 @@ export const permissionCatalog: {
 
 export type PermissionOverride = { permission: string; effect: "grant" | "revoke" };
 
-export function computeEffectivePermissions(role: Role, overrides: PermissionOverride[]): Permission[] {
-  const effectivePermissions = new Set<Permission>(ROLE_PERMISSIONS[role]);
+export function computeEffectivePermissionsFromBase(base: Permission[], overrides: PermissionOverride[]): Permission[] {
+  const effectivePermissions = new Set<Permission>(base);
   const revokedPermissions = new Set<string>();
 
   for (const override of overrides) {
@@ -274,6 +274,10 @@ export function computeEffectivePermissions(role: Role, overrides: PermissionOve
   }
 
   return permissions.filter((permission) => effectivePermissions.has(permission));
+}
+
+export function computeEffectivePermissions(role: Role, overrides: PermissionOverride[]): Permission[] {
+  return computeEffectivePermissionsFromBase(ROLE_PERMISSIONS[role], overrides);
 }
 
 export function can(role: Role, perm: Permission): boolean {
