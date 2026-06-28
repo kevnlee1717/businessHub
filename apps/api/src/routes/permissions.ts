@@ -62,8 +62,16 @@ export async function registerPermissionRoutes(app: FastifyInstance): Promise<vo
   app.put("/employees/:id/permissions", { preHandler: requirePerm("settings.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(updateEmployeePermissionsSchema, request.body);
+    const currentPermissions = await getEmployeePermissions(id);
 
-    if ((body.role === "owner" || body.dataScope === "all") && request.user.role !== "owner") {
+    if (!currentPermissions) {
+      return sendNotFound(reply);
+    }
+
+    if (
+      (currentPermissions.role === "owner" || body.role === "owner" || body.dataScope === "all") &&
+      request.user.role !== "owner"
+    ) {
       return reply.code(403).send({ error: "forbidden_owner_only" });
     }
 

@@ -3,6 +3,7 @@ import { recurringCostCreateSchema, recurringCostUpdateSchema } from "@bh/shared
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
@@ -31,6 +32,12 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
   app.get("/recurring-costs", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(recurringCostQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, recurringCosts.companyId);
+
+    if (accessFilter) {
+      filters.push(accessFilter);
+    }
 
     if (query.company_id) {
       filters.push(eq(recurringCosts.companyId, query.company_id));

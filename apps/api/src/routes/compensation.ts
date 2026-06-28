@@ -192,7 +192,7 @@ export async function registerCompensationRoutes(app: FastifyInstance): Promise<
     }
   );
 
-  app.get("/employees/:id/compensation", async (request, reply) => {
+  app.get("/employees/:id/compensation", { preHandler: requirePerm("payroll.view") }, async (request, reply) => {
     const params = parseWithSchema(idParamsSchema, request.params);
     const [row] = await db
       .select()

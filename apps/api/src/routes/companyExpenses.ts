@@ -3,6 +3,7 @@ import { db, companyExpenses } from "@bh/db";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { bridgeCompanyExpenseToLedger } from "./ledgerUtils";
@@ -34,6 +35,12 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
   app.get("/company-expenses", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(expenseQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, companyExpenses.companyId);
+
+    if (accessFilter) {
+      filters.push(accessFilter);
+    }
 
     if (query.company_id) {
       filters.push(eq(companyExpenses.companyId, query.company_id));
@@ -136,8 +143,13 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
     return { ok: true };
   });
 
-  app.get("/companies/:id/expenses/summary", { preHandler: requirePerm("finance.view") }, async (request) => {
+  app.get("/companies/:id/expenses/summary", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && !companyIds.includes(id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
 
     const [totalRow] = await db
       .select({

@@ -35,6 +35,12 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
 
   app.get("/companies/:id", async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && !companyIds.includes(id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     const [company] = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
 
     if (!company) {
