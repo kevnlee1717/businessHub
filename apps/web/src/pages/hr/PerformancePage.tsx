@@ -132,7 +132,7 @@ function getScoreValue(score: PerformanceScore, metric: PerformanceMetric, sourc
 
 export function PerformancePage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [period, setPeriod] = useState("");
@@ -142,7 +142,7 @@ export function PerformancePage() {
   const [overrideFormError, setOverrideFormError] = useState<string | null>(null);
   const [editingScore, setEditingScore] = useState<PerformanceScore | null>(null);
 
-  const canManagePerformance = user?.role === "owner" || user?.role === "admin";
+  const canManagePerformance = can("employee.manage");
   const queryPeriod = period.trim() || undefined;
 
   const employeesQuery = useQuery({

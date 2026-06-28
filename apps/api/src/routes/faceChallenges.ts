@@ -3,7 +3,6 @@ import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { attendanceRecords, db, faceBaselines, faceChallenges, siteVisits } from "@bh/db";
 import {
-  can,
   faceChallengeCreateSchema,
   faceChallengeResultSchema,
   faceChallengeStatuses,
@@ -13,6 +12,7 @@ import {
 import { and, desc, eq, isNull, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
@@ -122,7 +122,7 @@ export async function registerFaceChallengeRoutes(app: FastifyInstance): Promise
 
     const targetId = stringField(fields.employee_id) ?? request.user.id;
 
-    if (targetId !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (targetId !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
@@ -159,7 +159,7 @@ export async function registerFaceChallengeRoutes(app: FastifyInstance): Promise
   app.get("/face/baselines/:id", async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
 
-    if (id !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (id !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 

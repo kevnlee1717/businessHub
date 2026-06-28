@@ -7,7 +7,6 @@ import { useAuth } from "../../auth/AuthContext";
 import { ClientFormModal } from "../../components/ClientFormModal";
 
 const clientQueryKey = ["business", "clients"] as const;
-const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
 
 function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
@@ -15,11 +14,11 @@ function displayName(name: string, nameEn?: string | null) {
 
 export function ClientsPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
-  const canManageCases = user ? caseManageRoles.has(user.role) : false;
+  const canManageCases = can("case.manage");
 
   const clientsQuery = useQuery({
     queryKey: clientQueryKey,

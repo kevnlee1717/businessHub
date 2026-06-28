@@ -87,9 +87,8 @@ export function EmployeesPage() {
               <Table.Tr>
                 <Table.Th>{t("hr.employees.fields.name")}</Table.Th>
                 <Table.Th>{t("hr.employees.fields.email")}</Table.Th>
-                <Table.Th>{t("hr.employees.fields.role")}</Table.Th>
-                <Table.Th>{t("hr.employees.fields.company")}</Table.Th>
                 <Table.Th>{t("hr.employees.fields.position")}</Table.Th>
+                <Table.Th>{t("hr.employees.fields.company")}</Table.Th>
                 <Table.Th>{t("hr.employees.fields.status")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
@@ -97,7 +96,7 @@ export function EmployeesPage() {
             <Table.Tbody>
               {isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7}>
+                  <Table.Td colSpan={6}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -105,7 +104,7 @@ export function EmployeesPage() {
                 </Table.Tr>
               ) : employees.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7}>
+                  <Table.Td colSpan={6}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("hr.employees.empty")}
                     </Text>
@@ -116,15 +115,15 @@ export function EmployeesPage() {
                   <Table.Tr key={employee.id}>
                     <Table.Td>{displayName(employee.name, employee.name_en)}</Table.Td>
                     <Table.Td>{employee.email}</Table.Td>
-                    <Table.Td>{t(`role.${employee.role}`)}</Table.Td>
+                    <Table.Td>
+                      {employee.position_name ??
+                        (employee.position_id
+                          ? positionById.get(employee.position_id)?.name ?? t("common.not_available")
+                          : t("common.not_available"))}
+                    </Table.Td>
                     <Table.Td>
                       {employee.company_id
                         ? companyById.get(employee.company_id)?.name ?? t("common.not_available")
-                        : t("common.not_available")}
-                    </Table.Td>
-                    <Table.Td>
-                      {employee.position_id
-                        ? positionById.get(employee.position_id)?.name ?? t("common.not_available")
                         : t("common.not_available")}
                     </Table.Td>
                     <Table.Td>{t(`employeeStatus.${employee.status}`)}</Table.Td>

@@ -5,9 +5,15 @@ import {
   employees,
   employeeCompanyAccess,
   employeePermissionOverrides,
+  positions,
   salesBusinessAssignments
 } from "@bh/db";
-import { computeEffectivePermissions, type DataScope, type Permission } from "@bh/shared";
+import {
+  allPermissions,
+  computeEffectivePermissionsFromBase,
+  type DataScope,
+  type Permission
+} from "@bh/shared";
 import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
@@ -26,10 +32,12 @@ export async function loadAuthContext(request: FastifyRequest): Promise<AuthCont
 
   const [employee] = await db
     .select({
-      role: employees.role,
-      dataScope: employees.dataScope
+      positionPermissions: positions.permissions,
+      positionDataScope: positions.dataScope,
+      positionIsSystem: positions.isSystem
     })
     .from(employees)
+    .leftJoin(positions, eq(employees.positionId, positions.id))
     .where(eq(employees.id, request.user.id))
     .limit(1);
 
@@ -51,9 +59,15 @@ export async function loadAuthContext(request: FastifyRequest): Promise<AuthCont
     .from(employeePermissionOverrides)
     .where(eq(employeePermissionOverrides.employeeId, request.user.id));
 
-  const permissions = computeEffectivePermissions(employee.role, overrides);
+  const basePermissions = employee.positionIsSystem
+    ? allPermissions
+    : (employee.positionPermissions ?? []).filter((permission): permission is Permission =>
+        allPermissions.includes(permission as Permission)
+      );
+  const dataScope = employee.positionDataScope ?? "self";
+  const permissions = computeEffectivePermissionsFromBase(basePermissions, overrides);
   const companyIds =
-    employee.role === "owner" || employee.dataScope === "all"
+    employee.positionIsSystem || dataScope === "all"
       ? "all"
       : (
           await db
@@ -64,7 +78,7 @@ export async function loadAuthContext(request: FastifyRequest): Promise<AuthCont
 
   const context: AuthContext = {
     permissions,
-    dataScope: employee.dataScope,
+    dataScope,
     companyIds
   };
 
@@ -74,6 +88,10 @@ export async function loadAuthContext(request: FastifyRequest): Promise<AuthCont
 
 export async function getAccessibleCompanyIds(request: FastifyRequest): Promise<string[] | "all"> {
   return (await loadAuthContext(request)).companyIds;
+}
+
+export async function ctxCan(request: FastifyRequest, perm: Permission): Promise<boolean> {
+  return (await loadAuthContext(request)).permissions.includes(perm);
 }
 
 export function companyFilter(companyIds: string[] | "all", column: any): SQL | undefined {

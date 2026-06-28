@@ -8,9 +8,10 @@ import {
   employees,
   workShifts
 } from "@bh/db";
-import { attendanceClockSchema, type AttendanceDayStatus, can } from "@bh/shared";
+import { attendanceClockSchema, type AttendanceDayStatus } from "@bh/shared";
 import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 import { z } from "zod";
@@ -87,7 +88,7 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
     const input = parseWithSchema(attendanceClockSchema, request.body);
     const targetId = input.employee_id ?? request.user.id;
 
-    if (targetId !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (targetId !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
@@ -219,7 +220,7 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
   app.get("/attendance", async (request, reply) => {
     const query = parseWithSchema(attendanceQuerySchema, request.query);
     const filters: SQL[] = [];
-    const canManage = can(request.user.role, "attendance.manage");
+    const canManage = await ctxCan(request, "attendance.manage");
 
     if (query.employee_id && query.employee_id !== request.user.id && !canManage) {
       return reply.code(403).send({ error: "forbidden" });
@@ -248,7 +249,7 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
   app.get("/employees/:id/attendance", async (request, reply) => {
     const params = parseWithSchema(idParamsSchema, request.params);
 
-    if (params.id !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (params.id !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 

@@ -168,6 +168,7 @@ function serializeMaterial(
     job_id: row.jobId,
     type: row.type,
     title: row.title,
+    source_text: row.sourceText,
     text_content: row.textContent,
     document_id: row.documentId,
     platforms: row.platforms,
@@ -430,6 +431,7 @@ async function parseMaterialBody(request: FastifyRequest) {
     active: booleanValue(fields.active),
     ai_generated: booleanValue(fields.ai_generated),
     platforms: arrayValue(fields.platforms),
+    source_text: nullableValue(fields.source_text),
     document_id: fields.document_id ?? document?.id
   });
 
@@ -465,6 +467,7 @@ async function parseMaterialUpdateBody(request: FastifyRequest) {
     active: booleanValue(fields.active),
     ai_generated: booleanValue(fields.ai_generated),
     platforms: arrayValue(fields.platforms),
+    source_text: nullableValue(fields.source_text),
     document_id: fields.document_id ?? document?.id
   });
 
@@ -750,6 +753,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         jobId: body.job_id,
         type: body.type,
         title: body.title,
+        sourceText: body.source_text,
         textContent: body.text_content,
         documentId: body.document_id,
         platforms: body.platforms,
@@ -777,6 +781,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.job_id !== undefined) update.jobId = body.job_id;
     if (body.type !== undefined) update.type = body.type;
     if (body.title !== undefined) update.title = body.title;
+    if (hasOwn(body, "source_text")) update.sourceText = body.source_text;
     if (hasOwn(body, "text_content")) update.textContent = body.text_content;
     if (hasOwn(body, "document_id")) update.documentId = body.document_id;
     if (hasOwn(body, "platforms")) update.platforms = body.platforms;

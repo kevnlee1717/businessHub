@@ -11,6 +11,10 @@ function serializePosition(position: typeof positions.$inferSelect) {
     name: position.name,
     name_en: position.nameEn,
     note: position.note,
+    permissions: position.permissions,
+    data_scope: position.dataScope,
+    is_system: position.isSystem,
+    sort_order: position.sortOrder,
     created_at: position.createdAt
   };
 }
@@ -19,7 +23,7 @@ export async function registerPositionRoutes(app: FastifyInstance): Promise<void
   app.addHook("preHandler", app.authenticate);
 
   app.get("/positions", async () => {
-    const rows = await db.select().from(positions).orderBy(positions.createdAt);
+    const rows = await db.select().from(positions).orderBy(positions.sortOrder, positions.createdAt);
     return { positions: rows.map(serializePosition) };
   });
 
@@ -41,7 +45,10 @@ export async function registerPositionRoutes(app: FastifyInstance): Promise<void
       .values({
         name: body.name,
         nameEn: body.name_en,
-        note: body.note
+        note: body.note,
+        permissions: body.permissions,
+        dataScope: body.data_scope,
+        sortOrder: body.sort_order
       })
       .returning();
 
@@ -55,12 +62,25 @@ export async function registerPositionRoutes(app: FastifyInstance): Promise<void
   app.patch("/positions/:id", { preHandler: requirePerm("company.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(positionUpdateSchema, request.body);
+    const [existing] = await db.select().from(positions).where(eq(positions.id, id)).limit(1);
+
+    if (!existing) {
+      return sendNotFound(reply);
+    }
+
+    if (existing.isSystem) {
+      return reply.code(403).send({ error: "system_position_readonly" });
+    }
+
     const [position] = await db
       .update(positions)
       .set({
         name: body.name,
         nameEn: body.name_en,
-        note: body.note
+        note: body.note,
+        permissions: body.permissions,
+        dataScope: body.data_scope,
+        sortOrder: body.sort_order
       })
       .where(eq(positions.id, id))
       .returning();

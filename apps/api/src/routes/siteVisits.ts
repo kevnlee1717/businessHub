@@ -1,10 +1,11 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { db, siteVisits } from "@bh/db";
-import { can, siteVisitOverrideSchema, siteVisitQuerySchema } from "@bh/shared";
+import { siteVisitOverrideSchema, siteVisitQuerySchema } from "@bh/shared";
 import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
@@ -163,7 +164,7 @@ export async function registerSiteVisitRoutes(app: FastifyInstance): Promise<voi
   app.get("/site-visits", async (request) => {
     const query = parseWithSchema(siteVisitQuerySchema, request.query);
     const filters: SQL[] = [];
-    const canManage = can(request.user.role, "attendance.manage");
+    const canManage = await ctxCan(request, "attendance.manage");
 
     if (canManage) {
       if (query.employee_id) {
@@ -194,7 +195,7 @@ export async function registerSiteVisitRoutes(app: FastifyInstance): Promise<voi
       return sendNotFound(reply);
     }
 
-    if (siteVisit.employeeId !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (siteVisit.employeeId !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
@@ -210,7 +211,7 @@ export async function registerSiteVisitRoutes(app: FastifyInstance): Promise<voi
       return sendNotFound(reply);
     }
 
-    if (existing.employeeId !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (existing.employeeId !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 

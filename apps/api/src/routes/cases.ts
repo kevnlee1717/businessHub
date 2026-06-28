@@ -24,12 +24,11 @@ import {
   stepReviewMessageSchema,
   stepReviewRequestSchema
 } from "@bh/shared";
-import { can } from "@bh/shared";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getTranslations, saveTranslation, type TranslationValue } from "../lib/translationStore";
-import { getVisibleCaseIds, loadAuthContext } from "../auth/context";
+import { ctxCan, getVisibleCaseIds, loadAuthContext } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { refreshBillingCharges } from "./billing";
@@ -859,10 +858,10 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const body = parseWithSchema(stepReviewMessageSchema, { action, content });
-    const canManageCase = can(request.user.role, "case.manage");
+    const canManageCase = await ctxCan(request, "case.manage");
 
     if (body.action === "comment") {
-      if (!can(request.user.role, "case.view")) {
+      if (!(await ctxCan(request, "case.view"))) {
         return reply.code(403).send({ error: "forbidden" });
       }
     } else if (step.reviewerId !== request.user.id && !canManageCase) {

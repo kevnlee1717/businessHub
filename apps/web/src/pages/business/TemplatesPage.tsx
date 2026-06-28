@@ -77,7 +77,6 @@ type StepCollectionFormValue = {
 };
 
 const templateQueryKey = ["business", "workflow-templates"] as const;
-const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
@@ -136,7 +135,7 @@ function normalizeStepValues(values: StepFormValues): TemplateStepCreateInput {
 
 export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const [businessTypeFilter, setBusinessTypeFilter] = useState<BusinessType | null>(businessType ?? null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -148,7 +147,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   const [stepFormError, setStepFormError] = useState<string | null>(null);
   const [requiredDocs, setRequiredDocs] = useState<RequiredDocItemInput[]>([]);
   const [stepCollections, setStepCollections] = useState<StepCollectionFormValue[]>([]);
-  const canManageCases = user ? caseManageRoles.has(user.role) : false;
+  const canManageCases = can("case.manage");
 
   const templatesQuery = useQuery({
     queryKey: [...templateQueryKey, businessType ?? businessTypeFilter],

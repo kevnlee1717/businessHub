@@ -59,7 +59,6 @@ import {
 } from "../../api/education";
 import { fileUrl, searchDocuments, type DocumentMeta } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
-import { useAuth } from "../../auth/AuthContext";
 import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
 import { TeacherSelect } from "../../components/TeacherSelect";
@@ -89,7 +88,6 @@ type DiplomaFormValues = {
 const diplomaCoursesQueryKey = ["education", "diploma-courses"] as const;
 const diplomaQueryKey = ["education", "diploma-enrollments"] as const;
 const employeesQueryKey = ["hr", "employees"] as const;
-const teacherRoles = new Set(["owner", "admin", "principal", "teacher"]);
 
 function numberOrNull(value: string | number) {
   if (value === "") {
@@ -481,7 +479,6 @@ function DocumentLinks({ documents }: { documents: DocumentMeta[] }) {
 
 export function DiplomaPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [studentFilter, setStudentFilter] = useState<string | null>(null);
@@ -496,7 +493,7 @@ export function DiplomaPage() {
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [enrollmentFormError, setEnrollmentFormError] = useState<string | null>(null);
   const canManageEducation = useCan("education.manage");
-  const canReviewAssignments = Boolean(user && teacherRoles.has(user.role));
+  const canReviewAssignments = useCan("education.view");
 
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,

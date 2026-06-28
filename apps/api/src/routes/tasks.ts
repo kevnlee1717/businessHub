@@ -3,6 +3,7 @@ import { taskCreateSchema, taskRateSchema, taskStatuses, taskUpdateSchema } from
 import { and, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { endOfDate, idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
@@ -113,7 +114,7 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "task_not_done" });
     }
 
-    const canRate = task.creatorId === request.user.id || request.user.role === "owner" || request.user.role === "admin";
+    const canRate = task.creatorId === request.user.id || (await ctxCan(request, "task.manage"));
 
     if (!canRate) {
       return reply.code(403).send({ error: "forbidden" });

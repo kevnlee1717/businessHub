@@ -11,6 +11,7 @@ import {
   FileButton,
   Grid,
   Group,
+  Image,
   InputBase,
   Loader,
   Modal,
@@ -28,6 +29,7 @@ import {
   Text,
   TextInput,
   Textarea,
+  TypographyStylesProvider,
   useCombobox
 } from "@mantine/core";
 import {
@@ -52,6 +54,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import { fileUrl } from "../../api/dms";
 import { listCompanies, listEmployees } from "../../api/hr";
@@ -601,19 +604,24 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
 function MaterialModal({ opened, onClose, job, material }: { opened: boolean; onClose: () => void; job: RecruitmentJob; material?: RecruitmentMaterial | null }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const form = useSimpleForm({ type: "copy", title: "", text_content: "", platforms: [], active: true, ai_generated: false });
+  const form = useSimpleForm({ type: "copy", title: "", source_text: "", text_content: "", platforms: [], active: true, ai_generated: false });
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("material-platform-options"), queryFn: () => listRecruitmentPostings() });
   const platformOptions = useMemo(
     () => Array.from(new Set((platformsQuery.data?.postings ?? []).map((row) => row.platform.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [platformsQuery.data?.postings]
   );
+  const materialType = String(form.values.type ?? "copy");
+  const isCopy = materialType === "copy";
+  const existingImageUrl = material?.document?.storage_path ? fileUrl(material.document.storage_path) : null;
   const mutation = useMutation({
     mutationFn: async () => {
       const platforms = ((form.values.platforms as string[] | undefined) ?? []).map((item) => item.trim()).filter(Boolean);
       const body = {
         type: form.values.type,
         title: form.values.title,
+        source_text: emptyToNull(form.values.source_text),
         text_content: emptyToNull(form.values.text_content),
         platforms: platforms.length > 0 ? platforms : null,
         active: Boolean(form.values.active),
@@ -627,6 +635,7 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
         }
         data.set("type", String(form.values.type));
         data.set("title", String(form.values.title));
+        if (form.values.source_text) data.set("source_text", String(form.values.source_text));
         if (form.values.text_content) data.set("text_content", String(form.values.text_content));
         data.set("platforms", JSON.stringify(platforms));
         data.set("active", String(Boolean(form.values.active)));
@@ -638,7 +647,7 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(job.id) }); setFile(null); onClose(); }
   });
   const aiMutation = useMutation({
-    mutationFn: () => generateRecruitmentCopy({ job_title: job.title, salary_min: job.salary_min, salary_max: job.salary_max, salary_note: job.salary_note, job_content: job.job_content, requirements: job.requirements, copy_type: "ad" }),
+    mutationFn: () => generateRecruitmentCopy({ job_title: job.title, salary_min: job.salary_min, salary_max: job.salary_max, salary_note: job.salary_note, job_content: job.job_content, requirements: job.requirements, source_text: form.values.source_text, copy_type: "ad" }),
     onSuccess: (data) => form.set("text_content", data.draft)
   });
   useEffect(() => {
@@ -647,6 +656,7 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
     form.setValues({
       type: material?.type ?? "copy",
       title: material?.title ?? "",
+      source_text: material?.source_text ?? "",
       text_content: material?.text_content ?? "",
       platforms: material?.platforms ?? [],
       active: material?.active ?? true,
@@ -654,15 +664,61 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, material?.id]);
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return undefined;
+    }
+
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
   return (
-    <FieldModal opened={opened} onClose={onClose} title={material ? t("recruitment.materials.editMaterial") : t("recruitment.materials.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate()}>
-      <ErrorAlert error={mutation.error ?? aiMutation.error ?? platformsQuery.error} />
-      <Group grow><Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} disabled={Boolean(material)} /><TextInput label={t("recruitment.fields.title")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} /></Group>
-      <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={(value) => form.set("platforms", value)} />
-      <Checkbox label={t("recruitment.fields.active")} checked={Boolean(form.values.active)} onChange={(e) => form.set("active", e.currentTarget.checked)} />
-      <Textarea label={t("recruitment.fields.textContent")} minRows={5} value={String(form.values.text_content ?? "")} onChange={(e) => form.set("text_content", e.currentTarget.value)} />
-      <Group><Button variant="light" onClick={() => aiMutation.mutate()} loading={aiMutation.isPending}>{t("recruitment.materials.aiCopy")}</Button><FileButton onChange={setFile}>{(props) => <Button variant="light" {...props}>{file ? file.name : material ? t("recruitment.materials.replaceImage") : t("common.upload")}</Button>}</FileButton></Group>
-    </FieldModal>
+    <Modal opened={opened} onClose={onClose} title={material ? t("recruitment.materials.editMaterial") : t("recruitment.materials.add")} size="xl" scrollAreaComponent={ScrollArea.Autosize}>
+      <Stack gap="md">
+        <ErrorAlert error={mutation.error ?? aiMutation.error ?? platformsQuery.error} />
+        <Text size="sm" c="dimmed">{job.title}</Text>
+        <Group grow align="flex-start">
+          <Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} disabled={Boolean(material)} />
+          <TextInput label={t("recruitment.materials.name")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} />
+        </Group>
+        <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={(value) => form.set("platforms", value)} />
+        <Checkbox label={t("recruitment.fields.active")} checked={Boolean(form.values.active)} onChange={(e) => form.set("active", e.currentTarget.checked)} />
+        {isCopy ? (
+          <>
+            <Textarea label={t("recruitment.fields.sourceText")} minRows={6} value={String(form.values.source_text ?? "")} onChange={(e) => form.set("source_text", e.currentTarget.value)} />
+            <Group justify="flex-start">
+              <Button variant="light" onClick={() => aiMutation.mutate()} loading={aiMutation.isPending}>{t("recruitment.materials.aiCopy")}</Button>
+            </Group>
+            <Textarea label={t("recruitment.fields.generatedCopy")} minRows={8} value={String(form.values.text_content ?? "")} onChange={(e) => form.set("text_content", e.currentTarget.value)} />
+            <Box p="md" style={{ border: "1px solid var(--app-line)", borderRadius: 8 }}>
+              <Text fw={600} mb="xs">{t("recruitment.materials.preview")}</Text>
+              <TypographyStylesProvider>
+                <ReactMarkdown>{String(form.values.text_content ?? "")}</ReactMarkdown>
+              </TypographyStylesProvider>
+            </Box>
+          </>
+        ) : (
+          <>
+            <Group>
+              <FileButton onChange={setFile} accept="image/*">
+                {(props) => <Button variant="light" {...props}>{file ? file.name : material ? t("recruitment.materials.replaceImage") : t("common.upload")}</Button>}
+              </FileButton>
+            </Group>
+            <Box>
+              <Text fw={600} mb="xs">{t("recruitment.materials.imagePreview")}</Text>
+              {previewUrl || existingImageUrl ? <Image src={previewUrl ?? existingImageUrl} mah={240} fit="contain" /> : <Text c="dimmed">-</Text>}
+            </Box>
+          </>
+        )}
+        <Group justify="flex-end">
+          <Button variant="subtle" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>{t("common.save")}</Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 

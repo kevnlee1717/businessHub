@@ -24,7 +24,6 @@ import {
   caseStatuses,
   caseStepDocCreateSchema,
   caseStepStatuses,
-  type Role,
   type CaseStatus,
   type CaseSubmissionResult,
   type CaseStepDocCreateInput,
@@ -74,9 +73,6 @@ type DocFormValues = {
   category_id?: string | null | undefined;
   is_required?: boolean | undefined;
 };
-
-const caseManageRoles = new Set(["owner", "admin", "clerk", "sales"]);
-const caseReviewAdminRoles = new Set(["owner", "admin"]);
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === "string" && value.trim() === "") {
@@ -333,7 +329,6 @@ type StepCardProps = {
   employeeById: Map<string, Employee>;
   canManageCases: boolean;
   currentUserId?: string | undefined;
-  currentUserRole?: Role | undefined;
   documentCategories: DocumentCategory[];
 };
 
@@ -345,7 +340,6 @@ function StepCard({
   employeeById,
   canManageCases,
   currentUserId,
-  currentUserRole,
   documentCategories
 }: StepCardProps) {
   const { t, i18n } = useTranslation();
@@ -445,7 +439,7 @@ function StepCard({
   const readyRequiredDocuments = requiredDocuments.filter((doc) => (doc.document_ids?.length ?? 0) > 0).length;
   const canReviewStep =
     Boolean(currentUserId && step.reviewer_id === currentUserId) ||
-    Boolean(currentUserRole && caseReviewAdminRoles.has(currentUserRole));
+    canManageCases;
   const stepChargeOutstanding = stepCharges.reduce(
     (sum, charge) => sum + Math.max(0, Number(charge.amount_expected) - Number(charge.amount_collected)),
     0
@@ -1341,7 +1335,7 @@ export function CaseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const { id } = useParams();
   const [statusDraft, setStatusDraft] = useState<CaseStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -1416,7 +1410,7 @@ export function CaseDetailPage() {
   }));
   const loadError =
     caseQuery.error ?? clientsQuery.error ?? employeesQuery.error ?? guarantorsQuery.error ?? documentCategoriesQuery.error;
-  const canManageCases = user ? caseManageRoles.has(user.role) : false;
+  const canManageCases = can("case.manage");
 
   useEffect(() => {
     if (caseItem) {
@@ -1602,7 +1596,6 @@ export function CaseDetailPage() {
                   employeeById={employeeById}
                   canManageCases={canManageCases}
                   currentUserId={user?.id}
-                  currentUserRole={user?.role}
                   documentCategories={documentCategories}
                 />
               ))

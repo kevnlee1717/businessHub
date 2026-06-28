@@ -41,7 +41,6 @@ export function TeacherSelect({ value, onChange, placeholder }: TeacherSelectPro
       <EmployeeFormModal
         opened={createName !== null}
         onClose={() => setCreateName(null)}
-        defaultRole="teacher"
         onSaved={async (employee) => {
           await queryClient.invalidateQueries({ queryKey: employeesQueryKey });
           onChange(employee.id);

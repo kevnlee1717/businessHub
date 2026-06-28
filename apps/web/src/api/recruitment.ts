@@ -62,6 +62,7 @@ export type RecruitmentMaterial = {
   job_id: string;
   type: RecruitmentMaterialType;
   title: string;
+  source_text?: string | null;
   text_content?: string | null;
   document_id?: string | null;
   platforms?: string[] | null;

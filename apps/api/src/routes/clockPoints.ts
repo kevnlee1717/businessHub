@@ -1,7 +1,8 @@
 import { clockPoints, db, employeeClockPoints } from "@bh/db";
-import { clockPointCreateSchema, clockPointUpdateSchema, employeeClockPointsAssignSchema, can } from "@bh/shared";
+import { clockPointCreateSchema, clockPointUpdateSchema, employeeClockPointsAssignSchema } from "@bh/shared";
 import { and, desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
@@ -93,7 +94,7 @@ export async function registerClockPointRoutes(app: FastifyInstance): Promise<vo
   app.get("/employees/:id/clock-points", async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
 
-    if (id !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (id !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 

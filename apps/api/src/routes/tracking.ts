@@ -1,8 +1,9 @@
 import { db, gpsTracks } from "@bh/db";
-import { can, gpsPointsBatchSchema } from "@bh/shared";
+import { gpsPointsBatchSchema } from "@bh/shared";
 import { and, asc, eq, gte, lte, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema } from "./hrUtils";
 
@@ -46,7 +47,7 @@ export async function registerTrackingRoutes(app: FastifyInstance): Promise<void
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const query = parseWithSchema(trackingQuerySchema, request.query);
 
-    if (id !== request.user.id && !can(request.user.role, "attendance.manage")) {
+    if (id !== request.user.id && !(await ctxCan(request, "attendance.manage"))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
