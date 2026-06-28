@@ -1,4 +1,4 @@
-import { db, employees } from "@bh/db";
+import { db, employees, positions } from "@bh/db";
 import { employeeCreateSchema, employeeStatuses, employeeUpdateSchema, roles } from "@bh/shared";
 import bcrypt from "bcryptjs";
 import { and, eq, type SQL } from "drizzle-orm";
@@ -14,7 +14,7 @@ const employeeListQuerySchema = z.object({
   company_id: z.string().uuid().optional()
 });
 
-function publicEmployee(employee: typeof employees.$inferSelect) {
+function publicEmployee(employee: typeof employees.$inferSelect, positionName?: string | null) {
   return {
     id: employee.id,
     name: employee.name,
@@ -24,6 +24,7 @@ function publicEmployee(employee: typeof employees.$inferSelect) {
     role: employee.role,
     company_id: employee.companyId,
     position_id: employee.positionId,
+    position_name: positionName ?? null,
     shift_id: employee.shiftId,
     employment_type: employee.employmentType,
     status: employee.status,
@@ -61,29 +62,39 @@ export async function registerEmployeeRoutes(app: FastifyInstance): Promise<void
       conditions.push(eq(employees.companyId, query.company_id));
     }
 
+    const baseQuery = db
+      .select({ employee: employees, positionName: positions.name })
+      .from(employees)
+      .leftJoin(positions, eq(employees.positionId, positions.id));
     const rows =
       conditions.length > 0
-        ? await db.select().from(employees).where(and(...conditions)).orderBy(employees.createdAt)
-        : await db.select().from(employees).orderBy(employees.createdAt);
+        ? await baseQuery.where(and(...conditions)).orderBy(employees.createdAt)
+        : await baseQuery.orderBy(employees.createdAt);
 
-    return { employees: rows.map(publicEmployee) };
+    return { employees: rows.map((row) => publicEmployee(row.employee, row.positionName)) };
   });
 
   app.get("/employees/:id", async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    const [employee] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
+    const [row] = await db
+      .select({ employee: employees, positionName: positions.name })
+      .from(employees)
+      .leftJoin(positions, eq(employees.positionId, positions.id))
+      .where(eq(employees.id, id))
+      .limit(1);
 
-    if (!employee) {
+    if (!row) {
       return sendNotFound(reply);
     }
 
+    const employee = row.employee;
     const companyIds = await getAccessibleCompanyIds(request);
 
     if (companyIds !== "all" && (!employee.companyId || !companyIds.includes(employee.companyId))) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    return { employee: publicEmployee(employee) };
+    return { employee: publicEmployee(employee, row.positionName) };
   });
 
   app.post("/employees", { preHandler: requirePerm("employee.manage") }, async (request, reply) => {
