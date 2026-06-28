@@ -10,6 +10,12 @@ export const roles = [
 ] as const;
 export type Role = (typeof roles)[number];
 
+export const dataScopes = ["all", "company", "self"] as const;
+export type DataScope = (typeof dataScopes)[number];
+
+export const permissionEffects = ["grant", "revoke"] as const;
+export type PermissionEffect = (typeof permissionEffects)[number];
+
 export const employmentTypes = ["full_time", "part_time"] as const;
 export type EmploymentType = (typeof employmentTypes)[number];
 

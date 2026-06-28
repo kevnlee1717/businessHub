@@ -7,6 +7,7 @@ import {
 } from "drizzle-orm/pg-core";
 import {
   currencyEnum,
+  dataScopeEnum,
   employeeStatusEnum,
   employmentTypeEnum,
   payrollSchemeEnum,
@@ -30,6 +31,7 @@ export const employees = pgTable("employees", {
   shiftId: uuid("shift_id").references(() => workShifts.id, { onDelete: "set null" }),
   employmentType: employmentTypeEnum("employment_type").notNull().default("full_time"),
   status: employeeStatusEnum("status").notNull().default("active"),
+  dataScope: dataScopeEnum("data_scope").notNull().default("self"),
   joinDate: date("join_date"),
   payrollScheme: payrollSchemeEnum("payroll_scheme"),
   salaryCurrency: currencyEnum("salary_currency").notNull().default("SGD"),

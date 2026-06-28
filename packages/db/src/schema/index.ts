@@ -4,6 +4,8 @@ export * from "./companies";
 export * from "./positions";
 export * from "./workShifts";
 export * from "./employees";
+export * from "./employeePermissionOverrides";
+export * from "./employeeCompanyAccess";
 export * from "./clockPoints";
 export * from "./employeeClockPoints";
 export * from "./documentCategories";
