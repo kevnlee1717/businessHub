@@ -28,7 +28,7 @@ const theme = createTheme({
   fontSizes: { xs: "12px", sm: "13px", md: "14px", lg: "16px", xl: "18px" },
   // element-admin 标题不大,统一压小(Mantine 默认 h1/h2 偏大)
   headings: {
-    fontWeight: "600",
+    fontWeight: "500",
     sizes: {
       h1: { fontSize: "20px", lineHeight: "1.4" },
       h2: { fontSize: "17px", lineHeight: "1.4" },

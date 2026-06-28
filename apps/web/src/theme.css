@@ -207,6 +207,23 @@ body {
   background: rgba(0, 0, 0, 0.15);
 }
 
+/* element-admin 表格字重/颜色:表头浅灰中等字重、正文 #606266(更细更淡) */
+.mantine-Table-th {
+  font-size: 14px;
+  font-weight: 500;
+  color: #909399;
+}
+
+.mantine-Table-td {
+  font-size: 14px;
+  color: #606266;
+}
+
+/* 按钮字重 element=400,默认 600 偏粗 */
+.mantine-Button-label {
+  font-weight: 400;
+}
+
 /* 页内标签:element-admin el-tabs type="border-card" 卡片式 */
 .mantine-Tabs-root {
   border: 1px solid #dcdfe6;
