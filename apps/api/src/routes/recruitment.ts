@@ -658,7 +658,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
   app.post("/recruitment/materials/ai-copy", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
     const body = parseWithSchema(recruitmentAiCopySchema, request.body);
     const result = await generateRecruitmentCopy(body);
-    if (!result.ok) return reply.code(result.statusCode).send({ error: result.error });
+    if (!result.ok) return reply.code(result.statusCode).send({ error: result.error, message: result.message });
     return { draft: result.draft, model: result.model };
   });
 

@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+
 export type RecruitmentCopyType = "ad" | "job_description" | "invite_script";
 
 export type RecruitmentCopyInput = {
@@ -14,6 +16,22 @@ export type RecruitmentCopyInput = {
 };
 
 const anthropicEndpoint = "https://api.anthropic.com/v1/messages";
+const defaultModel = "sonnet";
+const defaultClaudeBin = "claude";
+const defaultTimeoutMs = 60_000;
+
+type RecruitmentCopyResult =
+  | {
+      ok: true;
+      draft: string;
+      model: string;
+    }
+  | {
+      ok: false;
+      statusCode: number;
+      error: string;
+      message: string;
+    };
 
 function copyTypeLabel(type: RecruitmentCopyType) {
   if (type === "job_description") return "岗位描述";
@@ -43,19 +61,98 @@ function buildRecruitmentPrompt(input: RecruitmentCopyInput) {
     .join("\n");
 }
 
-export async function generateRecruitmentCopy(input: RecruitmentCopyInput) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+function getTimeoutMs() {
+  const value = Number(process.env.RECRUITMENT_AI_TIMEOUT_MS);
+  return Number.isFinite(value) && value > 0 ? value : defaultTimeoutMs;
+}
 
-  if (!apiKey) {
-    return {
-      ok: false as const,
-      statusCode: 400,
-      error: "anthropic_api_key_missing"
+function formatCliFailure(message: string, stderr?: string) {
+  const detail = stderr?.trim();
+  return detail ? `${message}: ${detail}` : message;
+}
+
+async function runClaudeCli(prompt: string, model: string) {
+  const claudeBin = process.env.RECRUITMENT_AI_CLAUDE_BIN ?? defaultClaudeBin;
+  const timeoutMs = getTimeoutMs();
+  const args = [
+    "-p",
+    "--input-format",
+    "text",
+    "--output-format",
+    "text",
+    "--model",
+    model,
+    "--tools",
+    "",
+    "--safe-mode",
+    "--no-session-persistence"
+  ];
+
+  return await new Promise<string>((resolve, reject) => {
+    const child = spawn(claudeBin, args, {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback();
     };
-  }
 
-  const model = process.env.RECRUITMENT_AI_MODEL ?? "claude-sonnet-4-6";
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      finish(() => {
+        reject(new Error(`claude CLI timed out after ${timeoutMs}ms`));
+      });
+    }, timeoutMs);
 
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.stdin.on("error", (error) => {
+      finish(() => {
+        reject(new Error(`claude CLI stdin failed: ${error.message}`));
+      });
+    });
+
+    child.on("error", (error) => {
+      finish(() => {
+        reject(new Error(`claude CLI is not available: ${error.message}`));
+      });
+    });
+
+    child.on("close", (code, signal) => {
+      finish(() => {
+        if (code !== 0) {
+          reject(new Error(formatCliFailure(`claude CLI failed with exit code ${code ?? `signal ${signal}`}`, stderr)));
+          return;
+        }
+
+        const draft = stdout.trim();
+        if (!draft) {
+          reject(new Error(formatCliFailure("claude CLI returned an empty response", stderr)));
+          return;
+        }
+
+        resolve(draft);
+      });
+    });
+
+    child.stdin.end(prompt);
+  });
+}
+
+async function generateWithAnthropicApi(prompt: string, model: string, apiKey: string): Promise<RecruitmentCopyResult> {
   try {
     const response = await fetch(anthropicEndpoint, {
       method: "POST",
@@ -70,7 +167,7 @@ export async function generateRecruitmentCopy(input: RecruitmentCopyInput) {
         messages: [
           {
             role: "user",
-            content: buildRecruitmentPrompt(input)
+            content: prompt
           }
         ]
       })
@@ -80,7 +177,8 @@ export async function generateRecruitmentCopy(input: RecruitmentCopyInput) {
       return {
         ok: false as const,
         statusCode: response.status >= 400 && response.status < 500 ? 400 : 502,
-        error: "anthropic_request_failed"
+        error: "anthropic_request_failed",
+        message: `Anthropic API request failed with status ${response.status}`
       };
     }
 
@@ -93,7 +191,8 @@ export async function generateRecruitmentCopy(input: RecruitmentCopyInput) {
       return {
         ok: false as const,
         statusCode: 502,
-        error: "anthropic_empty_response"
+        error: "anthropic_empty_response",
+        message: "Anthropic API returned an empty response"
       };
     }
 
@@ -102,11 +201,45 @@ export async function generateRecruitmentCopy(input: RecruitmentCopyInput) {
       draft,
       model
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false as const,
       statusCode: 502,
-      error: "anthropic_unavailable"
+      error: "anthropic_unavailable",
+      message: error instanceof Error ? `Anthropic API is unavailable: ${error.message}` : "Anthropic API is unavailable"
     };
   }
+}
+
+async function generateWithClaudeCli(prompt: string, model: string): Promise<RecruitmentCopyResult> {
+  try {
+    const draft = await runClaudeCli(prompt, model);
+    return {
+      ok: true as const,
+      draft,
+      model
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      statusCode: 502,
+      error: "claude_cli_failed",
+      message:
+        error instanceof Error
+          ? `claude CLI unavailable or failed: ${error.message}`
+          : "claude CLI unavailable or failed"
+    };
+  }
+}
+
+export async function generateRecruitmentCopy(input: RecruitmentCopyInput): Promise<RecruitmentCopyResult> {
+  const prompt = buildRecruitmentPrompt(input);
+  const model = process.env.RECRUITMENT_AI_MODEL ?? defaultModel;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  if (process.env.RECRUITMENT_AI_BACKEND === "api" && apiKey) {
+    return generateWithAnthropicApi(prompt, model, apiKey);
+  }
+
+  return generateWithClaudeCli(prompt, model);
 }
