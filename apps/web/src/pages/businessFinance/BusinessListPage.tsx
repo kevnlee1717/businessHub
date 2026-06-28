@@ -174,7 +174,6 @@ export function BusinessListPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("businessFinance.list.title")}</Title>
         <Group gap="xs">
           <Button variant="light" onClick={() => navigate("/business-finance/parties")}>
             {t("dealParty.title")}

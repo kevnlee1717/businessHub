@@ -46,7 +46,6 @@ export function ClientsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("client.title")}</Title>
         {canManageCases ? <Button onClick={openCreateModal}>{t("client.add")}</Button> : null}
       </Group>
 

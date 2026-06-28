@@ -238,7 +238,6 @@ export function GuarantorsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("guarantor.title")}</Title>
         {canManageCases ? <Button onClick={openCreateModal}>{t("guarantor.add")}</Button> : null}
       </Group>
 

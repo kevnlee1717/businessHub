@@ -417,7 +417,6 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
         <Group align="flex-end">
-          <Title order={2}>{t("template.title")}</Title>
           {businessType ? null : (
             <Select
               label={t("template.filters.businessType")}

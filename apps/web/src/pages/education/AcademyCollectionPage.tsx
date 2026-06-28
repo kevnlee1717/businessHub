@@ -244,7 +244,6 @@ export function AcademyCollectionPage() {
   return (
     <Stack>
       <Group justify="space-between" align="flex-end">
-        <Title order={2}>{t("academyCollection.title")}</Title>
         <TextInput
           type="month"
           label={t("academyCollection.fields.month")}

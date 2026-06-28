@@ -133,7 +133,6 @@ export function DealPartiesPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("dealParty.title")}</Title>
         <Button onClick={openCreateModal}>{t("dealParty.add")}</Button>
       </Group>
 
