@@ -48,6 +48,12 @@
     "logout": "Log out",
     "invalidCredentials": "Invalid email or password"
   },
+  "tagsView": {
+    "close": "Close",
+    "closeOthers": "Close Others",
+    "closeRight": "Close to the Right",
+    "closeAll": "Close All"
+  },
   "common": {
     "language": "Language",
     "coming_soon": "Coming soon",
@@ -1764,6 +1770,7 @@
       "status": "Status",
       "priority": "Priority",
       "owner": "Owner",
+      "inviteClerk": "Invite clerk",
       "type": "Type",
       "textContent": "Copy",
       "platform": "Platform",

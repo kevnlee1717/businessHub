@@ -203,6 +203,29 @@ export function AppShell() {
     });
   }
 
+  // 关闭除固定标签(/)和目标标签外的所有标签
+  function closeOtherTags(path: string) {
+    setViews((prev) => prev.filter((v) => v.path === "/" || v.path === path));
+    if (pathname !== "/" && pathname !== path) navigate(path);
+  }
+
+  // 关闭目标标签右侧的所有标签
+  function closeRightTags(path: string) {
+    setViews((prev) => {
+      const idx = prev.findIndex((v) => v.path === path);
+      if (idx < 0) return prev;
+      const curIdx = prev.findIndex((v) => v.path === pathname);
+      if (curIdx > idx) navigate(path);
+      return prev.filter((_, i) => i <= idx);
+    });
+  }
+
+  // 关闭全部标签,只保留固定标签并回到首页
+  function closeAllTags() {
+    setViews([{ path: "/", title: t("nav.dashboard") }]);
+    if (pathname !== "/") navigate("/");
+  }
+
   async function handleLogout() {
     await logout();
     navigate("/login", { replace: true });
@@ -367,7 +390,14 @@ export function AppShell() {
         </MantineAppShell.Navbar>
 
         <MantineAppShell.Main>
-          <TagsView views={views} activePath={pathname} onClose={closeTag} />
+          <TagsView
+            views={views}
+            activePath={pathname}
+            onClose={closeTag}
+            onCloseOthers={closeOtherTags}
+            onCloseRight={closeRightTags}
+            onCloseAll={closeAllTags}
+          />
           {/* element-admin .app-container:padding 20px,内容铺满 */}
           <Box p="lg">
             <Outlet />

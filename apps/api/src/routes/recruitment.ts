@@ -168,6 +168,7 @@ function serializePosting(row: typeof recruitmentPostings.$inferSelect) {
     published_on: row.publishedOn,
     status: row.status,
     owner_id: row.ownerId,
+    invite_clerk_id: row.inviteClerkId,
     inquiry_count: row.inquiryCount,
     notes: row.notes,
     created_at: row.createdAt,
@@ -694,6 +695,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         publishedOn: body.published_on,
         status: body.status,
         ownerId: body.owner_id,
+        inviteClerkId: body.invite_clerk_id,
         inquiryCount: body.inquiry_count,
         notes: body.notes
       })
@@ -717,6 +719,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.published_on !== undefined) update.publishedOn = body.published_on;
     if (body.status !== undefined) update.status = body.status;
     if (body.owner_id !== undefined) update.ownerId = body.owner_id;
+    if (hasOwn(body, "invite_clerk_id")) update.inviteClerkId = body.invite_clerk_id;
     if (body.inquiry_count !== undefined) update.inquiryCount = body.inquiry_count;
     if (hasOwn(body, "notes")) update.notes = body.notes;
 

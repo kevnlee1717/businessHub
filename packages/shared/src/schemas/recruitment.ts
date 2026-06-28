@@ -37,7 +37,7 @@ export const recruitmentIndustryListQuerySchema = z.object({
 });
 
 const recruitmentJobBaseSchema = z.object({
-  industry_id: uuidField,
+  industry_id: nullableOptionalUuid,
   title: z.string().trim().min(1).max(200),
   headcount: z.number().int().min(1).optional(),
   salary_min: z.number().int().min(0).nullable().optional(),
@@ -105,6 +105,7 @@ const recruitmentPostingBaseSchema = z.object({
   published_on: dateString,
   status: z.enum(recruitmentPostingStatuses).optional(),
   owner_id: uuidField,
+  invite_clerk_id: nullableOptionalUuid,
   inquiry_count: z.number().int().min(0).optional(),
   notes: nullableOptionalText
 });

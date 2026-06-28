@@ -48,6 +48,12 @@
     "logout": "退出",
     "invalidCredentials": "邮箱或密码不正确"
   },
+  "tagsView": {
+    "close": "关闭",
+    "closeOthers": "关闭其他",
+    "closeRight": "关闭右侧",
+    "closeAll": "关闭全部"
+  },
   "common": {
     "language": "语言",
     "coming_soon": "即将上线",
@@ -1764,6 +1770,7 @@
       "status": "状态",
       "priority": "紧急度",
       "owner": "负责人",
+      "inviteClerk": "邀约人",
       "type": "类型",
       "textContent": "文案正文",
       "platform": "平台",

@@ -1,14 +1,17 @@
 import {
   Alert,
   Anchor,
+  Autocomplete,
   Badge,
   Box,
   Button,
   Card,
   Checkbox,
+  Combobox,
   FileButton,
   Grid,
   Group,
+  InputBase,
   Loader,
   Modal,
   MultiSelect,
@@ -23,7 +26,8 @@ import {
   Tabs,
   Text,
   TextInput,
-  Textarea
+  Textarea,
+  useCombobox
 } from "@mantine/core";
 import {
   recruitmentCampaignStatuses,
@@ -45,7 +49,7 @@ import {
   type RecruitmentPostingStatus
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { listCompanies, listEmployees } from "../../api/hr";
@@ -232,6 +236,119 @@ function useSimpleForm(initial: Dict = {}) {
   return { values, setValues, set };
 }
 
+function CreatableCombobox({
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+  onCreate,
+  creating,
+  disabled,
+  createDisabled,
+  error
+}: {
+  label: string;
+  placeholder?: string;
+  options: Option[];
+  value: string | null;
+  onChange: (value: string) => void;
+  onCreate: (name: string) => Promise<string>;
+  creating?: boolean;
+  disabled?: boolean;
+  createDisabled?: boolean;
+  error?: unknown;
+}) {
+  const combobox = useCombobox({
+    onDropdownClose: () => combobox.resetSelectedOption()
+  });
+  const selected = options.find((option) => option.value === (value ?? ""));
+  const [search, setSearch] = useState(selected?.label ?? "");
+  const [createError, setCreateError] = useState<unknown>(null);
+  const [internalCreating, setInternalCreating] = useState(false);
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredOptions = options.filter((option) => option.label.toLowerCase().includes(normalizedSearch));
+  const hasExactMatch = options.some((option) => option.label.trim().toLowerCase() === normalizedSearch);
+  const canCreate = search.trim().length > 0 && !hasExactMatch;
+  const isCreating = Boolean(creating || internalCreating);
+
+  useEffect(() => {
+    setSearch(selected?.label ?? "");
+  }, [selected?.label]);
+
+  const handleSubmit = async (submittedValue: string) => {
+    if (submittedValue.startsWith("__create__:")) {
+      const name = submittedValue.slice("__create__:".length).trim();
+      if (!name || createDisabled) return;
+      setInternalCreating(true);
+      try {
+        const createdId = await onCreate(name);
+        onChange(createdId);
+        setSearch(name);
+        setCreateError(null);
+        combobox.closeDropdown();
+      } catch (createFailure) {
+        setCreateError(createFailure);
+      } finally {
+        setInternalCreating(false);
+      }
+      return;
+    }
+
+    const option = options.find((item) => item.value === submittedValue);
+    if (option) {
+      onChange(option.value);
+      setSearch(option.label);
+      setCreateError(null);
+      combobox.closeDropdown();
+    }
+  };
+
+  return (
+    <Box w="100%">
+      <Combobox store={combobox} onOptionSubmit={handleSubmit}>
+        <Combobox.Target>
+          <InputBase
+            label={label}
+            placeholder={placeholder ?? ""}
+            value={search}
+            onChange={(event) => {
+              setSearch(event.currentTarget.value);
+              combobox.openDropdown();
+            }}
+            onClick={() => combobox.openDropdown()}
+            onFocus={() => combobox.openDropdown()}
+            onBlur={() => {
+              combobox.closeDropdown();
+              setSearch(selected?.label ?? search);
+            }}
+            disabled={Boolean(disabled)}
+            rightSection={isCreating ? <Loader size={16} /> : <Combobox.Chevron />}
+            rightSectionPointerEvents="none"
+            error={error ? String(error) : undefined}
+          />
+        </Combobox.Target>
+        <Combobox.Dropdown>
+          <Combobox.Options>
+            {filteredOptions.map((option) => (
+              <Combobox.Option value={option.value} key={option.value}>
+                {option.label}
+              </Combobox.Option>
+            ))}
+            {canCreate ? (
+              <Combobox.Option value={`__create__:${search.trim()}`} disabled={createDisabled || isCreating}>
+                + 创建 "{search.trim()}"
+              </Combobox.Option>
+            ) : null}
+            {filteredOptions.length === 0 && !canCreate ? <Combobox.Empty>无匹配项</Combobox.Empty> : null}
+          </Combobox.Options>
+        </Combobox.Dropdown>
+      </Combobox>
+      <ErrorAlert error={createError} />
+    </Box>
+  );
+}
+
 function JobFormModal({
   opened,
   onClose,
@@ -245,6 +362,10 @@ function JobFormModal({
   const queryClient = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm();
+  const jobTitleOptions = useMemo(
+    () => Array.from(new Set(base.jobs.map((row) => row.title.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [base.jobs]
+  );
   const mutation = useMutation({
     mutationFn: (body: Dict) => (job ? updateRecruitmentJob(job.id, body) : createRecruitmentJob(body)),
     onSuccess: async () => {
@@ -295,10 +416,21 @@ function JobFormModal({
       <ErrorAlert error={base.error ?? mutation.error} />
       <Group grow align="flex-start">
         <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(job)} />
-        <Select label={t("recruitment.fields.industry")} data={base.industryOptions} value={String(form.values.industry_id ?? "")} onChange={(v) => form.set("industry_id", v)} />
+        <CreatableCombobox
+          label={t("recruitment.fields.industry")}
+          options={base.industryOptions}
+          value={String(form.values.industry_id ?? "")}
+          onChange={(v) => form.set("industry_id", v)}
+          createDisabled={!form.values.company_id}
+          onCreate={async (name) => {
+            const data = await createRecruitmentIndustry({ company_id: form.values.company_id, name });
+            await queryClient.invalidateQueries({ queryKey: recruitmentKeys.industries() });
+            return data.industry.id;
+          }}
+        />
       </Group>
       <Group grow align="flex-start">
-        <TextInput label={t("recruitment.fields.title")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} />
+        <Autocomplete label={t("recruitment.fields.title")} data={jobTitleOptions} value={String(form.values.title ?? "")} onChange={(v) => form.set("title", v)} />
         <NumberInput label={t("recruitment.fields.headcount")} min={1} value={Number(form.values.headcount ?? 1)} onChange={(v) => form.set("headcount", v)} />
       </Group>
       <Group grow align="flex-start">
@@ -372,20 +504,40 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   const queryClient = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm();
+  const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("platform-options"), queryFn: () => listRecruitmentPostings() });
+  const platformOptions = useMemo(
+    () => Array.from(new Set((platformsQuery.data?.postings ?? []).map((row) => row.platform.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [platformsQuery.data?.postings]
+  );
   const mutation = useMutation({
     mutationFn: (body: Dict) => posting ? updateRecruitmentPosting(posting.id, body) : createRecruitmentPosting(body),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }); onClose(); }
   });
   useMemo(() => {
-    if (opened) form.setValues({ company_id: posting?.company_id ?? base.companyOptions[0]?.value ?? "", job_id: posting?.job_id ?? jobId ?? "", platform: posting?.platform ?? "", published_on: posting?.published_on ?? toDateInput(new Date().toISOString()), status: posting?.status ?? "publishing", owner_id: posting?.owner_id ?? "", inquiry_count: posting?.inquiry_count ?? 0, notes: posting?.notes ?? "" });
+    if (opened) form.setValues({ company_id: posting?.company_id ?? base.companyOptions[0]?.value ?? "", job_id: posting?.job_id ?? jobId ?? "", platform: posting?.platform ?? "", published_on: posting?.published_on ?? toDateInput(new Date().toISOString()), status: posting?.status ?? "publishing", owner_id: posting?.owner_id ?? "", invite_clerk_id: posting?.invite_clerk_id ?? null, inquiry_count: posting?.inquiry_count ?? 0, notes: posting?.notes ?? "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, posting?.id, base.companyOptions.length, jobId]);
   return (
-    <FieldModal opened={opened} onClose={onClose} title={posting ? t("recruitment.postings.edit") : t("recruitment.postings.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, notes: emptyToNull(form.values.notes) })}>
-      <ErrorAlert error={mutation.error} />
-      <Group grow><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(posting)} /><Select label={t("recruitment.fields.job")} data={base.jobOptions} value={String(form.values.job_id ?? "")} onChange={(v) => form.set("job_id", v)} searchable /></Group>
-      <Group grow><TextInput label={t("recruitment.fields.platform")} value={String(form.values.platform ?? "")} onChange={(e) => form.set("platform", e.currentTarget.value)} /><TextInput type="date" label={t("recruitment.fields.publishedOn")} value={String(form.values.published_on ?? "")} onChange={(e) => form.set("published_on", e.currentTarget.value)} /></Group>
-      <Group grow><Select label={t("recruitment.fields.status")} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={String(form.values.status ?? "publishing")} onChange={(v) => form.set("status", v)} /><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /></Group>
+    <FieldModal opened={opened} onClose={onClose} title={posting ? t("recruitment.postings.edit") : t("recruitment.postings.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, invite_clerk_id: emptyToNull(form.values.invite_clerk_id), notes: emptyToNull(form.values.notes) })}>
+      <ErrorAlert error={mutation.error ?? platformsQuery.error} />
+      <Group grow align="flex-start">
+        <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(posting)} />
+        <CreatableCombobox
+          label={t("recruitment.fields.job")}
+          options={base.jobOptions}
+          value={String(form.values.job_id ?? "")}
+          onChange={(v) => form.set("job_id", v)}
+          createDisabled={!form.values.company_id}
+          onCreate={async (name) => {
+            if (!form.values.company_id) throw new Error("请先选择公司");
+            const data = await createRecruitmentJob({ company_id: form.values.company_id, title: name });
+            await queryClient.invalidateQueries({ queryKey: recruitmentKeys.jobs("all") });
+            return data.job.id;
+          }}
+        />
+      </Group>
+      <Group grow><Autocomplete label={t("recruitment.fields.platform")} data={platformOptions} value={String(form.values.platform ?? "")} onChange={(v) => form.set("platform", v)} /><TextInput type="date" label={t("recruitment.fields.publishedOn")} value={String(form.values.published_on ?? "")} onChange={(e) => form.set("published_on", e.currentTarget.value)} /></Group>
+      <Group grow><Select label={t("recruitment.fields.status")} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={String(form.values.status ?? "publishing")} onChange={(v) => form.set("status", v)} /><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><Select label={t("recruitment.fields.inviteClerk")} data={base.employeeOptions} value={(form.values.invite_clerk_id as string | null) ?? null} onChange={(v) => form.set("invite_clerk_id", v)} clearable searchable /></Group>
       <NumberInput label={t("recruitment.fields.inquiryCount")} min={0} value={Number(form.values.inquiry_count ?? 0)} onChange={(v) => form.set("inquiry_count", v)} />
       <Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} />
     </FieldModal>
@@ -474,9 +626,13 @@ function CampaignFormModal({ opened, onClose, campaign }: { opened: boolean; onC
   const queryClient = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm();
+  const locationOptions = useMemo(
+    () => Array.from(new Set(base.campaigns.map((row) => row.location.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [base.campaigns]
+  );
   const mutation = useMutation({ mutationFn: (body: Dict) => campaign ? updateRecruitmentCampaign(campaign.id, body) : createRecruitmentCampaign(body), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }); onClose(); } });
   useMemo(() => { if (opened) form.setValues({ company_id: campaign?.company_id ?? base.companyOptions[0]?.value ?? "", name: campaign?.name ?? "", type: campaign?.type ?? "roadshow", status: campaign?.status ?? "planned", location: campaign?.location ?? "", planned_date: campaign?.planned_date ?? toDateInput(new Date().toISOString()), planned_start: campaign?.planned_start ?? "09:00", planned_end: campaign?.planned_end ?? "18:00", actual_date: campaign?.actual_date ?? null, owner_id: campaign?.owner_id ?? "", notes: campaign?.notes ?? "", job_ids: [] }); }, [opened, campaign?.id, base.companyOptions.length]);
-  return <FieldModal opened={opened} onClose={onClose} title={campaign ? t("recruitment.campaigns.edit") : t("recruitment.campaigns.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, notes: emptyToNull(form.values.notes), actual_date: emptyToNull(form.values.actual_date) })}><ErrorAlert error={mutation.error} /><Group grow><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(campaign)} /><TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} /></Group><Group grow><Select label={t("recruitment.fields.type")} data={recruitmentCampaignTypes.map((v) => ({ value: v, label: t(`recruitment.campaignType.${v}`) }))} value={String(form.values.type ?? "roadshow")} onChange={(v) => form.set("type", v)} /><Select label={t("recruitment.fields.status")} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={String(form.values.status ?? "planned")} onChange={(v) => form.set("status", v)} /></Group><TextInput label={t("recruitment.fields.location")} value={String(form.values.location ?? "")} onChange={(e) => form.set("location", e.currentTarget.value)} /><Group grow><TextInput type="date" label={t("recruitment.fields.plannedDate")} value={String(form.values.planned_date ?? "")} onChange={(e) => form.set("planned_date", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedStart")} value={String(form.values.planned_start ?? "")} onChange={(e) => form.set("planned_start", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedEnd")} value={String(form.values.planned_end ?? "")} onChange={(e) => form.set("planned_end", e.currentTarget.value)} /></Group><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><MultiSelect label={t("recruitment.fields.jobs")} data={base.jobOptions} value={(form.values.job_ids as string[]) ?? []} onChange={(v) => form.set("job_ids", v)} searchable /><Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} /></FieldModal>;
+  return <FieldModal opened={opened} onClose={onClose} title={campaign ? t("recruitment.campaigns.edit") : t("recruitment.campaigns.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, notes: emptyToNull(form.values.notes), actual_date: emptyToNull(form.values.actual_date) })}><ErrorAlert error={mutation.error} /><Group grow><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(campaign)} /><TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} /></Group><Group grow><Select label={t("recruitment.fields.type")} data={recruitmentCampaignTypes.map((v) => ({ value: v, label: t(`recruitment.campaignType.${v}`) }))} value={String(form.values.type ?? "roadshow")} onChange={(v) => form.set("type", v)} /><Select label={t("recruitment.fields.status")} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={String(form.values.status ?? "planned")} onChange={(v) => form.set("status", v)} /></Group><Autocomplete label={t("recruitment.fields.location")} data={locationOptions} value={String(form.values.location ?? "")} onChange={(v) => form.set("location", v)} /><Group grow><TextInput type="date" label={t("recruitment.fields.plannedDate")} value={String(form.values.planned_date ?? "")} onChange={(e) => form.set("planned_date", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedStart")} value={String(form.values.planned_start ?? "")} onChange={(e) => form.set("planned_start", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedEnd")} value={String(form.values.planned_end ?? "")} onChange={(e) => form.set("planned_end", e.currentTarget.value)} /></Group><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><MultiSelect label={t("recruitment.fields.jobs")} data={base.jobOptions} value={(form.values.job_ids as string[]) ?? []} onChange={(v) => form.set("job_ids", v)} searchable /><Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} /></FieldModal>;
 }
 
 export function CampaignsPageImpl() {

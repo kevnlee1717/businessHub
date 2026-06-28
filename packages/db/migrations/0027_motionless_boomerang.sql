@@ -1,0 +1,3 @@
+ALTER TABLE "recruitment_jobs" ALTER COLUMN "industry_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "recruitment_postings" ADD COLUMN "invite_clerk_id" uuid;--> statement-breakpoint
+ALTER TABLE "recruitment_postings" ADD CONSTRAINT "recruitment_postings_invite_clerk_id_employees_id_fk" FOREIGN KEY ("invite_clerk_id") REFERENCES "public"."employees"("id") ON DELETE no action ON UPDATE no action;

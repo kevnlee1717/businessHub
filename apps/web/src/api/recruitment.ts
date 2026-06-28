@@ -40,7 +40,7 @@ export type RecruitmentIndustry = {
 export type RecruitmentJob = {
   id: string;
   company_id: string;
-  industry_id: string;
+  industry_id?: string | null;
   title: string;
   headcount: number;
   salary_min?: number | null;
@@ -79,6 +79,7 @@ export type RecruitmentPosting = {
   published_on: string;
   status: RecruitmentPostingStatus;
   owner_id: string;
+  invite_clerk_id?: string | null;
   inquiry_count: number;
   notes?: string | null;
   created_at: string;

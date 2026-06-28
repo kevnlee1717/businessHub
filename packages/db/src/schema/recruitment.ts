@@ -34,7 +34,7 @@ export const recruitmentIndustries = pgTable(
 export const recruitmentJobs = pgTable("recruitment_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
-  industryId: uuid("industry_id").notNull().references(() => recruitmentIndustries.id),
+  industryId: uuid("industry_id").references(() => recruitmentIndustries.id),
   title: varchar("title", { length: 200 }).notNull(),
   headcount: integer("headcount").notNull().default(1),
   salaryMin: integer("salary_min"),
@@ -73,6 +73,7 @@ export const recruitmentPostings = pgTable("recruitment_postings", {
   publishedOn: date("published_on").notNull(),
   status: recruitmentPostingStatusEnum("status").notNull().default("publishing"),
   ownerId: uuid("owner_id").notNull().references(() => employees.id),
+  inviteClerkId: uuid("invite_clerk_id").references(() => employees.id),
   inquiryCount: integer("inquiry_count").notNull().default(0),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
