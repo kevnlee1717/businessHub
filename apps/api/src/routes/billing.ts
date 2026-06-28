@@ -695,6 +695,24 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       return sendNotFound(reply);
     }
 
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!billingRow.businessId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [business] = await db
+        .select({ companyId: businesses.companyId })
+        .from(businesses)
+        .where(eq(businesses.id, billingRow.businessId))
+        .limit(1);
+
+      if (!business || !companyIds.includes(business.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    }
+
     const rows = await db
       .select()
       .from(payments)

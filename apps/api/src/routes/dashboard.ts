@@ -45,7 +45,7 @@ export async function registerDashboardRoutes(app: FastifyInstance): Promise<voi
   app.get("/dashboard/overview", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(periodQuerySchema, request.query);
     const companyIds = await getAccessibleCompanyIds(request);
-    return buildDashboardOverview(query.period, companyIds === "all" ? undefined : companyIds);
+    return buildDashboardOverview(query.period, companyIds);
   });
 
   app.get("/dashboard/payment-calendar", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
@@ -56,7 +56,7 @@ export async function registerDashboardRoutes(app: FastifyInstance): Promise<voi
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    return buildPaymentCalendar(query.period, query.company_id, companyIds === "all" ? undefined : companyIds);
+    return buildPaymentCalendar(query.period, query.company_id, companyIds);
   });
 
   app.get("/dashboard/receivables", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
@@ -67,7 +67,7 @@ export async function registerDashboardRoutes(app: FastifyInstance): Promise<voi
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    return buildReceivables(query.company_id, currentSgtPeriod(), companyIds === "all" ? undefined : companyIds);
+    return buildReceivables(query.company_id, currentSgtPeriod(), companyIds);
   });
 
   app.get("/dashboard/kpi", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
@@ -78,7 +78,7 @@ export async function registerDashboardRoutes(app: FastifyInstance): Promise<voi
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    return buildKpi(query.period, query.company_id, companyIds === "all" ? undefined : companyIds);
+    return buildKpi(query.period, query.company_id, companyIds);
   });
 
   app.post("/dashboard/whatif", { preHandler: requirePerm("finance.view") }, async (request, reply) => {

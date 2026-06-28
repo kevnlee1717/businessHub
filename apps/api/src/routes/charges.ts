@@ -159,6 +159,24 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
       return sendNotFound(reply);
     }
 
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!billingRow.businessId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [business] = await db
+        .select({ companyId: businesses.companyId })
+        .from(businesses)
+        .where(eq(businesses.id, billingRow.businessId))
+        .limit(1);
+
+      if (!business || !companyIds.includes(business.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    }
+
     const rows = await db
       .select({
         charge: billingCharges,
@@ -195,7 +213,31 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
 
-    if (!caseRow || !caseRow.billingId) {
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!caseRow.billingId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [billingRow] = await db
+        .select({
+          businessId: billing.businessId,
+          companyId: businesses.companyId
+        })
+        .from(billing)
+        .leftJoin(businesses, eq(billing.businessId, businesses.id))
+        .where(eq(billing.id, caseRow.billingId))
+        .limit(1);
+
+      if (!billingRow?.companyId || !companyIds.includes(billingRow.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    } else if (!caseRow.billingId) {
       return sendNotFound(reply);
     }
 
