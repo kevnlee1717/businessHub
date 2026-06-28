@@ -122,8 +122,9 @@ body {
   background: var(--side-hover);
 }
 
-/* 子菜单项:更深的底色 (element-admin) */
+/* 子菜单项:整行铺满底色,只缩进文字(element-admin) */
 .app-nav-sub {
+  padding-left: 40px;
   background: var(--side-submenu-bg);
 }
 

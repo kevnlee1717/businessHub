@@ -216,7 +216,7 @@ export function AppShell() {
               <NavLink
                 key={item.key}
                 label={t(item.key)}
-                childrenOffset={28}
+                childrenOffset={0}
                 defaultOpened={item.defaultOpened}
                 active={item.children.some((child) => isActivePath(child.to))}
                 className="app-nav-link"
