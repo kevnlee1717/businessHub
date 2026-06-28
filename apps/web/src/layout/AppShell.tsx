@@ -223,7 +223,7 @@ export function AppShell() {
 
         <MantineAppShell.Navbar p={0}>
           <Group gap="sm" h={56} wrap="nowrap" className="app-brand-row">
-            <Box className="app-brand-mark">bH</Box>
+            <img src="/founder-logo.png" alt="BusinessHub" className="app-brand-logo" />
             <Text fw={800} size="lg" lh={1} c="#fff">
               BusinessHub
             </Text>

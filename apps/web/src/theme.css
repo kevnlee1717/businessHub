@@ -89,6 +89,16 @@ body {
   background: var(--side-logo-bg);
 }
 
+.app-brand-logo {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+  flex: none;
+}
+
 .app-nav-link {
   border-radius: 0;
   min-height: 56px;

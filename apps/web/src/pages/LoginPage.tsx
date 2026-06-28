@@ -59,7 +59,10 @@ export function LoginPage() {
     <Center mih="100vh" px="md" bg="gray.0">
       <Stack w="100%" maw={420} gap="md">
         <Group justify="space-between">
-          <Title order={2}>{t("app.title")}</Title>
+          <Group gap="xs">
+            <img src="/founder-logo.png" alt="BusinessHub" className="app-brand-logo" />
+            <Title order={2}>{t("app.title")}</Title>
+          </Group>
           <LanguageToggle />
         </Group>
         <Paper withBorder shadow="sm" radius="md" p="lg">
