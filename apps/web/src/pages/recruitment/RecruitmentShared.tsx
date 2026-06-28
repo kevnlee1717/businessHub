@@ -82,6 +82,7 @@ import {
   updateRecruitmentIndustry,
   updateRecruitmentInterview,
   updateRecruitmentJob,
+  updateRecruitmentMaterial,
   updateRecruitmentPosting,
   updateRecruitmentSettings,
   uploadRecruitmentPostingScreenshot,
@@ -524,14 +525,14 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   const copyMaterialOptions = useMemo(
     () =>
       (materialsQuery.data?.materials ?? [])
-        .filter((material) => material.type === "copy" && matchesPlatform(material, selectedPlatform))
+        .filter((material) => material.active && material.type === "copy" && matchesPlatform(material, selectedPlatform))
         .map((material) => ({ value: material.id, label: material.title })),
     [materialsQuery.data?.materials, selectedPlatform]
   );
   const imageMaterialOptions = useMemo(
     () =>
       (materialsQuery.data?.materials ?? [])
-        .filter((material) => material.type === "image" && matchesPlatform(material, selectedPlatform))
+        .filter((material) => material.active && material.type === "image" && matchesPlatform(material, selectedPlatform))
         .map((material) => ({ value: material.id, label: material.title })),
     [materialsQuery.data?.materials, selectedPlatform]
   );
@@ -597,10 +598,10 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   );
 }
 
-function MaterialModal({ opened, onClose, job }: { opened: boolean; onClose: () => void; job: RecruitmentJob }) {
+function MaterialModal({ opened, onClose, job, material }: { opened: boolean; onClose: () => void; job: RecruitmentJob; material?: RecruitmentMaterial | null }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const form = useSimpleForm({ type: "copy", title: "", text_content: "", platforms: [], ai_generated: false });
+  const form = useSimpleForm({ type: "copy", title: "", text_content: "", platforms: [], active: true, ai_generated: false });
   const [file, setFile] = useState<File | null>(null);
   const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("material-platform-options"), queryFn: () => listRecruitmentPostings() });
   const platformOptions = useMemo(
@@ -610,32 +611,57 @@ function MaterialModal({ opened, onClose, job }: { opened: boolean; onClose: () 
   const mutation = useMutation({
     mutationFn: async () => {
       const platforms = ((form.values.platforms as string[] | undefined) ?? []).map((item) => item.trim()).filter(Boolean);
+      const body = {
+        type: form.values.type,
+        title: form.values.title,
+        text_content: emptyToNull(form.values.text_content),
+        platforms: platforms.length > 0 ? platforms : null,
+        active: Boolean(form.values.active),
+        ai_generated: form.values.ai_generated
+      };
       if (file) {
         const data = new FormData();
-        data.set("company_id", job.company_id);
-        data.set("job_id", job.id);
+        if (!material) {
+          data.set("company_id", job.company_id);
+          data.set("job_id", job.id);
+        }
         data.set("type", String(form.values.type));
         data.set("title", String(form.values.title));
         if (form.values.text_content) data.set("text_content", String(form.values.text_content));
-        if (platforms.length > 0) data.set("platforms", JSON.stringify(platforms));
+        data.set("platforms", JSON.stringify(platforms));
+        data.set("active", String(Boolean(form.values.active)));
         data.set("file", file);
-        return createRecruitmentMaterial(data);
+        return material ? updateRecruitmentMaterial(material.id, data) : createRecruitmentMaterial(data);
       }
-      return createRecruitmentMaterial({ company_id: job.company_id, job_id: job.id, ...form.values, platforms: platforms.length > 0 ? platforms : null, text_content: emptyToNull(form.values.text_content) });
+      return material ? updateRecruitmentMaterial(material.id, body) : createRecruitmentMaterial({ company_id: job.company_id, job_id: job.id, ...body });
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(job.id) }); onClose(); }
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(job.id) }); setFile(null); onClose(); }
   });
   const aiMutation = useMutation({
     mutationFn: () => generateRecruitmentCopy({ job_title: job.title, salary_min: job.salary_min, salary_max: job.salary_max, salary_note: job.salary_note, job_content: job.job_content, requirements: job.requirements, copy_type: "ad" }),
     onSuccess: (data) => form.set("text_content", data.draft)
   });
+  useEffect(() => {
+    if (!opened) return;
+    setFile(null);
+    form.setValues({
+      type: material?.type ?? "copy",
+      title: material?.title ?? "",
+      text_content: material?.text_content ?? "",
+      platforms: material?.platforms ?? [],
+      active: material?.active ?? true,
+      ai_generated: material?.ai_generated ?? false
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, material?.id]);
   return (
-    <FieldModal opened={opened} onClose={onClose} title={t("recruitment.materials.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate()}>
+    <FieldModal opened={opened} onClose={onClose} title={material ? t("recruitment.materials.editMaterial") : t("recruitment.materials.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate()}>
       <ErrorAlert error={mutation.error ?? aiMutation.error ?? platformsQuery.error} />
-      <Group grow><Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} /><TextInput label={t("recruitment.fields.title")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} /></Group>
+      <Group grow><Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} disabled={Boolean(material)} /><TextInput label={t("recruitment.fields.title")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} /></Group>
       <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={(value) => form.set("platforms", value)} />
+      <Checkbox label={t("recruitment.fields.active")} checked={Boolean(form.values.active)} onChange={(e) => form.set("active", e.currentTarget.checked)} />
       <Textarea label={t("recruitment.fields.textContent")} minRows={5} value={String(form.values.text_content ?? "")} onChange={(e) => form.set("text_content", e.currentTarget.value)} />
-      <Group><Button variant="light" onClick={() => aiMutation.mutate()} loading={aiMutation.isPending}>{t("recruitment.materials.aiCopy")}</Button><FileButton onChange={setFile}>{(props) => <Button variant="light" {...props}>{file ? file.name : t("common.upload")}</Button>}</FileButton></Group>
+      <Group><Button variant="light" onClick={() => aiMutation.mutate()} loading={aiMutation.isPending}>{t("recruitment.materials.aiCopy")}</Button><FileButton onChange={setFile}>{(props) => <Button variant="light" {...props}>{file ? file.name : material ? t("recruitment.materials.replaceImage") : t("common.upload")}</Button>}</FileButton></Group>
     </FieldModal>
   );
 }
@@ -647,8 +673,10 @@ export function JobDetailPageImpl() {
   const queryClient = useQueryClient();
   const [postingOpen, setPostingOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<RecruitmentMaterial | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.job(id ?? ""), queryFn: () => getRecruitmentJob(id ?? ""), enabled: Boolean(id) });
   const deleteMutation = useMutation({ mutationFn: deleteRecruitmentMaterial, onSuccess: async () => { if (id) await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(id) }); } });
+  const materialStatusMutation = useMutation({ mutationFn: ({ materialId, active }: { materialId: string; active: boolean }) => updateRecruitmentMaterial(materialId, { active }), onSuccess: async () => { if (id) await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(id) }); } });
   const job = query.data?.job;
   if (query.isLoading) return <Group justify="center"><Loader /></Group>;
   if (!job) return <ErrorAlert error={query.error ?? new Error(t("common.not_available"))} />;
@@ -661,11 +689,28 @@ export function JobDetailPageImpl() {
         <Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.gap")}</Text><Text fw={700}>{query.data?.summary.gap ?? 0}</Text></Card>
       </SimpleGrid>
       <Card withBorder><Group justify="space-between"><Text fw={600}>{job.title}</Text><StatusBadge value={job.status} ns="jobStatus" /></Group><Text mt="sm">{job.job_content ?? "-"}</Text><Text c="dimmed" mt="xs">{job.requirements ?? "-"}</Text></Card>
-      <Card withBorder><Group justify="space-between" mb="md"><Text fw={600}>{t("recruitment.materials.title")}</Text><Button size="xs" onClick={() => setMaterialOpen(true)}>{t("recruitment.materials.add")}</Button></Group><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.title")}</Table.Th><Table.Th>{t("recruitment.fields.type")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(query.data?.materials ?? []).map((m) => <Table.Tr key={m.id}><Table.Td>{m.title}</Table.Td><Table.Td><StatusBadge value={m.type} ns="materialType" /></Table.Td><Table.Td><Button size="xs" variant="subtle" color="red" onClick={() => deleteMutation.mutate(m.id)}>{t("common.delete")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>
+      <Card withBorder>
+        <Group justify="space-between" mb="md"><Text fw={600}>{t("recruitment.materials.title")}</Text><Button size="xs" onClick={() => { setEditingMaterial(null); setMaterialOpen(true); }}>{t("recruitment.materials.add")}</Button></Group>
+        <Table withTableBorder withColumnBorders highlightOnHover>
+          <Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.title")}</Table.Th><Table.Th>{t("recruitment.fields.type")}</Table.Th><Table.Th>{t("recruitment.fields.platforms")}</Table.Th><Table.Th>{t("recruitment.fields.active")}</Table.Th><Table.Th>{t("recruitment.fields.usageCount")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
+          <Table.Tbody>
+            {(query.data?.materials ?? []).length === 0 ? <EmptyRow colSpan={6} /> : (query.data?.materials ?? []).map((m) => (
+              <Table.Tr key={m.id}>
+                <Table.Td><Group gap="xs"><Text>{m.title}</Text>{m.type === "image" && m.document ? <Anchor size="sm" href={fileUrl(m.document.storage_path)} target="_blank" rel="noreferrer">{t("common.view")}</Anchor> : null}</Group></Table.Td>
+                <Table.Td><StatusBadge value={m.type} ns="materialType" /></Table.Td>
+                <Table.Td>{(m.platforms ?? []).length > 0 ? <Group gap={4}>{(m.platforms ?? []).map((platform) => <Badge key={platform} variant="light">{platform}</Badge>)}</Group> : <Text c="dimmed" size="sm">{t("recruitment.materials.allPlatforms")}</Text>}</Table.Td>
+                <Table.Td><Group gap="xs"><Checkbox checked={m.active} onChange={(event) => materialStatusMutation.mutate({ materialId: m.id, active: event.currentTarget.checked })} /><Badge color={m.active ? "green" : "gray"}>{m.active ? t("recruitment.fields.active") : t("recruitment.fields.inactive")}</Badge></Group></Table.Td>
+                <Table.Td>{m.usage_count}</Table.Td>
+                <Table.Td><Group gap="xs"><Button size="xs" variant="subtle" onClick={() => { setEditingMaterial(m); setMaterialOpen(true); }}>{t("common.edit")}</Button><Button size="xs" variant="subtle" color="red" onClick={() => deleteMutation.mutate(m.id)}>{t("common.delete")}</Button></Group></Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Card>
       <Card withBorder><Text fw={600} mb="md">{t("recruitment.postings.title")}</Text><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(query.data?.postings ?? []).map((p) => <Table.Tr key={p.id}><Table.Td>{p.platform}</Table.Td><Table.Td><StatusBadge value={p.status} ns="postingStatus" /></Table.Td><Table.Td>{p.inquiry_count}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>
       <Card withBorder><Text fw={600} mb="md">{t("recruitment.campaigns.title")}</Text><Group>{(query.data?.campaigns ?? []).map((c) => <Badge key={c.id} color="blue">{c.name}</Badge>)}</Group></Card>
       <PostingFormModal opened={postingOpen} onClose={() => setPostingOpen(false)} jobId={job.id} />
-      <MaterialModal opened={materialOpen} onClose={() => setMaterialOpen(false)} job={job} />
+      <MaterialModal opened={materialOpen} onClose={() => setMaterialOpen(false)} job={job} material={editingMaterial} />
     </Stack>
   );
 }
