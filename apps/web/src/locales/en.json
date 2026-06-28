@@ -6,6 +6,9 @@
     "dashboard": "Dashboard",
     "hr": "HR",
     "franchise": "Franchise",
+    "franchise_tracking": "Visit Tracking",
+    "franchise_property": "Property",
+    "franchise_fnb": "F&B",
     "business": "Business",
     "immigration": "Immigration",
     "ep": "EP",
@@ -60,6 +63,7 @@
     "actions": "Actions",
     "edit": "Edit",
     "delete": "Delete",
+    "confirm_delete": "Delete this record?",
     "view": "View",
     "preview": "Preview",
     "search": "Search",
@@ -76,6 +80,7 @@
     "uncategorized": "Uncategorized",
     "not_available": "-",
     "unknown_error": "Unknown error",
+    "not_found": "Record not found",
     "translated": "Translated",
     "original": "Original",
     "comingSoon": "Coming soon"
@@ -1739,6 +1744,176 @@
     "one_time": "One-time",
     "monthly": "Monthly",
     "per_event": "Per event"
+  },
+  "franchise": {
+    "empty": "No data",
+    "tabs": {
+      "dashboard": "Dashboard",
+      "properties": "Property sites",
+      "fnbSites": "F&B sites",
+      "contacts": "Contacts",
+      "visits": "Visits"
+    },
+    "filters": {
+      "search": "Search name/phone/address",
+      "from": "From",
+      "to": "To"
+    },
+    "actions": {
+      "newOrg": "New organization",
+      "newProperty": "New property site",
+      "editProperty": "Edit property site",
+      "newFnbSite": "New F&B site",
+      "editFnbSite": "Edit F&B site",
+      "newContact": "New contact",
+      "editContact": "Edit contact",
+      "newVisit": "New visit"
+    },
+    "fields": {
+      "company": "Company",
+      "name": "Name",
+      "org": "Organization",
+      "orgType": "Org type",
+      "role": "Role",
+      "phone": "Phone",
+      "referredBy": "Referred by",
+      "introducedBy": "Introduced by",
+      "nextVisitAt": "Next visit",
+      "owner": "Owner",
+      "employee": "Employee",
+      "count": "Count",
+      "note": "Note",
+      "propertyType": "Property type",
+      "priority": "Priority",
+      "status": "Status",
+      "address": "Address",
+      "location": "Location",
+      "isVendingSite": "600-machine vending site",
+      "vendingNote": "Vending note",
+      "relationshipNote": "Relationship note",
+      "footfall": "Footfall",
+      "decisionMaker": "Decision maker",
+      "hasPublicSpace": "Public space",
+      "hasAircon": "Aircon",
+      "contact": "Contact",
+      "visitedAt": "Visited at",
+      "type": "Type",
+      "interestLevel": "Interest",
+      "servicesPitched": "Services pitched",
+      "result": "Result",
+      "rentFixed": "Fixed rent/month",
+      "rentRevenueSharePct": "Revenue share %",
+      "managementFee": "Management fee",
+      "dishwashFee": "Dishwash fee",
+      "contractExpiry": "Contract expiry",
+      "extraConditions": "Leasing conditions"
+    },
+    "dashboard": {
+      "visitVolume": "Visit volume",
+      "siteCoverage": "Site coverage",
+      "surveyCollection": "Survey collection",
+      "interestFunnel": "Interest funnel",
+      "vendingSites": "Vending sites",
+      "visitRanking": "Visit ranking",
+      "dueContacts": "Due contacts"
+    },
+    "contacts": {
+      "introducedByThisContact": "Introduced by this contact"
+    },
+    "survey": {
+      "interestedServices": "Interested services",
+      "detail": {
+        "power": "Power",
+        "traffic": "Traffic spot",
+        "placement": "Placement",
+        "space": "Space",
+        "revenue_share": "Revenue share",
+        "floor_type": "Floor type",
+        "area": "Area",
+        "schedule": "Schedule",
+        "room_count": "Room count",
+        "customer_profile": "Customer profile",
+        "trial_area": "Trial area",
+        "posts": "Posts",
+        "hours": "Hours",
+        "requirements": "Requirements",
+        "frequency": "Frequency",
+        "scope": "Scope"
+      }
+    },
+    "visitType": {
+      "property": "Property",
+      "fnb": "F&B"
+    },
+    "orgType": {
+      "fnb_group": "Food court group",
+      "property_company": "Property company",
+      "owner": "Owner",
+      "cafe_brand": "Cafe brand",
+      "other": "Other"
+    },
+    "propertyType": {
+      "mall": "Mall",
+      "office": "Office",
+      "condo": "Condo",
+      "hotel": "Hotel",
+      "industrial": "Industrial",
+      "airport": "Airport",
+      "train_mrt": "Train/MRT",
+      "food_court": "Food court",
+      "hospital_school": "Hospital/School",
+      "other": "Other"
+    },
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "footfall": {
+      "very_high": "Very high",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "decisionMaker": {
+      "can_decide": "Can decide",
+      "need_management": "Needs management",
+      "need_committee": "Needs committee"
+    },
+    "triState": {
+      "yes": "Yes",
+      "no": "No",
+      "pending": "Pending"
+    },
+    "siteStatus": {
+      "unvisited": "Unvisited",
+      "following": "Following",
+      "won": "Won",
+      "abandoned": "Abandoned"
+    },
+    "interestLevel": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "service": {
+      "vending_machine": "Vending machine",
+      "massage_chair": "Massage chair",
+      "cleaning_robot": "Cleaning robot",
+      "ai_mattress": "AI mattress",
+      "security": "Security",
+      "cleaning": "Cleaning"
+    },
+    "contractExpiry": {
+      "none": "None",
+      "within_3_months": "Within 3 months",
+      "within_6_months": "Within 6 months",
+      "within_1_year": "Within 1 year"
+    },
+    "placeholder": {
+      "foodCourt": "Food court",
+      "cafe": "Cafe"
+    }
   },
   "recruitment": {
     "empty": "No data",

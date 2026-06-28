@@ -54,7 +54,16 @@ const navItems: NavItem[] = [
       { to: "/education/academy-collection", key: "nav.academy_collection", perm: "education.view" }
     ]
   },
-  { to: "/franchise", key: "nav.franchise" },
+  {
+    key: "nav.franchise",
+    perm: "franchise.view",
+    defaultOpened: false,
+    children: [
+      { to: "/franchise/tracking", key: "nav.franchise_tracking", perm: "franchise.view" },
+      { to: "/franchise/property", key: "nav.franchise_property", perm: "franchise.view" },
+      { to: "/franchise/fnb", key: "nav.franchise_fnb", perm: "franchise.view" }
+    ]
+  },
   { to: "/documents", key: "nav.documents", perm: "document.view" },
   { to: "/recruitment", key: "nav.recruitment", perm: "recruitment.view" },
   {

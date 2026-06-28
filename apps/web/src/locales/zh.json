@@ -6,6 +6,9 @@
     "dashboard": "仪表盘",
     "hr": "人事",
     "franchise": "加盟业务",
+    "franchise_tracking": "拜访跟踪",
+    "franchise_property": "综合物业",
+    "franchise_fnb": "餐饮",
     "business": "业务",
     "immigration": "移民业务",
     "ep": "EP",
@@ -60,6 +63,7 @@
     "actions": "操作",
     "edit": "编辑",
     "delete": "删除",
+    "confirm_delete": "确认删除？",
     "view": "查看",
     "preview": "预览",
     "search": "检索",
@@ -76,6 +80,7 @@
     "uncategorized": "未分类",
     "not_available": "-",
     "unknown_error": "发生未知错误",
+    "not_found": "未找到记录",
     "translated": "译",
     "original": "原文",
     "comingSoon": "敬请期待"
@@ -1739,6 +1744,176 @@
     "one_time": "一次性",
     "monthly": "每月",
     "per_event": "每次事件"
+  },
+  "franchise": {
+    "empty": "暂无数据",
+    "tabs": {
+      "dashboard": "看板",
+      "properties": "综合物业场地",
+      "fnbSites": "餐饮场地",
+      "contacts": "联系人",
+      "visits": "拜访记录"
+    },
+    "filters": {
+      "search": "搜索名称/电话/地址",
+      "from": "开始日期",
+      "to": "结束日期"
+    },
+    "actions": {
+      "newOrg": "新建集团/公司",
+      "newProperty": "新建物业场地",
+      "editProperty": "编辑物业场地",
+      "newFnbSite": "新建餐饮场地",
+      "editFnbSite": "编辑餐饮场地",
+      "newContact": "新建联系人",
+      "editContact": "编辑联系人",
+      "newVisit": "新增拜访"
+    },
+    "fields": {
+      "company": "公司",
+      "name": "名称",
+      "org": "集团/公司",
+      "orgType": "集团类型",
+      "role": "职务",
+      "phone": "电话",
+      "referredBy": "介绍人",
+      "introducedBy": "场地介绍人",
+      "nextVisitAt": "下次拜访",
+      "owner": "负责人",
+      "employee": "业务员",
+      "count": "数量",
+      "note": "备注",
+      "propertyType": "物业类型",
+      "priority": "优先级",
+      "status": "状态",
+      "address": "地址",
+      "location": "位置",
+      "isVendingSite": "600台贩卖机场地",
+      "vendingNote": "贩卖机备注",
+      "relationshipNote": "关系说明",
+      "footfall": "人流",
+      "decisionMaker": "决策方式",
+      "hasPublicSpace": "公共空间",
+      "hasAircon": "冷气",
+      "contact": "联系人",
+      "visitedAt": "拜访时间",
+      "type": "类型",
+      "interestLevel": "意向",
+      "servicesPitched": "已介绍项目",
+      "result": "拜访结果",
+      "rentFixed": "固定租金/月",
+      "rentRevenueSharePct": "抽营业额 %",
+      "managementFee": "管理费",
+      "dishwashFee": "洗碗费",
+      "contractExpiry": "合约到期",
+      "extraConditions": "招商条件"
+    },
+    "dashboard": {
+      "visitVolume": "拜访量",
+      "siteCoverage": "场地覆盖",
+      "surveyCollection": "问券回收",
+      "interestFunnel": "意向漏斗",
+      "vendingSites": "贩卖机场地",
+      "visitRanking": "业务员拜访排行",
+      "dueContacts": "待拜访提醒"
+    },
+    "contacts": {
+      "introducedByThisContact": "TA 介绍的人"
+    },
+    "survey": {
+      "interestedServices": "② 感兴趣服务",
+      "detail": {
+        "power": "供电条件",
+        "traffic": "人流位置",
+        "placement": "摆放点",
+        "space": "空间尺寸",
+        "revenue_share": "分成期望",
+        "floor_type": "地面类型",
+        "area": "面积",
+        "schedule": "可作业时段",
+        "room_count": "房间数量",
+        "customer_profile": "客群",
+        "trial_area": "试用区域",
+        "posts": "岗位数",
+        "hours": "服务时长",
+        "requirements": "要求",
+        "frequency": "频次",
+        "scope": "范围"
+      }
+    },
+    "visitType": {
+      "property": "综合物业",
+      "fnb": "餐饮"
+    },
+    "orgType": {
+      "fnb_group": "食阁集团",
+      "property_company": "物业公司",
+      "owner": "业主",
+      "cafe_brand": "咖啡厅品牌",
+      "other": "其他"
+    },
+    "propertyType": {
+      "mall": "Mall",
+      "office": "Office",
+      "condo": "Condo",
+      "hotel": "Hotel",
+      "industrial": "Industrial",
+      "airport": "Airport",
+      "train_mrt": "Train/MRT",
+      "food_court": "Food court",
+      "hospital_school": "Hospital/School",
+      "other": "Other"
+    },
+    "priority": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "footfall": {
+      "very_high": "很高",
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "decisionMaker": {
+      "can_decide": "我可决定",
+      "need_management": "需上报管理层",
+      "need_committee": "需业委会"
+    },
+    "triState": {
+      "yes": "有",
+      "no": "无",
+      "pending": "待定"
+    },
+    "siteStatus": {
+      "unvisited": "未拜访",
+      "following": "跟进中",
+      "won": "已成交",
+      "abandoned": "已放弃"
+    },
+    "interestLevel": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "service": {
+      "vending_machine": "贩卖机",
+      "massage_chair": "按摩椅",
+      "cleaning_robot": "保洁机器人",
+      "ai_mattress": "AI床垫",
+      "security": "保安",
+      "cleaning": "保洁"
+    },
+    "contractExpiry": {
+      "none": "无",
+      "within_3_months": "3月内",
+      "within_6_months": "6月内",
+      "within_1_year": "1年内"
+    },
+    "placeholder": {
+      "foodCourt": "食阁",
+      "cafe": "咖啡厅"
+    }
   },
   "recruitment": {
     "empty": "暂无数据",

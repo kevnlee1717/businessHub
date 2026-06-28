@@ -3,7 +3,17 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AccountPasswordPage } from "./pages/account/AccountPasswordPage";
-import { FranchisePage } from "./pages/FranchisePage";
+import { ContactDetailPage } from "./pages/franchise/ContactDetailPage";
+import { ContactsPage } from "./pages/franchise/ContactsPage";
+import { FnbSiteDetailPage } from "./pages/franchise/FnbSiteDetailPage";
+import { FnbSitesPage } from "./pages/franchise/FnbSitesPage";
+import { FranchiseFnbPlaceholder } from "./pages/franchise/FranchiseFnbPlaceholder";
+import { FranchisePropertyPlaceholder } from "./pages/franchise/FranchisePropertyPlaceholder";
+import { PropertiesPage } from "./pages/franchise/PropertiesPage";
+import { PropertyDetailPage } from "./pages/franchise/PropertyDetailPage";
+import { TrackingDashboardPage } from "./pages/franchise/TrackingDashboardPage";
+import { TrackingLayout } from "./pages/franchise/TrackingLayout";
+import { VisitsPage } from "./pages/franchise/VisitsPage";
 import { BusinessLayout } from "./pages/business/BusinessLayout";
 import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { EpSection } from "./pages/business/EpSection";
@@ -71,7 +81,19 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
-          <Route path="franchise" element={<FranchisePage />} />
+          <Route path="franchise" element={<Navigate to="/franchise/tracking" replace />} />
+          <Route path="franchise/tracking" element={<TrackingLayout />}>
+            <Route index element={<TrackingDashboardPage />} />
+            <Route path="properties" element={<PropertiesPage />} />
+            <Route path="properties/:id" element={<PropertyDetailPage />} />
+            <Route path="fnb-sites" element={<FnbSitesPage />} />
+            <Route path="fnb-sites/:id" element={<FnbSiteDetailPage />} />
+            <Route path="contacts" element={<ContactsPage />} />
+            <Route path="contacts/:id" element={<ContactDetailPage />} />
+            <Route path="visits" element={<VisitsPage />} />
+          </Route>
+          <Route path="franchise/property" element={<FranchisePropertyPlaceholder />} />
+          <Route path="franchise/fnb" element={<FranchiseFnbPlaceholder />} />
           <Route path="hr" element={<HrLayout />}>
             <Route index element={<Navigate to="employees" replace />} />
             <Route path="employees" element={<EmployeesPage />} />
