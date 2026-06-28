@@ -406,7 +406,7 @@ export function SalesCommissionPage() {
               <Stack gap="md">
                 <Title order={3}>{t("commission.sales.title")}</Title>
                 <ScrollArea>
-                  <Table miw={620} verticalSpacing="sm" striped highlightOnHover>
+                  <Table miw={620} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>{t("commission.fields.sales")}</Table.Th>
@@ -512,7 +512,7 @@ export function SalesCommissionPage() {
                     </Group>
 
                     <ScrollArea>
-                      <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+                      <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                         <Table.Thead>
                           <Table.Tr>
                             <Table.Th>{t("commission.fields.business")}</Table.Th>
@@ -639,7 +639,7 @@ export function SalesCommissionPage() {
 
             <Paper withBorder radius="md">
               <ScrollArea>
-                <Table miw={1180} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={1180} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("commission.fields.sales")}</Table.Th>

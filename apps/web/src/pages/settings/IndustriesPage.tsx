@@ -165,7 +165,7 @@ export function IndustriesPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={640} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={640} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("industry.fields.name")}</Table.Th>

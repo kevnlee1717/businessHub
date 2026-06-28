@@ -331,7 +331,7 @@ export function LedgerPage() {
 
       <Paper withBorder>
         <ScrollArea>
-          <Table striped highlightOnHover miw={1100}>
+          <Table withTableBorder withColumnBorders highlightOnHover miw={1100}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("finance.fields.date")}</Table.Th>

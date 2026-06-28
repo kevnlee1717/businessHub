@@ -322,7 +322,7 @@ export function PerformancePage() {
                 </Alert>
               ) : null}
               <ScrollArea>
-                <Table miw={680} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={680} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("performance.fields.period")}</Table.Th>

@@ -253,7 +253,7 @@ export function CompanyFilesPage() {
                 </Alert>
               ) : null}
               <ScrollArea>
-                <Table miw={900} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("companyExpense.fields.type")}</Table.Th>

@@ -561,7 +561,7 @@ export function DashboardPage() {
                 </Button>
               </SimpleGrid>
               <ScrollArea>
-                <Table striped highlightOnHover miw={900}>
+                <Table withTableBorder withColumnBorders highlightOnHover miw={900}>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("dashboard.fields.label")}</Table.Th>
@@ -629,7 +629,7 @@ export function DashboardPage() {
                 {!hasOpeningBalance ? <Badge color="yellow">{t("dashboard.empty.noOpeningBalance")}</Badge> : null}
               </Group>
               <ScrollArea>
-                <Table striped highlightOnHover miw={760}>
+                <Table withTableBorder withColumnBorders highlightOnHover miw={760}>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("dashboard.fields.account")}</Table.Th>
@@ -725,7 +725,7 @@ export function DashboardPage() {
               {t("dashboard.receivables.total", { total: money(receivablesQuery.data?.total) })}
             </Text>
             <ScrollArea>
-              <Table striped highlightOnHover miw={720}>
+              <Table withTableBorder withColumnBorders highlightOnHover miw={720}>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>{t("dashboard.fields.source")}</Table.Th>

@@ -441,7 +441,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         <Paper withBorder radius="md">
           <ScrollArea>
-            <Table miw={520} verticalSpacing="sm" striped highlightOnHover>
+            <Table miw={520} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("template.fields.name")}</Table.Th>

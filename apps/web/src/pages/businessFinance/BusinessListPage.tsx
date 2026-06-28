@@ -199,7 +199,7 @@ export function BusinessListPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={1100} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={1100} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("businessFinance.fields.company")}</Table.Th>

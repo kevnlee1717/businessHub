@@ -178,7 +178,7 @@ export function ReportsPage() {
           </Text>
         </Group>
         <ScrollArea>
-          <Table striped highlightOnHover miw={720}>
+          <Table withTableBorder withColumnBorders highlightOnHover miw={720}>
             <Table.Tbody>
               {pnl
                 ? pnlRows(pnl, t).map((row, index) => (
@@ -246,7 +246,7 @@ export function ReportsPage() {
         <Paper withBorder>
           <Title order={3} p="md" pb="xs">{t("finance.reports.byCompany")}</Title>
           <ScrollArea>
-            <Table striped highlightOnHover miw={520}>
+            <Table withTableBorder withColumnBorders highlightOnHover miw={520}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("finance.fields.company")}</Table.Th>

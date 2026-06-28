@@ -392,7 +392,7 @@ export function ExternalCommissionPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={980} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={980} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("externalCommission.fields.payee")}</Table.Th>

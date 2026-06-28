@@ -107,7 +107,7 @@ function OverdueTable({ rows, canManage }: OverdueTableProps) {
 
   return (
     <ScrollArea>
-      <Table striped highlightOnHover miw={760}>
+      <Table withTableBorder withColumnBorders highlightOnHover miw={760}>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>{t("academyCollection.fields.student")}</Table.Th>
@@ -161,7 +161,7 @@ function CollectionRowsTable({ rows, canManage }: CollectionRowsTableProps) {
 
   return (
     <ScrollArea>
-      <Table striped highlightOnHover miw={860}>
+      <Table withTableBorder withColumnBorders highlightOnHover miw={860}>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>{t("academyCollection.fields.student")}</Table.Th>

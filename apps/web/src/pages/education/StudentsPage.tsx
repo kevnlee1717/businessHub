@@ -78,7 +78,7 @@ export function StudentsPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={840} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={840} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("student.fields.name")}</Table.Th>

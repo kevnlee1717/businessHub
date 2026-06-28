@@ -379,7 +379,7 @@ export function CompaniesPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("company.fields.name")}</Table.Th>
@@ -546,7 +546,7 @@ export function CompaniesPage() {
 
               <Paper withBorder radius="md">
                 <ScrollArea>
-                  <Table miw={860} verticalSpacing="sm" striped highlightOnHover>
+                  <Table miw={860} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>{t("clockPoint.fields.name")}</Table.Th>

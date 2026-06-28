@@ -180,7 +180,7 @@ export function BankAccountsPage() {
 
       <Paper withBorder>
         <ScrollArea>
-          <Table striped highlightOnHover miw={820}>
+          <Table withTableBorder withColumnBorders highlightOnHover miw={820}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("finance.fields.company")}</Table.Th>

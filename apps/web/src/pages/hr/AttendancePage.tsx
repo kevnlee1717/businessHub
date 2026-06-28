@@ -216,7 +216,7 @@ export function AttendancePage() {
             ) : null}
             <Paper withBorder radius="md">
               <ScrollArea>
-                <Table miw={720} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={720} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("attendance.fields.workDate")}</Table.Th>
@@ -269,7 +269,7 @@ export function AttendancePage() {
             ) : null}
             <Paper withBorder radius="md">
               <ScrollArea>
-                <Table miw={920} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={920} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("attendance.fields.workDate")}</Table.Th>

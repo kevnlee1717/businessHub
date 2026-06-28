@@ -261,7 +261,7 @@ export function ClockPointsPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={820} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={820} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("clockPoint.fields.name")}</Table.Th>

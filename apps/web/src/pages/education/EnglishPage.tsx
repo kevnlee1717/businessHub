@@ -446,7 +446,7 @@ export function EnglishPage() {
 
             <Paper withBorder radius="md">
               <ScrollArea>
-                <Table miw={780} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={780} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("englishLevel.fields.name")}</Table.Th>
@@ -518,7 +518,7 @@ export function EnglishPage() {
 
             <Paper withBorder radius="md">
               <ScrollArea>
-                <Table miw={900} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("englishClass.fields.level")}</Table.Th>
@@ -627,7 +627,7 @@ export function EnglishPage() {
                     ) : null}
 
                     <ScrollArea>
-                      <Table miw={700} verticalSpacing="sm" striped highlightOnHover>
+                      <Table miw={700} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                         <Table.Thead>
                           <Table.Tr>
                             <Table.Th>{t("englishEnrollment.fields.student")}</Table.Th>

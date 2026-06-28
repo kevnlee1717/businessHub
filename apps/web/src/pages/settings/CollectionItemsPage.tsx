@@ -173,7 +173,7 @@ export function CollectionItemsPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={820} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={820} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("collectionItem.fields.name")}</Table.Th>

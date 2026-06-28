@@ -844,7 +844,7 @@ export function DiplomaPage() {
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
         <Paper withBorder radius="md">
           <ScrollArea>
-            <Table miw={900} verticalSpacing="sm" striped highlightOnHover>
+            <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("diplomaCourse.fields.name")}</Table.Th>
@@ -962,7 +962,7 @@ export function DiplomaPage() {
               ) : null}
             </Group>
             <ScrollArea>
-              <Table miw={900} verticalSpacing="sm" striped highlightOnHover>
+              <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>{t("diploma.fields.student")}</Table.Th>

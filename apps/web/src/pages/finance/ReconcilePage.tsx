@@ -163,7 +163,7 @@ export function ReconcilePage() {
   function LedgerMiniTable({ rows }: { rows: LedgerEntry[] }) {
     return (
       <ScrollArea>
-        <Table striped highlightOnHover miw={560}>
+        <Table withTableBorder withColumnBorders highlightOnHover miw={560}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t("finance.fields.date")}</Table.Th>
@@ -209,7 +209,7 @@ export function ReconcilePage() {
   function StatementMiniTable({ rows }: { rows: BankStatementLine[] }) {
     return (
       <ScrollArea>
-        <Table striped highlightOnHover miw={520}>
+        <Table withTableBorder withColumnBorders highlightOnHover miw={520}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t("finance.fields.date")}</Table.Th>
@@ -325,7 +325,7 @@ export function ReconcilePage() {
         <Stack gap="sm">
           <Title order={4}>{t("finance.reconcile.suggestions")}</Title>
           <ScrollArea>
-            <Table striped highlightOnHover miw={820}>
+            <Table withTableBorder withColumnBorders highlightOnHover miw={820}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("finance.reconcile.systemEntry")}</Table.Th>

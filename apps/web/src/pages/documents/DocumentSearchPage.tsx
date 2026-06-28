@@ -230,7 +230,7 @@ export function DocumentSearchPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={900} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("document.fields.filename")}</Table.Th>

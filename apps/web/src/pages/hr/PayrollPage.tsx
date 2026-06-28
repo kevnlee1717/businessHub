@@ -235,7 +235,7 @@ export function PayrollPage() {
 
         <Paper withBorder radius="md">
           <ScrollArea>
-            <Table miw={920} verticalSpacing="sm" striped highlightOnHover>
+            <Table miw={920} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("payslip.fields.employee")}</Table.Th>
@@ -327,7 +327,7 @@ export function PayrollPage() {
 
         <Paper withBorder radius="md">
           <ScrollArea>
-            <Table miw={820} verticalSpacing="sm" striped highlightOnHover>
+            <Table miw={820} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("statutory.fields.type")}</Table.Th>
@@ -496,7 +496,7 @@ export function PayrollPage() {
           ) : null}
           <Paper withBorder radius="md">
             <ScrollArea>
-              <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+              <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>{t("commission.fields.billingId")}</Table.Th>

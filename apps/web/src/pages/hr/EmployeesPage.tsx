@@ -83,7 +83,7 @@ export function EmployeesPage() {
 
       <Paper withBorder radius="md">
         <ScrollArea>
-          <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+          <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("hr.employees.fields.name")}</Table.Th>

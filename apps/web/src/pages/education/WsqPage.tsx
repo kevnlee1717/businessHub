@@ -297,7 +297,7 @@ export function WsqPage() {
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
         <Paper withBorder radius="md">
           <ScrollArea>
-            <Table miw={760} verticalSpacing="sm" striped highlightOnHover>
+            <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t("wsq.course.fields.name")}</Table.Th>
@@ -383,7 +383,7 @@ export function WsqPage() {
             </Group>
             {selectedCourse ? (
               <ScrollArea>
-                <Table miw={460} verticalSpacing="sm" striped highlightOnHover>
+                <Table miw={460} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("wsq.enrollment.fields.student")}</Table.Th>
