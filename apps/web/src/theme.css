@@ -85,13 +85,21 @@ body {
   color: var(--side-text);
 }
 
+/* 去掉点击后残留的蓝色聚焦描边/阴影(element 侧栏没有,否则像浮空框) */
+.app-nav-link:focus,
+.app-nav-link:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .app-nav-link:hover {
   background: var(--side-hover);
 }
 
+/* 顶级激活项:整行底色铺满 + 蓝字(element-admin) */
 .app-nav-link[data-active] {
   color: var(--side-active-text);
-  background: transparent;
+  background: var(--side-hover);
 }
 
 .app-nav-link[data-active]:hover {
@@ -107,10 +115,10 @@ body {
   background: var(--side-submenu-hover);
 }
 
-/* 激活的子项:保持子菜单底色 + 蓝字(element-admin),不要露出父级底色 */
+/* 激活的子项:整行更深底色铺满 + 蓝字(element-admin) */
 .app-nav-sub[data-active],
 .app-nav-sub[data-active]:hover {
-  background: var(--side-submenu-bg);
+  background: var(--side-submenu-hover);
   color: var(--side-active-text);
 }
 
