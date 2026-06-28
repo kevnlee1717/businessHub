@@ -58,6 +58,7 @@ export const recruitmentMaterials = pgTable("recruitment_materials", {
   title: varchar("title", { length: 200 }).notNull(),
   textContent: text("text_content"),
   documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+  platforms: text("platforms").array(),
   aiGenerated: boolean("ai_generated").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -70,6 +71,8 @@ export const recruitmentPostings = pgTable("recruitment_postings", {
   platform: varchar("platform", { length: 120 }).notNull(),
   copyMaterialId: uuid("copy_material_id").references(() => recruitmentMaterials.id, { onDelete: "set null" }),
   imageMaterialId: uuid("image_material_id").references(() => recruitmentMaterials.id, { onDelete: "set null" }),
+  shareUrl: varchar("share_url", { length: 1024 }),
+  screenshotDocumentId: uuid("screenshot_document_id").references(() => documents.id, { onDelete: "set null" }),
   publishedOn: date("published_on").notNull(),
   status: recruitmentPostingStatusEnum("status").notNull().default("publishing"),
   ownerId: uuid("owner_id").notNull().references(() => employees.id),

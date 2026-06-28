@@ -24,6 +24,7 @@ import {
   Stack,
   Table,
   Tabs,
+  TagsInput,
   Text,
   TextInput,
   Textarea,
@@ -52,6 +53,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import { fileUrl } from "../../api/dms";
 import { listCompanies, listEmployees } from "../../api/hr";
 import {
   createRecruitmentCampaign,
@@ -82,6 +84,7 @@ import {
   updateRecruitmentJob,
   updateRecruitmentPosting,
   updateRecruitmentSettings,
+  uploadRecruitmentPostingScreenshot,
   type RecruitmentCampaign,
   type RecruitmentCandidate,
   type RecruitmentIndustry,
@@ -195,6 +198,11 @@ function useBaseOptions() {
 
 function optionLabel(options: Option[], value?: string | null) {
   return options.find((option) => option.value === value)?.label ?? "-";
+}
+
+function matchesPlatform(material: RecruitmentMaterial, platform: string) {
+  const platforms = material.platforms?.map((item) => item.trim().toLowerCase()).filter(Boolean) ?? [];
+  return platforms.length === 0 || platforms.includes(platform.trim().toLowerCase());
 }
 
 function FieldModal({
@@ -504,22 +512,64 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   const queryClient = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm();
+  const selectedJobId = String(form.values.job_id ?? "");
+  const selectedPlatform = String(form.values.platform ?? "");
   const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("platform-options"), queryFn: () => listRecruitmentPostings() });
+  const materialsQuery = useQuery({ queryKey: recruitmentKeys.job(selectedJobId), queryFn: () => getRecruitmentJob(selectedJobId), enabled: Boolean(selectedJobId && selectedPlatform) });
+  const [screenshotDocument, setScreenshotDocument] = useState(posting?.screenshot_document ?? null);
   const platformOptions = useMemo(
     () => Array.from(new Set((platformsQuery.data?.postings ?? []).map((row) => row.platform.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [platformsQuery.data?.postings]
+  );
+  const copyMaterialOptions = useMemo(
+    () =>
+      (materialsQuery.data?.materials ?? [])
+        .filter((material) => material.type === "copy" && matchesPlatform(material, selectedPlatform))
+        .map((material) => ({ value: material.id, label: material.title })),
+    [materialsQuery.data?.materials, selectedPlatform]
+  );
+  const imageMaterialOptions = useMemo(
+    () =>
+      (materialsQuery.data?.materials ?? [])
+        .filter((material) => material.type === "image" && matchesPlatform(material, selectedPlatform))
+        .map((material) => ({ value: material.id, label: material.title })),
+    [materialsQuery.data?.materials, selectedPlatform]
   );
   const mutation = useMutation({
     mutationFn: (body: Dict) => posting ? updateRecruitmentPosting(posting.id, body) : createRecruitmentPosting(body),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }); onClose(); }
   });
+  const screenshotMutation = useMutation({
+    mutationFn: (file: File) => uploadRecruitmentPostingScreenshot(posting?.id ?? "", file),
+    onSuccess: async (data) => {
+      setScreenshotDocument(data.posting.screenshot_document ?? null);
+      await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all });
+    }
+  });
   useMemo(() => {
-    if (opened) form.setValues({ company_id: posting?.company_id ?? base.companyOptions[0]?.value ?? "", job_id: posting?.job_id ?? jobId ?? "", platform: posting?.platform ?? "", published_on: posting?.published_on ?? toDateInput(new Date().toISOString()), status: posting?.status ?? "publishing", owner_id: posting?.owner_id ?? "", invite_clerk_id: posting?.invite_clerk_id ?? null, inquiry_count: posting?.inquiry_count ?? 0, notes: posting?.notes ?? "" });
+    if (opened) {
+      form.setValues({ company_id: posting?.company_id ?? base.companyOptions[0]?.value ?? "", job_id: posting?.job_id ?? jobId ?? "", platform: posting?.platform ?? "", published_on: posting?.published_on ?? toDateInput(new Date().toISOString()), status: posting?.status ?? "publishing", owner_id: posting?.owner_id ?? "", invite_clerk_id: posting?.invite_clerk_id ?? null, copy_material_id: posting?.copy_material_id ?? null, image_material_id: posting?.image_material_id ?? null, share_url: posting?.share_url ?? "", inquiry_count: posting?.inquiry_count ?? 0, notes: posting?.notes ?? "" });
+      setScreenshotDocument(posting?.screenshot_document ?? null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, posting?.id, base.companyOptions.length, jobId]);
+  const submitPosting = () => {
+    const body: Dict = {
+      ...form.values,
+      invite_clerk_id: emptyToNull(form.values.invite_clerk_id),
+      copy_material_id: emptyToNull(form.values.copy_material_id),
+      image_material_id: emptyToNull(form.values.image_material_id),
+      share_url: emptyToNull(form.values.share_url),
+      notes: emptyToNull(form.values.notes)
+    };
+    if (!posting) delete body.inquiry_count;
+    mutation.mutate(body);
+  };
+  const materialDisabled = !selectedJobId || !selectedPlatform;
+  const materialPlaceholder = materialDisabled ? "请先选岗位和平台" : undefined;
   return (
-    <FieldModal opened={opened} onClose={onClose} title={posting ? t("recruitment.postings.edit") : t("recruitment.postings.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, invite_clerk_id: emptyToNull(form.values.invite_clerk_id), notes: emptyToNull(form.values.notes) })}>
-      <ErrorAlert error={mutation.error ?? platformsQuery.error} />
+    <FieldModal opened={opened} onClose={onClose} title={posting ? t("recruitment.postings.edit") : t("recruitment.postings.add")} saving={mutation.isPending} onSubmit={submitPosting}>
+      <ErrorAlert error={mutation.error ?? platformsQuery.error ?? materialsQuery.error ?? screenshotMutation.error} />
       <Group grow align="flex-start">
         <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(posting)} />
         <CreatableCombobox
@@ -538,7 +588,10 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
       </Group>
       <Group grow><Autocomplete label={t("recruitment.fields.platform")} data={platformOptions} value={String(form.values.platform ?? "")} onChange={(v) => form.set("platform", v)} /><TextInput type="date" label={t("recruitment.fields.publishedOn")} value={String(form.values.published_on ?? "")} onChange={(e) => form.set("published_on", e.currentTarget.value)} /></Group>
       <Group grow><Select label={t("recruitment.fields.status")} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={String(form.values.status ?? "publishing")} onChange={(v) => form.set("status", v)} /><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><Select label={t("recruitment.fields.inviteClerk")} data={base.employeeOptions} value={(form.values.invite_clerk_id as string | null) ?? null} onChange={(v) => form.set("invite_clerk_id", v)} clearable searchable /></Group>
-      <NumberInput label={t("recruitment.fields.inquiryCount")} min={0} value={Number(form.values.inquiry_count ?? 0)} onChange={(v) => form.set("inquiry_count", v)} />
+      <Group grow><Select label={t("recruitment.fields.copyMaterial")} data={copyMaterialOptions} value={(form.values.copy_material_id as string | null) ?? null} onChange={(v) => form.set("copy_material_id", v)} disabled={materialDisabled} placeholder={materialPlaceholder} clearable searchable /><Select label={t("recruitment.fields.imageMaterial")} data={imageMaterialOptions} value={(form.values.image_material_id as string | null) ?? null} onChange={(v) => form.set("image_material_id", v)} disabled={materialDisabled} placeholder={materialPlaceholder} clearable searchable /></Group>
+      <TextInput label={t("recruitment.fields.shareUrl")} value={String(form.values.share_url ?? "")} onChange={(e) => form.set("share_url", e.currentTarget.value)} />
+      {posting ? <NumberInput label={t("recruitment.fields.inquiryCount")} min={0} value={Number(form.values.inquiry_count ?? 0)} onChange={(v) => form.set("inquiry_count", v)} /> : null}
+      {posting ? <Group><FileButton onChange={(file) => file && screenshotMutation.mutate(file)} accept="image/*">{(props) => <Button variant="light" loading={screenshotMutation.isPending} {...props}>{t("recruitment.fields.screenshot")}</Button>}</FileButton>{screenshotDocument ? <Anchor href={fileUrl(screenshotDocument.storage_path)} target="_blank" rel="noreferrer">{t("common.view")}</Anchor> : null}</Group> : null}
       <Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} />
     </FieldModal>
   );
@@ -547,10 +600,16 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
 function MaterialModal({ opened, onClose, job }: { opened: boolean; onClose: () => void; job: RecruitmentJob }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const form = useSimpleForm({ type: "copy", title: "", text_content: "", ai_generated: false });
+  const form = useSimpleForm({ type: "copy", title: "", text_content: "", platforms: [], ai_generated: false });
   const [file, setFile] = useState<File | null>(null);
+  const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("material-platform-options"), queryFn: () => listRecruitmentPostings() });
+  const platformOptions = useMemo(
+    () => Array.from(new Set((platformsQuery.data?.postings ?? []).map((row) => row.platform.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [platformsQuery.data?.postings]
+  );
   const mutation = useMutation({
     mutationFn: async () => {
+      const platforms = ((form.values.platforms as string[] | undefined) ?? []).map((item) => item.trim()).filter(Boolean);
       if (file) {
         const data = new FormData();
         data.set("company_id", job.company_id);
@@ -558,10 +617,11 @@ function MaterialModal({ opened, onClose, job }: { opened: boolean; onClose: () 
         data.set("type", String(form.values.type));
         data.set("title", String(form.values.title));
         if (form.values.text_content) data.set("text_content", String(form.values.text_content));
+        if (platforms.length > 0) data.set("platforms", JSON.stringify(platforms));
         data.set("file", file);
         return createRecruitmentMaterial(data);
       }
-      return createRecruitmentMaterial({ company_id: job.company_id, job_id: job.id, ...form.values, text_content: emptyToNull(form.values.text_content) });
+      return createRecruitmentMaterial({ company_id: job.company_id, job_id: job.id, ...form.values, platforms: platforms.length > 0 ? platforms : null, text_content: emptyToNull(form.values.text_content) });
     },
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(job.id) }); onClose(); }
   });
@@ -571,8 +631,9 @@ function MaterialModal({ opened, onClose, job }: { opened: boolean; onClose: () 
   });
   return (
     <FieldModal opened={opened} onClose={onClose} title={t("recruitment.materials.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate()}>
-      <ErrorAlert error={mutation.error ?? aiMutation.error} />
+      <ErrorAlert error={mutation.error ?? aiMutation.error ?? platformsQuery.error} />
       <Group grow><Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} /><TextInput label={t("recruitment.fields.title")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} /></Group>
+      <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={(value) => form.set("platforms", value)} />
       <Textarea label={t("recruitment.fields.textContent")} minRows={5} value={String(form.values.text_content ?? "")} onChange={(e) => form.set("text_content", e.currentTarget.value)} />
       <Group><Button variant="light" onClick={() => aiMutation.mutate()} loading={aiMutation.isPending}>{t("recruitment.materials.aiCopy")}</Button><FileButton onChange={setFile}>{(props) => <Button variant="light" {...props}>{file ? file.name : t("common.upload")}</Button>}</FileButton></Group>
     </FieldModal>

@@ -67,6 +67,21 @@ function nullableValue(value: unknown) {
   return value;
 }
 
+function arrayValue(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : value;
+  } catch {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+}
+
 function mustReturn<T>(row: T | undefined, error = "db_write_failed"): T {
   if (!row) {
     throw new Error(error);
@@ -151,13 +166,14 @@ function serializeMaterial(row: typeof recruitmentMaterials.$inferSelect) {
     title: row.title,
     text_content: row.textContent,
     document_id: row.documentId,
+    platforms: row.platforms,
     ai_generated: row.aiGenerated,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
 }
 
-function serializePosting(row: typeof recruitmentPostings.$inferSelect) {
+function serializePosting(row: typeof recruitmentPostings.$inferSelect, screenshotDocument?: typeof documents.$inferSelect | null) {
   return {
     id: row.id,
     company_id: row.companyId,
@@ -165,15 +181,33 @@ function serializePosting(row: typeof recruitmentPostings.$inferSelect) {
     platform: row.platform,
     copy_material_id: row.copyMaterialId,
     image_material_id: row.imageMaterialId,
+    share_url: row.shareUrl,
+    screenshot_document_id: row.screenshotDocumentId,
     published_on: row.publishedOn,
     status: row.status,
     owner_id: row.ownerId,
     invite_clerk_id: row.inviteClerkId,
     inquiry_count: row.inquiryCount,
     notes: row.notes,
+    screenshot_document: screenshotDocument
+      ? {
+          id: screenshotDocument.id,
+          storage_path: screenshotDocument.storagePath,
+          filename: screenshotDocument.filename,
+          mime: screenshotDocument.mime
+        }
+      : null,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
+}
+
+async function getScreenshotDocumentMap(rows: (typeof recruitmentPostings.$inferSelect)[]) {
+  const ids = [...new Set(rows.map((row) => row.screenshotDocumentId).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return new Map<string, typeof documents.$inferSelect>();
+
+  const screenshotRows = await db.select().from(documents).where(inArray(documents.id, ids));
+  return new Map(screenshotRows.map((document) => [document.id, document]));
 }
 
 function serializeCampaign(row: typeof recruitmentCampaigns.$inferSelect) {
@@ -336,6 +370,7 @@ async function parseMaterialBody(request: FastifyRequest) {
   const body = parseWithSchema(recruitmentMaterialCreateSchema, {
     ...fields,
     ai_generated: booleanValue(fields.ai_generated),
+    platforms: arrayValue(fields.platforms),
     document_id: fields.document_id ?? document?.id
   });
 
@@ -552,11 +587,16 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
 
     const offered = Number(funnelRows.find((row) => row.status === "offered")?.total ?? 0);
 
+    const screenshotMap = await getScreenshotDocumentMap(postings);
+    const serializedPostings = postings.map((posting) =>
+      serializePosting(posting, posting.screenshotDocumentId ? screenshotMap.get(posting.screenshotDocumentId) : null)
+    );
+
     return {
       job: serializeJob(job),
       resource: serializeJob(job),
       materials: materials.map(serializeMaterial),
-      postings: postings.map(serializePosting),
+      postings: serializedPostings,
       campaigns: campaignLinks.map((row) => serializeCampaign(row.campaign)),
       summary: {
         offered,
@@ -615,6 +655,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         title: body.title,
         textContent: body.text_content,
         documentId: body.document_id,
+        platforms: body.platforms,
         aiGenerated: body.ai_generated
       })
       .returning();
@@ -640,6 +681,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.title !== undefined) update.title = body.title;
     if (hasOwn(body, "text_content")) update.textContent = body.text_content;
     if (hasOwn(body, "document_id")) update.documentId = body.document_id;
+    if (hasOwn(body, "platforms")) update.platforms = body.platforms;
     if (body.ai_generated !== undefined) update.aiGenerated = body.ai_generated;
 
     const [material] = await db.update(recruitmentMaterials).set(update).where(eq(recruitmentMaterials.id, id)).returning();
@@ -678,7 +720,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       .from(recruitmentPostings)
       .where(filters.length ? and(...filters) : sql`true`)
       .orderBy(desc(recruitmentPostings.createdAt));
-    return { postings: rows.map(serializePosting), resources: rows.map(serializePosting) };
+    const screenshotMap = await getScreenshotDocumentMap(rows);
+    const postings = rows.map((row) => serializePosting(row, row.screenshotDocumentId ? screenshotMap.get(row.screenshotDocumentId) : null));
+    return { postings, resources: postings };
   });
 
   app.post("/recruitment/postings", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
@@ -692,6 +736,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         platform: body.platform,
         copyMaterialId: body.copy_material_id,
         imageMaterialId: body.image_material_id,
+        shareUrl: body.share_url,
         publishedOn: body.published_on,
         status: body.status,
         ownerId: body.owner_id,
@@ -716,6 +761,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.platform !== undefined) update.platform = body.platform;
     if (hasOwn(body, "copy_material_id")) update.copyMaterialId = body.copy_material_id;
     if (hasOwn(body, "image_material_id")) update.imageMaterialId = body.image_material_id;
+    if (hasOwn(body, "share_url")) update.shareUrl = body.share_url;
     if (body.published_on !== undefined) update.publishedOn = body.published_on;
     if (body.status !== undefined) update.status = body.status;
     if (body.owner_id !== undefined) update.ownerId = body.owner_id;
@@ -726,6 +772,34 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     const [posting] = await db.update(recruitmentPostings).set(update).where(eq(recruitmentPostings.id, id)).returning();
     const resource = serializePosting(mustReturn(posting));
     return { posting: resource, resource };
+  });
+
+  app.post("/recruitment/postings/:id/screenshot", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [existing] = await db.select().from(recruitmentPostings).where(eq(recruitmentPostings.id, id)).limit(1);
+    if (!existing) return sendNotFound(reply);
+    if (!(await assertCompanyAccess(request, reply, existing.companyId))) return;
+
+    let uploadedDocument: typeof documents.$inferSelect | null = null;
+    for await (const part of request.parts()) {
+      if (part.type !== "file" || uploadedDocument) continue;
+      const uploaded = await saveUpload(part, {
+        subjectType: "recruitment_posting_screenshot",
+        subjectId: id,
+        uploadedBy: request.user.id
+      });
+      uploadedDocument = mustReturn(uploaded, "recruitment_posting_screenshot_upload_failed");
+    }
+
+    if (!uploadedDocument) return reply.code(400).send({ error: "file_required" });
+
+    const [posting] = await db
+      .update(recruitmentPostings)
+      .set({ screenshotDocumentId: uploadedDocument.id, updatedAt: new Date() })
+      .where(eq(recruitmentPostings.id, id))
+      .returning();
+    const resource = serializePosting(mustReturn(posting), uploadedDocument);
+    return { posting: resource, resource, document: serializeDocument(uploadedDocument) };
   });
 
   app.get("/recruitment/campaigns", { preHandler: requirePerm("recruitment.view") }, async (request) => {

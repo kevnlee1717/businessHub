@@ -70,6 +70,7 @@ const recruitmentMaterialBaseSchema = z.object({
   title: z.string().trim().min(1).max(200),
   text_content: nullableOptionalText,
   document_id: nullableOptionalUuid,
+  platforms: z.array(z.string().trim().min(1)).nullable().optional(),
   ai_generated: z.boolean().optional()
 });
 
@@ -102,6 +103,7 @@ const recruitmentPostingBaseSchema = z.object({
   platform: z.string().trim().min(1).max(120),
   copy_material_id: nullableOptionalUuid,
   image_material_id: nullableOptionalUuid,
+  share_url: z.string().trim().max(1024).nullable().optional(),
   published_on: dateString,
   status: z.enum(recruitmentPostingStatuses).optional(),
   owner_id: uuidField,

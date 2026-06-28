@@ -64,6 +64,7 @@ export type RecruitmentMaterial = {
   title: string;
   text_content?: string | null;
   document_id?: string | null;
+  platforms?: string[] | null;
   ai_generated: boolean;
   created_at: string;
   updated_at: string;
@@ -76,6 +77,9 @@ export type RecruitmentPosting = {
   platform: string;
   copy_material_id?: string | null;
   image_material_id?: string | null;
+  share_url?: string | null;
+  screenshot_document_id?: string | null;
+  screenshot_document?: { id: string; storage_path: string; filename: string; mime?: string | null } | null;
   published_on: string;
   status: RecruitmentPostingStatus;
   owner_id: string;
@@ -230,6 +234,11 @@ export const createRecruitmentPosting = (body: unknown) =>
   api<{ posting: RecruitmentPosting }>("/recruitment/postings", { method: "POST", body });
 export const updateRecruitmentPosting = (id: string, body: unknown) =>
   api<{ posting: RecruitmentPosting }>(`/recruitment/postings/${id}`, { method: "PATCH", body });
+export const uploadRecruitmentPostingScreenshot = (id: string, file: File) => {
+  const data = new FormData();
+  data.set("file", file);
+  return apiForm<{ posting: RecruitmentPosting }>(`/recruitment/postings/${id}/screenshot`, data);
+};
 
 export const listRecruitmentCampaigns = (params: Record<string, unknown> = {}) =>
   api<{ campaigns: RecruitmentCampaign[] }>(`/recruitment/campaigns${qs(params)}`);
