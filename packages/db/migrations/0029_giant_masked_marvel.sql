@@ -1,0 +1,1 @@
+ALTER TABLE "recruitment_materials" ADD COLUMN "active" boolean DEFAULT true NOT NULL;

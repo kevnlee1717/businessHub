@@ -59,6 +59,7 @@ export const recruitmentMaterials = pgTable("recruitment_materials", {
   textContent: text("text_content"),
   documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
   platforms: text("platforms").array(),
+  active: boolean("active").notNull().default(true),
   aiGenerated: boolean("ai_generated").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()

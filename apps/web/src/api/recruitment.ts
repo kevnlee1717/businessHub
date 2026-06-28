@@ -65,7 +65,10 @@ export type RecruitmentMaterial = {
   text_content?: string | null;
   document_id?: string | null;
   platforms?: string[] | null;
+  active: boolean;
   ai_generated: boolean;
+  usage_count: number;
+  document?: { id: string; storage_path: string; filename: string; mime?: string | null } | null;
   created_at: string;
   updated_at: string;
 };
@@ -221,8 +224,10 @@ export const createRecruitmentMaterial = (body: unknown | FormData) =>
   body instanceof FormData
     ? apiForm<{ material: RecruitmentMaterial }>("/recruitment/materials", body)
     : api<{ material: RecruitmentMaterial }>("/recruitment/materials", { method: "POST", body });
-export const updateRecruitmentMaterial = (id: string, body: unknown) =>
-  api<{ material: RecruitmentMaterial }>(`/recruitment/materials/${id}`, { method: "PATCH", body });
+export const updateRecruitmentMaterial = (id: string, body: unknown | FormData) =>
+  body instanceof FormData
+    ? apiForm<{ material: RecruitmentMaterial }>(`/recruitment/materials/${id}`, body)
+    : api<{ material: RecruitmentMaterial }>(`/recruitment/materials/${id}`, { method: "PATCH", body });
 export const deleteRecruitmentMaterial = (id: string) =>
   api<null>(`/recruitment/materials/${id}`, { method: "DELETE" });
 export const generateRecruitmentCopy = (body: unknown) =>

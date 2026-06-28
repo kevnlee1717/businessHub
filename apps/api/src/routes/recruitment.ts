@@ -157,7 +157,11 @@ function serializeJob(row: typeof recruitmentJobs.$inferSelect) {
   };
 }
 
-function serializeMaterial(row: typeof recruitmentMaterials.$inferSelect) {
+function serializeMaterial(
+  row: typeof recruitmentMaterials.$inferSelect,
+  usageCount = 0,
+  document?: typeof documents.$inferSelect | null
+) {
   return {
     id: row.id,
     company_id: row.companyId,
@@ -167,10 +171,64 @@ function serializeMaterial(row: typeof recruitmentMaterials.$inferSelect) {
     text_content: row.textContent,
     document_id: row.documentId,
     platforms: row.platforms,
+    active: row.active,
     ai_generated: row.aiGenerated,
+    usage_count: usageCount,
+    document: document
+      ? {
+          id: document.id,
+          storage_path: document.storagePath,
+          filename: document.filename,
+          mime: document.mime
+        }
+      : null,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
+}
+
+async function getMaterialDocumentMap(rows: (typeof recruitmentMaterials.$inferSelect)[]) {
+  const ids = [...new Set(rows.map((row) => row.documentId).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return new Map<string, typeof documents.$inferSelect>();
+
+  const documentRows = await db.select().from(documents).where(inArray(documents.id, ids));
+  return new Map(documentRows.map((document) => [document.id, document]));
+}
+
+async function getMaterialUsageMap(materialIds: string[]) {
+  const usage = new Map<string, number>();
+  if (materialIds.length === 0) return usage;
+
+  const [copyRows, imageRows, campaignRows] = await Promise.all([
+    db
+      .select({ materialId: recruitmentPostings.copyMaterialId, total: count() })
+      .from(recruitmentPostings)
+      .where(inArray(recruitmentPostings.copyMaterialId, materialIds))
+      .groupBy(recruitmentPostings.copyMaterialId),
+    db
+      .select({ materialId: recruitmentPostings.imageMaterialId, total: count() })
+      .from(recruitmentPostings)
+      .where(inArray(recruitmentPostings.imageMaterialId, materialIds))
+      .groupBy(recruitmentPostings.imageMaterialId),
+    db
+      .select({ materialId: recruitmentCampaignMaterials.materialId, total: count() })
+      .from(recruitmentCampaignMaterials)
+      .where(inArray(recruitmentCampaignMaterials.materialId, materialIds))
+      .groupBy(recruitmentCampaignMaterials.materialId)
+  ]);
+
+  for (const row of [...copyRows, ...imageRows, ...campaignRows]) {
+    if (!row.materialId) continue;
+    usage.set(row.materialId, (usage.get(row.materialId) ?? 0) + Number(row.total));
+  }
+
+  return usage;
+}
+
+async function serializeMaterialsWithUsage(rows: (typeof recruitmentMaterials.$inferSelect)[]) {
+  const usageMap = await getMaterialUsageMap(rows.map((row) => row.id));
+  const documentMap = await getMaterialDocumentMap(rows);
+  return rows.map((row) => serializeMaterial(row, usageMap.get(row.id) ?? 0, row.documentId ? documentMap.get(row.documentId) : null));
 }
 
 function serializePosting(row: typeof recruitmentPostings.$inferSelect, screenshotDocument?: typeof documents.$inferSelect | null) {
@@ -369,6 +427,42 @@ async function parseMaterialBody(request: FastifyRequest) {
 
   const body = parseWithSchema(recruitmentMaterialCreateSchema, {
     ...fields,
+    active: booleanValue(fields.active),
+    ai_generated: booleanValue(fields.ai_generated),
+    platforms: arrayValue(fields.platforms),
+    document_id: fields.document_id ?? document?.id
+  });
+
+  return { body, document };
+}
+
+async function parseMaterialUpdateBody(request: FastifyRequest) {
+  if (!isMultipartRequest(request)) {
+    return {
+      body: parseWithSchema(recruitmentMaterialUpdateSchema, request.body),
+      document: null as typeof documents.$inferSelect | null
+    };
+  }
+
+  const fields: Record<string, unknown> = {};
+  let document: typeof documents.$inferSelect | null = null;
+
+  for await (const part of request.parts()) {
+    if (part.type === "file") {
+      const uploaded = await saveUpload(part, {
+        subjectType: "recruitment_material",
+        uploadedBy: request.user.id
+      });
+      document = mustReturn(uploaded, "recruitment_material_upload_failed");
+      continue;
+    }
+
+    fields[part.fieldname] = nullableValue(part.value);
+  }
+
+  const body = parseWithSchema(recruitmentMaterialUpdateSchema, {
+    ...fields,
+    active: booleanValue(fields.active),
     ai_generated: booleanValue(fields.ai_generated),
     platforms: arrayValue(fields.platforms),
     document_id: fields.document_id ?? document?.id
@@ -592,10 +686,12 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       serializePosting(posting, posting.screenshotDocumentId ? screenshotMap.get(posting.screenshotDocumentId) : null)
     );
 
+    const serializedMaterials = await serializeMaterialsWithUsage(materials);
+
     return {
       job: serializeJob(job),
       resource: serializeJob(job),
-      materials: materials.map(serializeMaterial),
+      materials: serializedMaterials,
       postings: serializedPostings,
       campaigns: campaignLinks.map((row) => serializeCampaign(row.campaign)),
       summary: {
@@ -639,7 +735,8 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (!(await assertCompanyAccess(request, reply, job.companyId))) return;
 
     const rows = await db.select().from(recruitmentMaterials).where(eq(recruitmentMaterials.jobId, id)).orderBy(desc(recruitmentMaterials.createdAt));
-    return { materials: rows.map(serializeMaterial), resources: rows.map(serializeMaterial) };
+    const materials = await serializeMaterialsWithUsage(rows);
+    return { materials, resources: materials };
   });
 
   app.post("/recruitment/materials", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
@@ -656,11 +753,12 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         textContent: body.text_content,
         documentId: body.document_id,
         platforms: body.platforms,
+        active: body.active,
         aiGenerated: body.ai_generated
       })
       .returning();
 
-    const resource = serializeMaterial(mustReturn(material));
+    const resource = serializeMaterial(mustReturn(material), 0, document);
     return reply.code(201).send({
       material: resource,
       resource,
@@ -670,7 +768,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
 
   app.patch("/recruitment/materials/:id", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    const body = parseWithSchema(recruitmentMaterialUpdateSchema, request.body);
+    const { body, document } = await parseMaterialUpdateBody(request);
     const [existing] = await db.select().from(recruitmentMaterials).where(eq(recruitmentMaterials.id, id)).limit(1);
     if (!existing) return sendNotFound(reply);
     if (!(await assertCompanyAccess(request, reply, existing.companyId))) return;
@@ -682,10 +780,14 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (hasOwn(body, "text_content")) update.textContent = body.text_content;
     if (hasOwn(body, "document_id")) update.documentId = body.document_id;
     if (hasOwn(body, "platforms")) update.platforms = body.platforms;
+    if (body.active !== undefined) update.active = body.active;
     if (body.ai_generated !== undefined) update.aiGenerated = body.ai_generated;
 
     const [material] = await db.update(recruitmentMaterials).set(update).where(eq(recruitmentMaterials.id, id)).returning();
-    const resource = serializeMaterial(mustReturn(material));
+    const usageMap = await getMaterialUsageMap([id]);
+    const savedMaterial = mustReturn(material);
+    const documentMap = document ? new Map([[document.id, document]]) : await getMaterialDocumentMap([savedMaterial]);
+    const resource = serializeMaterial(savedMaterial, usageMap.get(id) ?? 0, savedMaterial.documentId ? documentMap.get(savedMaterial.documentId) : null);
     return { material: resource, resource };
   });
 

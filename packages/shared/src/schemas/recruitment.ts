@@ -71,6 +71,7 @@ const recruitmentMaterialBaseSchema = z.object({
   text_content: nullableOptionalText,
   document_id: nullableOptionalUuid,
   platforms: z.array(z.string().trim().min(1)).nullable().optional(),
+  active: z.boolean().optional(),
   ai_generated: z.boolean().optional()
 });
 

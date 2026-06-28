@@ -1769,6 +1769,8 @@
       "nationalities": "Nationalities",
       "status": "Status",
       "priority": "Priority",
+      "active": "Active",
+      "inactive": "Inactive",
       "owner": "Owner",
       "inviteClerk": "Invite clerk",
       "type": "Type",
@@ -1781,6 +1783,7 @@
       "imageMaterial": "Image material",
       "shareUrl": "Share link",
       "screenshot": "Screenshot",
+      "usageCount": "Usage",
       "notes": "Notes",
       "job": "Job",
       "jobs": "Jobs",
@@ -1811,6 +1814,9 @@
     "materials": {
       "title": "Materials",
       "add": "New material",
+      "editMaterial": "Edit material",
+      "replaceImage": "Replace image",
+      "allPlatforms": "All",
       "aiCopy": "AI copy"
     },
     "postings": {
