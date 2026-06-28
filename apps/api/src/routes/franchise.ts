@@ -19,6 +19,7 @@ import {
   franchiseFnbSiteListQuerySchema,
   franchiseFnbSiteUpdateSchema,
   franchiseFnbVisitCreateSchema,
+  franchiseFnbVisitUpdateSchema,
   franchiseFnbVisitListQuerySchema,
   franchiseKpiQuerySchema,
   franchiseOrgCreateSchema,
@@ -28,11 +29,13 @@ import {
   franchisePropertyListQuerySchema,
   franchisePropertyUpdateSchema,
   franchisePropertyVisitCreateSchema,
+  franchisePropertyVisitUpdateSchema,
   franchisePropertyVisitListQuerySchema,
   franchiseVisitListQuerySchema
 } from "@bh/shared";
 import { and, asc, count, desc, eq, gte, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { endOfDate, idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
@@ -54,6 +57,11 @@ function pageLimit(query: { page?: number | undefined; page_size?: number | unde
   const limit = query.page_size ?? 100;
   return { limit, offset: ((query.page ?? 1) - 1) * limit };
 }
+
+const visitParamsSchema = z.object({
+  id: z.string().uuid(),
+  visitId: z.string().uuid()
+});
 
 async function assertCompanyAccess(request: FastifyRequest, reply: FastifyReply, companyId: string | null | undefined) {
   const companyIds = await getAccessibleCompanyIds(request);
@@ -160,13 +168,16 @@ function serializePropertySurvey(row: typeof franchisePropertySurveys.$inferSele
 
 function serializePropertyVisit(
   row: typeof franchisePropertyVisits.$inferSelect,
-  survey?: typeof franchisePropertySurveys.$inferSelect | null
+  survey?: typeof franchisePropertySurveys.$inferSelect | null,
+  site?: typeof franchiseProperties.$inferSelect | null
 ) {
   return {
     id: row.id,
     type: "property" as const,
     company_id: row.companyId,
     property_id: row.propertyId,
+    status: row.status,
+    planned_at: row.plannedAt,
     contact_id: row.contactId,
     by_employee_id: row.byEmployeeId,
     visited_at: row.visitedAt,
@@ -174,6 +185,9 @@ function serializePropertyVisit(
     services_pitched: row.servicesPitched,
     result: row.result,
     note: row.note,
+    site_name: site?.name ?? null,
+    site_status: site?.status ?? null,
+    site_address: site?.address ?? null,
     survey: serializePropertySurvey(survey),
     created_at: row.createdAt,
     updated_at: row.updatedAt
@@ -218,18 +232,27 @@ function serializeFnbSurvey(row: typeof franchiseFnbSurveys.$inferSelect | null 
   };
 }
 
-function serializeFnbVisit(row: typeof franchiseFnbVisits.$inferSelect, survey?: typeof franchiseFnbSurveys.$inferSelect | null) {
+function serializeFnbVisit(
+  row: typeof franchiseFnbVisits.$inferSelect,
+  survey?: typeof franchiseFnbSurveys.$inferSelect | null,
+  site?: typeof franchiseFnbSites.$inferSelect | null
+) {
   return {
     id: row.id,
     type: "fnb" as const,
     company_id: row.companyId,
     site_id: row.siteId,
+    status: row.status,
+    planned_at: row.plannedAt,
     contact_id: row.contactId,
     by_employee_id: row.byEmployeeId,
     visited_at: row.visitedAt,
     interest_level: row.interestLevel,
     result: row.result,
     note: row.note,
+    site_name: site?.name ?? null,
+    site_status: site?.status ?? null,
+    site_address: site?.location ?? null,
     survey: serializeFnbSurvey(survey),
     created_at: row.createdAt,
     updated_at: row.updatedAt
@@ -241,11 +264,13 @@ function visitDateFilters(
   to: string | undefined,
   employeeId: string | undefined,
   visitedAt: any,
-  byEmployeeId: any
+  byEmployeeId: any,
+  plannedAt?: any
 ) {
   const filters: SQL[] = [];
-  if (from) filters.push(gte(visitedAt, new Date(from)));
-  if (to) filters.push(lte(visitedAt, endOfDate(to)));
+  const eventAt = plannedAt ? sql`coalesce(${visitedAt}, ${plannedAt})` : visitedAt;
+  if (from) filters.push(gte(eventAt, new Date(from)));
+  if (to) filters.push(lte(eventAt, endOfDate(to)));
   if (employeeId) filters.push(eq(byEmployeeId, employeeId));
   return filters;
 }
@@ -436,13 +461,18 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
     const [property] = await db.select().from(franchiseProperties).where(eq(franchiseProperties.id, id)).limit(1);
     if (!property) return sendNotFound(reply);
     if (!(await assertCompanyAccess(request, reply, property.companyId))) return;
-    const filters = [eq(franchisePropertyVisits.propertyId, id), ...visitDateFilters(query.from, query.to, query.employee_id, franchisePropertyVisits.visitedAt, franchisePropertyVisits.byEmployeeId)];
+    const filters = [
+      eq(franchisePropertyVisits.propertyId, id),
+      ...visitDateFilters(query.from, query.to, query.employee_id, franchisePropertyVisits.visitedAt, franchisePropertyVisits.byEmployeeId, franchisePropertyVisits.plannedAt)
+    ];
+    if (query.status) filters.push(eq(franchisePropertyVisits.status, query.status));
+    if (query.interest_level) filters.push(eq(franchisePropertyVisits.interestLevel, query.interest_level));
     const rows = await db
       .select({ visit: franchisePropertyVisits, survey: franchisePropertySurveys })
       .from(franchisePropertyVisits)
       .leftJoin(franchisePropertySurveys, eq(franchisePropertySurveys.visitId, franchisePropertyVisits.id))
       .where(and(...filters))
-      .orderBy(desc(franchisePropertyVisits.visitedAt));
+      .orderBy(desc(sql`coalesce(${franchisePropertyVisits.visitedAt}, ${franchisePropertyVisits.plannedAt})`));
     const visits = rows.map((row) => serializePropertyVisit(row.visit, row.survey));
     return { visits, resources: visits };
   });
@@ -461,7 +491,9 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
           propertyId: id,
           contactId: body.contact_id,
           byEmployeeId: body.by_employee_id,
-          visitedAt: new Date(body.visited_at),
+          status: body.status ?? "planned",
+          plannedAt: body.planned_at ? new Date(body.planned_at) : body.visited_at ? new Date(body.visited_at) : null,
+          visitedAt: body.visited_at ? new Date(body.visited_at) : null,
           interestLevel: body.interest_level,
           servicesPitched: body.services_pitched,
           result: body.result,
@@ -486,6 +518,72 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
     });
     const resource = serializePropertyVisit(result.visit, result.survey);
     return reply.code(201).send({ visit: resource, resource });
+  });
+
+  app.patch("/franchise/properties/:id/visits/:visitId", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
+    const { id, visitId } = parseWithSchema(visitParamsSchema, request.params);
+    const [property] = await db.select().from(franchiseProperties).where(eq(franchiseProperties.id, id)).limit(1);
+    if (!property) return sendNotFound(reply);
+    if (!(await assertCompanyAccess(request, reply, property.companyId))) return;
+    const [existing] = await db
+      .select()
+      .from(franchisePropertyVisits)
+      .where(and(eq(franchisePropertyVisits.id, visitId), eq(franchisePropertyVisits.propertyId, id)))
+      .limit(1);
+    if (!existing) return sendNotFound(reply);
+    const body = parseWithSchema(franchisePropertyVisitUpdateSchema, request.body);
+    const result = await db.transaction(async (tx) => {
+      const update: Partial<typeof franchisePropertyVisits.$inferInsert> = { updatedAt: new Date() };
+      update.status = body.status ?? "completed";
+      if (hasOwn(body, "planned_at")) update.plannedAt = body.planned_at ? new Date(body.planned_at) : null;
+      update.visitedAt = body.visited_at ? new Date(body.visited_at) : new Date();
+      if (hasOwn(body, "contact_id")) update.contactId = body.contact_id;
+      if (body.by_employee_id !== undefined) update.byEmployeeId = body.by_employee_id;
+      if (hasOwn(body, "interest_level")) update.interestLevel = body.interest_level;
+      if (body.services_pitched !== undefined) update.servicesPitched = body.services_pitched;
+      if (hasOwn(body, "result")) update.result = body.result;
+      if (hasOwn(body, "note")) update.note = body.note;
+      const [visit] = await tx.update(franchisePropertyVisits).set(update).where(eq(franchisePropertyVisits.id, visitId)).returning();
+      const savedVisit = mustReturn(visit);
+      let survey: typeof franchisePropertySurveys.$inferSelect | null = null;
+      if (body.survey) {
+        const [existingSurvey] = await tx.select().from(franchisePropertySurveys).where(eq(franchisePropertySurveys.visitId, visitId)).limit(1);
+        if (existingSurvey) {
+          const [updatedSurvey] = await tx
+            .update(franchisePropertySurveys)
+            .set({ interestedServices: body.survey.interested_services, details: body.survey.details, updatedAt: new Date() })
+            .where(eq(franchisePropertySurveys.id, existingSurvey.id))
+            .returning();
+          survey = mustReturn(updatedSurvey);
+        } else {
+          const [savedSurvey] = await tx
+            .insert(franchisePropertySurveys)
+            .values({ companyId: property.companyId, visitId: savedVisit.id, interestedServices: body.survey.interested_services, details: body.survey.details })
+            .returning();
+          survey = mustReturn(savedSurvey);
+        }
+      }
+      let nextVisit: typeof franchisePropertyVisits.$inferSelect | null = null;
+      if (body.next_visit_at) {
+        const [created] = await tx
+          .insert(franchisePropertyVisits)
+          .values({
+            companyId: property.companyId,
+            propertyId: id,
+            contactId: savedVisit.contactId,
+            byEmployeeId: savedVisit.byEmployeeId,
+            status: "planned",
+            plannedAt: new Date(body.next_visit_at),
+            note: savedVisit.note
+          })
+          .returning();
+        nextVisit = mustReturn(created);
+      }
+      return { visit: savedVisit, survey, nextVisit };
+    });
+    const resource = serializePropertyVisit(result.visit, result.survey, property);
+    const next = result.nextVisit ? serializePropertyVisit(result.nextVisit, null, property) : null;
+    return { visit: resource, next_visit: next, resource };
   });
 
   app.get("/franchise/fnb-sites", { preHandler: requirePerm("franchise.view") }, async (request) => {
@@ -543,13 +641,18 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
     const [site] = await db.select().from(franchiseFnbSites).where(eq(franchiseFnbSites.id, id)).limit(1);
     if (!site) return sendNotFound(reply);
     if (!(await assertCompanyAccess(request, reply, site.companyId))) return;
-    const filters = [eq(franchiseFnbVisits.siteId, id), ...visitDateFilters(query.from, query.to, query.employee_id, franchiseFnbVisits.visitedAt, franchiseFnbVisits.byEmployeeId)];
+    const filters = [
+      eq(franchiseFnbVisits.siteId, id),
+      ...visitDateFilters(query.from, query.to, query.employee_id, franchiseFnbVisits.visitedAt, franchiseFnbVisits.byEmployeeId, franchiseFnbVisits.plannedAt)
+    ];
+    if (query.status) filters.push(eq(franchiseFnbVisits.status, query.status));
+    if (query.interest_level) filters.push(eq(franchiseFnbVisits.interestLevel, query.interest_level));
     const rows = await db
       .select({ visit: franchiseFnbVisits, survey: franchiseFnbSurveys })
       .from(franchiseFnbVisits)
       .leftJoin(franchiseFnbSurveys, eq(franchiseFnbSurveys.visitId, franchiseFnbVisits.id))
       .where(and(...filters))
-      .orderBy(desc(franchiseFnbVisits.visitedAt));
+      .orderBy(desc(sql`coalesce(${franchiseFnbVisits.visitedAt}, ${franchiseFnbVisits.plannedAt})`));
     const visits = rows.map((row) => serializeFnbVisit(row.visit, row.survey));
     return { visits, resources: visits };
   });
@@ -568,7 +671,9 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
           siteId: id,
           contactId: body.contact_id,
           byEmployeeId: body.by_employee_id,
-          visitedAt: new Date(body.visited_at),
+          status: body.status ?? "planned",
+          plannedAt: body.planned_at ? new Date(body.planned_at) : body.visited_at ? new Date(body.visited_at) : null,
+          visitedAt: body.visited_at ? new Date(body.visited_at) : null,
           interestLevel: body.interest_level,
           result: body.result,
           note: body.note
@@ -598,29 +703,124 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
     return reply.code(201).send({ visit: resource, resource });
   });
 
+  app.patch("/franchise/fnb-sites/:id/visits/:visitId", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
+    const { id, visitId } = parseWithSchema(visitParamsSchema, request.params);
+    const [site] = await db.select().from(franchiseFnbSites).where(eq(franchiseFnbSites.id, id)).limit(1);
+    if (!site) return sendNotFound(reply);
+    if (!(await assertCompanyAccess(request, reply, site.companyId))) return;
+    const [existing] = await db
+      .select()
+      .from(franchiseFnbVisits)
+      .where(and(eq(franchiseFnbVisits.id, visitId), eq(franchiseFnbVisits.siteId, id)))
+      .limit(1);
+    if (!existing) return sendNotFound(reply);
+    const body = parseWithSchema(franchiseFnbVisitUpdateSchema, request.body);
+    const result = await db.transaction(async (tx) => {
+      const update: Partial<typeof franchiseFnbVisits.$inferInsert> = { updatedAt: new Date() };
+      update.status = body.status ?? "completed";
+      if (hasOwn(body, "planned_at")) update.plannedAt = body.planned_at ? new Date(body.planned_at) : null;
+      update.visitedAt = body.visited_at ? new Date(body.visited_at) : new Date();
+      if (hasOwn(body, "contact_id")) update.contactId = body.contact_id;
+      if (body.by_employee_id !== undefined) update.byEmployeeId = body.by_employee_id;
+      if (hasOwn(body, "interest_level")) update.interestLevel = body.interest_level;
+      if (hasOwn(body, "result")) update.result = body.result;
+      if (hasOwn(body, "note")) update.note = body.note;
+      const [visit] = await tx.update(franchiseFnbVisits).set(update).where(eq(franchiseFnbVisits.id, visitId)).returning();
+      const savedVisit = mustReturn(visit);
+      let survey: typeof franchiseFnbSurveys.$inferSelect | null = null;
+      if (body.survey) {
+        const surveyValues = {
+          rentFixed: toNumeric(body.survey.rent_fixed),
+          rentRevenueSharePct: toNumeric(body.survey.rent_revenue_share_pct),
+          managementFee: toNumeric(body.survey.management_fee),
+          dishwashFee: toNumeric(body.survey.dishwash_fee),
+          contractExpiry: body.survey.contract_expiry,
+          extra: body.survey.extra,
+          updatedAt: new Date()
+        };
+        const [existingSurvey] = await tx.select().from(franchiseFnbSurveys).where(eq(franchiseFnbSurveys.visitId, visitId)).limit(1);
+        if (existingSurvey) {
+          const [updatedSurvey] = await tx.update(franchiseFnbSurveys).set(surveyValues).where(eq(franchiseFnbSurveys.id, existingSurvey.id)).returning();
+          survey = mustReturn(updatedSurvey);
+        } else {
+          const [savedSurvey] = await tx
+            .insert(franchiseFnbSurveys)
+            .values({ ...surveyValues, companyId: site.companyId, visitId: savedVisit.id })
+            .returning();
+          survey = mustReturn(savedSurvey);
+        }
+      }
+      let nextVisit: typeof franchiseFnbVisits.$inferSelect | null = null;
+      if (body.next_visit_at) {
+        const [created] = await tx
+          .insert(franchiseFnbVisits)
+          .values({
+            companyId: site.companyId,
+            siteId: id,
+            contactId: savedVisit.contactId,
+            byEmployeeId: savedVisit.byEmployeeId,
+            status: "planned",
+            plannedAt: new Date(body.next_visit_at),
+            note: savedVisit.note
+          })
+          .returning();
+        nextVisit = mustReturn(created);
+      }
+      return { visit: savedVisit, survey, nextVisit };
+    });
+    const resource = serializeFnbVisit(result.visit, result.survey, site);
+    const next = result.nextVisit ? serializeFnbVisit(result.nextVisit, null, site) : null;
+    return { visit: resource, next_visit: next, resource };
+  });
+
   app.get("/franchise/visits", { preHandler: requirePerm("franchise.view") }, async (request) => {
     const query = parseWithSchema(franchiseVisitListQuerySchema, request.query);
     const propertyAccess = await getAccessibleFilter(request, franchisePropertyVisits.companyId);
     const fnbAccess = await getAccessibleFilter(request, franchiseFnbVisits.companyId);
-    const propertyFilters = [...visitDateFilters(query.from, query.to, query.employee_id, franchisePropertyVisits.visitedAt, franchisePropertyVisits.byEmployeeId)];
-    const fnbFilters = [...visitDateFilters(query.from, query.to, query.employee_id, franchiseFnbVisits.visitedAt, franchiseFnbVisits.byEmployeeId)];
+    const propertyFilters = [
+      ...visitDateFilters(query.from, query.to, query.employee_id, franchisePropertyVisits.visitedAt, franchisePropertyVisits.byEmployeeId, franchisePropertyVisits.plannedAt)
+    ];
+    const fnbFilters = [
+      ...visitDateFilters(query.from, query.to, query.employee_id, franchiseFnbVisits.visitedAt, franchiseFnbVisits.byEmployeeId, franchiseFnbVisits.plannedAt)
+    ];
     if (propertyAccess) propertyFilters.push(propertyAccess);
     if (fnbAccess) fnbFilters.push(fnbAccess);
+    if (query.status) {
+      propertyFilters.push(eq(franchisePropertyVisits.status, query.status));
+      fnbFilters.push(eq(franchiseFnbVisits.status, query.status));
+    }
+    if (query.interest_level) {
+      propertyFilters.push(eq(franchisePropertyVisits.interestLevel, query.interest_level));
+      fnbFilters.push(eq(franchiseFnbVisits.interestLevel, query.interest_level));
+    }
+    if (query.site_status) {
+      propertyFilters.push(eq(franchiseProperties.status, query.site_status));
+      fnbFilters.push(eq(franchiseFnbSites.status, query.site_status));
+    }
+    if (query.q) {
+      const like = `%${query.q}%`;
+      propertyFilters.push(or(sql`${franchiseProperties.name} ilike ${like}`, sql`${franchiseProperties.address} ilike ${like}`)!);
+      fnbFilters.push(or(sql`${franchiseFnbSites.name} ilike ${like}`, sql`${franchiseFnbSites.location} ilike ${like}`)!);
+    }
     const [propertyRows, fnbRows] = await Promise.all([
       db
-        .select({ visit: franchisePropertyVisits, survey: franchisePropertySurveys })
+        .select({ visit: franchisePropertyVisits, survey: franchisePropertySurveys, site: franchiseProperties })
         .from(franchisePropertyVisits)
+        .innerJoin(franchiseProperties, eq(franchisePropertyVisits.propertyId, franchiseProperties.id))
         .leftJoin(franchisePropertySurveys, eq(franchisePropertySurveys.visitId, franchisePropertyVisits.id))
         .where(propertyFilters.length ? and(...propertyFilters) : sql`true`),
       db
-        .select({ visit: franchiseFnbVisits, survey: franchiseFnbSurveys })
+        .select({ visit: franchiseFnbVisits, survey: franchiseFnbSurveys, site: franchiseFnbSites })
         .from(franchiseFnbVisits)
+        .innerJoin(franchiseFnbSites, eq(franchiseFnbVisits.siteId, franchiseFnbSites.id))
         .leftJoin(franchiseFnbSurveys, eq(franchiseFnbSurveys.visitId, franchiseFnbVisits.id))
         .where(fnbFilters.length ? and(...fnbFilters) : sql`true`)
     ]);
-    const visits = [...propertyRows.map((row) => serializePropertyVisit(row.visit, row.survey)), ...fnbRows.map((row) => serializeFnbVisit(row.visit, row.survey))].sort(
-      (a, b) => new Date(b.visited_at).getTime() - new Date(a.visited_at).getTime()
-    );
+    const visits = [...propertyRows.map((row) => serializePropertyVisit(row.visit, row.survey, row.site)), ...fnbRows.map((row) => serializeFnbVisit(row.visit, row.survey, row.site))].sort((a, b) => {
+      const aTime = new Date(a.visited_at ?? a.planned_at ?? 0).getTime();
+      const bTime = new Date(b.visited_at ?? b.planned_at ?? 0).getTime();
+      return bTime - aTime;
+    });
     return { visits, resources: visits };
   });
 

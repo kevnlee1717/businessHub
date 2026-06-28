@@ -1768,6 +1768,8 @@
       "newContact": "New contact",
       "editContact": "Edit contact",
       "newVisit": "New visit",
+      "newVisitPlan": "New visit plan",
+      "completeVisit": "Complete visit",
       "selectContact": "Select contact",
       "clearContact": "Clear",
       "createOrgNamed": "Create {{name}}"
@@ -1801,6 +1803,11 @@
       "hasAircon": "Aircon",
       "contact": "Contact",
       "visitedAt": "Visited at",
+      "plannedAt": "Planned at",
+      "visitTime": "Visit time",
+      "visitStatus": "Visit status",
+      "site": "Site",
+      "siteStatus": "Deal status",
       "type": "Type",
       "interestLevel": "Interest",
       "servicesPitched": "Services pitched",
@@ -1827,6 +1834,12 @@
     "contactPicker": {
       "searchMode": "Search by name",
       "orgMode": "By organization"
+    },
+    "messages": {
+      "nextVisitCreated": "Next visit plan was created"
+    },
+    "errors": {
+      "siteRequired": "Select a site"
     },
     "survey": {
       "interestedServices": "Interested services",
@@ -1899,6 +1912,11 @@
       "following": "Following",
       "won": "Won",
       "abandoned": "Abandoned"
+    },
+    "visitStatus": {
+      "planned": "Planned",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
     },
     "interestLevel": {
       "high": "High",

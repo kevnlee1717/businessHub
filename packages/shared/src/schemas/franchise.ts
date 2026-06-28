@@ -9,6 +9,7 @@ import {
   franchisePropertyTypes,
   franchiseServices,
   franchiseSiteStatuses,
+  franchiseVisitStatuses,
   franchiseTriStates
 } from "../enums";
 
@@ -97,8 +98,11 @@ export const franchisePropertyVisitCreateSchema = z.object({
   property_id: uuidField.optional(),
   contact_id: nullableOptionalUuid,
   by_employee_id: uuidField,
-  visited_at: dateTimeString,
-  interest_level: z.enum(franchiseInterestLevels),
+  status: z.enum(franchiseVisitStatuses).optional(),
+  planned_at: dateTimeString.nullable().optional(),
+  visited_at: dateTimeString.nullable().optional(),
+  next_visit_at: dateTimeString.nullable().optional(),
+  interest_level: z.enum(franchiseInterestLevels).nullable().optional(),
   services_pitched: z.array(z.enum(franchiseServices)).optional(),
   result: nullableOptionalText,
   note: nullableOptionalText,
@@ -108,7 +112,11 @@ export const franchisePropertyVisitUpdateSchema = franchisePropertyVisitCreateSc
 export const franchisePropertyVisitListQuerySchema = z.object({
   from: dateString.optional(),
   to: dateString.optional(),
-  employee_id: optionalUuid
+  employee_id: optionalUuid,
+  status: z.enum(franchiseVisitStatuses).optional(),
+  q: optionalText,
+  interest_level: z.enum(franchiseInterestLevels).optional(),
+  site_status: z.enum(franchiseSiteStatuses).optional()
 });
 export const franchisePropertySurveyUpdateSchema = franchisePropertySurveyCreateSchema.partial();
 export const franchisePropertySurveyListQuerySchema = z.object({
@@ -151,8 +159,11 @@ export const franchiseFnbVisitCreateSchema = z.object({
   site_id: uuidField.optional(),
   contact_id: nullableOptionalUuid,
   by_employee_id: uuidField,
-  visited_at: dateTimeString,
-  interest_level: z.enum(franchiseInterestLevels),
+  status: z.enum(franchiseVisitStatuses).optional(),
+  planned_at: dateTimeString.nullable().optional(),
+  visited_at: dateTimeString.nullable().optional(),
+  next_visit_at: dateTimeString.nullable().optional(),
+  interest_level: z.enum(franchiseInterestLevels).nullable().optional(),
   result: nullableOptionalText,
   note: nullableOptionalText,
   survey: franchiseFnbSurveyCreateSchema.optional()

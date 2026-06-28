@@ -232,6 +232,13 @@
       "when": 1782657103517,
       "tag": "0032_dark_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782657607862,
+      "tag": "0033_careless_next_avengers",
+      "breakpoints": true
     }
   ]
 }

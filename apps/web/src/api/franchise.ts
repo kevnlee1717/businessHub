@@ -8,6 +8,7 @@ import {
   type FranchisePropertyType,
   type FranchiseService,
   type FranchiseSiteStatus,
+  type FranchiseVisitStatus,
   type FranchiseTriState
 } from "@bh/shared";
 import { api } from "./client";
@@ -103,13 +104,18 @@ export type FranchisePropertyVisit = {
   type: "property";
   company_id: string;
   property_id: string;
+  status: FranchiseVisitStatus;
+  planned_at?: string | null;
   contact_id?: string | null;
   by_employee_id: string;
-  visited_at: string;
-  interest_level: FranchiseInterestLevel;
+  visited_at?: string | null;
+  interest_level?: FranchiseInterestLevel | null;
   services_pitched?: FranchiseService[] | null;
   result?: string | null;
   note?: string | null;
+  site_name?: string | null;
+  site_status?: FranchiseSiteStatus | null;
+  site_address?: string | null;
   survey?: FranchisePropertySurvey | null;
   created_at: string;
   updated_at: string;
@@ -139,12 +145,17 @@ export type FranchiseFnbVisit = {
   type: "fnb";
   company_id: string;
   site_id: string;
+  status: FranchiseVisitStatus;
+  planned_at?: string | null;
   contact_id?: string | null;
   by_employee_id: string;
-  visited_at: string;
-  interest_level: FranchiseInterestLevel;
+  visited_at?: string | null;
+  interest_level?: FranchiseInterestLevel | null;
   result?: string | null;
   note?: string | null;
+  site_name?: string | null;
+  site_status?: FranchiseSiteStatus | null;
+  site_address?: string | null;
   survey?: FranchiseFnbSurvey | null;
   created_at: string;
   updated_at: string;
@@ -211,6 +222,8 @@ export const listFranchisePropertyVisits = (propertyId: string, params: Record<s
   api<{ visits: FranchisePropertyVisit[] }>(`/franchise/properties/${propertyId}/visits${qs(params)}`);
 export const createFranchisePropertyVisit = (propertyId: string, body: unknown) =>
   api<{ visit: FranchisePropertyVisit }>(`/franchise/properties/${propertyId}/visits`, { method: "POST", body });
+export const updateFranchisePropertyVisit = (propertyId: string, visitId: string, body: unknown) =>
+  api<{ visit: FranchisePropertyVisit; next_visit?: FranchisePropertyVisit | null }>(`/franchise/properties/${propertyId}/visits/${visitId}`, { method: "PATCH", body });
 
 export const listFranchiseFnbSites = (params: Record<string, unknown> = {}) =>
   api<{ sites: FranchiseFnbSite[]; fnb_sites?: FranchiseFnbSite[] }>(`/franchise/fnb-sites${qs(params)}`);
@@ -224,6 +237,8 @@ export const listFranchiseFnbVisits = (siteId: string, params: Record<string, un
   api<{ visits: FranchiseFnbVisit[] }>(`/franchise/fnb-sites/${siteId}/visits${qs(params)}`);
 export const createFranchiseFnbVisit = (siteId: string, body: unknown) =>
   api<{ visit: FranchiseFnbVisit }>(`/franchise/fnb-sites/${siteId}/visits`, { method: "POST", body });
+export const updateFranchiseFnbVisit = (siteId: string, visitId: string, body: unknown) =>
+  api<{ visit: FranchiseFnbVisit; next_visit?: FranchiseFnbVisit | null }>(`/franchise/fnb-sites/${siteId}/visits/${visitId}`, { method: "PATCH", body });
 
 export const listFranchiseVisits = (params: Record<string, unknown> = {}) =>
   api<{ visits: FranchiseVisit[] }>(`/franchise/visits${qs(params)}`);

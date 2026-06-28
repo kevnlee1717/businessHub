@@ -21,6 +21,7 @@ import {
   franchisePriorityEnum,
   franchisePropertyTypeEnum,
   franchiseSiteStatusEnum,
+  franchiseVisitStatusEnum,
   franchiseTriStateEnum
 } from "./enums";
 
@@ -83,8 +84,10 @@ export const franchisePropertyVisits = pgTable("franchise_property_visit", {
   propertyId: uuid("property_id").notNull().references(() => franchiseProperties.id, { onDelete: "cascade" }),
   contactId: uuid("contact_id").references(() => franchiseContacts.id, { onDelete: "set null" }),
   byEmployeeId: uuid("by_employee_id").notNull().references(() => employees.id),
-  visitedAt: timestamp("visited_at", { withTimezone: true }).notNull(),
-  interestLevel: franchiseInterestLevelEnum("interest_level").notNull(),
+  status: franchiseVisitStatusEnum("status").notNull().default("completed"),
+  plannedAt: timestamp("planned_at", { withTimezone: true }),
+  visitedAt: timestamp("visited_at", { withTimezone: true }),
+  interestLevel: franchiseInterestLevelEnum("interest_level"),
   servicesPitched: text("services_pitched").array(),
   result: text("result"),
   note: text("note"),
@@ -133,8 +136,10 @@ export const franchiseFnbVisits = pgTable("franchise_fnb_visit", {
   siteId: uuid("site_id").notNull().references(() => franchiseFnbSites.id, { onDelete: "cascade" }),
   contactId: uuid("contact_id").references(() => franchiseContacts.id, { onDelete: "set null" }),
   byEmployeeId: uuid("by_employee_id").notNull().references(() => employees.id),
-  visitedAt: timestamp("visited_at", { withTimezone: true }).notNull(),
-  interestLevel: franchiseInterestLevelEnum("interest_level").notNull(),
+  status: franchiseVisitStatusEnum("status").notNull().default("completed"),
+  plannedAt: timestamp("planned_at", { withTimezone: true }),
+  visitedAt: timestamp("visited_at", { withTimezone: true }),
+  interestLevel: franchiseInterestLevelEnum("interest_level"),
   result: text("result"),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

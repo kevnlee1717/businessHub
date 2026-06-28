@@ -32,6 +32,7 @@ import {
   franchisePropertyTypes,
   franchiseSiteStatuses,
   franchiseTriStates,
+  franchiseVisitStatuses,
   type FranchiseService
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -60,7 +61,9 @@ import {
   listFranchiseVisits,
   updateFranchiseContact,
   updateFranchiseFnbSite,
+  updateFranchiseFnbVisit,
   updateFranchiseProperty,
+  updateFranchisePropertyVisit,
   type FranchiseContact,
   type FranchiseFnbSite,
   type FranchiseOrg,
@@ -120,7 +123,7 @@ function badgeColor(value: string) {
   return "blue";
 }
 
-function StatusBadge({ value, ns }: { value?: string | null; ns: string }) {
+function StatusBadge({ value, ns }: { value?: string | null | undefined; ns: string }) {
   const { t } = useTranslation();
   if (!value) return <Text c="dimmed">-</Text>;
   return <Badge color={badgeColor(value)}>{t(`franchise.${ns}.${value}`)}</Badge>;
@@ -638,20 +641,100 @@ function ContactFormModal({ opened, onClose, contact }: { opened: boolean; onClo
   );
 }
 
-function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; onClose: () => void; mode: "property" | "fnb"; targetId: string }) {
-  const { i18n, t } = useTranslation();
+type VisitTarget = { type: "property" | "fnb"; id: string };
+
+function splitVisitTarget(value: unknown): VisitTarget | null {
+  if (typeof value !== "string") return null;
+  const [type, id] = value.split(":");
+  return (type === "property" || type === "fnb") && id ? { type, id } : null;
+}
+
+function visitTargetValue(target: VisitTarget) {
+  return `${target.type}:${target.id}`;
+}
+
+function visitTime(row: FranchiseVisit) {
+  return row.visited_at ?? row.planned_at ?? null;
+}
+
+function VisitPlanModal({
+  opened,
+  onClose,
+  fixedTarget
+}: {
+  opened: boolean;
+  onClose: () => void;
+  fixedTarget?: VisitTarget;
+}) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const base = useBaseOptions();
+  const propertiesQuery = useQuery({ queryKey: franchiseKeys.properties("plan-options"), queryFn: () => listFranchiseProperties(), enabled: opened && !fixedTarget });
+  const fnbSitesQuery = useQuery({ queryKey: franchiseKeys.fnbSites("plan-options"), queryFn: () => listFranchiseFnbSites(), enabled: opened && !fixedTarget });
+  const form = useSimpleForm({
+    target: fixedTarget ? visitTargetValue(fixedTarget) : "",
+    planned_at: new Date().toISOString().slice(0, 16),
+    by_employee_id: base.employeeOptions[0]?.value ?? "",
+    contact_id: null,
+    note: ""
+  });
+  const targetOptions = [
+    ...(propertiesQuery.data?.properties ?? []).map((property) => ({
+      value: visitTargetValue({ type: "property", id: property.id }),
+      label: `${t("franchise.visitType.property")} · ${property.name}${property.address ? ` · ${property.address}` : ""}`
+    })),
+    ...(fnbSitesQuery.data?.sites ?? []).map((site) => ({
+      value: visitTargetValue({ type: "fnb", id: site.id }),
+      label: `${t("franchise.visitType.fnb")} · ${site.name}${site.location ? ` · ${site.location}` : ""}`
+    }))
+  ];
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const target = splitVisitTarget(form.values.target) ?? fixedTarget;
+      if (!target) throw new Error(t("franchise.errors.siteRequired"));
+      const body = {
+        status: "planned",
+        planned_at: toApiDateTime(form.values.planned_at),
+        by_employee_id: form.values.by_employee_id || base.employeeOptions[0]?.value,
+        contact_id: form.values.contact_id,
+        note: emptyToNull(form.values.note)
+      };
+      return target.type === "property" ? createFranchisePropertyVisit(target.id, body) : createFranchiseFnbVisit(target.id, body);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: franchiseKeys.all });
+      onClose();
+    }
+  });
+
+  return (
+    <FieldModal opened={opened} onClose={onClose} title={t("franchise.actions.newVisitPlan")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="lg">
+      <ErrorAlert error={mutation.error ?? base.error ?? propertiesQuery.error ?? fnbSitesQuery.error} />
+      <SimpleGrid cols={{ base: 1, sm: 2 }}>
+        {fixedTarget ? null : (
+          <Select label={t("franchise.fields.site")} data={targetOptions} value={(form.values.target as string) || null} onChange={(v) => form.set("target", v ?? "")} searchable />
+        )}
+        <TextInput type="datetime-local" label={t("franchise.fields.plannedAt")} value={(form.values.planned_at as string) ?? ""} onChange={(e) => form.set("planned_at", e.currentTarget.value)} />
+        <SelectField label={t("franchise.fields.employee")} value={form.values.by_employee_id || base.employeeOptions[0]?.value} data={base.employeeOptions} onChange={(v) => form.set("by_employee_id", v)} clearable={false} />
+        <ContactPicker label={t("franchise.fields.contact")} value={form.values.contact_id as string | null | undefined} onChange={(v) => form.set("contact_id", v)} />
+      </SimpleGrid>
+      <Textarea label={t("franchise.fields.note")} value={(form.values.note as string) ?? ""} onChange={(e) => form.set("note", e.currentTarget.value)} />
+    </FieldModal>
+  );
+}
+
+function CompleteVisitModal({ opened, onClose, visit }: { opened: boolean; onClose: () => void; visit: FranchiseVisit | null }) {
+  const { i18n, t } = useTranslation();
+  const qc = useQueryClient();
   const [details, setDetails] = useState<PropertySurveyDetails>({});
   const form = useSimpleForm({
-    contact_id: null,
-    by_employee_id: base.employeeOptions[0]?.value ?? "",
     visited_at: new Date().toISOString().slice(0, 16),
     interest_level: "medium",
     services_pitched: [] as string[],
     interested_services: [] as string[],
     result: "",
     note: "",
+    next_visit_at: "",
     rent_fixed: "",
     rent_revenue_share_pct: "",
     management_fee: "",
@@ -661,17 +744,18 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
   });
   const mutation = useMutation<unknown, Error, void>({
     mutationFn: async () => {
+      if (!visit) return;
       const common = {
-        contact_id: form.values.contact_id,
-        by_employee_id: form.values.by_employee_id,
+        status: "completed",
         visited_at: toApiDateTime(form.values.visited_at),
         interest_level: form.values.interest_level,
         result: emptyToNull(form.values.result),
-        note: emptyToNull(form.values.note)
+        note: emptyToNull(form.values.note),
+        next_visit_at: form.values.next_visit_at ? toApiDateTime(form.values.next_visit_at) : null
       };
-      if (mode === "property") {
+      if (visit.type === "property") {
         const interestedServices = (form.values.interested_services as FranchiseService[]) ?? [];
-        return createFranchisePropertyVisit(targetId, {
+        return updateFranchisePropertyVisit(visit.property_id, visit.id, {
           ...common,
           services_pitched: interestedServices,
           survey: {
@@ -680,7 +764,7 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
           }
         });
       }
-      return createFranchiseFnbVisit(targetId, {
+      return updateFranchiseFnbVisit(visit.site_id, visit.id, {
         ...common,
         survey: {
           rent_fixed: emptyToNull(form.values.rent_fixed),
@@ -694,6 +778,7 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: franchiseKeys.all });
+      if (form.values.next_visit_at) window.alert(t("franchise.messages.nextVisitCreated"));
       onClose();
     }
   });
@@ -702,15 +787,13 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
   const interested = (form.values.interested_services as FranchiseService[]) ?? [];
 
   return (
-    <FieldModal opened={opened} onClose={onClose} title={t("franchise.actions.newVisit")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="xl">
-      <ErrorAlert error={mutation.error ?? base.error} />
+    <FieldModal opened={opened} onClose={onClose} title={t("franchise.actions.completeVisit")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="xl">
+      <ErrorAlert error={mutation.error} />
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <SelectField label={t("franchise.fields.contact")} value={form.values.contact_id} data={base.contactOptions} onChange={(v) => form.set("contact_id", v)} />
-        <SelectField label={t("franchise.fields.employee")} value={form.values.by_employee_id} data={base.employeeOptions} onChange={(v) => form.set("by_employee_id", v)} clearable={false} />
         <TextInput type="datetime-local" label={t("franchise.fields.visitedAt")} value={(form.values.visited_at as string) ?? ""} onChange={(e) => form.set("visited_at", e.currentTarget.value)} />
         <Select label={t("franchise.fields.interestLevel")} data={enumOptions(franchiseInterestLevels, "interestLevel", t)} value={(form.values.interest_level as string) ?? null} onChange={(v) => form.set("interest_level", v)} />
       </SimpleGrid>
-      {mode === "property" ? (
+      {visit?.type === "property" ? (
         <Stack gap="md">
           <Card withBorder radius="sm">
             <Text fw={600} mb="sm">{t("franchise.survey.interestedServices")}</Text>
@@ -732,6 +815,7 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
         <Textarea label={t("franchise.fields.result")} value={(form.values.result as string) ?? ""} onChange={(e) => form.set("result", e.currentTarget.value)} />
         <Textarea label={t("franchise.fields.note")} value={(form.values.note as string) ?? ""} onChange={(e) => form.set("note", e.currentTarget.value)} />
       </SimpleGrid>
+      <TextInput type="datetime-local" label={t("franchise.fields.nextVisitAt")} value={(form.values.next_visit_at as string) ?? ""} onChange={(e) => form.set("next_visit_at", e.currentTarget.value)} />
     </FieldModal>
   );
 }
@@ -797,7 +881,7 @@ export function PropertyDetailPageImpl() {
         {!property && propertiesQuery.isLoading ? <Loader /> : property ? (
           <>
             <Card withBorder radius="sm">
-              <Group justify="space-between" mb="md"><Text fw={700}>{property.name}</Text><Group><Button variant="light" onClick={() => setVisitOpen(true)}>{t("franchise.actions.newVisit")}</Button><Button onClick={() => setEditOpen(true)}>{t("common.edit")}</Button></Group></Group>
+              <Group justify="space-between" mb="md"><Text fw={700}>{property.name}</Text><Group><Button variant="light" onClick={() => setVisitOpen(true)}>{t("franchise.actions.newVisitPlan")}</Button><Button onClick={() => setEditOpen(true)}>{t("common.edit")}</Button></Group></Group>
               <SimpleGrid cols={{ base: 1, sm: 3 }}>
                 <Info label={t("franchise.fields.propertyType")} value={t(`franchise.propertyType.${property.property_type}`)} />
                 <Info label={t("franchise.fields.priority")} value={<StatusBadge value={property.priority} ns="priority" />} />
@@ -813,7 +897,7 @@ export function PropertyDetailPageImpl() {
             </Card>
             <VisitTable visits={visitsQuery.data?.visits ?? []} loading={visitsQuery.isLoading} />
             <PropertyFormModal opened={editOpen} onClose={() => setEditOpen(false)} property={property} />
-            <VisitFormModal opened={visitOpen} onClose={() => setVisitOpen(false)} mode="property" targetId={property.id} />
+            <VisitPlanModal opened={visitOpen} onClose={() => setVisitOpen(false)} fixedTarget={{ type: "property", id: property.id }} />
           </>
         ) : <Text c="dimmed">{t("common.not_found")}</Text>}
       </Stack>
@@ -880,7 +964,7 @@ export function FnbSiteDetailPageImpl() {
         {!site && sitesQuery.isLoading ? <Loader /> : site ? (
           <>
             <Card withBorder radius="sm">
-              <Group justify="space-between" mb="md"><Text fw={700}>{site.name}</Text><Group><Button variant="light" onClick={() => setVisitOpen(true)}>{t("franchise.actions.newVisit")}</Button><Button onClick={() => setEditOpen(true)}>{t("common.edit")}</Button></Group></Group>
+              <Group justify="space-between" mb="md"><Text fw={700}>{site.name}</Text><Group><Button variant="light" onClick={() => setVisitOpen(true)}>{t("franchise.actions.newVisitPlan")}</Button><Button onClick={() => setEditOpen(true)}>{t("common.edit")}</Button></Group></Group>
               <SimpleGrid cols={{ base: 1, sm: 3 }}>
                 <Info label={t("franchise.fields.org")} value={optionLabel(base.orgOptions, site.org_id)} />
                 <Info label={t("franchise.fields.priority")} value={<StatusBadge value={site.priority} ns="priority" />} />
@@ -895,7 +979,7 @@ export function FnbSiteDetailPageImpl() {
             </Card>
             <VisitTable visits={visitsQuery.data?.visits ?? []} loading={visitsQuery.isLoading} />
             <FnbSiteFormModal opened={editOpen} onClose={() => setEditOpen(false)} site={site} />
-            <VisitFormModal opened={visitOpen} onClose={() => setVisitOpen(false)} mode="fnb" targetId={site.id} />
+            <VisitPlanModal opened={visitOpen} onClose={() => setVisitOpen(false)} fixedTarget={{ type: "fnb", id: site.id }} />
           </>
         ) : <Text c="dimmed">{t("common.not_found")}</Text>}
       </Stack>
@@ -915,34 +999,75 @@ function Info({ label, value }: { label: string; value: React.ReactNode }) {
 function VisitTable({ visits, loading }: { visits: FranchiseVisit[]; loading: boolean }) {
   const { t } = useTranslation();
   const base = useBaseOptions();
-  const sorted = [...visits].sort((a, b) => new Date(b.visited_at).getTime() - new Date(a.visited_at).getTime());
+  const [completeVisit, setCompleteVisit] = useState<FranchiseVisit | null>(null);
+  const [viewVisit, setViewVisit] = useState<FranchiseVisit | null>(null);
+  const sorted = [...visits].sort((a, b) => new Date(visitTime(b) ?? 0).getTime() - new Date(visitTime(a) ?? 0).getTime());
   return (
     <Card withBorder radius="sm">
       <Text fw={600} mb="sm">{t("franchise.tabs.visits")}</Text>
       <Table withTableBorder withColumnBorders highlightOnHover>
-        <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.visitedAt")}</Table.Th><Table.Th>{t("franchise.fields.type")}</Table.Th><Table.Th>{t("franchise.fields.employee")}</Table.Th><Table.Th>{t("franchise.fields.interestLevel")}</Table.Th><Table.Th>{t("franchise.fields.result")}</Table.Th></Table.Tr></Table.Thead>
+        <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.visitTime")}</Table.Th><Table.Th>{t("franchise.fields.status")}</Table.Th><Table.Th>{t("franchise.fields.type")}</Table.Th><Table.Th>{t("franchise.fields.employee")}</Table.Th><Table.Th>{t("franchise.fields.interestLevel")}</Table.Th><Table.Th>{t("franchise.fields.result")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
-          {loading ? <LoadingRow colSpan={5} /> : sorted.length ? sorted.map((row) => (
+          {loading ? <LoadingRow colSpan={7} /> : sorted.length ? sorted.map((row) => (
             <Fragment key={row.id}>
               <Table.Tr key={row.id}>
-                <Table.Td>{fmt(row.visited_at)}</Table.Td>
+                <Table.Td>{fmt(visitTime(row))}</Table.Td>
+                <Table.Td><StatusBadge value={row.status} ns="visitStatus" /></Table.Td>
                 <Table.Td>{t(`franchise.visitType.${row.type}`)}</Table.Td>
                 <Table.Td>{optionLabel(base.employeeOptions, row.by_employee_id)}</Table.Td>
                 <Table.Td><StatusBadge value={row.interest_level} ns="interestLevel" /></Table.Td>
                 <Table.Td>{row.result ?? "-"}</Table.Td>
+                <Table.Td>{row.status === "planned" ? <Button size="xs" variant="light" onClick={() => setCompleteVisit(row)}>{t("franchise.actions.completeVisit")}</Button> : <Button size="xs" variant="subtle" onClick={() => setViewVisit(row)}>{t("common.view")}</Button>}</Table.Td>
               </Table.Tr>
               {row.type === "property" && row.survey?.details ? (
                 <Table.Tr key={`${row.id}-survey`}>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={7}>
                     <PropertySurveySummary details={row.survey.details} services={row.survey.interested_services ?? row.services_pitched} />
                   </Table.Td>
                 </Table.Tr>
               ) : null}
             </Fragment>
-          )) : <EmptyRow colSpan={5} />}
+          )) : <EmptyRow colSpan={7} />}
         </Table.Tbody>
       </Table>
+      <CompleteVisitModal opened={Boolean(completeVisit)} onClose={() => setCompleteVisit(null)} visit={completeVisit} />
+      <VisitDetailModal opened={Boolean(viewVisit)} onClose={() => setViewVisit(null)} visit={viewVisit} />
     </Card>
+  );
+}
+
+function VisitDetailModal({ opened, onClose, visit }: { opened: boolean; onClose: () => void; visit: FranchiseVisit | null }) {
+  const { t } = useTranslation();
+  const base = useBaseOptions();
+  return (
+    <Modal opened={opened} onClose={onClose} title={t("franchise.tabs.visits")} size="lg">
+      {visit ? (
+        <Stack gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
+            <Info label={t("franchise.fields.visitTime")} value={fmt(visitTime(visit))} />
+            <Info label={t("franchise.fields.visitStatus")} value={<StatusBadge value={visit.status} ns="visitStatus" />} />
+            <Info label={t("franchise.fields.type")} value={t(`franchise.visitType.${visit.type}`)} />
+            <Info label={t("franchise.fields.site")} value={visit.site_name ?? "-"} />
+            <Info label={t("franchise.fields.employee")} value={optionLabel(base.employeeOptions, visit.by_employee_id)} />
+            <Info label={t("franchise.fields.contact")} value={optionLabel(base.contactOptions, visit.contact_id)} />
+            <Info label={t("franchise.fields.interestLevel")} value={<StatusBadge value={visit.interest_level} ns="interestLevel" />} />
+            <Info label={t("franchise.fields.result")} value={visit.result ?? "-"} />
+            <Info label={t("franchise.fields.note")} value={visit.note ?? "-"} />
+          </SimpleGrid>
+          {visit.type === "property" ? (
+            <PropertySurveySummary details={visit.survey?.details} services={visit.survey?.interested_services ?? visit.services_pitched} />
+          ) : visit.survey ? (
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              <Info label={t("franchise.fields.rentFixed")} value={visit.survey.rent_fixed ?? "-"} />
+              <Info label={t("franchise.fields.rentRevenueSharePct")} value={visit.survey.rent_revenue_share_pct ?? "-"} />
+              <Info label={t("franchise.fields.managementFee")} value={visit.survey.management_fee ?? "-"} />
+              <Info label={t("franchise.fields.dishwashFee")} value={visit.survey.dishwash_fee ?? "-"} />
+              <Info label={t("franchise.fields.contractExpiry")} value={visit.survey.contract_expiry ? t(`franchise.contractExpiry.${visit.survey.contract_expiry}`) : "-"} />
+            </SimpleGrid>
+          ) : null}
+        </Stack>
+      ) : null}
+    </Modal>
   );
 }
 
@@ -1027,29 +1152,48 @@ export function ContactDetailPageImpl() {
 export function VisitsPageImpl() {
   const { t } = useTranslation();
   const base = useBaseOptions();
-  const [filters, setFilters] = useState({ from: "", to: "", employee_id: "" });
+  const [filters, setFilters] = useState({ from: "", to: "", employee_id: "", status: "", q: "", interest_level: "", site_status: "" });
   const [page, setPage] = useState(1);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [completeVisit, setCompleteVisit] = useState<FranchiseVisit | null>(null);
+  const [viewVisit, setViewVisit] = useState<FranchiseVisit | null>(null);
   const query = useQuery({ queryKey: franchiseKeys.visits(qsKey(filters)), queryFn: () => listFranchiseVisits(filters) });
   const visits = query.data?.visits ?? [];
   return (
     <Box p="md">
       <Group gap="sm" mb="md" wrap="wrap">
+        <TextInput w={220} label={t("franchise.filters.search")} value={filters.q} onChange={(e) => setFilters((v) => ({ ...v, q: e.currentTarget.value }))} />
+        <Select label={t("franchise.fields.visitStatus")} data={enumOptions(franchiseVisitStatuses, "visitStatus", t)} w={160} clearable value={filters.status || null} onChange={(value) => setFilters((v) => ({ ...v, status: value ?? "" }))} />
+        <Select label={t("franchise.fields.interestLevel")} data={enumOptions(franchiseInterestLevels, "interestLevel", t)} w={150} clearable value={filters.interest_level || null} onChange={(value) => setFilters((v) => ({ ...v, interest_level: value ?? "" }))} />
+        <Select label={t("franchise.fields.siteStatus")} data={enumOptions(franchiseSiteStatuses, "siteStatus", t)} w={160} clearable value={filters.site_status || null} onChange={(value) => setFilters((v) => ({ ...v, site_status: value ?? "" }))} />
+        <Select label={t("franchise.fields.employee")} data={base.employeeOptions} w={200} clearable searchable value={filters.employee_id || null} onChange={(value) => setFilters((v) => ({ ...v, employee_id: value ?? "" }))} />
         <TextInput type="date" w={170} label={t("franchise.filters.from")} value={filters.from} onChange={(e) => setFilters((v) => ({ ...v, from: e.currentTarget.value }))} />
         <TextInput type="date" w={170} label={t("franchise.filters.to")} value={filters.to} onChange={(e) => setFilters((v) => ({ ...v, to: e.currentTarget.value }))} />
-        <Select label={t("franchise.fields.employee")} data={base.employeeOptions} w={200} clearable searchable value={filters.employee_id || null} onChange={(value) => setFilters((v) => ({ ...v, employee_id: value ?? "" }))} />
+        <Button mt={24} onClick={() => setPlanOpen(true)}>{t("franchise.actions.newVisitPlan")}</Button>
       </Group>
       <ErrorAlert error={query.error ?? base.error} />
       <Table withTableBorder withColumnBorders highlightOnHover>
-        <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.visitedAt")}</Table.Th><Table.Th>{t("franchise.fields.type")}</Table.Th><Table.Th>{t("franchise.fields.employee")}</Table.Th><Table.Th>{t("franchise.fields.contact")}</Table.Th><Table.Th>{t("franchise.fields.interestLevel")}</Table.Th><Table.Th>{t("franchise.fields.result")}</Table.Th></Table.Tr></Table.Thead>
+        <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.visitTime")}</Table.Th><Table.Th>{t("franchise.fields.type")}</Table.Th><Table.Th>{t("franchise.fields.visitStatus")}</Table.Th><Table.Th>{t("franchise.fields.site")}</Table.Th><Table.Th>{t("franchise.fields.employee")}</Table.Th><Table.Th>{t("franchise.fields.contact")}</Table.Th><Table.Th>{t("franchise.fields.interestLevel")}</Table.Th><Table.Th>{t("franchise.fields.siteStatus")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
-          {query.isLoading ? <LoadingRow colSpan={6} /> : visits.length ? slicePage(visits, page).map((row) => (
+          {query.isLoading ? <LoadingRow colSpan={9} /> : visits.length ? slicePage(visits, page).map((row) => (
             <Table.Tr key={row.id}>
-              <Table.Td>{fmt(row.visited_at)}</Table.Td><Table.Td>{t(`franchise.visitType.${row.type}`)}</Table.Td><Table.Td>{optionLabel(base.employeeOptions, row.by_employee_id)}</Table.Td><Table.Td>{optionLabel(base.contactOptions, row.contact_id)}</Table.Td><Table.Td><StatusBadge value={row.interest_level} ns="interestLevel" /></Table.Td><Table.Td>{row.result ?? "-"}</Table.Td>
+              <Table.Td>{fmt(visitTime(row))}</Table.Td>
+              <Table.Td>{t(`franchise.visitType.${row.type}`)}</Table.Td>
+              <Table.Td><StatusBadge value={row.status} ns="visitStatus" /></Table.Td>
+              <Table.Td>{row.site_name ?? "-"}</Table.Td>
+              <Table.Td>{optionLabel(base.employeeOptions, row.by_employee_id)}</Table.Td>
+              <Table.Td>{optionLabel(base.contactOptions, row.contact_id)}</Table.Td>
+              <Table.Td><StatusBadge value={row.interest_level} ns="interestLevel" /></Table.Td>
+              <Table.Td><StatusBadge value={row.site_status} ns="siteStatus" /></Table.Td>
+              <Table.Td>{row.status === "planned" ? <Button size="xs" variant="light" onClick={() => setCompleteVisit(row)}>{t("franchise.actions.completeVisit")}</Button> : <Button size="xs" variant="subtle" onClick={() => setViewVisit(row)}>{t("common.view")}</Button>}</Table.Td>
             </Table.Tr>
-          )) : <EmptyRow colSpan={6} />}
+          )) : <EmptyRow colSpan={9} />}
         </Table.Tbody>
       </Table>
       <Pager total={visits.length} page={page} setPage={setPage} />
+      <VisitPlanModal opened={planOpen} onClose={() => setPlanOpen(false)} />
+      <CompleteVisitModal opened={Boolean(completeVisit)} onClose={() => setCompleteVisit(null)} visit={completeVisit} />
+      <VisitDetailModal opened={Boolean(viewVisit)} onClose={() => setViewVisit(null)} visit={viewVisit} />
     </Box>
   );
 }

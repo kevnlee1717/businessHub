@@ -255,6 +255,9 @@ export type FranchiseSiteStatus = (typeof franchiseSiteStatuses)[number];
 export const franchiseInterestLevels = ["high", "medium", "low"] as const;
 export type FranchiseInterestLevel = (typeof franchiseInterestLevels)[number];
 
+export const franchiseVisitStatuses = ["planned", "completed", "cancelled"] as const;
+export type FranchiseVisitStatus = (typeof franchiseVisitStatuses)[number];
+
 export const franchiseServices = [
   "vending_machine",
   "massage_chair",

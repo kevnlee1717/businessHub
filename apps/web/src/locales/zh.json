@@ -1768,6 +1768,8 @@
       "newContact": "新建联系人",
       "editContact": "编辑联系人",
       "newVisit": "新增拜访",
+      "newVisitPlan": "新建拜访计划",
+      "completeVisit": "完成拜访",
       "selectContact": "选择联系人",
       "clearContact": "清除",
       "createOrgNamed": "新建 {{name}}"
@@ -1801,6 +1803,11 @@
       "hasAircon": "冷气",
       "contact": "联系人",
       "visitedAt": "拜访时间",
+      "plannedAt": "计划拜访时间",
+      "visitTime": "拜访时间",
+      "visitStatus": "拜访状态",
+      "site": "场地",
+      "siteStatus": "成交状态",
       "type": "类型",
       "interestLevel": "意向",
       "servicesPitched": "已介绍项目",
@@ -1827,6 +1834,12 @@
     "contactPicker": {
       "searchMode": "按姓名搜索",
       "orgMode": "按公司/集团"
+    },
+    "messages": {
+      "nextVisitCreated": "已自动生成下次拜访计划"
+    },
+    "errors": {
+      "siteRequired": "请选择场地"
     },
     "survey": {
       "interestedServices": "② 感兴趣服务",
@@ -1899,6 +1912,11 @@
       "following": "跟进中",
       "won": "已成交",
       "abandoned": "已放弃"
+    },
+    "visitStatus": {
+      "planned": "计划",
+      "completed": "已完成",
+      "cancelled": "已取消"
     },
     "interestLevel": {
       "high": "高",

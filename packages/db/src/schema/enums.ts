@@ -39,6 +39,7 @@ import {
   franchisePropertyTypes,
   franchiseServices,
   franchiseSiteStatuses,
+  franchiseVisitStatuses,
   franchiseTriStates,
   genders,
   gpsTriggers,
@@ -144,5 +145,6 @@ export const franchiseDecisionMakerEnum = pgEnum("franchise_decision_maker", fra
 export const franchiseTriStateEnum = pgEnum("franchise_tri_state", franchiseTriStates);
 export const franchiseSiteStatusEnum = pgEnum("franchise_site_status", franchiseSiteStatuses);
 export const franchiseInterestLevelEnum = pgEnum("franchise_interest_level", franchiseInterestLevels);
+export const franchiseVisitStatusEnum = pgEnum("franchise_visit_status", franchiseVisitStatuses);
 export const franchiseServiceEnum = pgEnum("franchise_service", franchiseServices);
 export const franchiseContractExpiryEnum = pgEnum("franchise_contract_expiry", franchiseContractExpiries);
