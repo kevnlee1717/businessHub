@@ -10,7 +10,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
-import { NavLink as RouterNavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "../components/LanguageToggle";
 
@@ -77,7 +77,13 @@ export function AppShell() {
   const { t } = useTranslation();
   const [opened, { toggle }] = useDisclosure();
   const { user, logout } = useAuth();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
+  const section = pathname.startsWith("/finance") || pathname === "/" ? "finance" : "business";
+
+  function isActivePath(to: string) {
+    return to === "/" ? pathname === "/" : pathname.startsWith(to);
+  }
 
   async function handleLogout() {
     await logout();
@@ -85,69 +91,96 @@ export function AppShell() {
   }
 
   return (
-    <MantineAppShell
-      header={{ height: 56 }}
-      navbar={{
-        width: 240,
-        breakpoint: "sm",
-        collapsed: { mobile: !opened }
-      }}
-      padding="md"
-    >
-      <MantineAppShell.Header>
-        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-          <Group gap="sm" wrap="nowrap">
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Title order={3}>{t("app.title")}</Title>
+    <Box className="app-section" data-section={section}>
+      <MantineAppShell
+        header={{ height: 56 }}
+        navbar={{
+          width: 248,
+          breakpoint: "sm",
+          collapsed: { mobile: !opened }
+        }}
+        padding="md"
+        styles={{
+          header: {
+            background: "var(--app-surface)",
+            borderBottomColor: "var(--app-line)"
+          },
+          navbar: {
+            background: "var(--app-surface)",
+            borderRightColor: "var(--app-line)"
+          },
+          main: {
+            background: "var(--app-bg)"
+          }
+        }}
+      >
+        <MantineAppShell.Header>
+          <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+            <Group gap="sm" wrap="nowrap">
+              <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+              <Title order={3}>{t("app.title")}</Title>
+            </Group>
+            <Group gap="sm" wrap="nowrap">
+              <Text size="sm" c="var(--app-muted)" truncate maw={180}>
+                {user?.name ?? user?.email}
+              </Text>
+              <LanguageToggle />
+              <Button size="xs" variant="light" onClick={handleLogout}>
+                {t("auth.logout")}
+              </Button>
+            </Group>
           </Group>
-          <Group gap="sm" wrap="nowrap">
-            <Text size="sm" truncate maw={180}>
-              {user?.name ?? user?.email}
+        </MantineAppShell.Header>
+
+        <MantineAppShell.Navbar p="sm">
+          <Group gap="sm" mb="md" px="xs" py={6} wrap="nowrap">
+            <Box className="app-brand-mark">bH</Box>
+            <Text fw={800} size="lg" lh={1}>
+              businessHub
             </Text>
-            <LanguageToggle />
-            <Button size="xs" variant="light" onClick={handleLogout}>
-              {t("auth.logout")}
-            </Button>
           </Group>
-        </Group>
-      </MantineAppShell.Header>
+          {navItems.map((item) =>
+            "children" in item ? (
+              <NavLink
+                key={item.key}
+                label={t(item.key)}
+                childrenOffset={28}
+                defaultOpened={item.defaultOpened}
+                active={item.children.some((child) => isActivePath(child.to))}
+                className="app-nav-link"
+              >
+                {item.children.map((child) => (
+                  <NavLink
+                    key={child.to}
+                    component={RouterNavLink}
+                    to={child.to}
+                    label={t(child.key)}
+                    onClick={toggle}
+                    active={isActivePath(child.to)}
+                    className="app-nav-link"
+                  />
+                ))}
+              </NavLink>
+            ) : (
+              <NavLink
+                key={item.to}
+                component={RouterNavLink}
+                to={item.to}
+                label={t(item.key)}
+                onClick={toggle}
+                active={isActivePath(item.to)}
+                className="app-nav-link"
+              />
+            )
+          )}
+        </MantineAppShell.Navbar>
 
-      <MantineAppShell.Navbar p="sm">
-        {navItems.map((item) =>
-          "children" in item ? (
-            <NavLink
-              key={item.key}
-              label={t(item.key)}
-              childrenOffset={28}
-              defaultOpened={item.defaultOpened}
-            >
-              {item.children.map((child) => (
-                <NavLink
-                  key={child.to}
-                  component={RouterNavLink}
-                  to={child.to}
-                  label={t(child.key)}
-                  onClick={toggle}
-                />
-              ))}
-            </NavLink>
-          ) : (
-            <NavLink
-              key={item.to}
-              component={RouterNavLink}
-              to={item.to}
-              label={t(item.key)}
-              onClick={toggle}
-            />
-          )
-        )}
-      </MantineAppShell.Navbar>
-
-      <MantineAppShell.Main>
-        <Box maw={1200}>
-          <Outlet />
-        </Box>
-      </MantineAppShell.Main>
-    </MantineAppShell>
+        <MantineAppShell.Main>
+          <Box maw={1200}>
+            <Outlet />
+          </Box>
+        </MantineAppShell.Main>
+      </MantineAppShell>
+    </Box>
   );
 }

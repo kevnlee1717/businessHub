@@ -1,0 +1,103 @@
+:root,
+[data-section="business"] {
+  --app-bg: #ffffff;
+  --app-surface: #ffffff;
+  --app-line: #ececef;
+  --app-muted: #8a8a93;
+  --mantine-primary-color-filled: #18181b;
+  --mantine-primary-color-filled-hover: #2a2a2e;
+  --mantine-primary-color-light: #f4f4f5;
+  --mantine-primary-color-light-hover: #ececec;
+  --mantine-primary-color-light-color: #18181b;
+  --mantine-primary-color-contrast: #ffffff;
+}
+
+[data-section="finance"] {
+  --app-bg: #f6f9fc;
+  --app-surface: #ffffff;
+  --app-line: #e6ebf1;
+  --app-muted: #8792a2;
+  --mantine-primary-color-filled: #635bff;
+  --mantine-primary-color-filled-hover: #5249f5;
+  --mantine-primary-color-light: #f0f1ff;
+  --mantine-primary-color-light-hover: #e6e7ff;
+  --mantine-primary-color-light-color: #635bff;
+  --mantine-primary-color-contrast: #ffffff;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  scrollbar-color: #cfd5dd transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #cfd5dd;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-section {
+  min-height: 100vh;
+  background: var(--app-bg);
+}
+
+.app-brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--mantine-primary-color-contrast);
+  background: var(--mantine-primary-color-filled);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.app-nav-link {
+  border-radius: var(--mantine-radius-md);
+  color: var(--mantine-color-dark-7);
+}
+
+.app-nav-link:hover {
+  background: var(--mantine-color-gray-0);
+}
+
+.app-nav-link[data-active] {
+  color: var(--mantine-primary-color-light-color);
+  background: var(--mantine-primary-color-light);
+}
+
+.app-nav-link[data-active]:hover {
+  background: var(--mantine-primary-color-light-hover);
+}
+
+.app-nav-link .mantine-NavLink-label {
+  font-weight: 500;
+}
+
+.app-nav-link[data-active] .mantine-NavLink-label {
+  font-weight: 650;
+}

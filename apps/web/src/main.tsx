@@ -1,11 +1,17 @@
 import "@mantine/core/styles.css";
+import "./theme.css";
 import "./i18n";
 
 import {
+  Badge,
+  Button,
+  Card,
   createTheme,
   MantineProvider,
   MultiSelect,
+  Paper,
   Select,
+  Table,
 } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
@@ -17,7 +23,40 @@ import { AuthProvider } from "./auth/AuthContext";
 const queryClient = new QueryClient();
 const root = document.getElementById("root");
 const theme = createTheme({
+  fontFamily: '-apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  defaultRadius: "md",
+  primaryColor: "dark",
+  autoContrast: true,
   components: {
+    Paper: Paper.extend({
+      defaultProps: {
+        withBorder: true,
+        radius: "lg",
+        shadow: "xs",
+      },
+    }),
+    Card: Card.extend({
+      defaultProps: {
+        radius: "lg",
+        withBorder: true,
+      },
+    }),
+    Table: Table.extend({
+      defaultProps: {
+        verticalSpacing: "sm",
+        horizontalSpacing: "md",
+      },
+    }),
+    Button: Button.extend({
+      defaultProps: {
+        radius: "md",
+      },
+    }),
+    Badge: Badge.extend({
+      defaultProps: {
+        radius: "sm",
+      },
+    }),
     Select: Select.extend({
       defaultProps: {
         searchable: true,

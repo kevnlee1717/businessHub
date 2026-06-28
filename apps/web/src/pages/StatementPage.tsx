@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Container, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, Title } from "@mantine/core";
+import { Alert, Badge, Box, Button, Container, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
@@ -75,11 +75,13 @@ export function StatementPage() {
 
   if (statementQuery.isLoading) {
     return (
-      <Container py="xl">
-        <Group justify="center">
-          <Loader />
-        </Group>
-      </Container>
+      <Box className="app-section" data-section="finance">
+        <Container py="xl">
+          <Group justify="center">
+            <Loader />
+          </Group>
+        </Container>
+      </Box>
     );
   }
 
@@ -92,11 +94,13 @@ export function StatementPage() {
           : t("common.unknown_error");
 
     return (
-      <Container py="xl">
-        <Alert color="red" variant="light">
-          {message}
-        </Alert>
-      </Container>
+      <Box className="app-section" data-section="finance">
+        <Container py="xl">
+          <Alert color="red" variant="light">
+            {message}
+          </Alert>
+        </Container>
+      </Box>
     );
   }
 
@@ -106,81 +110,83 @@ export function StatementPage() {
   }
 
   return (
-    <Container size="lg" py="xl">
-      <Stack gap="lg">
-        <Group justify="space-between" align="flex-start">
-          <Stack gap={4}>
-            <Title order={2}>{displayName(statement.payee.name, statement.payee.name_en)}</Title>
-            <Text c="dimmed">
-              {displayName(statement.payee.role?.name, statement.payee.role?.name_en)}
-              {statement.payee.contact ? ` · ${statement.payee.contact}` : ""}
-            </Text>
-          </Stack>
-          <Button variant="light" onClick={() => window.print()}>
-            {t("statement.print")}
-          </Button>
-        </Group>
+    <Box className="app-section" data-section="finance">
+      <Container size="lg" py="xl">
+        <Stack gap="lg">
+          <Group justify="space-between" align="flex-start">
+            <Stack gap={4}>
+              <Title order={2}>{displayName(statement.payee.name, statement.payee.name_en)}</Title>
+              <Text c="dimmed">
+                {displayName(statement.payee.role?.name, statement.payee.role?.name_en)}
+                {statement.payee.contact ? ` · ${statement.payee.contact}` : ""}
+              </Text>
+            </Stack>
+            <Button variant="light" onClick={() => window.print()}>
+              {t("statement.print")}
+            </Button>
+          </Group>
 
-        <SimpleGrid cols={{ base: 1, sm: 3 }}>
-          <TotalCard label={t("statement.totals.total")} value={formatMoney(statement.totals.total)} />
-          <TotalCard label={t("statement.totals.settled")} value={formatMoney(statement.totals.settled)} />
-          <TotalCard label={t("statement.totals.outstanding")} value={formatMoney(statement.totals.outstanding)} />
-        </SimpleGrid>
+          <SimpleGrid cols={{ base: 1, sm: 3 }}>
+            <TotalCard label={t("statement.totals.total")} value={formatMoney(statement.totals.total)} />
+            <TotalCard label={t("statement.totals.settled")} value={formatMoney(statement.totals.settled)} />
+            <TotalCard label={t("statement.totals.outstanding")} value={formatMoney(statement.totals.outstanding)} />
+          </SimpleGrid>
 
-        <Paper withBorder radius="md">
-          <ScrollArea>
-            <Table miw={860} verticalSpacing="sm" striped>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("statement.fields.business")}</Table.Th>
-                  <Table.Th>{t("statement.fields.customer")}</Table.Th>
-                  <Table.Th>{t("statement.fields.dealAt")}</Table.Th>
-                  <Table.Th>{t("statement.fields.period")}</Table.Th>
-                  <Table.Th>{t("statement.fields.stage")}</Table.Th>
-                  <Table.Th>{t("statement.fields.payable")}</Table.Th>
-                  <Table.Th>{t("statement.fields.settled")}</Table.Th>
-                  <Table.Th>{t("statement.fields.outstanding")}</Table.Th>
-                  <Table.Th>{t("statement.fields.status")}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {statement.entries.length === 0 ? (
+          <Paper withBorder radius="md">
+            <ScrollArea>
+              <Table miw={860} verticalSpacing="sm" striped>
+                <Table.Thead>
                   <Table.Tr>
-                    <Table.Td colSpan={9}>
-                      <Text ta="center" c="dimmed" py="lg">
-                        {t("statement.empty")}
-                      </Text>
-                    </Table.Td>
+                    <Table.Th>{t("statement.fields.business")}</Table.Th>
+                    <Table.Th>{t("statement.fields.customer")}</Table.Th>
+                    <Table.Th>{t("statement.fields.dealAt")}</Table.Th>
+                    <Table.Th>{t("statement.fields.period")}</Table.Th>
+                    <Table.Th>{t("statement.fields.stage")}</Table.Th>
+                    <Table.Th>{t("statement.fields.payable")}</Table.Th>
+                    <Table.Th>{t("statement.fields.settled")}</Table.Th>
+                    <Table.Th>{t("statement.fields.outstanding")}</Table.Th>
+                    <Table.Th>{t("statement.fields.status")}</Table.Th>
                   </Table.Tr>
-                ) : (
-                  statement.entries.map((entry, index) => {
-                    const status = settlementStatus(entry);
+                </Table.Thead>
+                <Table.Tbody>
+                  {statement.entries.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={9}>
+                        <Text ta="center" c="dimmed" py="lg">
+                          {t("statement.empty")}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : (
+                    statement.entries.map((entry, index) => {
+                      const status = settlementStatus(entry);
 
-                    return (
-                      <Table.Tr key={entry.id ?? `${entry.billing_id ?? "entry"}-${index}`}>
-                        <Table.Td>{businessLabel(entry)}</Table.Td>
-                        <Table.Td>{displayName(entry.customer?.name, entry.customer?.name_en)}</Table.Td>
-                        <Table.Td>{formatDate(entry.billing?.deal_at)}</Table.Td>
-                        <Table.Td>{entry.period ?? "-"}</Table.Td>
-                        <Table.Td>{entry.note ?? "-"}</Table.Td>
-                        <Table.Td>{formatMoney(entry.amount_sgd)}</Table.Td>
-                        <Table.Td>{formatMoney(entry.amount_settled)}</Table.Td>
-                        <Table.Td>{formatMoney(entry.outstanding)}</Table.Td>
-                        <Table.Td>
-                          <Badge color={statusColor(status)} variant="light">
-                            {t(`statement.status.${status}`)}
-                          </Badge>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })
-                )}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
-        </Paper>
-      </Stack>
-    </Container>
+                      return (
+                        <Table.Tr key={entry.id ?? `${entry.billing_id ?? "entry"}-${index}`}>
+                          <Table.Td>{businessLabel(entry)}</Table.Td>
+                          <Table.Td>{displayName(entry.customer?.name, entry.customer?.name_en)}</Table.Td>
+                          <Table.Td>{formatDate(entry.billing?.deal_at)}</Table.Td>
+                          <Table.Td>{entry.period ?? "-"}</Table.Td>
+                          <Table.Td>{entry.note ?? "-"}</Table.Td>
+                          <Table.Td>{formatMoney(entry.amount_sgd)}</Table.Td>
+                          <Table.Td>{formatMoney(entry.amount_settled)}</Table.Td>
+                          <Table.Td>{formatMoney(entry.outstanding)}</Table.Td>
+                          <Table.Td>
+                            <Badge color={statusColor(status)} variant="light">
+                              {t(`statement.status.${status}`)}
+                            </Badge>
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })
+                  )}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Paper>
+        </Stack>
+      </Container>
+    </Box>
   );
 }
 
