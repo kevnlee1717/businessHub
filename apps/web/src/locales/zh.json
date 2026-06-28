@@ -118,7 +118,8 @@
       },
       "companyBreakeven": "本月需收入 ≥ {{amount}} 保本",
       "unitGap": "保本需 {{breakeven}} 单，缺口 {{gap}} 单",
-      "studentGap": "保本需招 {{breakeven}} 生，缺口 {{gap}} 生"
+      "studentGap": "保本需招 {{breakeven}} 生，缺口 {{gap}} 生",
+      "unitBasis": "按每单利润 {{profit}} 反推"
     },
     "whatIf": {
       "title": "现金流 what-if",

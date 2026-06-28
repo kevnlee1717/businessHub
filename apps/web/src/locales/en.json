@@ -118,7 +118,8 @@
       },
       "companyBreakeven": "Monthly revenue must be ≥ {{amount}} to break even",
       "unitGap": "Breakeven needs {{breakeven}} deals, gap {{gap}}",
-      "studentGap": "Breakeven needs {{breakeven}} students, gap {{gap}}"
+      "studentGap": "Breakeven needs {{breakeven}} students, gap {{gap}}",
+      "unitBasis": "Backsolved from {{profit}} profit per deal"
     },
     "whatIf": {
       "title": "Cashflow what-if",

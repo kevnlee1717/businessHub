@@ -794,9 +794,9 @@ export function DashboardPage() {
                     ) : (
                       <Text>{kpiText}</Text>
                     )}
-                    {row.note ? (
+                    {row.scope === "business" && row.per_unit_profit ? (
                       <Text size="sm" c="dimmed">
-                        {row.note}
+                        {t("dashboard.kpi.unitBasis", { profit: row.per_unit_profit })}
                       </Text>
                     ) : null}
                   </Stack>
