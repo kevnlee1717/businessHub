@@ -30,13 +30,12 @@ import {
   franchiseOrgTypes,
   franchisePriorities,
   franchisePropertyTypes,
-  franchiseServices,
   franchiseSiteStatuses,
   franchiseTriStates,
   type FranchiseService
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { listCompanies, listEmployees } from "../../api/hr";
@@ -70,19 +69,19 @@ import {
   type FranchiseProperty,
   type FranchiseVisit
 } from "../../api/franchise";
+import {
+  optionLabel as propertySurveyOptionLabel,
+  propertySurveyServices,
+  surveyLang,
+  visiblePropertySurveySections,
+  type PropertySurveyField
+} from "./propertySurvey";
 
 const pageSize = 10;
-const visitDetailKeys: Record<FranchiseService, string[]> = {
-  vending_machine: ["power", "traffic", "placement"],
-  massage_chair: ["space", "power", "revenue_share"],
-  cleaning_robot: ["floor_type", "area", "schedule"],
-  ai_mattress: ["room_count", "customer_profile", "trial_area"],
-  security: ["posts", "hours", "requirements"],
-  cleaning: ["area", "frequency", "scope"]
-};
 
 type Dict = Record<string, unknown>;
 type Option = { value: string; label: string };
+type PropertySurveyDetails = Record<string, Record<string, string | string[]>>;
 
 function qsKey(values: Record<string, unknown>) {
   return JSON.stringify(values);
@@ -245,6 +244,136 @@ function SelectField({
 
 function enumOptions(values: readonly string[], ns: string, t: (key: string) => string) {
   return values.map((value) => ({ value, label: t(`franchise.${ns}.${value}`) }));
+}
+
+function localizedOptions<T extends { value: string; label: { zh: string; en: string } }>(items: T[], lang: "zh" | "en") {
+  return items.map((item) => ({ value: item.value, label: item.label[lang] }));
+}
+
+function fieldVisible(field: PropertySurveyField, sectionValues: Record<string, string | string[]>) {
+  if (!field.showWhen) return true;
+  return sectionValues[field.showWhen.field] === field.showWhen.value;
+}
+
+function setSurveyField(
+  setDetails: React.Dispatch<React.SetStateAction<PropertySurveyDetails>>,
+  sectionKey: string,
+  fieldKey: string,
+  value: string | string[] | null
+) {
+  setDetails((current) => {
+    const section = { ...(current[sectionKey] ?? {}) };
+    if (value === null || (Array.isArray(value) && value.length === 0)) {
+      delete section[fieldKey];
+    } else {
+      section[fieldKey] = value;
+    }
+    return { ...current, [sectionKey]: section };
+  });
+}
+
+function buildVisibleSurveyDetails(details: PropertySurveyDetails, services: FranchiseService[]) {
+  const out: PropertySurveyDetails = {};
+  for (const section of visiblePropertySurveySections(services)) {
+    const current = details[section.key] ?? {};
+    const clean: Record<string, string | string[]> = {};
+    for (const field of section.fields) {
+      if (!fieldVisible(field, current)) continue;
+      const value = current[field.key];
+      if (value !== undefined && (!Array.isArray(value) || value.length > 0)) clean[field.key] = value;
+    }
+    if (Object.keys(clean).length > 0) out[section.key] = clean;
+  }
+  return out;
+}
+
+function PropertySurveyFields({
+  services,
+  details,
+  setDetails
+}: {
+  services: FranchiseService[];
+  details: PropertySurveyDetails;
+  setDetails: React.Dispatch<React.SetStateAction<PropertySurveyDetails>>;
+}) {
+  const { i18n } = useTranslation();
+  const lang = surveyLang(i18n.language);
+
+  return (
+    <>
+      {visiblePropertySurveySections(services).map((section) => {
+        const sectionValues = details[section.key] ?? {};
+        return (
+          <Card key={section.key} withBorder radius="sm">
+            <Text fw={600} mb="sm">{section.title[lang]}</Text>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              {section.fields.filter((field) => fieldVisible(field, sectionValues)).map((field) =>
+                field.type === "multi" ? (
+                  <MultiSelect
+                    key={field.key}
+                    label={field.label[lang]}
+                    data={localizedOptions(field.options, lang)}
+                    value={(sectionValues[field.key] as string[] | undefined) ?? []}
+                    onChange={(value) => setSurveyField(setDetails, section.key, field.key, value)}
+                  />
+                ) : (
+                  <Select
+                    key={field.key}
+                    label={field.label[lang]}
+                    data={localizedOptions(field.options, lang)}
+                    value={(sectionValues[field.key] as string | undefined) ?? null}
+                    onChange={(value) => setSurveyField(setDetails, section.key, field.key, value)}
+                    clearable
+                  />
+                )
+              )}
+            </SimpleGrid>
+          </Card>
+        );
+      })}
+    </>
+  );
+}
+
+function PropertySurveySummary({
+  details,
+  services
+}: {
+  details?: Record<string, unknown> | null | undefined;
+  services?: FranchiseService[] | null | undefined;
+}) {
+  const { i18n, t } = useTranslation();
+  const lang = surveyLang(i18n.language);
+  const selectedServices = services ?? [];
+  const values = (details ?? {}) as PropertySurveyDetails;
+  const sections = visiblePropertySurveySections(selectedServices).filter((section) => values[section.key]);
+
+  if (!sections.length) return null;
+
+  return (
+    <Stack gap="sm" mt="sm">
+      <Text size="sm" fw={600}>{t("franchise.survey.savedSurvey")}</Text>
+      {sections.map((section) => {
+        const sectionValues = values[section.key] ?? {};
+        const fields = section.fields.filter((field) => fieldVisible(field, sectionValues) && sectionValues[field.key] !== undefined);
+        if (!fields.length) return null;
+        return (
+          <Card key={section.key} withBorder radius="sm" p="sm">
+            <Text size="sm" fw={600} mb="xs">{section.title[lang]}</Text>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              {fields.map((field) => {
+                const value = sectionValues[field.key];
+                const display = Array.isArray(value)
+                  ? value.map((item) => propertySurveyOptionLabel(field, item, lang)).join(", ")
+                  : propertySurveyOptionLabel(field, String(value), lang);
+                return <Info key={field.key} label={field.label[lang]} value={display} />;
+              })}
+            </SimpleGrid>
+          </Card>
+        );
+      })}
+    </Stack>
+  );
 }
 
 function KpiCard({ label, value, note }: { label: string; value: string | number; note?: string }) {
@@ -497,10 +626,10 @@ function ContactFormModal({ opened, onClose, contact }: { opened: boolean; onClo
 }
 
 function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; onClose: () => void; mode: "property" | "fnb"; targetId: string }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const qc = useQueryClient();
   const base = useBaseOptions();
-  const [details, setDetails] = useState<Record<string, Record<string, string>>>({});
+  const [details, setDetails] = useState<PropertySurveyDetails>({});
   const form = useSimpleForm({
     contact_id: null,
     by_employee_id: base.employeeOptions[0]?.value ?? "",
@@ -528,12 +657,13 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
         note: emptyToNull(form.values.note)
       };
       if (mode === "property") {
+        const interestedServices = (form.values.interested_services as FranchiseService[]) ?? [];
         return createFranchisePropertyVisit(targetId, {
           ...common,
-          services_pitched: form.values.services_pitched,
+          services_pitched: interestedServices,
           survey: {
-            interested_services: form.values.interested_services,
-            details
+            interested_services: interestedServices,
+            details: buildVisibleSurveyDetails(details, interestedServices)
           }
         });
       }
@@ -554,7 +684,8 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
       onClose();
     }
   });
-  const serviceOptions = enumOptions(franchiseServices, "service", t);
+  const lang = surveyLang(i18n.language);
+  const serviceOptions = localizedOptions(propertySurveyServices, lang);
   const interested = (form.values.interested_services as FranchiseService[]) ?? [];
 
   return (
@@ -568,26 +699,11 @@ function VisitFormModal({ opened, onClose, mode, targetId }: { opened: boolean; 
       </SimpleGrid>
       {mode === "property" ? (
         <Stack gap="md">
-          <MultiSelect label={t("franchise.fields.servicesPitched")} data={serviceOptions} value={(form.values.services_pitched as string[]) ?? []} onChange={(v) => form.set("services_pitched", v)} />
           <Card withBorder radius="sm">
             <Text fw={600} mb="sm">{t("franchise.survey.interestedServices")}</Text>
             <MultiSelect data={serviceOptions} value={interested} onChange={(v) => form.set("interested_services", v)} />
           </Card>
-          {interested.map((service) => (
-            <Card key={service} withBorder radius="sm">
-              <Text fw={600} mb="sm">{t(`franchise.service.${service}`)}</Text>
-              <SimpleGrid cols={{ base: 1, sm: 3 }}>
-                {visitDetailKeys[service].map((key) => (
-                  <TextInput
-                    key={key}
-                    label={t(`franchise.survey.detail.${key}`)}
-                    value={details[service]?.[key] ?? ""}
-                    onChange={(event) => setDetails((current) => ({ ...current, [service]: { ...(current[service] ?? {}), [key]: event.currentTarget.value } }))}
-                  />
-                ))}
-              </SimpleGrid>
-            </Card>
-          ))}
+          <PropertySurveyFields services={interested} details={details} setDetails={setDetails} />
         </Stack>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -792,7 +908,22 @@ function VisitTable({ visits, loading }: { visits: FranchiseVisit[]; loading: bo
         <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.visitedAt")}</Table.Th><Table.Th>{t("franchise.fields.type")}</Table.Th><Table.Th>{t("franchise.fields.employee")}</Table.Th><Table.Th>{t("franchise.fields.interestLevel")}</Table.Th><Table.Th>{t("franchise.fields.result")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
           {loading ? <LoadingRow colSpan={5} /> : sorted.length ? sorted.map((row) => (
-            <Table.Tr key={row.id}><Table.Td>{fmt(row.visited_at)}</Table.Td><Table.Td>{t(`franchise.visitType.${row.type}`)}</Table.Td><Table.Td>{optionLabel(base.employeeOptions, row.by_employee_id)}</Table.Td><Table.Td><StatusBadge value={row.interest_level} ns="interestLevel" /></Table.Td><Table.Td>{row.result ?? "-"}</Table.Td></Table.Tr>
+            <Fragment key={row.id}>
+              <Table.Tr key={row.id}>
+                <Table.Td>{fmt(row.visited_at)}</Table.Td>
+                <Table.Td>{t(`franchise.visitType.${row.type}`)}</Table.Td>
+                <Table.Td>{optionLabel(base.employeeOptions, row.by_employee_id)}</Table.Td>
+                <Table.Td><StatusBadge value={row.interest_level} ns="interestLevel" /></Table.Td>
+                <Table.Td>{row.result ?? "-"}</Table.Td>
+              </Table.Tr>
+              {row.type === "property" && row.survey?.details ? (
+                <Table.Tr key={`${row.id}-survey`}>
+                  <Table.Td colSpan={5}>
+                    <PropertySurveySummary details={row.survey.details} services={row.survey.interested_services ?? row.services_pitched} />
+                  </Table.Td>
+                </Table.Tr>
+              ) : null}
+            </Fragment>
           )) : <EmptyRow colSpan={5} />}
         </Table.Tbody>
       </Table>

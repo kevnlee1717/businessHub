@@ -1822,6 +1822,7 @@
     },
     "survey": {
       "interestedServices": "Interested services",
+      "savedSurvey": "Saved survey",
       "detail": {
         "power": "Power",
         "traffic": "Traffic spot",

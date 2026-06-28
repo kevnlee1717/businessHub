@@ -1822,6 +1822,7 @@
     },
     "survey": {
       "interestedServices": "② 感兴趣服务",
+      "savedSurvey": "已填问券",
       "detail": {
         "power": "供电条件",
         "traffic": "人流位置",
