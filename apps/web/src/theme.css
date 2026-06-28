@@ -84,9 +84,17 @@ body {
 }
 
 .app-brand-row {
+  flex: 0 0 56px;
   height: 56px;
   padding: 0 16px;
   background: var(--side-logo-bg);
+}
+
+/* 菜单区可滚动(项目多时能滑动),顶栏 logo 行固定不被压缩 */
+.app-nav-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .app-brand-logo {

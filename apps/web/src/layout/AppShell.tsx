@@ -31,7 +31,6 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: "/", key: "nav.dashboard" },
-  { to: "/hr", key: "nav.hr" },
   {
     key: "nav.immigration",
     perm: "case.view",
@@ -52,6 +51,7 @@ const navItems: NavItem[] = [
       { to: "/education/academy-collection", key: "nav.academy_collection", perm: "education.view" }
     ]
   },
+  { to: "/franchise", key: "nav.franchise" },
   { to: "/documents", key: "nav.documents", perm: "document.view" },
   {
     key: "nav.finance",
@@ -79,6 +79,7 @@ const navItems: NavItem[] = [
       { to: "/business-finance/external-parties", key: "nav.external_parties", perm: "finance.view" }
     ]
   },
+  { to: "/hr", key: "nav.hr" },
   {
     key: "nav.settings",
     perm: "settings.manage",
@@ -248,7 +249,9 @@ export function AppShell() {
           },
           navbar: {
             background: "var(--side-bg)",
-            border: "none"
+            border: "none",
+            display: "flex",
+            flexDirection: "column"
           },
           main: {
             background: "var(--app-bg)"
@@ -301,6 +304,7 @@ export function AppShell() {
               BusinessHub
             </Text>
           </Group>
+          <Box className="app-nav-scroll">
           {visibleNavItems.map((item) =>
             "children" in item ? (
               <NavLink
@@ -335,6 +339,7 @@ export function AppShell() {
               />
             )
           )}
+          </Box>
         </MantineAppShell.Navbar>
 
         <MantineAppShell.Main>

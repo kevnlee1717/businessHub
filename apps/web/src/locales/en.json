@@ -5,6 +5,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "hr": "HR",
+    "franchise": "Franchise",
     "business": "Business",
     "immigration": "Immigration",
     "ep": "EP",
@@ -69,7 +70,8 @@
     "not_available": "-",
     "unknown_error": "Unknown error",
     "translated": "Translated",
-    "original": "Original"
+    "original": "Original",
+    "comingSoon": "Coming soon"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}",

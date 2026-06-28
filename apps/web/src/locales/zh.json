@@ -5,6 +5,7 @@
   "nav": {
     "dashboard": "仪表盘",
     "hr": "人事",
+    "franchise": "加盟业务",
     "business": "业务",
     "immigration": "移民业务",
     "ep": "EP",
@@ -69,7 +70,8 @@
     "not_available": "-",
     "unknown_error": "发生未知错误",
     "translated": "译",
-    "original": "原文"
+    "original": "原文",
+    "comingSoon": "敬请期待"
   },
   "dashboard": {
     "welcome": "欢迎，{{name}}",
