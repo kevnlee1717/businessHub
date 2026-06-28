@@ -3,6 +3,7 @@ import { businessCreateSchema, businessUpdateSchema } from "@bh/shared";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
@@ -48,6 +49,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   app.get("/businesses", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(businessQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) {
+      filters.push(accessFilter);
+    }
 
     if (query.company_id) {
       filters.push(eq(businesses.companyId, query.company_id));
@@ -78,6 +85,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
     if (!business) {
       return sendNotFound(reply);
+    }
+
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && !companyIds.includes(business.companyId)) {
+      return reply.code(403).send({ error: "forbidden" });
     }
 
     const versions = await db

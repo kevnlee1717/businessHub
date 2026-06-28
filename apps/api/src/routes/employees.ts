@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { and, eq, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, isUniqueViolation, parseWithSchema, sendConflict, sendNotFound } from "./hrUtils";
 
@@ -41,6 +42,12 @@ export async function registerEmployeeRoutes(app: FastifyInstance): Promise<void
   app.get("/employees", async (request) => {
     const query = parseWithSchema(employeeListQuerySchema, request.query);
     const conditions: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, employees.companyId);
+
+    if (accessFilter) {
+      conditions.push(accessFilter);
+    }
 
     if (query.status) {
       conditions.push(eq(employees.status, query.status));
@@ -68,6 +75,12 @@ export async function registerEmployeeRoutes(app: FastifyInstance): Promise<void
 
     if (!employee) {
       return sendNotFound(reply);
+    }
+
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && (!employee.companyId || !companyIds.includes(employee.companyId))) {
+      return reply.code(403).send({ error: "forbidden" });
     }
 
     return { employee: publicEmployee(employee) };

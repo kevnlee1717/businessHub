@@ -28,6 +28,7 @@ import { can } from "@bh/shared";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getVisibleCaseIds, loadAuthContext } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { refreshBillingCharges } from "./billing";
@@ -224,6 +225,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   app.get("/cases", { preHandler: requirePerm("case.view") }, async (request) => {
     const query = parseWithSchema(caseQuerySchema, request.query);
     const filters: SQL[] = [];
+    const ctx = await loadAuthContext(request);
 
     if (query.business_type) {
       filters.push(eq(cases.businessType, query.business_type));
@@ -238,6 +240,11 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       filters.push(eq(cases.parentCaseId, query.parent_case_id));
     } else {
       filters.push(isNull(cases.parentCaseId));
+    }
+
+    if (ctx.dataScope === "self") {
+      const visibleCaseIds = await getVisibleCaseIds(request.user.id);
+      filters.push(inArray(cases.id, visibleCaseIds.length ? visibleCaseIds : ["00000000-0000-0000-0000-000000000000"]));
     }
 
     const rows = await db
@@ -255,6 +262,16 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
 
     if (!caseRow) {
       return sendNotFound(reply);
+    }
+
+    const ctx = await loadAuthContext(request);
+
+    if (ctx.dataScope === "self") {
+      const visibleCaseIds = await getVisibleCaseIds(request.user.id);
+
+      if (!visibleCaseIds.includes(id)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
     }
 
     const stepRows = await db.select().from(caseSteps).where(eq(caseSteps.caseId, id)).orderBy(asc(caseSteps.stepOrder));

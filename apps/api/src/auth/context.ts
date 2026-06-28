@@ -1,6 +1,14 @@
-import { db, employees, companies, employeePermissionOverrides, employeeCompanyAccess } from "@bh/db";
+import {
+  billing,
+  cases,
+  db,
+  employees,
+  employeeCompanyAccess,
+  employeePermissionOverrides,
+  salesBusinessAssignments
+} from "@bh/db";
 import { computeEffectivePermissions, type DataScope, type Permission } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
 export type AuthContext = {
@@ -66,4 +74,37 @@ export async function loadAuthContext(request: FastifyRequest): Promise<AuthCont
 
 export async function getAccessibleCompanyIds(request: FastifyRequest): Promise<string[] | "all"> {
   return (await loadAuthContext(request)).companyIds;
+}
+
+export function companyFilter(companyIds: string[] | "all", column: any): SQL | undefined {
+  if (companyIds === "all") {
+    return undefined;
+  }
+
+  if (companyIds.length === 0) {
+    return sql`false`;
+  }
+
+  return inArray(column, companyIds);
+}
+
+export async function getVisibleCaseIds(userId: string): Promise<string[]> {
+  const assignedBusinesses = await db
+    .select({ businessId: salesBusinessAssignments.businessId })
+    .from(salesBusinessAssignments)
+    .where(and(eq(salesBusinessAssignments.salesId, userId), eq(salesBusinessAssignments.active, true)));
+  const assignedBusinessIds = assignedBusinesses.map((assignment) => assignment.businessId);
+  const filters: SQL[] = [eq(billing.salesId, userId)];
+
+  if (assignedBusinessIds.length > 0) {
+    filters.push(inArray(billing.businessId, assignedBusinessIds));
+  }
+
+  const rows = await db
+    .select({ id: cases.id })
+    .from(cases)
+    .leftJoin(billing, eq(cases.billingId, billing.id))
+    .where(or(...filters));
+
+  return rows.map((row) => row.id);
 }
