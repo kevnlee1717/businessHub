@@ -38,6 +38,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import { MapPicker } from "../../components/MapPicker";
 import { listEmployees } from "../../api/hr";
 import {
   createFranchiseContact,
@@ -100,6 +101,12 @@ function fmt(value?: string | null) {
 
 function emptyToNull(value: unknown) {
   return typeof value === "string" && value.trim() === "" ? null : value;
+}
+
+function numberOrNull(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const next = Number(value);
+  return Number.isFinite(next) ? next : null;
 }
 
 function optionLabel(options: Option[], value?: string | null) {
@@ -442,6 +449,9 @@ function PropertyFormModal({ opened, onClose, property }: { opened: boolean; onC
     name: property?.name ?? "",
     property_type: property?.property_type ?? "mall",
     address: property?.address ?? "",
+    lat: property?.lat ?? null,
+    lng: property?.lng ?? null,
+    unit_floor: property?.unit_floor ?? "",
     org_id: property?.org_id ?? null,
     is_vending_site: property?.is_vending_site ?? false,
     vending_note: property?.vending_note ?? "",
@@ -459,6 +469,9 @@ function PropertyFormModal({ opened, onClose, property }: { opened: boolean; onC
       const body = {
         ...form.values,
         address: emptyToNull(form.values.address),
+        lat: emptyToNull(form.values.lat),
+        lng: emptyToNull(form.values.lng),
+        unit_floor: emptyToNull(form.values.unit_floor),
         vending_note: emptyToNull(form.values.vending_note),
         relationship_note: emptyToNull(form.values.relationship_note)
       };
@@ -485,7 +498,18 @@ function PropertyFormModal({ opened, onClose, property }: { opened: boolean; onC
         <Checkbox label={t("franchise.fields.isVendingSite")} checked={Boolean(form.values.is_vending_site)} onChange={(e) => form.set("is_vending_site", e.currentTarget.checked)} />
         <ContactPicker label={t("franchise.fields.introducedBy")} value={form.values.introduced_by_contact_id as string | null | undefined} onChange={(v) => form.set("introduced_by_contact_id", v)} />
       </SimpleGrid>
+      <MapPicker
+        lat={numberOrNull(form.values.lat)}
+        lng={numberOrNull(form.values.lng)}
+        radius={0}
+        onChange={(lat, lng) => {
+          form.set("lat", lat);
+          form.set("lng", lng);
+        }}
+        onResolveAddress={(address) => form.set("address", address)}
+      />
       <Textarea label={t("franchise.fields.address")} value={(form.values.address as string) ?? ""} onChange={(e) => form.set("address", e.currentTarget.value)} />
+      <TextInput label={t("franchise.fields.unitFloor")} placeholder="#03-12" value={(form.values.unit_floor as string) ?? ""} onChange={(e) => form.set("unit_floor", e.currentTarget.value)} />
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
         <Textarea label={t("franchise.fields.vendingNote")} value={(form.values.vending_note as string) ?? ""} onChange={(e) => form.set("vending_note", e.currentTarget.value)} />
         <Textarea label={t("franchise.fields.relationshipNote")} value={(form.values.relationship_note as string) ?? ""} onChange={(e) => form.set("relationship_note", e.currentTarget.value)} />
@@ -502,6 +526,9 @@ function FnbSiteFormModal({ opened, onClose, site }: { opened: boolean; onClose:
     name: site?.name ?? "",
     org_id: site?.org_id ?? null,
     location: site?.location ?? "",
+    lat: site?.lat ?? null,
+    lng: site?.lng ?? null,
+    unit_floor: site?.unit_floor ?? "",
     has_aircon: site?.has_aircon ?? null,
     introduced_by_contact_id: site?.introduced_by_contact_id ?? null,
     relationship_note: site?.relationship_note ?? "",
@@ -511,7 +538,14 @@ function FnbSiteFormModal({ opened, onClose, site }: { opened: boolean; onClose:
   });
   const mutation = useMutation<unknown, Error, void>({
     mutationFn: async () => {
-      const body = { ...form.values, location: emptyToNull(form.values.location), relationship_note: emptyToNull(form.values.relationship_note) };
+      const body = {
+        ...form.values,
+        location: emptyToNull(form.values.location),
+        lat: emptyToNull(form.values.lat),
+        lng: emptyToNull(form.values.lng),
+        unit_floor: emptyToNull(form.values.unit_floor),
+        relationship_note: emptyToNull(form.values.relationship_note)
+      };
       return site ? updateFranchiseFnbSite(site.id, body) : createFranchiseFnbSite(body);
     },
     onSuccess: async () => {
@@ -531,7 +565,18 @@ function FnbSiteFormModal({ opened, onClose, site }: { opened: boolean; onClose:
         <Select label={t("franchise.fields.hasAircon")} data={enumOptions(franchiseTriStates.filter((v) => v !== "pending"), "triState", t)} value={form.values.has_aircon === true ? "yes" : form.values.has_aircon === false ? "no" : null} onChange={(v) => form.set("has_aircon", v === "yes" ? true : v === "no" ? false : null)} clearable />
         <ContactPicker label={t("franchise.fields.introducedBy")} value={form.values.introduced_by_contact_id as string | null | undefined} onChange={(v) => form.set("introduced_by_contact_id", v)} />
       </SimpleGrid>
+      <MapPicker
+        lat={numberOrNull(form.values.lat)}
+        lng={numberOrNull(form.values.lng)}
+        radius={0}
+        onChange={(lat, lng) => {
+          form.set("lat", lat);
+          form.set("lng", lng);
+        }}
+        onResolveAddress={(address) => form.set("location", address)}
+      />
       <Textarea label={t("franchise.fields.location")} value={(form.values.location as string) ?? ""} onChange={(e) => form.set("location", e.currentTarget.value)} />
+      <TextInput label={t("franchise.fields.unitFloor")} placeholder="#03-12" value={(form.values.unit_floor as string) ?? ""} onChange={(e) => form.set("unit_floor", e.currentTarget.value)} />
       <Textarea label={t("franchise.fields.relationshipNote")} value={(form.values.relationship_note as string) ?? ""} onChange={(e) => form.set("relationship_note", e.currentTarget.value)} />
     </FieldModal>
   );
@@ -761,6 +806,7 @@ export function PropertyDetailPageImpl() {
                 <Info label={t("franchise.fields.owner")} value={optionLabel(base.employeeOptions, property.owner_id)} />
                 <Info label={t("franchise.fields.introducedBy")} value={introducedBy?.name ?? "-"} />
                 <Info label={t("franchise.fields.address")} value={property.address ?? "-"} />
+                <Info label={t("franchise.fields.unitFloor")} value={property.unit_floor ?? "-"} />
                 <Info label={t("franchise.fields.relationshipNote")} value={property.relationship_note ?? "-"} />
                 <Info label={t("franchise.fields.vendingNote")} value={property.vending_note ?? "-"} />
               </SimpleGrid>
@@ -843,6 +889,7 @@ export function FnbSiteDetailPageImpl() {
                 <Info label={t("franchise.fields.hasAircon")} value={site.has_aircon === null || site.has_aircon === undefined ? "-" : t(site.has_aircon ? "common.yes" : "common.no")} />
                 <Info label={t("franchise.fields.introducedBy")} value={introducedBy?.name ?? "-"} />
                 <Info label={t("franchise.fields.location")} value={site.location ?? "-"} />
+                <Info label={t("franchise.fields.unitFloor")} value={site.unit_floor ?? "-"} />
                 <Info label={t("franchise.fields.relationshipNote")} value={site.relationship_note ?? "-"} />
               </SimpleGrid>
             </Card>

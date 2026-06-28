@@ -1791,6 +1791,7 @@
       "status": "Status",
       "address": "Address",
       "location": "Location",
+      "unitFloor": "Floor/unit",
       "isVendingSite": "600-machine vending site",
       "vendingNote": "Vending note",
       "relationshipNote": "Relationship note",

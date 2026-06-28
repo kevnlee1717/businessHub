@@ -56,6 +56,9 @@ export type FranchiseProperty = {
   name: string;
   property_type: FranchisePropertyType;
   address?: string | null;
+  lat?: string | number | null;
+  lng?: string | number | null;
+  unit_floor?: string | null;
   org_id?: string | null;
   is_vending_site: boolean;
   vending_note?: string | null;
@@ -118,6 +121,9 @@ export type FranchiseFnbSite = {
   name: string;
   org_id?: string | null;
   location?: string | null;
+  lat?: string | number | null;
+  lng?: string | number | null;
+  unit_floor?: string | null;
   has_aircon?: boolean | null;
   introduced_by_contact_id?: string | null;
   relationship_note?: string | null;

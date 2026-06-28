@@ -225,6 +225,13 @@
       "when": 1782655248088,
       "tag": "0031_low_blazing_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782657103517,
+      "tag": "0032_dark_silver_samurai",
+      "breakpoints": true
     }
   ]
 }

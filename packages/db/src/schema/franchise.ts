@@ -57,6 +57,9 @@ export const franchiseProperties = pgTable("franchise_property", {
   name: varchar("name", { length: 200 }).notNull(),
   propertyType: franchisePropertyTypeEnum("property_type").notNull(),
   address: text("address"),
+  lat: numeric("lat", { precision: 10, scale: 7 }),
+  lng: numeric("lng", { precision: 10, scale: 7 }),
+  unitFloor: varchar("unit_floor", { length: 64 }),
   orgId: uuid("org_id").references(() => franchiseOrgs.id, { onDelete: "set null" }),
   isVendingSite: boolean("is_vending_site").notNull().default(false),
   vendingNote: text("vending_note"),
@@ -109,6 +112,9 @@ export const franchiseFnbSites = pgTable("franchise_fnb_site", {
   name: varchar("name", { length: 200 }).notNull(),
   orgId: uuid("org_id").references(() => franchiseOrgs.id, { onDelete: "set null" }),
   location: text("location"),
+  lat: numeric("lat", { precision: 10, scale: 7 }),
+  lng: numeric("lng", { precision: 10, scale: 7 }),
+  unitFloor: varchar("unit_floor", { length: 64 }),
   hasAircon: boolean("has_aircon"),
   introducedByContactId: uuid("introduced_by_contact_id").references((): AnyPgColumn => franchiseContacts.id, {
     onDelete: "set null"

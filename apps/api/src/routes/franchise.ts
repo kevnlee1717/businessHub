@@ -126,6 +126,9 @@ function serializeProperty(row: typeof franchiseProperties.$inferSelect) {
     name: row.name,
     property_type: row.propertyType,
     address: row.address,
+    lat: row.lat,
+    lng: row.lng,
+    unit_floor: row.unitFloor,
     org_id: row.orgId,
     is_vending_site: row.isVendingSite,
     vending_note: row.vendingNote,
@@ -184,6 +187,9 @@ function serializeFnbSite(row: typeof franchiseFnbSites.$inferSelect) {
     name: row.name,
     org_id: row.orgId,
     location: row.location,
+    lat: row.lat,
+    lng: row.lng,
+    unit_floor: row.unitFloor,
     has_aircon: row.hasAircon,
     introduced_by_contact_id: row.introducedByContactId,
     relationship_note: row.relationshipNote,
@@ -631,6 +637,9 @@ function toPropertyInsert(body: any): typeof franchiseProperties.$inferInsert {
     name: body.name,
     propertyType: body.property_type,
     address: body.address,
+    lat: body.lat,
+    lng: body.lng,
+    unitFloor: body.unit_floor,
     orgId: body.org_id,
     isVendingSite: body.is_vending_site,
     vendingNote: body.vending_note,
@@ -650,6 +659,9 @@ function toPropertyUpdate(body: any): Partial<typeof franchiseProperties.$inferI
   if (body.name !== undefined) update.name = body.name;
   if (body.property_type !== undefined) update.propertyType = body.property_type;
   if (hasOwn(body, "address")) update.address = body.address;
+  if (hasOwn(body, "lat")) update.lat = body.lat;
+  if (hasOwn(body, "lng")) update.lng = body.lng;
+  if (hasOwn(body, "unit_floor")) update.unitFloor = body.unit_floor;
   if (hasOwn(body, "org_id")) update.orgId = body.org_id;
   if (body.is_vending_site !== undefined) update.isVendingSite = body.is_vending_site;
   if (hasOwn(body, "vending_note")) update.vendingNote = body.vending_note;
@@ -670,6 +682,9 @@ function toFnbSiteInsert(body: any): typeof franchiseFnbSites.$inferInsert {
     name: body.name,
     orgId: body.org_id,
     location: body.location,
+    lat: body.lat,
+    lng: body.lng,
+    unitFloor: body.unit_floor,
     hasAircon: body.has_aircon,
     introducedByContactId: body.introduced_by_contact_id,
     relationshipNote: body.relationship_note,
@@ -684,6 +699,9 @@ function toFnbSiteUpdate(body: any): Partial<typeof franchiseFnbSites.$inferInse
   if (body.name !== undefined) update.name = body.name;
   if (hasOwn(body, "org_id")) update.orgId = body.org_id;
   if (hasOwn(body, "location")) update.location = body.location;
+  if (hasOwn(body, "lat")) update.lat = body.lat;
+  if (hasOwn(body, "lng")) update.lng = body.lng;
+  if (hasOwn(body, "unit_floor")) update.unitFloor = body.unit_floor;
   if (hasOwn(body, "has_aircon")) update.hasAircon = body.has_aircon;
   if (hasOwn(body, "introduced_by_contact_id")) update.introducedByContactId = body.introduced_by_contact_id;
   if (hasOwn(body, "relationship_note")) update.relationshipNote = body.relationship_note;

@@ -13,8 +13,9 @@ type OneMapCandidate = {
 type MapPickerProps = {
   lat: number | null;
   lng: number | null;
-  radius: number;
+  radius?: number;
   onChange: (lat: number, lng: number) => void;
+  onResolveAddress?: (address: string) => void;
 };
 
 function roundCoord(value: number) {
@@ -34,7 +35,7 @@ function isValidPoint(lat: number | null, lng: number | null) {
   );
 }
 
-export function MapPicker({ lat, lng, radius, onChange }: MapPickerProps) {
+export function MapPicker({ lat, lng, radius = 0, onChange, onResolveAddress }: MapPickerProps) {
   const [searchText, setSearchText] = useState("");
   const [candidates, setCandidates] = useState<OneMapCandidate[]>([]);
   const [searching, setSearching] = useState(false);
@@ -193,6 +194,7 @@ export function MapPicker({ lat, lng, radius, onChange }: MapPickerProps) {
                   setCandidates([]);
                   setShowCandidates(false);
                   setPoint(candidate.lat, candidate.lng);
+                  onResolveAddress?.(candidate.address);
                 }}
                 style={{
                   display: "block",

@@ -21,6 +21,7 @@ const booleanQuery = z.enum(["0", "1", "true", "false"]).optional();
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const dateTimeString = z.string().datetime();
 const numericInput = z.union([z.number(), z.string().trim().min(1)]).nullable().optional();
+const coordinateInput = z.union([z.number(), z.string().trim().min(1)]).nullable().optional();
 
 const listQueryBaseSchema = z.object({
   q: optionalText,
@@ -62,6 +63,9 @@ const franchisePropertyBaseSchema = z.object({
   name: z.string().trim().min(1).max(200),
   property_type: z.enum(franchisePropertyTypes),
   address: nullableOptionalText,
+  lat: coordinateInput,
+  lng: coordinateInput,
+  unit_floor: z.string().trim().min(1).max(64).nullable().optional(),
   org_id: nullableOptionalUuid,
   is_vending_site: z.boolean().optional(),
   vending_note: nullableOptionalText,
@@ -115,6 +119,9 @@ const franchiseFnbSiteBaseSchema = z.object({
   name: z.string().trim().min(1).max(200),
   org_id: nullableOptionalUuid,
   location: nullableOptionalText,
+  lat: coordinateInput,
+  lng: coordinateInput,
+  unit_floor: z.string().trim().min(1).max(64).nullable().optional(),
   has_aircon: z.boolean().nullable().optional(),
   introduced_by_contact_id: nullableOptionalUuid,
   relationship_note: nullableOptionalText,

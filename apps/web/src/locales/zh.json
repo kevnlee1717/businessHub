@@ -1791,6 +1791,7 @@
       "status": "状态",
       "address": "地址",
       "location": "位置",
+      "unitFloor": "几楼几号",
       "isVendingSite": "600台贩卖机场地",
       "vendingNote": "贩卖机备注",
       "relationshipNote": "关系说明",
