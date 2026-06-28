@@ -26,6 +26,16 @@ const theme = createTheme({
   fontFamily:
     '"Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif',
   fontSizes: { xs: "12px", sm: "13px", md: "14px", lg: "16px", xl: "18px" },
+  // element-admin 标题不大,统一压小(Mantine 默认 h1/h2 偏大)
+  headings: {
+    fontWeight: "600",
+    sizes: {
+      h1: { fontSize: "20px", lineHeight: "1.4" },
+      h2: { fontSize: "17px", lineHeight: "1.4" },
+      h3: { fontSize: "15px", lineHeight: "1.4" },
+      h4: { fontSize: "14px", lineHeight: "1.4" }
+    }
+  },
   // element-admin: 控件/卡片圆角统一 4px
   defaultRadius: "sm",
   primaryColor: "dark",
