@@ -171,7 +171,6 @@ export function SiteVisitsPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("hr.tabs.siteVisits")}</Title>
 
       {loadError ? (
         <Alert color="red" variant="light">

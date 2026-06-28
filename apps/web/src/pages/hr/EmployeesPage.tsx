@@ -71,7 +71,6 @@ export function EmployeesPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("hr.employees.title")}</Title>
         <Button onClick={openCreateModal}>{t("hr.employees.add")}</Button>
       </Group>
 

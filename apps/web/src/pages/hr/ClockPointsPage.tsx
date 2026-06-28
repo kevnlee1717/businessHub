@@ -249,7 +249,6 @@ export function ClockPointsPage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("clockPoint.title")}</Title>
         <Button onClick={openCreateModal}>{t("clockPoint.add")}</Button>
       </Group>
 

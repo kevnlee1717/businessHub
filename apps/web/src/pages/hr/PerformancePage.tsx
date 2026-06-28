@@ -278,7 +278,6 @@ export function PerformancePage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("performance.title")}</Title>
       </Group>
 
       {employeesQuery.error ? (

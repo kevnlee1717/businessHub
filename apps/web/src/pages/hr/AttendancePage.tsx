@@ -174,7 +174,6 @@ export function AttendancePage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="center">
-        <Title order={2}>{t("attendance.title")}</Title>
         {canManageAttendance && selectedEmployeeId ? (
           <Button onClick={openModal}>{t("attendance.manualClock")}</Button>
         ) : null}

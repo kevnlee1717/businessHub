@@ -203,7 +203,6 @@ export function PayrollPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("hr.tabs.payroll")}</Title>
 
       {loadError ? (
         <Alert color="red" variant="light">

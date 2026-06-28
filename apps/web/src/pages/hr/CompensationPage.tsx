@@ -322,7 +322,6 @@ export function CompensationPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{t("hr.tabs.compensation")}</Title>
 
       {loadError ? (
         <Alert color="red" variant="light">
