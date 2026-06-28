@@ -49,7 +49,7 @@ export async function registerExternalPartyRoutes(app: FastifyInstance): Promise
     return { external_parties: rows.map(serializeExternalParty) };
   });
 
-  app.post("/external-parties", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/external-parties", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(externalPartyCreateSchema, request.body);
     const [party] = await db
       .insert(externalParties)
@@ -71,7 +71,7 @@ export async function registerExternalPartyRoutes(app: FastifyInstance): Promise
     return reply.code(201).send({ external_party: serializeExternalParty(party) });
   });
 
-  app.patch("/external-parties/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/external-parties/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(externalPartyUpdateSchema, request.body);
     const [party] = await db
@@ -94,7 +94,7 @@ export async function registerExternalPartyRoutes(app: FastifyInstance): Promise
     return { external_party: serializeExternalParty(party) };
   });
 
-  app.delete("/external-parties/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/external-parties/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [party] = await db.delete(externalParties).where(eq(externalParties.id, id)).returning();
 
@@ -107,7 +107,7 @@ export async function registerExternalPartyRoutes(app: FastifyInstance): Promise
 
   app.post(
     "/external-parties/:id/rotate-token",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const [party] = await db

@@ -142,7 +142,7 @@ export async function registerCompensationRoutes(app: FastifyInstance): Promise<
 
   app.post(
     "/compensation/templates",
-    { preHandler: requirePerm("payroll.manage") },
+    { preHandler: requirePerm("payroll.edit") },
     async (request, reply) => {
       const input = parseWithSchema(compensationTemplateSchema, request.body);
 
@@ -165,7 +165,7 @@ export async function registerCompensationRoutes(app: FastifyInstance): Promise<
 
   app.patch(
     "/compensation/templates/:id",
-    { preHandler: requirePerm("payroll.manage") },
+    { preHandler: requirePerm("payroll.edit") },
     async (request, reply) => {
       const params = parseWithSchema(idParamsSchema, request.params);
       const input = parseWithSchema(compensationTemplateUpdateSchema, request.body);
@@ -205,7 +205,7 @@ export async function registerCompensationRoutes(app: FastifyInstance): Promise<
 
   app.put(
     "/employees/:id/compensation",
-    { preHandler: requirePerm("payroll.manage") },
+    { preHandler: requirePerm("payroll.edit") },
     async (request, reply) => {
       const params = parseWithSchema(idParamsSchema, request.params);
       const input = parseWithSchema(employeeCompensationSchema, request.body);

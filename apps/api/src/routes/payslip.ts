@@ -148,7 +148,7 @@ export async function registerPayslipRoutes(app: FastifyInstance): Promise<void>
 
   app.post(
     "/payslips/generate",
-    { preHandler: requirePerm("payroll.manage") },
+    { preHandler: requirePerm("payroll.edit") },
     async (request, reply) => {
       const input = parseWithSchema(payslipGenerateSchema, request.body);
 
@@ -207,7 +207,7 @@ export async function registerPayslipRoutes(app: FastifyInstance): Promise<void>
     }
   );
 
-  app.post("/payslips/:id/pay", { preHandler: requirePerm("payroll.manage") }, async (request, reply) => {
+  app.post("/payslips/:id/pay", { preHandler: requirePerm("payroll.approve") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [payslip] = await db.select().from(payslips).where(eq(payslips.id, id)).limit(1);
 

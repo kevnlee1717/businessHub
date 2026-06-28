@@ -174,7 +174,7 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return { rows: rows.map(serializeLedgerEntry) };
   });
 
-  app.post("/ledger", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/ledger", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     if (proofMissing(request.body)) {
       return reply.code(422).send({ error: "proof_required" });
     }
@@ -220,7 +220,7 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return reply.code(201).send({ ledger_entry: serializeLedgerEntry(entry) });
   });
 
-  app.patch("/ledger/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/ledger/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     if (
       typeof request.body === "object" &&
@@ -306,7 +306,7 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return { ledger_entry: serializeLedgerEntry(entry) };
   });
 
-  app.delete("/ledger/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/ledger/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [current] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, id)).limit(1);
 

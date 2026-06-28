@@ -94,7 +94,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  app.post("/businesses", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/businesses", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(businessCreateSchema, request.body);
     const [business] = await db
       .insert(businesses)
@@ -117,7 +117,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return reply.code(201).send({ business: serializeBusiness(business) });
   });
 
-  app.patch("/businesses/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/businesses/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(businessUpdateSchema, request.body);
 

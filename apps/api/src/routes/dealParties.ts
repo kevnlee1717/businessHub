@@ -25,7 +25,7 @@ export async function registerDealPartyRoutes(app: FastifyInstance): Promise<voi
     return { deal_parties: rows.map(serializeDealParty) };
   });
 
-  app.post("/deal-parties", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/deal-parties", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(dealPartyCreateSchema, request.body);
     const [party] = await db
       .insert(dealParties)
@@ -44,7 +44,7 @@ export async function registerDealPartyRoutes(app: FastifyInstance): Promise<voi
     return reply.code(201).send({ deal_party: serializeDealParty(party) });
   });
 
-  app.patch("/deal-parties/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/deal-parties/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(dealPartyUpdateSchema, request.body);
     const [current] = await db.select().from(dealParties).where(eq(dealParties.id, id)).limit(1);

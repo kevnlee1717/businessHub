@@ -31,7 +31,7 @@ export async function registerBankAccountRoutes(app: FastifyInstance): Promise<v
     return { bank_accounts: rows.map(serializeBankAccount) };
   });
 
-  app.post("/bank-accounts", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/bank-accounts", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(bankAccountCreateSchema, request.body);
 
     const account = await db.transaction(async (tx) => {
@@ -66,7 +66,7 @@ export async function registerBankAccountRoutes(app: FastifyInstance): Promise<v
     return reply.code(201).send({ bank_account: serializeBankAccount(account) });
   });
 
-  app.patch("/bank-accounts/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/bank-accounts/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(bankAccountUpdateSchema, request.body);
 

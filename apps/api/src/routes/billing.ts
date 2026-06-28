@@ -379,7 +379,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post("/billing", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/billing", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(billingCreateSchema, request.body);
     const totalPriceSgd = toNumeric(body.total_price_sgd) ?? "0";
     const inputs = inputsWithTotalPrice(body.inputs, totalPriceSgd);
@@ -455,7 +455,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     });
   });
 
-  app.patch("/billing/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/billing/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(billingUpdateSchema, request.body);
 
@@ -604,7 +604,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
   app.post(
     "/billing/:id/payments",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(paymentCreateSchema, request.body);
@@ -677,7 +677,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     return { payments: rows.map(serializePayment) };
   });
 
-  app.delete("/payments/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/payments/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
 
     const deleted = await db.transaction(async (tx) => {

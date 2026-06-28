@@ -31,7 +31,7 @@ export async function registerCollectionItemRoutes(app: FastifyInstance): Promis
     return { collection_items: rows.map(serializeCollectionItem) };
   });
 
-  app.post("/collection-items", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/collection-items", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(collectionItemCreateSchema, request.body);
     const [item] = await db
       .insert(collectionItems)
@@ -52,7 +52,7 @@ export async function registerCollectionItemRoutes(app: FastifyInstance): Promis
     return reply.code(201).send({ collection_item: serializeCollectionItem(item) });
   });
 
-  app.patch("/collection-items/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/collection-items/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(collectionItemUpdateSchema, request.body);
     const [current] = await db.select().from(collectionItems).where(eq(collectionItems.id, id)).limit(1);

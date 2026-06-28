@@ -291,7 +291,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  app.post("/charges", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/charges", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(chargeCreateSchema, request.body);
     const [billingRow] = await db.select().from(billing).where(eq(billing.id, body.billing_id)).limit(1);
 
@@ -328,7 +328,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     return reply.code(201).send({ charge: serializeCharge(charge) });
   });
 
-  app.patch("/charges/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/charges/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(chargeUpdateSchema, request.body);
     const [current] = await db.select().from(billingCharges).where(eq(billingCharges.id, id)).limit(1);
@@ -367,7 +367,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     return { charge: serializeCharge(charge) };
   });
 
-  app.delete("/charges/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/charges/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [current] = await db.select().from(billingCharges).where(eq(billingCharges.id, id)).limit(1);
 
@@ -382,7 +382,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     return { ok: true };
   });
 
-  app.post("/charges/:id/collect", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/charges/:id/collect", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
 
     if (proofMissing(request.body)) {

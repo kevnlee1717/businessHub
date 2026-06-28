@@ -54,7 +54,7 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
     return { expenses: rows.map(serializeExpense) };
   });
 
-  app.post("/company-expenses", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/company-expenses", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(companyExpenseCreateSchema, request.body);
     const expense = await db.transaction(async (tx) => {
       const [created] = await tx
@@ -88,7 +88,7 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
     return reply.code(201).send({ expense: serializeExpense(expense) });
   });
 
-  app.patch("/company-expenses/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/company-expenses/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(companyExpenseUpdateSchema, request.body);
     const amount = body.amount === undefined ? undefined : (toNumeric(body.amount) as string);
@@ -125,7 +125,7 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
     return { expense: serializeExpense(expense) };
   });
 
-  app.delete("/company-expenses/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/company-expenses/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [expense] = await db.delete(companyExpenses).where(eq(companyExpenses.id, id)).returning();
 

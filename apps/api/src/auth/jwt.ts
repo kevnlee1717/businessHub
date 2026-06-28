@@ -1,5 +1,6 @@
 import { type FastifyReply, type FastifyRequest } from "fastify";
-import { type Role, ROLE_PERMISSIONS, can } from "@bh/shared";
+import { type Permission, type Role } from "@bh/shared";
+import { loadAuthContext } from "./context";
 
 export type AuthUser = {
   id: string;
@@ -19,8 +20,6 @@ declare module "fastify" {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
-
-const knownPermissions = new Set<string>(Object.values(ROLE_PERMISSIONS).flat());
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
@@ -52,7 +51,9 @@ export function requirePerm(perm: string) {
       return;
     }
 
-    if (!knownPermissions.has(perm) || !can(request.user.role, perm as Parameters<typeof can>[1])) {
+    const ctx = await loadAuthContext(request);
+
+    if (!ctx.permissions.includes(perm as Permission)) {
       await reply.code(403).send({ error: "forbidden" });
     }
   };

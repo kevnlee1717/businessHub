@@ -146,7 +146,7 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
 
   app.patch(
     "/external-commission/:id",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(externalCommissionUpdateSchema, request.body);
@@ -183,7 +183,7 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
 
   app.post(
     "/external-commission/recompute",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const body = parseWithSchema(recomputeSchema, request.body ?? {});
       const rows = body.billing_id
@@ -211,7 +211,7 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
 
   app.post(
     "/external-commission/:id/settle",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const proofDocumentIds =

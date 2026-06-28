@@ -18,7 +18,7 @@ export async function registerExpenseCategoryRoutes(app: FastifyInstance): Promi
     return { expense_categories: rows.map(serializeExpenseCategory) };
   });
 
-  app.post("/expense-categories", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/expense-categories", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(expenseCategoryCreateSchema, request.body);
     const [category] = await db
       .insert(expenseCategories)
@@ -38,7 +38,7 @@ export async function registerExpenseCategoryRoutes(app: FastifyInstance): Promi
     return reply.code(201).send({ expense_category: serializeExpenseCategory(category) });
   });
 
-  app.patch("/expense-categories/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/expense-categories/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(expenseCategoryUpdateSchema, request.body);
     const [current] = await db.select().from(expenseCategories).where(eq(expenseCategories.id, id)).limit(1);

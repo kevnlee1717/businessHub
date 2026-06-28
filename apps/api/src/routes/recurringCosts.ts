@@ -45,7 +45,7 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
     return { recurring_costs: rows.map(serializeRecurringCost) };
   });
 
-  app.post("/recurring-costs", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/recurring-costs", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(recurringCostCreateSchema, request.body);
     const [cost] = await db
       .insert(recurringCosts)
@@ -68,7 +68,7 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
     return reply.code(201).send({ recurring_cost: serializeRecurringCost(cost) });
   });
 
-  app.patch("/recurring-costs/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/recurring-costs/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(recurringCostUpdateSchema, request.body);
     const amount = body.amount === undefined ? undefined : (toNumeric(body.amount) as string);
@@ -95,7 +95,7 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
     return { recurring_cost: serializeRecurringCost(cost) };
   });
 
-  app.delete("/recurring-costs/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/recurring-costs/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [cost] = await db.delete(recurringCosts).where(eq(recurringCosts.id, id)).returning();
 
