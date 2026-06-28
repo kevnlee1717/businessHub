@@ -107,6 +107,13 @@ body {
   background: var(--side-submenu-hover);
 }
 
+/* 激活的子项:保持子菜单底色 + 蓝字(element-admin),不要露出父级底色 */
+.app-nav-sub[data-active],
+.app-nav-sub[data-active]:hover {
+  background: var(--side-submenu-bg);
+  color: var(--side-active-text);
+}
+
 .app-nav-link .mantine-NavLink-label {
   font-weight: 500;
 }

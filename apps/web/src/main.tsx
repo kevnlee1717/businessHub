@@ -24,21 +24,24 @@ const queryClient = new QueryClient();
 const root = document.getElementById("root");
 const theme = createTheme({
   fontFamily: '-apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
-  defaultRadius: "md",
+  // element-admin: 控件/卡片圆角统一 4px
+  defaultRadius: "sm",
   primaryColor: "dark",
   autoContrast: true,
   components: {
+    // el-card 风格:1px 边框 #ebeef5 + 圆角 4px + 轻阴影
     Paper: Paper.extend({
       defaultProps: {
         withBorder: true,
-        radius: "lg",
+        radius: "sm",
         shadow: "xs",
       },
     }),
     Card: Card.extend({
       defaultProps: {
-        radius: "lg",
+        radius: "sm",
         withBorder: true,
+        shadow: "xs",
       },
     }),
     Table: Table.extend({
@@ -49,7 +52,7 @@ const theme = createTheme({
     }),
     Button: Button.extend({
       defaultProps: {
-        radius: "md",
+        radius: "sm",
       },
     }),
     Badge: Badge.extend({

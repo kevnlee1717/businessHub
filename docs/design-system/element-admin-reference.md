@@ -155,3 +155,31 @@
 - 拿不准 element 原版怎么写 → grep `docs/design-system/element-admin-ref-src/`(例:`grep -rn "filter-container" element-admin-ref-src/`)。
 - 新增的可复用模式 → 回写进本文(§3 加骨架 / §4 加映射),让文档持续生长。
 - token 改动 → 改 `apps/web/src/theme.css` 并同步本文 §1。
+
+---
+
+## 7. 改造进度(全站 54 页,照 element-admin 范式逐批改)
+
+**外壳级(已完成,影响全部页面):**
+- ✅ `layout="alt"` 侧栏通顶 + 顶栏只盖内容区 + 面包屑(去掉重复 app 标题)
+- ✅ 深色侧栏 + 子菜单两级底色(激活子项保持底色+蓝字)
+- ✅ el-card 全局样式(圆角 4px、轻边框、轻阴影)+ 控件圆角 4px
+- ✅ `.app-container` padding 20px、内容铺满
+
+**列表页标准实现(模板,照此改其它列表页):** `pages/business/CasesPage.tsx`
+- filter-container:筛选项 + 操作按钮**同一行**(`<Group align="flex-end" wrap="wrap">`,筛选项定宽 w)
+- 表格 `withTableBorder withColumnBorders highlightOnHover`,不再套 Paper 卡片
+- 无大标题(上下文靠面包屑/标签页);状态用 `<Badge>`;操作列在最右
+- 新建/编辑用 `<Modal>`(el-dialog)
+
+**待改造页面批次(按模块):**
+- [ ] 业务:CasesPage✅ / ClientsPage / TemplatesPage / GuarantorsPage / CaseDetailPage / EpSection
+- [ ] HR:Employees / Attendance / Payroll / Compensation / Performance / SiteVisits / ClockPoints
+- [ ] 教育:Students / Diploma / Wsq / English / AcademyCollection
+- [ ] 财务:Billing / ReceivablesLedger / Ledger / BankAccounts / Reconcile / Commission×3 / Reports
+- [ ] 业务方案:BusinessList / BusinessDetail / DealParties / ExternalParties
+- [ ] 文档:Categories / ClientLibrary / CompanyFiles / Contracts / Search
+- [ ] 设置:Companies / Positions / WorkShifts / Industries / CollectionItems
+- [ ] 仪表盘 DashboardPage(KPI 卡片,el-card 已自动美化,结构按需微调)
+
+改完一页就在此打勾。每批改完 build + restart bh-dev,在 dev-bh 验证后再继续。

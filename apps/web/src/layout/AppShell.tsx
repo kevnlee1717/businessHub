@@ -5,8 +5,7 @@ import {
   Button,
   Group,
   NavLink,
-  Text,
-  Title
+  Text
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
@@ -139,9 +138,23 @@ export function AppShell() {
     navigate("/login", { replace: true });
   }
 
+  // 顶栏面包屑(element-admin:navbar 只放面包屑,不放 app 标题)
+  const crumbs: string[] = (() => {
+    for (const item of navItems) {
+      if ("children" in item) {
+        const child = item.children.find((c) => isActivePath(c.to));
+        if (child) return [t(item.key), t(child.key)];
+      } else if (isActivePath(item.to)) {
+        return [t(item.key)];
+      }
+    }
+    return [resolveTitle(pathname)];
+  })();
+
   return (
     <Box className="app-section" data-section={section}>
       <MantineAppShell
+        layout="alt"
         header={{ height: 56 }}
         navbar={{
           width: 248,
@@ -166,9 +179,18 @@ export function AppShell() {
       >
         <MantineAppShell.Header>
           <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap">
+            <Group gap={6} wrap="nowrap">
               <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-              <Title order={3}>{t("app.title")}</Title>
+              {crumbs.map((c, i) => (
+                <Text
+                  key={i}
+                  size="sm"
+                  fw={i === crumbs.length - 1 ? 600 : 400}
+                  c={i === crumbs.length - 1 ? "var(--mantine-color-text)" : "var(--app-muted)"}
+                >
+                  {i > 0 ? `/ ${c}` : c}
+                </Text>
+              ))}
             </Group>
             <Group gap="sm" wrap="nowrap">
               <Text size="sm" c="var(--app-muted)" truncate maw={180}>
@@ -227,10 +249,9 @@ export function AppShell() {
 
         <MantineAppShell.Main>
           <TagsView views={views} activePath={pathname} onClose={closeTag} />
-          <Box p="md">
-            <Box maw={1200}>
-              <Outlet />
-            </Box>
+          {/* element-admin .app-container:padding 20px,内容铺满 */}
+          <Box p="lg">
+            <Outlet />
           </Box>
         </MantineAppShell.Main>
       </MantineAppShell>

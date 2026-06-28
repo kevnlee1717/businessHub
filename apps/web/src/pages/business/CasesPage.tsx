@@ -7,14 +7,12 @@ import {
   Input,
   Loader,
   Modal,
-  Paper,
   ScrollArea,
   Select,
   Stack,
   Table,
   Text,
-  TextInput,
-  Title
+  TextInput
 } from "@mantine/core";
 import {
   caseCreateSchema,
@@ -193,40 +191,38 @@ export function CasesPage({ businessType }: CasesPageProps) {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="center">
-        <Title order={2}>{t(`case.title.${businessType}`)}</Title>
-        {canManageCases ? <Button onClick={openCreateModal}>{t("case.add")}</Button> : null}
-      </Group>
-
       {loadError ? (
         <Alert color="red" variant="light">
           {loadError instanceof Error ? loadError.message : t("common.unknown_error")}
         </Alert>
       ) : null}
 
-      <Paper withBorder radius="md" p="md">
-        <Group grow align="flex-end">
-          <Select
-            label={t("case.filters.status")}
-            data={statusOptions}
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value as CaseStatus | null)}
-            clearable
-          />
-          <Select
-            label={t("case.filters.client")}
-            data={clientOptions}
-            value={clientFilter}
-            onChange={setClientFilter}
-            searchable
-            clearable
-          />
-        </Group>
-      </Paper>
+      {/* element-admin filter-container:筛选项 + 操作按钮同一行 */}
+      <Group gap="sm" align="flex-end" wrap="wrap">
+        <Select
+          label={t("case.filters.status")}
+          w={180}
+          data={statusOptions}
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value as CaseStatus | null)}
+          clearable
+        />
+        <Select
+          label={t("case.filters.client")}
+          w={220}
+          data={clientOptions}
+          value={clientFilter}
+          onChange={setClientFilter}
+          searchable
+          clearable
+        />
+        {canManageCases ? (
+          <Button onClick={openCreateModal}>{t("case.add")}</Button>
+        ) : null}
+      </Group>
 
-      <Paper withBorder radius="md">
-        <ScrollArea>
-          <Table miw={920} verticalSpacing="sm" striped highlightOnHover>
+      <ScrollArea>
+        <Table miw={920} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("case.fields.businessType")}</Table.Th>
@@ -286,9 +282,8 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 ))
               )}
             </Table.Tbody>
-          </Table>
-        </ScrollArea>
-      </Paper>
+        </Table>
+      </ScrollArea>
 
       <Modal opened={modalOpened} onClose={closeModal} title={t("case.add")} size="lg">
         <form onSubmit={onSubmit}>
