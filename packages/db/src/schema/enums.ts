@@ -30,6 +30,16 @@ import {
   employmentTypes,
   faceChallengeStatuses,
   facePurposes,
+  franchiseContractExpiries,
+  franchiseDecisionMakers,
+  franchiseFootfalls,
+  franchiseInterestLevels,
+  franchiseOrgTypes,
+  franchisePriorities,
+  franchisePropertyTypes,
+  franchiseServices,
+  franchiseSiteStatuses,
+  franchiseTriStates,
   genders,
   gpsTriggers,
   ledgerDirections,
@@ -126,3 +136,13 @@ export const recruitmentCandidateStatusEnum = pgEnum("recruitment_candidate_stat
 export const recruitmentInterviewResultEnum = pgEnum("recruitment_interview_result", recruitmentInterviewResults);
 export const recruitmentInterviewStatusEnum = pgEnum("recruitment_interview_status", recruitmentInterviewStatuses);
 export const recruitmentFollowupTypeEnum = pgEnum("recruitment_followup_type", recruitmentFollowupTypes);
+export const franchiseOrgTypeEnum = pgEnum("franchise_org_type", franchiseOrgTypes);
+export const franchisePropertyTypeEnum = pgEnum("franchise_property_type", franchisePropertyTypes);
+export const franchisePriorityEnum = pgEnum("franchise_priority", franchisePriorities);
+export const franchiseFootfallEnum = pgEnum("franchise_footfall", franchiseFootfalls);
+export const franchiseDecisionMakerEnum = pgEnum("franchise_decision_maker", franchiseDecisionMakers);
+export const franchiseTriStateEnum = pgEnum("franchise_tri_state", franchiseTriStates);
+export const franchiseSiteStatusEnum = pgEnum("franchise_site_status", franchiseSiteStatuses);
+export const franchiseInterestLevelEnum = pgEnum("franchise_interest_level", franchiseInterestLevels);
+export const franchiseServiceEnum = pgEnum("franchise_service", franchiseServices);
+export const franchiseContractExpiryEnum = pgEnum("franchise_contract_expiry", franchiseContractExpiries);

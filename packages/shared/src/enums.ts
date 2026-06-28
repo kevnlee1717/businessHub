@@ -219,3 +219,51 @@ export type RecruitmentInterviewStatus = (typeof recruitmentInterviewStatuses)[n
 
 export const recruitmentFollowupTypes = ["call", "message", "invite", "note"] as const;
 export type RecruitmentFollowupType = (typeof recruitmentFollowupTypes)[number];
+
+export const franchiseOrgTypes = ["fnb_group", "property_company", "owner", "cafe_brand", "other"] as const;
+export type FranchiseOrgType = (typeof franchiseOrgTypes)[number];
+
+export const franchisePropertyTypes = [
+  "mall",
+  "office",
+  "condo",
+  "hotel",
+  "industrial",
+  "airport",
+  "train_mrt",
+  "food_court",
+  "hospital_school",
+  "other"
+] as const;
+export type FranchisePropertyType = (typeof franchisePropertyTypes)[number];
+
+export const franchisePriorities = ["high", "medium", "low"] as const;
+export type FranchisePriority = (typeof franchisePriorities)[number];
+
+export const franchiseFootfalls = ["very_high", "high", "medium", "low"] as const;
+export type FranchiseFootfall = (typeof franchiseFootfalls)[number];
+
+export const franchiseDecisionMakers = ["can_decide", "need_management", "need_committee"] as const;
+export type FranchiseDecisionMaker = (typeof franchiseDecisionMakers)[number];
+
+export const franchiseTriStates = ["yes", "no", "pending"] as const;
+export type FranchiseTriState = (typeof franchiseTriStates)[number];
+
+export const franchiseSiteStatuses = ["unvisited", "following", "won", "abandoned"] as const;
+export type FranchiseSiteStatus = (typeof franchiseSiteStatuses)[number];
+
+export const franchiseInterestLevels = ["high", "medium", "low"] as const;
+export type FranchiseInterestLevel = (typeof franchiseInterestLevels)[number];
+
+export const franchiseServices = [
+  "vending_machine",
+  "massage_chair",
+  "cleaning_robot",
+  "ai_mattress",
+  "security",
+  "cleaning"
+] as const;
+export type FranchiseService = (typeof franchiseServices)[number];
+
+export const franchiseContractExpiries = ["none", "within_3_months", "within_6_months", "within_1_year"] as const;
+export type FranchiseContractExpiry = (typeof franchiseContractExpiries)[number];
