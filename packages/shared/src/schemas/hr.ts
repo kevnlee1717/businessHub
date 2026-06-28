@@ -29,7 +29,8 @@ const moneyValue = z.union([z.string().trim().min(1), z.number()]).nullable().op
 const employeeBaseSchema = z.object({
   name: z.string().trim().min(1),
   name_en: optionalText,
-  email: z.string().email(),
+  // 用户名(登录用),支持纯用户名或邮箱,不强制邮箱格式
+  email: z.string().trim().min(1),
   phone: optionalText,
   role: z.enum(roles),
   company_id: optionalUuid,

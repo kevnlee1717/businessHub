@@ -2,13 +2,13 @@
 [data-section="business"] {
   --app-bg: #ffffff;
   --app-surface: #ffffff;
-  --app-line: #ececef;
-  --app-muted: #8a8a93;
-  --mantine-primary-color-filled: #18181b;
-  --mantine-primary-color-filled-hover: #2a2a2e;
-  --mantine-primary-color-light: #f4f4f5;
-  --mantine-primary-color-light-hover: #ececec;
-  --mantine-primary-color-light-color: #18181b;
+  --app-line: #e8ebef;
+  --app-muted: #8a909c;
+  --mantine-primary-color-filled: #475569;
+  --mantine-primary-color-filled-hover: #3b4757;
+  --mantine-primary-color-light: #f1f5f9;
+  --mantine-primary-color-light-hover: #e6edf3;
+  --mantine-primary-color-light-color: #475569;
   --mantine-primary-color-contrast: #ffffff;
 }
 
