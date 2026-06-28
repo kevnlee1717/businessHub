@@ -15,6 +15,8 @@ import {
   getMe,
   login as loginRequest,
   logout as logoutRequest,
+  type CompanyAccess,
+  type DataScope,
   type User
 } from "../api/client";
 
@@ -25,6 +27,10 @@ type LoginVariables = {
 
 type AuthContextValue = {
   user: User | null;
+  permissions: string[];
+  companies: CompanyAccess[];
+  dataScope: DataScope;
+  can: (perm: string) => boolean;
   isLoading: boolean;
   login: UseMutateAsyncFunction<{ user: User }, Error, LoginVariables>;
   logout: UseMutateAsyncFunction<{ ok: true }, Error, void>;
@@ -62,15 +68,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isUnauthorized = meQuery.error instanceof UnauthorizedError;
   const user = isUnauthorized ? null : meQuery.data?.user ?? null;
+  const permissions = user ? meQuery.data?.permissions ?? [] : [];
+  const companies = user ? meQuery.data?.companies ?? [] : [];
+  const dataScope = user ? meQuery.data?.dataScope ?? "self" : "self";
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      permissions,
+      companies,
+      dataScope,
+      can: (perm) => permissions.includes(perm),
       isLoading: meQuery.isLoading,
       login: loginMutation.mutateAsync,
       logout: logoutMutation.mutateAsync
     }),
-    [loginMutation.mutateAsync, logoutMutation.mutateAsync, meQuery.isLoading, user]
+    [companies, dataScope, loginMutation.mutateAsync, logoutMutation.mutateAsync, meQuery.isLoading, permissions, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -9,77 +9,110 @@ import {
   Title
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "../components/LanguageToggle";
 
-const navItems = [
+type NavItem = {
+  to?: string;
+  key: string;
+  perm?: string;
+  defaultOpened?: boolean;
+  children?: NavItem[];
+};
+
+const navItems: NavItem[] = [
   { to: "/", key: "nav.dashboard" },
   { to: "/hr", key: "nav.hr" },
   {
     key: "nav.immigration",
+    perm: "case.view",
     defaultOpened: true,
     children: [
-      { to: "/business/ep", key: "nav.ep" },
-      { to: "/business/ica", key: "nav.ica" }
+      { to: "/business/ep", key: "nav.ep", perm: "case.view" },
+      { to: "/business/ica", key: "nav.ica", perm: "case.view" }
     ]
   },
   {
     key: "nav.education_business",
+    perm: "education.view",
     defaultOpened: false,
     children: [
-      { to: "/education/diploma", key: "nav.diploma" },
-      { to: "/education/wsq", key: "nav.wsq" },
-      { to: "/education/english", key: "nav.english" },
-      { to: "/education/academy-collection", key: "nav.academy_collection" }
+      { to: "/education/diploma", key: "nav.diploma", perm: "education.view" },
+      { to: "/education/wsq", key: "nav.wsq", perm: "education.view" },
+      { to: "/education/english", key: "nav.english", perm: "education.view" },
+      { to: "/education/academy-collection", key: "nav.academy_collection", perm: "education.view" }
     ]
   },
-  { to: "/documents", key: "nav.documents" },
+  { to: "/documents", key: "nav.documents", perm: "document.view" },
   {
     key: "nav.finance",
+    perm: "finance.view",
     defaultOpened: false,
     children: [
-      { to: "/finance/billing", key: "nav.finance_billing" },
-      { to: "/finance/receivables-ledger", key: "nav.finance_receivables_ledger" },
-      { to: "/finance/ledger", key: "nav.finance_ledger" },
-      { to: "/finance/bank-accounts", key: "nav.finance_bank_accounts" },
-      { to: "/finance/reconcile", key: "nav.finance_reconcile" },
-      { to: "/finance/commission", key: "nav.finance_commission" },
-      { to: "/finance/my-commission", key: "nav.finance_my_commission" },
-      { to: "/finance/external-commission", key: "nav.finance_external_commission" },
-      { to: "/finance/reports", key: "nav.finance_reports" }
+      { to: "/finance/billing", key: "nav.finance_billing", perm: "finance.view" },
+      { to: "/finance/receivables-ledger", key: "nav.finance_receivables_ledger", perm: "finance.view" },
+      { to: "/finance/ledger", key: "nav.finance_ledger", perm: "finance.view" },
+      { to: "/finance/bank-accounts", key: "nav.finance_bank_accounts", perm: "finance.view" },
+      { to: "/finance/reconcile", key: "nav.finance_reconcile", perm: "finance.view" },
+      { to: "/finance/commission", key: "nav.finance_commission", perm: "finance.view" },
+      { to: "/finance/my-commission", key: "nav.finance_my_commission", perm: "commission.view_own" },
+      { to: "/finance/external-commission", key: "nav.finance_external_commission", perm: "finance.view" },
+      { to: "/finance/reports", key: "nav.finance_reports", perm: "finance.view" }
     ]
   },
   {
     key: "nav.business_finance",
+    perm: "finance.view",
     defaultOpened: false,
     children: [
-      { to: "/business-finance", key: "nav.business_finance_list" },
-      { to: "/business-finance/parties", key: "nav.deal_parties" },
-      { to: "/business-finance/external-parties", key: "nav.external_parties" }
+      { to: "/business-finance", key: "nav.business_finance_list", perm: "finance.view" },
+      { to: "/business-finance/parties", key: "nav.deal_parties", perm: "finance.view" },
+      { to: "/business-finance/external-parties", key: "nav.external_parties", perm: "finance.view" }
     ]
   },
   {
     key: "nav.settings",
+    perm: "settings.manage",
     defaultOpened: false,
     children: [
-      { to: "/settings/companies", key: "settings.tabs.companies" },
-      { to: "/settings/positions", key: "settings.tabs.positions" },
-      { to: "/settings/work-shifts", key: "settings.tabs.workShifts" },
-      { to: "/settings/industries", key: "settings.tabs.industries" },
-      { to: "/settings/collection-items", key: "nav.collection_items" }
+      { to: "/settings/companies", key: "settings.tabs.companies", perm: "settings.manage" },
+      { to: "/settings/positions", key: "settings.tabs.positions", perm: "settings.manage" },
+      { to: "/settings/work-shifts", key: "settings.tabs.workShifts", perm: "settings.manage" },
+      { to: "/settings/industries", key: "settings.tabs.industries", perm: "settings.manage" },
+      { to: "/settings/collection-items", key: "nav.collection_items", perm: "settings.manage" }
     ]
   }
-] as const;
+];
 
 export function AppShell() {
   const { t } = useTranslation();
   const [opened, { toggle }] = useDisclosure();
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const section = pathname.startsWith("/finance") || pathname === "/" ? "finance" : "business";
+  const visibleNavItems = useMemo(
+    () =>
+      navItems
+        .map((item) => {
+          if (item.children) {
+            const children = item.children.filter((child) => !child.perm || can(child.perm));
+
+            if (children.length === 0 || (item.perm && !can(item.perm))) {
+              return null;
+            }
+
+            return { ...item, children };
+          }
+
+          return !item.perm || can(item.perm) ? item : null;
+        })
+        .filter((item): item is NavItem => Boolean(item)),
+    [can]
+  );
 
   function isActivePath(to: string) {
     return to === "/" ? pathname === "/" : pathname.startsWith(to);
@@ -139,24 +172,24 @@ export function AppShell() {
               businessHub
             </Text>
           </Group>
-          {navItems.map((item) =>
+          {visibleNavItems.map((item) =>
             "children" in item ? (
               <NavLink
                 key={item.key}
                 label={t(item.key)}
                 childrenOffset={28}
-                defaultOpened={item.defaultOpened}
-                active={item.children.some((child) => isActivePath(child.to))}
+                defaultOpened={item.defaultOpened ?? false}
+                active={item.children?.some((child) => child.to && isActivePath(child.to))}
                 className="app-nav-link"
               >
-                {item.children.map((child) => (
+                {item.children?.map((child) => (
                   <NavLink
                     key={child.to}
                     component={RouterNavLink}
-                    to={child.to}
+                    to={child.to ?? "/"}
                     label={t(child.key)}
                     onClick={toggle}
-                    active={isActivePath(child.to)}
+                    active={child.to ? isActivePath(child.to) : false}
                     className="app-nav-link"
                   />
                 ))}
@@ -165,10 +198,10 @@ export function AppShell() {
               <NavLink
                 key={item.to}
                 component={RouterNavLink}
-                to={item.to}
+                to={item.to ?? "/"}
                 label={t(item.key)}
                 onClick={toggle}
-                active={isActivePath(item.to)}
+                active={item.to ? isActivePath(item.to) : false}
                 className="app-nav-link"
               />
             )

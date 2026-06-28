@@ -27,6 +27,20 @@ export type User = {
   role: Role;
 };
 
+export type DataScope = "all" | "company" | "self";
+
+export type CompanyAccess = {
+  id: string;
+  name: string;
+};
+
+export type MeResponse = {
+  user: User;
+  permissions: string[];
+  dataScope: DataScope;
+  companies: CompanyAccess[];
+};
+
 type ApiOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
@@ -90,6 +104,6 @@ export async function logout(): Promise<{ ok: true }> {
   });
 }
 
-export async function getMe(): Promise<{ user: User }> {
-  return api<{ user: User }>("/auth/me");
+export async function getMe(): Promise<MeResponse> {
+  return api<MeResponse>("/auth/me");
 }
