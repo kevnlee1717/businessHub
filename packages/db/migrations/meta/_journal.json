@@ -162,6 +162,13 @@
       "when": 1782600925598,
       "tag": "0022_regular_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1782626788997,
+      "tag": "0023_foamy_komodo",
+      "breakpoints": true
     }
   ]
 }

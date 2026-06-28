@@ -158,6 +158,9 @@ export type FollowUp = {
   case_step_id: string;
   author_id?: string | null;
   content: string;
+  content_zh?: string | null;
+  content_en?: string | null;
+  source_lang?: "zh" | "en" | null;
   created_at: string;
 };
 

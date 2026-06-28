@@ -28,6 +28,7 @@ import { can } from "@bh/shared";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getTranslations, saveTranslation, type TranslationValue } from "../lib/translationStore";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { refreshBillingCharges } from "./billing";
@@ -123,12 +124,15 @@ function serializeCaseStepDoc(
   };
 }
 
-function serializeFollowUp(row: typeof followUps.$inferSelect) {
+function serializeFollowUp(row: typeof followUps.$inferSelect, translation?: TranslationValue) {
   return {
     id: row.id,
     case_step_id: row.caseStepId,
     author_id: row.authorId,
     content: row.content,
+    content_zh: translation?.zh ?? null,
+    content_en: translation?.en ?? null,
+    source_lang: translation?.source_lang ?? null,
     created_at: row.createdAt
   };
 }
@@ -912,7 +916,8 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(followUps.caseStepId, id))
       .orderBy(asc(followUps.createdAt));
 
-    return { followUps: rows.map(serializeFollowUp) };
+    const tr = await getTranslations("followUp", "content", rows.map((r) => r.id));
+    return { followUps: rows.map((r) => serializeFollowUp(r, tr.get(r.id))) };
   });
 
   app.post("/case-steps/:id/follow-ups", { preHandler: requirePerm("case.view") }, async (request, reply) => {
@@ -937,6 +942,8 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       throw new Error("follow_up_create_failed");
     }
 
-    return reply.code(201).send({ followUp: serializeFollowUp(followUp) });
+    await saveTranslation("followUp", followUp.id, "content", body.content);
+    const tr = await getTranslations("followUp", "content", [followUp.id]);
+    return reply.code(201).send({ followUp: serializeFollowUp(followUp, tr.get(followUp.id)) });
   });
 }

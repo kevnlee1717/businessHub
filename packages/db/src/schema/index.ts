@@ -67,3 +67,4 @@ export * from "./bankStatementLines";
 export * from "./recurringCosts";
 export * from "./contracts";
 export * from "./contractVersions";
+export * from "./translations";

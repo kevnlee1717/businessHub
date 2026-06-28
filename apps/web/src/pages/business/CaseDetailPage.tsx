@@ -348,7 +348,7 @@ function StepCard({
   currentUserRole,
   documentCategories
 }: StepCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [stepError, setStepError] = useState<string | null>(null);
   const [docFormOpened, setDocFormOpened] = useState(false);
@@ -839,10 +839,27 @@ function StepCard({
             <Stack gap="xs">
               {followUps.map((followUp) => {
                 const author = followUp.author_id ? employeeById.get(followUp.author_id) : undefined;
+                const lang = i18n.language.startsWith("en") ? "en" : "zh";
+                const translated = lang === "en" ? followUp.content_en : followUp.content_zh;
+                const display = translated ?? followUp.content;
+                const isTranslated =
+                  !!translated && !!followUp.source_lang && followUp.source_lang !== lang;
                 return (
                   <Paper key={followUp.id} withBorder radius="md" p="sm">
                     <Stack gap={4}>
-                      <Text>{followUp.content}</Text>
+                      <Group gap={6} align="center" wrap="nowrap">
+                        <Text>{display}</Text>
+                        {isTranslated ? (
+                          <Badge size="xs" variant="light" color="gray">
+                            {t("common.translated")}
+                          </Badge>
+                        ) : null}
+                      </Group>
+                      {isTranslated ? (
+                        <Text size="xs" c="dimmed">
+                          {t("common.original")}: {followUp.content}
+                        </Text>
+                      ) : null}
                       <Text size="xs" c="dimmed">
                         {author ? displayName(author.name, author.name_en) : t("common.not_available")} ·{" "}
                         {formatDateTime(followUp.created_at)}

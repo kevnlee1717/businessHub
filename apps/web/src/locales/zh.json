@@ -66,7 +66,9 @@
     "teacher": "老师",
     "uncategorized": "未分类",
     "not_available": "-",
-    "unknown_error": "发生未知错误"
+    "unknown_error": "发生未知错误",
+    "translated": "译",
+    "original": "原文"
   },
   "dashboard": {
     "welcome": "欢迎，{{name}}",
