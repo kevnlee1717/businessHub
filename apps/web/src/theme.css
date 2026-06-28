@@ -1,28 +1,26 @@
+/* 全站统一:vue-element-admin (MIT) 视觉 token */
 :root,
-[data-section="business"] {
-  --app-bg: #ffffff;
-  --app-surface: #ffffff;
-  --app-line: #e8ebef;
-  --app-muted: #8a909c;
-  --mantine-primary-color-filled: #475569;
-  --mantine-primary-color-filled-hover: #3b4757;
-  --mantine-primary-color-light: #f1f5f9;
-  --mantine-primary-color-light-hover: #e6edf3;
-  --mantine-primary-color-light-color: #475569;
-  --mantine-primary-color-contrast: #ffffff;
-}
-
+[data-section="business"],
 [data-section="finance"] {
-  --app-bg: #f6f9fc;
+  --app-bg: #f0f2f5;
   --app-surface: #ffffff;
-  --app-line: #e6ebf1;
-  --app-muted: #8792a2;
-  --mantine-primary-color-filled: #635bff;
-  --mantine-primary-color-filled-hover: #5249f5;
-  --mantine-primary-color-light: #f0f1ff;
-  --mantine-primary-color-light-hover: #e6e7ff;
-  --mantine-primary-color-light-color: #635bff;
+  --app-line: #ebeef5;
+  --app-muted: #909399;
+  --mantine-primary-color-filled: #1890ff;
+  --mantine-primary-color-filled-hover: #40a9ff;
+  --mantine-primary-color-light: #e8f4ff;
+  --mantine-primary-color-light-hover: #d6ecff;
+  --mantine-primary-color-light-color: #1890ff;
   --mantine-primary-color-contrast: #ffffff;
+
+  /* 深色侧栏 (element-admin sidebar) */
+  --side-bg: #304156;
+  --side-submenu-bg: #1f2d3d;
+  --side-logo-bg: #2b2f3a;
+  --side-text: #bfcbd9;
+  --side-hover: #263445;
+  --side-submenu-hover: #001528;
+  --side-active-text: #409eff;
 }
 
 html,
@@ -76,22 +74,37 @@ body {
   line-height: 1;
 }
 
+.app-brand-row {
+  height: 56px;
+  padding: 0 16px;
+  background: var(--side-logo-bg);
+}
+
 .app-nav-link {
-  border-radius: var(--mantine-radius-md);
-  color: var(--mantine-color-dark-7);
+  border-radius: 0;
+  color: var(--side-text);
 }
 
 .app-nav-link:hover {
-  background: var(--mantine-color-gray-0);
+  background: var(--side-hover);
 }
 
 .app-nav-link[data-active] {
-  color: var(--mantine-primary-color-light-color);
-  background: var(--mantine-primary-color-light);
+  color: var(--side-active-text);
+  background: transparent;
 }
 
 .app-nav-link[data-active]:hover {
-  background: var(--mantine-primary-color-light-hover);
+  background: var(--side-hover);
+}
+
+/* 子菜单项:更深的底色 (element-admin) */
+.app-nav-sub {
+  background: var(--side-submenu-bg);
+}
+
+.app-nav-sub:hover {
+  background: var(--side-submenu-hover);
 }
 
 .app-nav-link .mantine-NavLink-label {
@@ -100,4 +113,64 @@ body {
 
 .app-nav-link[data-active] .mantine-NavLink-label {
   font-weight: 650;
+}
+
+/* 标签页导航 tags-view (element-admin) */
+.tags-view {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  background: #fff;
+  border-bottom: 1px solid #d8dce5;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tags-view::-webkit-scrollbar {
+  display: none;
+}
+
+.tags-view-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid #d8dce5;
+  border-radius: 2px;
+  background: #fff;
+  color: #495060;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tags-view-item.active {
+  background: #42b983;
+  border-color: #42b983;
+  color: #fff;
+}
+
+.tags-view-item.active .tags-view-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.tags-view-close {
+  display: inline-flex;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.75;
+  border-radius: 50%;
+}
+
+.tags-view-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.15);
 }

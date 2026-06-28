@@ -9,10 +9,12 @@ import {
   Title
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { TagsView, type VisitedView } from "./TagsView";
 
 const navItems = [
   { to: "/", key: "nav.dashboard" },
@@ -85,6 +87,53 @@ export function AppShell() {
     return to === "/" ? pathname === "/" : pathname.startsWith(to);
   }
 
+  const leafItems = useMemo(() => {
+    const out: { to: string; key: string }[] = [];
+    for (const item of navItems) {
+      if ("children" in item) {
+        item.children.forEach((child) => out.push({ to: child.to, key: child.key }));
+      } else {
+        out.push({ to: item.to, key: item.key });
+      }
+    }
+    return out;
+  }, []);
+
+  function resolveTitle(path: string) {
+    const exact = leafItems.find((i) => i.to === path);
+    if (exact) return t(exact.key);
+    const prefix = leafItems
+      .filter((i) => i.to !== "/" && path.startsWith(i.to))
+      .sort((a, b) => b.to.length - a.to.length)[0];
+    if (prefix) return t(prefix.key);
+    if (path === "/") return t("nav.dashboard");
+    return path;
+  }
+
+  const [views, setViews] = useState<VisitedView[]>(() => [
+    { path: "/", title: t("nav.dashboard") }
+  ]);
+
+  useEffect(() => {
+    setViews((prev) => {
+      if (prev.some((v) => v.path === pathname)) return prev;
+      return [...prev, { path: pathname, title: resolveTitle(pathname) }];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  function closeTag(path: string) {
+    setViews((prev) => {
+      const idx = prev.findIndex((v) => v.path === path);
+      const next = prev.filter((v) => v.path !== path);
+      if (path === pathname) {
+        const fallback = next[idx - 1] ?? next[idx] ?? { path: "/" };
+        navigate(fallback.path);
+      }
+      return next.length ? next : [{ path: "/", title: t("nav.dashboard") }];
+    });
+  }
+
   async function handleLogout() {
     await logout();
     navigate("/login", { replace: true });
@@ -99,15 +148,16 @@ export function AppShell() {
           breakpoint: "sm",
           collapsed: { mobile: !opened }
         }}
-        padding="md"
+        padding={0}
         styles={{
           header: {
             background: "var(--app-surface)",
-            borderBottomColor: "var(--app-line)"
+            border: "none",
+            boxShadow: "0 1px 4px rgba(0, 21, 41, 0.08)"
           },
           navbar: {
-            background: "var(--app-surface)",
-            borderRightColor: "var(--app-line)"
+            background: "var(--side-bg)",
+            border: "none"
           },
           main: {
             background: "var(--app-bg)"
@@ -132,10 +182,10 @@ export function AppShell() {
           </Group>
         </MantineAppShell.Header>
 
-        <MantineAppShell.Navbar p="sm">
-          <Group gap="sm" mb="md" px="xs" py={6} wrap="nowrap">
+        <MantineAppShell.Navbar p={0}>
+          <Group gap="sm" h={56} wrap="nowrap" className="app-brand-row">
             <Box className="app-brand-mark">bH</Box>
-            <Text fw={800} size="lg" lh={1}>
+            <Text fw={800} size="lg" lh={1} c="#fff">
               businessHub
             </Text>
           </Group>
@@ -157,7 +207,7 @@ export function AppShell() {
                     label={t(child.key)}
                     onClick={toggle}
                     active={isActivePath(child.to)}
-                    className="app-nav-link"
+                    className="app-nav-link app-nav-sub"
                   />
                 ))}
               </NavLink>
@@ -176,8 +226,11 @@ export function AppShell() {
         </MantineAppShell.Navbar>
 
         <MantineAppShell.Main>
-          <Box maw={1200}>
-            <Outlet />
+          <TagsView views={views} activePath={pathname} onClose={closeTag} />
+          <Box p="md">
+            <Box maw={1200}>
+              <Outlet />
+            </Box>
           </Box>
         </MantineAppShell.Main>
       </MantineAppShell>
