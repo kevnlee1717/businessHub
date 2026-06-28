@@ -48,7 +48,8 @@ const [owner] = await db
     name: ownerName,
     passwordHash,
     role: "owner",
-    dataScope: "all"
+    dataScope: "all",
+    mustChangePassword: false
   })
   .onConflictDoUpdate({
     target: employees.email,
@@ -58,6 +59,7 @@ const [owner] = await db
       role: "owner",
       status: "active",
       dataScope: "all",
+      mustChangePassword: false,
       updatedAt: new Date()
     }
   })
@@ -1349,7 +1351,8 @@ async function seedDemoSales() {
         employmentType: "full_time",
         status: "active",
         dataScope: "self",
-        salaryCurrency: "SGD"
+        salaryCurrency: "SGD",
+        mustChangePassword: true
       })
       .onConflictDoUpdate({
         target: employees.email,
@@ -1362,6 +1365,7 @@ async function seedDemoSales() {
           status: "active",
           dataScope: "self",
           salaryCurrency: "SGD",
+          mustChangePassword: true,
           updatedAt: new Date()
         }
       })

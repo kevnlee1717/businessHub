@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
+import { AccountPasswordPage } from "./pages/account/AccountPasswordPage";
 import { BusinessLayout } from "./pages/business/BusinessLayout";
 import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { EpSection } from "./pages/business/EpSection";
@@ -104,6 +105,7 @@ export function App() {
           <Route path="business-finance/parties" element={<DealPartiesPage />} />
           <Route path="business-finance/external-parties" element={<ExternalPartiesPage />} />
           <Route path="business-finance/:id" element={<BusinessDetailPage />} />
+          <Route path="account/password" element={<AccountPasswordPage />} />
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />
             <Route path="companies" element={<CompaniesPage />} />

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { passwordSchema } from "./auth";
 import {
   attendanceKinds,
   appStates,
@@ -45,12 +46,12 @@ const employeeBaseSchema = z.object({
 });
 
 export const employeeCreateSchema = employeeBaseSchema.extend({
-  password: z.string().min(1)
+  password: passwordSchema
 });
 
 export const employeeUpdateSchema = employeeBaseSchema
   .extend({
-    password: z.string().min(1).optional()
+    password: passwordSchema.optional()
   })
   .partial();
 

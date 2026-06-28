@@ -4,14 +4,19 @@ import {
   Burger,
   Button,
   Group,
+  Menu,
+  Modal,
   NavLink,
-  Text
+  Stack,
+  Text,
+  UnstyledButton
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { ChangePasswordForm } from "../components/ChangePasswordForm";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { routeTitleEntries } from "./routeTitles";
 import { TagsView, type VisitedView } from "./TagsView";
@@ -205,6 +210,27 @@ export function AppShell() {
 
   return (
     <Box className="app-section" data-section={section}>
+      <Modal
+        opened={Boolean(user?.must_change_password)}
+        onClose={() => undefined}
+        title="首次登录，请先修改密码"
+        withCloseButton={false}
+        closeOnClickOutside={false}
+        closeOnEscape={false}
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm" c="var(--app-muted)">
+            为了账号安全，首次登录需修改初始密码后才能使用系统。
+          </Text>
+          <ChangePasswordForm forced />
+          <Group justify="flex-end">
+            <Button variant="subtle" color="gray" size="xs" onClick={handleLogout}>
+              退出登录
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <MantineAppShell
         layout="alt"
         header={{ height: 56 }}
@@ -245,13 +271,25 @@ export function AppShell() {
               ))}
             </Group>
             <Group gap="sm" wrap="nowrap">
-              <Text size="sm" c="var(--app-muted)" truncate maw={180}>
-                {user?.name ?? user?.email}
-              </Text>
               <LanguageToggle />
-              <Button size="xs" variant="light" onClick={handleLogout}>
-                {t("auth.logout")}
-              </Button>
+              <Menu position="bottom-end" shadow="md" width={160}>
+                <Menu.Target>
+                  <UnstyledButton>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm" c="var(--app-muted)" truncate maw={180}>
+                        {user?.name ?? user?.email}
+                      </Text>
+                      <Text size="xs" c="var(--app-muted)">
+                        ▾
+                      </Text>
+                    </Group>
+                  </UnstyledButton>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item onClick={() => navigate("/account/password")}>修改密码</Menu.Item>
+                  <Menu.Item onClick={handleLogout}>{t("auth.logout")}</Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
             </Group>
           </Group>
         </MantineAppShell.Header>

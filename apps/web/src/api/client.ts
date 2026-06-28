@@ -25,6 +25,7 @@ export type User = {
   name_en: string | null;
   email: string;
   role: Role;
+  must_change_password: boolean;
 };
 
 export type DataScope = "all" | "company" | "self";
@@ -106,4 +107,11 @@ export async function logout(): Promise<{ ok: true }> {
 
 export async function getMe(): Promise<MeResponse> {
   return api<MeResponse>("/auth/me");
+}
+
+export async function changePassword(input: { current_password?: string; new_password: string }): Promise<{ ok: true }> {
+  return api<{ ok: true }>("/auth/change-password", {
+    method: "POST",
+    body: input
+  });
 }

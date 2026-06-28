@@ -1,5 +1,5 @@
 import { companies, db, employees } from "@bh/db";
-import { loginSchema } from "@bh/shared";
+import { changePasswordSchema, loginSchema } from "@bh/shared";
 import bcrypt from "bcryptjs";
 import { asc, eq, inArray } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
@@ -15,7 +15,8 @@ function publicEmployee(employee: typeof employees.$inferSelect) {
     name: employee.name,
     name_en: employee.nameEn,
     email: employee.email,
-    role: employee.role
+    role: employee.role,
+    must_change_password: employee.mustChangePassword
   };
 }
 
@@ -68,6 +69,43 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       sameSite: "lax",
       secure: env.NODE_ENV === "production"
     });
+
+    return { ok: true };
+  });
+
+  app.post("/auth/change-password", { preHandler: app.authenticate }, async (request, reply) => {
+    const parsed = changePasswordSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw new ZodError(parsed.error.issues);
+    }
+
+    const [employee] = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.id, request.user.id))
+      .limit(1);
+
+    if (!employee) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+
+    if (!employee.mustChangePassword) {
+      const currentPasswordOk =
+        parsed.data.current_password &&
+        (await bcrypt.compare(parsed.data.current_password, employee.passwordHash));
+
+      if (!currentPasswordOk) {
+        return reply.code(400).send({ error: "invalid_current_password" });
+      }
+    }
+
+    const newHash = await bcrypt.hash(parsed.data.new_password, 10);
+
+    await db
+      .update(employees)
+      .set({ passwordHash: newHash, mustChangePassword: false, updatedAt: new Date() })
+      .where(eq(employees.id, employee.id));
 
     return { ok: true };
   });

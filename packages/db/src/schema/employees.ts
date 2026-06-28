@@ -36,6 +36,7 @@ export const employees = pgTable("employees", {
   payrollScheme: payrollSchemeEnum("payroll_scheme"),
   salaryCurrency: currencyEnum("salary_currency").notNull().default("SGD"),
   gpsTrackingEnabled: boolean("gps_tracking_enabled").notNull().default(false),
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
