@@ -26,7 +26,10 @@ export const permissions = [
   "commission.view_own",
   "commission.manage",
   "education.manage",
-  "education.view"
+  "education.view",
+  "recruitment.manage",
+  "recruitment.view",
+  "recruitment.candidate.manage"
 ] as const;
 
 export type Permission = (typeof permissions)[number];
@@ -61,7 +64,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "task.view",
     "commission.manage",
     "education.manage",
-    "education.view"
+    "education.view",
+    "recruitment.manage",
+    "recruitment.view",
+    "recruitment.candidate.manage"
   ],
   accountant: [
     "employee.view",
@@ -232,6 +238,15 @@ export const permissionCatalog: {
     permissions: [
       { key: "education.manage", label: "管理教育" },
       { key: "education.view", label: "查看教育" }
+    ]
+  },
+  {
+    key: "recruitment",
+    label: "招聘",
+    permissions: [
+      { key: "recruitment.manage", label: "管理招聘" },
+      { key: "recruitment.view", label: "查看招聘" },
+      { key: "recruitment.candidate.manage", label: "管理候选人" }
     ]
   }
 ];

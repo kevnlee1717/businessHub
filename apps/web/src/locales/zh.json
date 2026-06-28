@@ -21,6 +21,7 @@
     "academy_collection": "学院收款",
     "students": "学生",
     "documents": "文档",
+    "recruitment": "招聘管理",
     "finance": "财务",
     "finance_billing": "收款",
     "finance_receivables_ledger": "应收台账",
@@ -1732,5 +1733,189 @@
     "one_time": "一次性",
     "monthly": "每月",
     "per_event": "每次事件"
+  },
+  "recruitment": {
+    "empty": "暂无数据",
+    "tabs": {
+      "dashboard": "看板",
+      "jobs": "岗位",
+      "postings": "线上发布",
+      "campaigns": "线下活动",
+      "candidates": "候选人",
+      "talentPool": "人才库",
+      "capture": "现场登记",
+      "settings": "设置"
+    },
+    "filters": {
+      "q": "关键词"
+    },
+    "fields": {
+      "company": "公司",
+      "industry": "行业",
+      "title": "岗位名",
+      "headcount": "招聘人数",
+      "salary": "薪资",
+      "salaryMin": "最低薪资",
+      "salaryMax": "最高薪资",
+      "salaryNote": "薪资补充",
+      "jobContent": "工作内容",
+      "requirements": "要求",
+      "nationalities": "国籍标签",
+      "status": "状态",
+      "priority": "紧急度",
+      "owner": "负责人",
+      "type": "类型",
+      "textContent": "文案正文",
+      "platform": "平台",
+      "publishedOn": "发布日期",
+      "inquiryCount": "咨询数",
+      "notes": "备注",
+      "job": "岗位",
+      "jobs": "岗位",
+      "name": "名称",
+      "location": "地点",
+      "plannedDate": "计划日期",
+      "plannedStart": "开始",
+      "plannedEnd": "结束",
+      "campaign": "活动",
+      "phone": "手机",
+      "nationality": "国籍",
+      "sourceType": "来源",
+      "assignedClerk": "邀约文员",
+      "talentPool": "人才库",
+      "lastContactedAt": "最后跟进",
+      "byEmployee": "跟进人",
+      "note": "内容",
+      "scheduledAt": "面试时间",
+      "mode": "方式",
+      "interviewer": "面试官",
+      "date": "日期",
+      "active": "启用"
+    },
+    "jobs": {
+      "add": "新建岗位",
+      "edit": "编辑岗位"
+    },
+    "materials": {
+      "title": "物料",
+      "add": "新增物料",
+      "aiCopy": "AI 生成文案"
+    },
+    "postings": {
+      "title": "线上发布",
+      "add": "新建发布",
+      "edit": "编辑发布"
+    },
+    "campaigns": {
+      "title": "线下活动",
+      "add": "新建活动",
+      "edit": "编辑活动"
+    },
+    "candidates": {
+      "title": "候选人",
+      "all": "全部",
+      "overdue": "待跟进"
+    },
+    "followups": {
+      "title": "跟进记录",
+      "add": "新增跟进"
+    },
+    "interviews": {
+      "title": "面试记录",
+      "add": "新增面试"
+    },
+    "capture": {
+      "title": "现场登记",
+      "photo": "拍照/上传照片",
+      "submit": "提交登记"
+    },
+    "settings": {
+      "industries": "招聘行业",
+      "addIndustry": "新增行业",
+      "enable": "启用",
+      "thresholds": "超时阈值",
+      "overdueInviteDays": "邀约超时天数",
+      "overdueFollowupDays": "跟进超时天数"
+    },
+    "dashboard": {
+      "totalGap": "总缺口",
+      "urgent": "紧急岗位",
+      "overdue": "待跟进",
+      "gapOverview": "缺口总览",
+      "urgentJobs": "紧急岗位",
+      "dailyLeads": "每日新增线索",
+      "campaignReports": "活动战报",
+      "platformEffect": "平台效果",
+      "overdueList": "待跟进名单",
+      "offered": "已录用",
+      "gap": "缺口",
+      "leads": "线索",
+      "interviews": "面试",
+      "offers": "录用"
+    },
+    "jobStatus": {
+      "open": "在招",
+      "paused": "暂停",
+      "filled": "招满",
+      "closed": "关闭"
+    },
+    "jobPriority": {
+      "normal": "普通",
+      "urgent": "紧急"
+    },
+    "materialType": {
+      "copy": "文案",
+      "image": "配图",
+      "flyer": "传单",
+      "stand": "展架"
+    },
+    "postingStatus": {
+      "publishing": "发布中",
+      "paused": "暂停",
+      "ended": "结束"
+    },
+    "campaignType": {
+      "roadshow": "路演",
+      "flyer": "发传单",
+      "booth": "摆展台",
+      "other": "其他"
+    },
+    "campaignStatus": {
+      "planned": "计划中",
+      "done": "已完成",
+      "cancelled": "取消"
+    },
+    "sourceType": {
+      "posting": "线上发布",
+      "campaign": "线下活动",
+      "walk_in": "上门",
+      "referral": "转介绍"
+    },
+    "candidateStatus": {
+      "new": "新线索",
+      "invited": "已邀约",
+      "interview_scheduled": "约面试",
+      "interviewed": "已面试",
+      "offered": "录用",
+      "rejected": "婉拒",
+      "on_hold": "待定"
+    },
+    "followupType": {
+      "call": "电话",
+      "message": "消息",
+      "invite": "邀约",
+      "note": "备注"
+    },
+    "interviewStatus": {
+      "scheduled": "已约",
+      "done": "已完成",
+      "no_show": "未到场",
+      "cancelled": "取消"
+    },
+    "interviewResult": {
+      "pending": "待定",
+      "pass": "通过",
+      "fail": "不通过"
+    }
   }
 }

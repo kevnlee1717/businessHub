@@ -1,6 +1,7 @@
 import { tabs as documentsTabs } from "../pages/documents/DocumentsLayout";
 import { tabs as financeTabs } from "../pages/finance/FinanceLayout";
 import { tabs as hrTabs } from "../pages/hr/HrLayout";
+import { recruitmentTabs } from "../pages/recruitment/RecruitmentLayout";
 import { tabs as settingsTabs } from "../pages/settings/SettingsLayout";
 
 /**
@@ -12,5 +13,6 @@ export const routeTitleEntries: { path: string; key: string }[] = [
   ...hrTabs,
   ...settingsTabs,
   ...documentsTabs,
-  ...financeTabs
+  ...financeTabs,
+  ...recruitmentTabs
 ].map((tab) => ({ path: tab.path, key: tab.labelKey }));

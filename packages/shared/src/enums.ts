@@ -178,3 +178,44 @@ export type ChargeKind = (typeof chargeKinds)[number];
 
 export const chargeStatuses = ["pending", "partial", "paid", "waived"] as const;
 export type ChargeStatus = (typeof chargeStatuses)[number];
+
+export const recruitmentJobStatuses = ["open", "paused", "filled", "closed"] as const;
+export type RecruitmentJobStatus = (typeof recruitmentJobStatuses)[number];
+
+export const recruitmentJobPriorities = ["normal", "urgent"] as const;
+export type RecruitmentJobPriority = (typeof recruitmentJobPriorities)[number];
+
+export const recruitmentMaterialTypes = ["copy", "image", "flyer", "stand"] as const;
+export type RecruitmentMaterialType = (typeof recruitmentMaterialTypes)[number];
+
+export const recruitmentPostingStatuses = ["publishing", "paused", "ended"] as const;
+export type RecruitmentPostingStatus = (typeof recruitmentPostingStatuses)[number];
+
+export const recruitmentCampaignTypes = ["roadshow", "flyer", "booth", "other"] as const;
+export type RecruitmentCampaignType = (typeof recruitmentCampaignTypes)[number];
+
+export const recruitmentCampaignStatuses = ["planned", "done", "cancelled"] as const;
+export type RecruitmentCampaignStatus = (typeof recruitmentCampaignStatuses)[number];
+
+export const recruitmentSourceTypes = ["posting", "campaign", "walk_in", "referral"] as const;
+export type RecruitmentSourceType = (typeof recruitmentSourceTypes)[number];
+
+export const recruitmentCandidateStatuses = [
+  "new",
+  "invited",
+  "interview_scheduled",
+  "interviewed",
+  "offered",
+  "rejected",
+  "on_hold"
+] as const;
+export type RecruitmentCandidateStatus = (typeof recruitmentCandidateStatuses)[number];
+
+export const recruitmentInterviewResults = ["pending", "pass", "fail"] as const;
+export type RecruitmentInterviewResult = (typeof recruitmentInterviewResults)[number];
+
+export const recruitmentInterviewStatuses = ["scheduled", "done", "no_show", "cancelled"] as const;
+export type RecruitmentInterviewStatus = (typeof recruitmentInterviewStatuses)[number];
+
+export const recruitmentFollowupTypes = ["call", "message", "invite", "note"] as const;
+export type RecruitmentFollowupType = (typeof recruitmentFollowupTypes)[number];

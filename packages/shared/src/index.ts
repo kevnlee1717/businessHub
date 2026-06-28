@@ -15,4 +15,5 @@ export * from "./schemas/finance";
 export * from "./schemas/hr";
 export * from "./schemas/ledger";
 export * from "./schemas/permissions";
+export * from "./schemas/recruitment";
 export * from "./schemas/reports";

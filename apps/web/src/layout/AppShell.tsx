@@ -1,5 +1,6 @@
 import {
   AppShell as MantineAppShell,
+  Badge,
   Box,
   Burger,
   Button,
@@ -11,6 +12,7 @@ import {
   Text,
   UnstyledButton
 } from "@mantine/core";
+import { useQuery } from "@tanstack/react-query";
 import { useDisclosure } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +20,7 @@ import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "reac
 import { useAuth } from "../auth/AuthContext";
 import { ChangePasswordForm } from "../components/ChangePasswordForm";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { getRecruitmentDashboard, recruitmentKeys } from "../api/recruitment";
 import { routeTitleEntries } from "./routeTitles";
 import { TagsView, type VisitedView } from "./TagsView";
 
@@ -53,6 +56,7 @@ const navItems: NavItem[] = [
   },
   { to: "/franchise", key: "nav.franchise" },
   { to: "/documents", key: "nav.documents", perm: "document.view" },
+  { to: "/recruitment", key: "nav.recruitment", perm: "recruitment.view" },
   {
     key: "nav.finance",
     perm: "finance.view",
@@ -121,9 +125,29 @@ export function AppShell() {
         .filter((item): item is NavItem => Boolean(item)),
     [can]
   );
+  const recruitmentDashboardQuery = useQuery({
+    queryKey: recruitmentKeys.dashboard(),
+    queryFn: getRecruitmentDashboard,
+    enabled: can("recruitment.view"),
+    refetchInterval: 60000
+  });
+  const recruitmentTodoCount = recruitmentDashboardQuery.data?.dashboard.overdue.count ?? 0;
 
   function isActivePath(to: string) {
     return to === "/" ? pathname === "/" : pathname.startsWith(to);
+  }
+
+  function navLabel(item: NavItem) {
+    if (item.key === "nav.recruitment" && recruitmentTodoCount > 0) {
+      return (
+        <Group gap="xs" justify="space-between" wrap="nowrap">
+          <Text size="sm">{t(item.key)}</Text>
+          <Badge color="red" size="xs">{recruitmentTodoCount}</Badge>
+        </Group>
+      );
+    }
+
+    return t(item.key);
   }
 
   const titleEntries = useMemo(() => {
@@ -309,7 +333,7 @@ export function AppShell() {
             "children" in item ? (
               <NavLink
                 key={item.key}
-                label={t(item.key)}
+                label={navLabel(item)}
                 childrenOffset={0}
                 defaultOpened={item.defaultOpened ?? false}
                 active={item.children?.some((child) => (child.to ? isActivePath(child.to) : false))}
@@ -320,7 +344,7 @@ export function AppShell() {
                     key={child.to}
                     component={RouterNavLink}
                     to={child.to ?? "/"}
-                    label={t(child.key)}
+                    label={navLabel(child)}
                     onClick={toggle}
                     active={child.to ? isActivePath(child.to) : false}
                     className="app-nav-link app-nav-sub"
@@ -332,7 +356,7 @@ export function AppShell() {
                 key={item.to}
                 component={RouterNavLink}
                 to={item.to ?? "/"}
-                label={t(item.key)}
+                label={navLabel(item)}
                 onClick={toggle}
                 active={item.to ? isActivePath(item.to) : false}
                 className="app-nav-link"

@@ -42,6 +42,18 @@ import { PayrollPage } from "./pages/hr/PayrollPage";
 import { PerformancePage } from "./pages/hr/PerformancePage";
 import { SiteVisitsPage } from "./pages/hr/SiteVisitsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { CampaignDetailPage } from "./pages/recruitment/CampaignDetailPage";
+import { CampaignsPage } from "./pages/recruitment/CampaignsPage";
+import { CandidateDetailPage } from "./pages/recruitment/CandidateDetailPage";
+import { CandidatesPage } from "./pages/recruitment/CandidatesPage";
+import { JobDetailPage } from "./pages/recruitment/JobDetailPage";
+import { JobsPage } from "./pages/recruitment/JobsPage";
+import { PostingsPage } from "./pages/recruitment/PostingsPage";
+import { QuickCapturePage } from "./pages/recruitment/QuickCapturePage";
+import { RecruitmentDashboardPage } from "./pages/recruitment/RecruitmentDashboardPage";
+import { RecruitmentLayout } from "./pages/recruitment/RecruitmentLayout";
+import { RecruitmentSettingsPage } from "./pages/recruitment/RecruitmentSettingsPage";
+import { TalentPoolPage } from "./pages/recruitment/TalentPoolPage";
 import { StatementPage } from "./pages/StatementPage";
 import { CollectionItemsPage } from "./pages/settings/CollectionItemsPage";
 import { CompaniesPage } from "./pages/settings/CompaniesPage";
@@ -102,6 +114,19 @@ export function App() {
             <Route path="my-commission" element={<MyCommissionPage />} />
             <Route path="external-commission" element={<ExternalCommissionPage />} />
             <Route path="reports" element={<ReportsPage />} />
+          </Route>
+          <Route path="recruitment" element={<RecruitmentLayout />}>
+            <Route index element={<RecruitmentDashboardPage />} />
+            <Route path="jobs" element={<JobsPage />} />
+            <Route path="jobs/:id" element={<JobDetailPage />} />
+            <Route path="postings" element={<PostingsPage />} />
+            <Route path="campaigns" element={<CampaignsPage />} />
+            <Route path="campaigns/:id" element={<CampaignDetailPage />} />
+            <Route path="candidates" element={<CandidatesPage />} />
+            <Route path="candidates/:id" element={<CandidateDetailPage />} />
+            <Route path="talent-pool" element={<TalentPoolPage />} />
+            <Route path="capture" element={<QuickCapturePage />} />
+            <Route path="settings" element={<RecruitmentSettingsPage />} />
           </Route>
           <Route path="business-finance" element={<BusinessListPage />} />
           <Route path="business-finance/parties" element={<DealPartiesPage />} />

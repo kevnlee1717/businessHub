@@ -38,6 +38,7 @@ import { registerPerformanceRoutes } from "./performance";
 import { registerPermissionRoutes } from "./permissions";
 import { registerPositionRoutes } from "./positions";
 import { registerReconcileRoutes } from "./reconcile";
+import { registerRecruitmentRoutes } from "./recruitment";
 import { registerRecurringCostRoutes } from "./recurringCosts";
 import { registerReportRoutes } from "./reports";
 import { registerSchemeVersionRoutes } from "./schemeVersions";
@@ -95,6 +96,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerLedgerRoutes);
   await app.register(registerReconcileRoutes);
   await app.register(registerReportRoutes);
+  await app.register(registerRecruitmentRoutes);
   await app.register(registerDashboardRoutes);
   await app.register(registerRecurringCostRoutes);
   await app.register(registerCompanyExpenseRoutes);

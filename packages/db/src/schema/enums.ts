@@ -40,6 +40,17 @@ import {
   payslipStatuses,
   permissionEffects,
   reconcileStatuses,
+  recruitmentCampaignStatuses,
+  recruitmentCampaignTypes,
+  recruitmentCandidateStatuses,
+  recruitmentFollowupTypes,
+  recruitmentInterviewResults,
+  recruitmentInterviewStatuses,
+  recruitmentJobPriorities,
+  recruitmentJobStatuses,
+  recruitmentMaterialTypes,
+  recruitmentPostingStatuses,
+  recruitmentSourceTypes,
   reportSections,
   schemeLineBases,
   schemeLineKinds,
@@ -104,3 +115,14 @@ export const schemeLineRecurrenceEnum = pgEnum("scheme_line_recurrence", schemeL
 export const milestoneBasisEnum = pgEnum("milestone_basis", milestoneBases);
 export const chargeKindEnum = pgEnum("charge_kind", chargeKinds);
 export const chargeStatusEnum = pgEnum("charge_status", chargeStatuses);
+export const recruitmentJobStatusEnum = pgEnum("recruitment_job_status", recruitmentJobStatuses);
+export const recruitmentJobPriorityEnum = pgEnum("recruitment_job_priority", recruitmentJobPriorities);
+export const recruitmentMaterialTypeEnum = pgEnum("recruitment_material_type", recruitmentMaterialTypes);
+export const recruitmentPostingStatusEnum = pgEnum("recruitment_posting_status", recruitmentPostingStatuses);
+export const recruitmentCampaignTypeEnum = pgEnum("recruitment_campaign_type", recruitmentCampaignTypes);
+export const recruitmentCampaignStatusEnum = pgEnum("recruitment_campaign_status", recruitmentCampaignStatuses);
+export const recruitmentSourceTypeEnum = pgEnum("recruitment_source_type", recruitmentSourceTypes);
+export const recruitmentCandidateStatusEnum = pgEnum("recruitment_candidate_status", recruitmentCandidateStatuses);
+export const recruitmentInterviewResultEnum = pgEnum("recruitment_interview_result", recruitmentInterviewResults);
+export const recruitmentInterviewStatusEnum = pgEnum("recruitment_interview_status", recruitmentInterviewStatuses);
+export const recruitmentFollowupTypeEnum = pgEnum("recruitment_followup_type", recruitmentFollowupTypes);

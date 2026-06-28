@@ -21,6 +21,7 @@
     "academy_collection": "Academy Collection",
     "students": "Students",
     "documents": "Documents",
+    "recruitment": "Recruitment",
     "finance": "Finance",
     "finance_billing": "Collections",
     "finance_receivables_ledger": "Receivables Ledger",
@@ -1732,5 +1733,189 @@
     "one_time": "One-time",
     "monthly": "Monthly",
     "per_event": "Per event"
+  },
+  "recruitment": {
+    "empty": "No data",
+    "tabs": {
+      "dashboard": "Dashboard",
+      "jobs": "Jobs",
+      "postings": "Postings",
+      "campaigns": "Campaigns",
+      "candidates": "Candidates",
+      "talentPool": "Talent Pool",
+      "capture": "Capture",
+      "settings": "Settings"
+    },
+    "filters": {
+      "q": "Keyword"
+    },
+    "fields": {
+      "company": "Company",
+      "industry": "Industry",
+      "title": "Job title",
+      "headcount": "Headcount",
+      "salary": "Salary",
+      "salaryMin": "Salary min",
+      "salaryMax": "Salary max",
+      "salaryNote": "Salary note",
+      "jobContent": "Job content",
+      "requirements": "Requirements",
+      "nationalities": "Nationalities",
+      "status": "Status",
+      "priority": "Priority",
+      "owner": "Owner",
+      "type": "Type",
+      "textContent": "Copy",
+      "platform": "Platform",
+      "publishedOn": "Published on",
+      "inquiryCount": "Inquiries",
+      "notes": "Notes",
+      "job": "Job",
+      "jobs": "Jobs",
+      "name": "Name",
+      "location": "Location",
+      "plannedDate": "Planned date",
+      "plannedStart": "Start",
+      "plannedEnd": "End",
+      "campaign": "Campaign",
+      "phone": "Phone",
+      "nationality": "Nationality",
+      "sourceType": "Source",
+      "assignedClerk": "Assigned clerk",
+      "talentPool": "Talent pool",
+      "lastContactedAt": "Last contacted",
+      "byEmployee": "By",
+      "note": "Note",
+      "scheduledAt": "Scheduled at",
+      "mode": "Mode",
+      "interviewer": "Interviewer",
+      "date": "Date",
+      "active": "Active"
+    },
+    "jobs": {
+      "add": "New job",
+      "edit": "Edit job"
+    },
+    "materials": {
+      "title": "Materials",
+      "add": "New material",
+      "aiCopy": "AI copy"
+    },
+    "postings": {
+      "title": "Postings",
+      "add": "New posting",
+      "edit": "Edit posting"
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "add": "New campaign",
+      "edit": "Edit campaign"
+    },
+    "candidates": {
+      "title": "Candidates",
+      "all": "All",
+      "overdue": "Overdue"
+    },
+    "followups": {
+      "title": "Followups",
+      "add": "New followup"
+    },
+    "interviews": {
+      "title": "Interviews",
+      "add": "New interview"
+    },
+    "capture": {
+      "title": "Quick capture",
+      "photo": "Take/upload photo",
+      "submit": "Submit"
+    },
+    "settings": {
+      "industries": "Recruitment industries",
+      "addIndustry": "Add industry",
+      "enable": "Enable",
+      "thresholds": "Overdue thresholds",
+      "overdueInviteDays": "Invite overdue days",
+      "overdueFollowupDays": "Followup overdue days"
+    },
+    "dashboard": {
+      "totalGap": "Total gap",
+      "urgent": "Urgent jobs",
+      "overdue": "Overdue",
+      "gapOverview": "Gap overview",
+      "urgentJobs": "Urgent jobs",
+      "dailyLeads": "Daily leads",
+      "campaignReports": "Campaign reports",
+      "platformEffect": "Platform effect",
+      "overdueList": "Overdue list",
+      "offered": "Offered",
+      "gap": "Gap",
+      "leads": "Leads",
+      "interviews": "Interviews",
+      "offers": "Offers"
+    },
+    "jobStatus": {
+      "open": "Open",
+      "paused": "Paused",
+      "filled": "Filled",
+      "closed": "Closed"
+    },
+    "jobPriority": {
+      "normal": "Normal",
+      "urgent": "Urgent"
+    },
+    "materialType": {
+      "copy": "Copy",
+      "image": "Image",
+      "flyer": "Flyer",
+      "stand": "Stand"
+    },
+    "postingStatus": {
+      "publishing": "Publishing",
+      "paused": "Paused",
+      "ended": "Ended"
+    },
+    "campaignType": {
+      "roadshow": "Roadshow",
+      "flyer": "Flyer",
+      "booth": "Booth",
+      "other": "Other"
+    },
+    "campaignStatus": {
+      "planned": "Planned",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "sourceType": {
+      "posting": "Posting",
+      "campaign": "Campaign",
+      "walk_in": "Walk-in",
+      "referral": "Referral"
+    },
+    "candidateStatus": {
+      "new": "New",
+      "invited": "Invited",
+      "interview_scheduled": "Interview scheduled",
+      "interviewed": "Interviewed",
+      "offered": "Offered",
+      "rejected": "Rejected",
+      "on_hold": "On hold"
+    },
+    "followupType": {
+      "call": "Call",
+      "message": "Message",
+      "invite": "Invite",
+      "note": "Note"
+    },
+    "interviewStatus": {
+      "scheduled": "Scheduled",
+      "done": "Done",
+      "no_show": "No show",
+      "cancelled": "Cancelled"
+    },
+    "interviewResult": {
+      "pending": "Pending",
+      "pass": "Pass",
+      "fail": "Fail"
+    }
   }
 }
