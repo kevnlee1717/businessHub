@@ -157,7 +157,7 @@ export function AppShell() {
         layout="alt"
         header={{ height: 56 }}
         navbar={{
-          width: 248,
+          width: 210,
           breakpoint: "sm",
           collapsed: { mobile: !opened }
         }}

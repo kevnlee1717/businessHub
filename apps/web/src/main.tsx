@@ -23,7 +23,9 @@ import { AuthProvider } from "./auth/AuthContext";
 const queryClient = new QueryClient();
 const root = document.getElementById("root");
 const theme = createTheme({
-  fontFamily: '-apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  fontFamily:
+    '"Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif',
+  fontSizes: { xs: "12px", sm: "13px", md: "14px", lg: "16px", xl: "18px" },
   // element-admin: 控件/卡片圆角统一 4px
   defaultRadius: "sm",
   primaryColor: "dark",

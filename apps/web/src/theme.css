@@ -21,6 +21,10 @@
   --side-hover: #263445;
   --side-submenu-hover: #001528;
   --side-active-text: #409eff;
+
+  /* element-admin 基准字号 14px(Mantine 默认 16px 偏大/粗糙) */
+  --mantine-font-size-md: 14px;
+  --mantine-font-size-sm: 13px;
 }
 
 html,
@@ -32,7 +36,12 @@ body,
 body {
   margin: 0;
   background: var(--app-bg);
-  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  /* element-admin 同款字体栈 */
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -82,7 +91,14 @@ body {
 
 .app-nav-link {
   border-radius: 0;
+  min-height: 56px;
+  font-size: 14px;
   color: var(--side-text);
+}
+
+.app-nav-link .mantine-NavLink-label {
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 /* 去掉点击后残留的蓝色聚焦描边/阴影(element 侧栏没有,否则像浮空框) */
@@ -188,4 +204,48 @@ body {
 .tags-view-close:hover {
   opacity: 1;
   background: rgba(0, 0, 0, 0.15);
+}
+
+/* 页内标签:element-admin el-tabs type="border-card" 卡片式 */
+.mantine-Tabs-root {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.mantine-Tabs-list {
+  gap: 0;
+  flex-wrap: nowrap;
+  background: #f5f7fa;
+  border-bottom: 1px solid #dcdfe6;
+}
+
+.mantine-Tabs-tab {
+  border: 0;
+  border-right: 1px solid #dcdfe6;
+  border-radius: 0;
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #303133;
+  background: transparent;
+}
+
+.mantine-Tabs-tab:hover {
+  background: transparent;
+  color: var(--mantine-primary-color-filled);
+}
+
+/* 激活 tab:白底,与下方内容连成一体(盖住底边线) */
+.mantine-Tabs-tab[data-active],
+.mantine-Tabs-tab[data-active]:hover {
+  margin-bottom: -1px;
+  background: #fff;
+  border-bottom: 1px solid #fff;
+  color: var(--mantine-primary-color-filled);
+  font-weight: 600;
+}
+
+.mantine-Tabs-panel {
+  padding: 16px;
 }
