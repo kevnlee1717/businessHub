@@ -4,7 +4,35 @@
 
 ---
 
-## 🔖 最新快照(2026-06-27 第九轮:外部分成人 + 对账单 + 业务员自助 + 业务收款详情页改版)
+## 🚨🚨 最重要:prod / dev 双环境已分离(2026-06-28,员工明天真用 prod)
+
+**开发只在 `~/project/businessHub-dev`(本目录)+ `dev-bh.youjia.sg`。prod 已冻结,绝不在 `~/project/businessHub` 直接改/测!**
+
+| | prod(员工真用,冻结) | dev(在这开发) |
+|---|---|---|
+| 域名 | https://bh.youjia.sg | https://dev-bh.youjia.sg |
+| 代码树 | `~/project/businessHub` | `~/project/businessHub-dev` ← 在这 |
+| 服务 | systemd `--user bh-prod` :3011 | systemd `--user bh-dev` :3012 |
+| 数据库 | `businesshub` | `businesshub_dev` |
+| 隧道/SSL | frpc[bh-prod]→byte:3099 / nginx bh | frpc[bh-dev]→byte:3096 / nginx dev-bh |
+
+- 开发循环:改 dev 树 → `pnpm --filter @bh/web build`(前端改了才需)→ `XDG_RUNTIME_DIR=/run/user/1000 systemctl --user restart bh-dev` → 在 dev-bh 验证 → commit+push。
+- **发布到 prod**(确认 OK 后):`cd ~/project/businessHub && git pull && pnpm --filter @bh/web build && systemctl --user restart bh-prod`(有新 migration 再单独对 `businesshub` 库 migrate)。
+- 详见 `docs/runbooks/deploy-pitfalls.md`(🔒 段)。dev 库是 6-28 prod 数据快照,之后各自演进。
+- ⚠️ 仍是 codex 写代码 / 我审验。改前端 build 完必须 restart(否则黑屏,见 runbook)。
+
+## 🔖 快照(2026-06-28 第十轮:按金额里程碑 + 版本名字 + UI主题 + 员工 + 环境分离)
+
+- **提成里程碑分配支持「按金额」**(不止%):`milestone_split` 升级 `Record<seq,{basis:percent|fixed,value}>`;`splitCommissionByMilestones` 纯函数支持金额/比例混合+末阶段吃余额(单测全绿);前端 Modal 每阶段 拆分方式(按比例%/按金额+币种)。E2E:首付按金额300→尾款吃余额700。
+- **版本标签改可编辑名字/备注**(去掉 v1):版本行 ep001(编号 bold)下方 TextInput 失焦/回车存 label(如「1万·落地方4.5k」给员工看);新增版本弹窗字段改名「名字/备注」。
+- **UI 分区两套主题**:业务区=**石青灰蓝 #475569**(A)、财务区=**金融蓝 #635bff**;`theme.css` 按 `data-section`(AppShell 按路由 /finance|/|/statement→finance,其余→business)切 Mantine 主色变量+底色;侧边栏激活态主色化。mockup 截图选型流程:chrome 无头渲染 HTML + puppeteer-core(scratchpad)截真实页。
+- **建了 8 个员工 + 纯用户名登录**:jingyi/cecilia/nengneng=文员,ash=会计,jas/yizhen=主管,chenchen=摄影,xiaoyu=主播;**用户名=名字无@**,密码统一 `123456`,role=admin(先全可见,权限以后做)。缺岗位(会计/主管/摄影/主播)已建。为支持纯用户名登录,`loginSchema`+`employeeBaseSchema` 的 email 去掉 `.email()` 校验。**注:这些员工建在 prod 库(8 人真实);dev 库是其快照。**
+- **环境分离**见上方🚨。dashboard business-hub 卡片已加 dev env + 隔离说明。
+- **下次可做**:① 继续在 dev 上做新功能;② 清旧测试员工(`小陈` chen@bh.local、`[DEMO] 销售小陈`)——prod 库里还在;③ 加"改密码"入口(员工默认 123456 应能自改);④ 业主录真实外部分成人/成交挂人;⑤ 各业务真实价格/提成/成本;⑥ CPF 工资条扣项;⑦ 非案件业务(按摩椅/床垫/加盟)配方案版本。
+
+---
+
+## 🔖 快照(2026-06-27 第九轮:外部分成人 + 对账单 + 业务员自助 + 业务收款详情页改版)
 
 - **业主提的两件事**:① 业务收款详情页一堆"工程化裸字段"看不懂(对象/基准/单位/input_key/标签覆盖)要白话化;② 分成的这几类人(介绍人/加盟商/落地方/担保人)要能管理、能看到自己的提成(哪个订单、是否结算、怎么算)。
 - **业务收款详情页改版**(已上线 + push,commit 到 `d81b2e3` 一带):页面改名「业务收款详情」;版本标识 `ep001`(业务码+序号);规则行/示范利润/收款里程碑改 **Tab**;状态全改 **Switch**(使用/停用,弃用 paused 第三态);业务加**结算币种**(SGD/RMB,migration 0019,一个业务一种币);规则行按类型重排(**对象只在分成显示**、基准收窄 固定金额/按收入比例、金额带币种后缀);**去掉 input_key + 单位 + 里程碑标签覆盖**(固定价靠 rate,价格不同→新建版本);里程碑只留收款名目下拉;「应收偏移天」改名「成交后几天应收」。分成对象加 **落地方/担保人**(共7个)。
