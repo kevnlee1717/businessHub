@@ -10,6 +10,7 @@ export type RecruitmentCopyInput = {
   salary_note?: string | null | undefined;
   job_content?: string | null | undefined;
   requirements?: string | null | undefined;
+  source_text?: string | null | undefined;
   copy_type: RecruitmentCopyType;
   tone?: string | undefined;
   platform?: string | undefined;
@@ -55,6 +56,9 @@ function buildRecruitmentPrompt(input: RecruitmentCopyInput) {
     salary ? `薪资:${salary}` : undefined,
     input.job_content ? `工作内容:${input.job_content}` : undefined,
     input.requirements ? `岗位要求:${input.requirements}` : undefined,
+    input.source_text
+      ? `以下是参考原文,请基于它改写/优化成${copyTypeLabel(input.copy_type)},保留关键信息:\n${input.source_text}`
+      : undefined,
     "要求:信息准确、适合人工发布、不要承诺未提供的福利。"
   ]
     .filter(Boolean)

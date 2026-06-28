@@ -56,6 +56,7 @@ export const recruitmentMaterials = pgTable("recruitment_materials", {
   jobId: uuid("job_id").notNull().references(() => recruitmentJobs.id, { onDelete: "cascade" }),
   type: recruitmentMaterialTypeEnum("type").notNull(),
   title: varchar("title", { length: 200 }).notNull(),
+  sourceText: text("source_text"),
   textContent: text("text_content"),
   documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
   platforms: text("platforms").array(),

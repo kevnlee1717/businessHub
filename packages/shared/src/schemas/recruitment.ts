@@ -68,6 +68,7 @@ const recruitmentMaterialBaseSchema = z.object({
   job_id: uuidField,
   type: z.enum(recruitmentMaterialTypes),
   title: z.string().trim().min(1).max(200),
+  source_text: nullableOptionalText,
   text_content: nullableOptionalText,
   document_id: nullableOptionalUuid,
   platforms: z.array(z.string().trim().min(1)).nullable().optional(),
@@ -94,6 +95,7 @@ export const recruitmentAiCopySchema = z.object({
   salary_note: nullableOptionalText,
   job_content: nullableOptionalText,
   requirements: nullableOptionalText,
+  source_text: nullableOptionalText,
   copy_type: z.enum(["ad", "job_description", "invite_script"]),
   tone: optionalText,
   platform: optionalText
