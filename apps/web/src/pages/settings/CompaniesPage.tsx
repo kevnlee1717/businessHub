@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import {
   createClockPoint,
   createCompany,
+  createIndustry,
   deleteClockPoint,
   listClockPoints,
   listCompanies,
@@ -49,6 +50,8 @@ import {
   type ClockPoint,
   type Company
 } from "../../api/hr";
+import { translateText } from "../../api/translate";
+import { CreatableCombobox } from "../../components/CreatableCombobox";
 import { MapPicker } from "../../components/MapPicker";
 
 type CompanyFormValues = {
@@ -480,14 +483,27 @@ export function CompaniesPage() {
                 control={form.control}
                 name="industry_id"
                 render={({ field }) => (
-                  <Select
+                  <CreatableCombobox
                     label={t("company.fields.industry")}
-                    data={industryOptions}
+                    options={industryOptions}
                     value={field.value ?? null}
-                    onChange={field.onChange}
+                    onChange={(value) => field.onChange(value)}
+                    onCreate={async (input) => {
+                      const trimmed = input.trim();
+                      const hasZh = /[一-鿿]/.test(trimmed);
+                      let name = trimmed;
+                      let name_en: string | undefined;
+                      if (hasZh) {
+                        name_en = (await translateText(trimmed, "en")) || undefined;
+                      } else {
+                        name = (await translateText(trimmed, "zh")) || trimmed;
+                        name_en = trimmed;
+                      }
+                      const res = await createIndustry({ name, ...(name_en ? { name_en } : {}) });
+                      await queryClient.invalidateQueries({ queryKey: industryQueryKey });
+                      return res.industry.id;
+                    }}
                     error={errors.industry_id?.message}
-                    clearable
-                    searchable
                   />
                 )}
               />
