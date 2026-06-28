@@ -31,6 +31,7 @@ export type RecruitmentIndustry = {
   id: string;
   company_id: string;
   name: string;
+  name_i18n?: { zh?: string | null; en?: string | null };
   sort_order: number;
   active: boolean;
   created_at: string;
@@ -42,12 +43,16 @@ export type RecruitmentJob = {
   company_id: string;
   industry_id?: string | null;
   title: string;
+  title_i18n?: { zh?: string | null; en?: string | null };
   headcount: number;
   salary_min?: number | null;
   salary_max?: number | null;
   salary_note?: string | null;
+  salaryNote_i18n?: { zh?: string | null; en?: string | null };
   job_content?: string | null;
+  jobContent_i18n?: { zh?: string | null; en?: string | null };
   requirements?: string | null;
+  requirements_i18n?: { zh?: string | null; en?: string | null };
   nationalities: string[];
   status: RecruitmentJobStatus;
   priority: RecruitmentJobPriority;

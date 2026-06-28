@@ -56,8 +56,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
+import { BilingualInput } from "../../components/BilingualInput";
 import { fileUrl } from "../../api/dms";
 import { listCompanies, listEmployees } from "../../api/hr";
+import { translateText } from "../../api/translate";
 import {
   createRecruitmentCampaign,
   createRecruitmentCandidate,
@@ -96,6 +98,7 @@ import {
   type RecruitmentMaterial,
   type RecruitmentPosting
 } from "../../api/recruitment";
+import { normalizeLang, pickLang, tField, type AppLang, type I18nValue } from "../../lib/i18nField";
 
 const pageSize = 10;
 
@@ -112,6 +115,72 @@ function toDateTimeInput(value?: string | null) {
 
 function emptyToNull(value: unknown) {
   return typeof value === "string" && value.trim() === "" ? null : value;
+}
+
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function nullableFirstText(...values: unknown[]) {
+  return firstText(...values) || null;
+}
+
+function looksChinese(value: string) {
+  return /[一-鿿]/.test(value);
+}
+
+function fieldI18n(row: any, field: string): I18nValue {
+  return row?.[`${field}_i18n`];
+}
+
+function editPair(row: any, field: string) {
+  const i18n = fieldI18n(row, field);
+  const zh = i18n?.zh?.trim() ?? "";
+  const en = i18n?.en?.trim() ?? "";
+  if (zh || en) return { zh, en };
+
+  const original = typeof row?.[field] === "string" ? row[field].trim() : "";
+  if (!original) return { zh: "", en: "" };
+  return looksChinese(original) ? { zh: original, en: "" } : { zh: "", en: original };
+}
+
+async function industryBody(companyId: unknown, nameZh: string, nameEn: string) {
+  const zh = nameZh.trim();
+  const en = nameEn.trim();
+  const name = firstText(zh, en);
+  return {
+    company_id: companyId,
+    name,
+    nameZh: zh,
+    nameEn: en
+  };
+}
+
+async function industryBodyFromName(companyId: unknown, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return { company_id: companyId, name: trimmed, nameZh: "", nameEn: "" };
+
+  if (looksChinese(trimmed)) {
+    return industryBody(companyId, trimmed, await translateText(trimmed, "en"));
+  }
+
+  return industryBody(companyId, await translateText(trimmed, "zh"), trimmed);
+}
+
+async function jobBodyFromTitle(companyId: unknown, title: string) {
+  const trimmed = title.trim();
+  if (!trimmed) return { company_id: companyId, title: trimmed, titleZh: "", titleEn: "" };
+
+  if (looksChinese(trimmed)) {
+    const titleEn = await translateText(trimmed, "en");
+    return { company_id: companyId, title: trimmed, titleZh: trimmed, titleEn };
+  }
+
+  const titleZh = await translateText(trimmed, "zh");
+  return { company_id: companyId, title: trimmed, titleZh, titleEn: trimmed };
 }
 
 function fmt(value?: string | null) {
@@ -179,6 +248,8 @@ function slicePage<T>(rows: T[], page: number) {
 }
 
 function useBaseOptions() {
+  const { i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
   const employeesQuery = useQuery({ queryKey: ["hr", "employees"], queryFn: listEmployees });
   const industriesQuery = useQuery({ queryKey: recruitmentKeys.industries(), queryFn: () => listRecruitmentIndustries({ active: "1" }) });
@@ -193,8 +264,8 @@ function useBaseOptions() {
     campaigns: campaignsQuery.data?.campaigns ?? [],
     companyOptions: (companiesQuery.data?.companies ?? []).map((row) => ({ value: row.id, label: row.name })),
     employeeOptions: (employeesQuery.data?.employees ?? []).map((row) => ({ value: row.id, label: row.name })),
-    industryOptions: (industriesQuery.data?.industries ?? []).map((row) => ({ value: row.id, label: row.name })),
-    jobOptions: (jobsQuery.data?.jobs ?? []).map((row) => ({ value: row.id, label: row.title })),
+    industryOptions: (industriesQuery.data?.industries ?? []).map((row) => ({ value: row.id, label: pickLang(row.name_i18n, lang) || row.name })),
+    jobOptions: (jobsQuery.data?.jobs ?? []).map((row) => ({ value: row.id, label: tField(row, "title", lang) })),
     campaignOptions: (campaignsQuery.data?.campaigns ?? []).map((row) => ({ value: row.id, label: row.name })),
     error: companiesQuery.error ?? employeesQuery.error ?? industriesQuery.error ?? jobsQuery.error ?? campaignsQuery.error
   };
@@ -374,10 +445,7 @@ function JobFormModal({
   const queryClient = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm();
-  const jobTitleOptions = useMemo(
-    () => Array.from(new Set(base.jobs.map((row) => row.title.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [base.jobs]
-  );
+  const [titleError, setTitleError] = useState<string | undefined>();
   const mutation = useMutation({
     mutationFn: (body: Dict) => (job ? updateRecruitmentJob(job.id, body) : createRecruitmentJob(body)),
     onSuccess: async () => {
@@ -388,24 +456,61 @@ function JobFormModal({
 
   useMemo(() => {
     if (opened) {
+      const title = job ? editPair(job, "title") : { zh: "", en: "" };
+      const jobContent = job ? editPair(job, "jobContent") : { zh: "", en: "" };
+      const requirements = job ? editPair(job, "requirements") : { zh: "", en: "" };
+      const salaryNote = job ? editPair(job, "salaryNote") : { zh: "", en: "" };
       form.setValues({
         company_id: job?.company_id ?? base.companyOptions[0]?.value ?? "",
         industry_id: job?.industry_id ?? "",
-        title: job?.title ?? "",
+        titleZh: title.zh,
+        titleEn: title.en,
         headcount: job?.headcount ?? 1,
         salary_min: job?.salary_min ?? undefined,
         salary_max: job?.salary_max ?? undefined,
-        salary_note: job?.salary_note ?? "",
-        job_content: job?.job_content ?? "",
-        requirements: job?.requirements ?? "",
+        salaryNoteZh: salaryNote.zh,
+        salaryNoteEn: salaryNote.en,
+        jobContentZh: jobContent.zh,
+        jobContentEn: jobContent.en,
+        requirementsZh: requirements.zh,
+        requirementsEn: requirements.en,
         nationalities: job?.nationalities ?? [],
         status: job?.status ?? "open",
         priority: job?.priority ?? "normal",
         owner_id: job?.owner_id ?? null
       });
+      setTitleError(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, job?.id, base.companyOptions.length]);
+
+  const submit = () => {
+    const title = firstText(form.values.titleZh, form.values.titleEn);
+    if (!title) {
+      setTitleError(t("bilingual.titleRequired"));
+      return;
+    }
+
+    setTitleError(undefined);
+    mutation.mutate({
+      ...form.values,
+      title,
+      job_content: nullableFirstText(form.values.jobContentZh, form.values.jobContentEn),
+      requirements: nullableFirstText(form.values.requirementsZh, form.values.requirementsEn),
+      salary_note: nullableFirstText(form.values.salaryNoteZh, form.values.salaryNoteEn),
+      salary_min: emptyToNull(form.values.salary_min),
+      salary_max: emptyToNull(form.values.salary_max),
+      titleZh: firstText(form.values.titleZh),
+      titleEn: firstText(form.values.titleEn),
+      jobContentZh: firstText(form.values.jobContentZh),
+      jobContentEn: firstText(form.values.jobContentEn),
+      requirementsZh: firstText(form.values.requirementsZh),
+      requirementsEn: firstText(form.values.requirementsEn),
+      salaryNoteZh: firstText(form.values.salaryNoteZh),
+      salaryNoteEn: firstText(form.values.salaryNoteEn),
+      owner_id: emptyToNull(form.values.owner_id)
+    });
+  };
 
   return (
     <FieldModal
@@ -413,17 +518,7 @@ function JobFormModal({
       onClose={onClose}
       title={job ? t("recruitment.jobs.edit") : t("recruitment.jobs.add")}
       saving={mutation.isPending}
-      onSubmit={() =>
-        mutation.mutate({
-          ...form.values,
-          salary_min: emptyToNull(form.values.salary_min),
-          salary_max: emptyToNull(form.values.salary_max),
-          salary_note: emptyToNull(form.values.salary_note),
-          job_content: emptyToNull(form.values.job_content),
-          requirements: emptyToNull(form.values.requirements),
-          owner_id: emptyToNull(form.values.owner_id)
-        })
-      }
+      onSubmit={submit}
     >
       <ErrorAlert error={base.error ?? mutation.error} />
       <Group grow align="flex-start">
@@ -435,35 +530,62 @@ function JobFormModal({
           onChange={(v) => form.set("industry_id", v)}
           createDisabled={!form.values.company_id}
           onCreate={async (name) => {
-            const data = await createRecruitmentIndustry({ company_id: form.values.company_id, name });
+            const data = await createRecruitmentIndustry(await industryBodyFromName(form.values.company_id, name));
             await queryClient.invalidateQueries({ queryKey: recruitmentKeys.industries() });
             return data.industry.id;
           }}
         />
       </Group>
-      <Group grow align="flex-start">
-        <Autocomplete label={t("recruitment.fields.title")} data={jobTitleOptions} value={String(form.values.title ?? "")} onChange={(v) => form.set("title", v)} />
-        <NumberInput label={t("recruitment.fields.headcount")} min={1} value={Number(form.values.headcount ?? 1)} onChange={(v) => form.set("headcount", v)} />
-      </Group>
+      <BilingualInput
+        label={t("recruitment.fields.title")}
+        valueZh={String(form.values.titleZh ?? "")}
+        valueEn={String(form.values.titleEn ?? "")}
+        onChangeZh={(value) => form.set("titleZh", value)}
+        onChangeEn={(value) => form.set("titleEn", value)}
+        required
+        error={titleError}
+      />
+      <NumberInput label={t("recruitment.fields.headcount")} min={1} value={Number(form.values.headcount ?? 1)} onChange={(v) => form.set("headcount", v)} />
       <Group grow align="flex-start">
         <NumberInput label={t("recruitment.fields.salaryMin")} min={0} value={(form.values.salary_min as number | undefined) ?? ""} onChange={(v) => form.set("salary_min", v)} />
         <NumberInput label={t("recruitment.fields.salaryMax")} min={0} value={(form.values.salary_max as number | undefined) ?? ""} onChange={(v) => form.set("salary_max", v)} />
       </Group>
-      <TextInput label={t("recruitment.fields.salaryNote")} value={String(form.values.salary_note ?? "")} onChange={(e) => form.set("salary_note", e.currentTarget.value)} />
+      <BilingualInput
+        label={t("recruitment.fields.salaryNote")}
+        valueZh={String(form.values.salaryNoteZh ?? "")}
+        valueEn={String(form.values.salaryNoteEn ?? "")}
+        onChangeZh={(value) => form.set("salaryNoteZh", value)}
+        onChangeEn={(value) => form.set("salaryNoteEn", value)}
+      />
       <MultiSelect label={t("recruitment.fields.nationalities")} data={["SG", "PR", "Malaysia", "China"].map((v) => ({ value: v, label: v }))} value={(form.values.nationalities as string[]) ?? []} onChange={(v) => form.set("nationalities", v)} searchable />
       <Group grow align="flex-start">
         <Select label={t("recruitment.fields.status")} data={recruitmentJobStatuses.map((v) => ({ value: v, label: t(`recruitment.jobStatus.${v}`) }))} value={String(form.values.status ?? "open")} onChange={(v) => form.set("status", v)} />
         <Select label={t("recruitment.fields.priority")} data={recruitmentJobPriorities.map((v) => ({ value: v, label: t(`recruitment.jobPriority.${v}`) }))} value={String(form.values.priority ?? "normal")} onChange={(v) => form.set("priority", v)} />
       </Group>
       <Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={(form.values.owner_id as string | null) ?? null} onChange={(v) => form.set("owner_id", v)} clearable searchable />
-      <Textarea label={t("recruitment.fields.jobContent")} minRows={3} value={String(form.values.job_content ?? "")} onChange={(e) => form.set("job_content", e.currentTarget.value)} />
-      <Textarea label={t("recruitment.fields.requirements")} minRows={3} value={String(form.values.requirements ?? "")} onChange={(e) => form.set("requirements", e.currentTarget.value)} />
+      <BilingualInput
+        label={t("recruitment.fields.jobContent")}
+        valueZh={String(form.values.jobContentZh ?? "")}
+        valueEn={String(form.values.jobContentEn ?? "")}
+        onChangeZh={(value) => form.set("jobContentZh", value)}
+        onChangeEn={(value) => form.set("jobContentEn", value)}
+        multiline
+      />
+      <BilingualInput
+        label={t("recruitment.fields.requirements")}
+        valueZh={String(form.values.requirementsZh ?? "")}
+        valueEn={String(form.values.requirementsEn ?? "")}
+        onChangeZh={(value) => form.set("requirementsZh", value)}
+        onChangeEn={(value) => form.set("requirementsEn", value)}
+        multiline
+      />
     </FieldModal>
   );
 }
 
 export function JobsPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const navigate = useNavigate();
   const base = useBaseOptions();
   const [page, setPage] = useState(1);
@@ -493,10 +615,10 @@ export function JobsPageImpl() {
           <Table.Tbody>
             {query.isLoading ? <LoadingRow colSpan={7} /> : rows.length === 0 ? <EmptyRow colSpan={7} /> : slicePage(rows, page).map((row) => (
               <Table.Tr key={row.id}>
-                <Table.Td><Anchor onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{row.title}</Anchor></Table.Td>
+                <Table.Td><Anchor onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{tField(row, "title", lang)}</Anchor></Table.Td>
                 <Table.Td>{optionLabel(base.industryOptions, row.industry_id)}</Table.Td>
                 <Table.Td>{row.headcount}</Table.Td>
-                <Table.Td>{row.salary_min || row.salary_max ? `${row.salary_min ?? "-"}-${row.salary_max ?? "-"}` : row.salary_note ?? "-"}</Table.Td>
+                <Table.Td>{row.salary_min || row.salary_max ? `${row.salary_min ?? "-"}-${row.salary_max ?? "-"}` : tField(row, "salaryNote", lang) || "-"}</Table.Td>
                 <Table.Td><StatusBadge value={row.status} ns="jobStatus" /></Table.Td>
                 <Table.Td><StatusBadge value={row.priority} ns="jobPriority" /></Table.Td>
                 <Table.Td><Group gap="xs"><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{t("common.view")}</Button><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpened(true); }}>{t("common.edit")}</Button></Group></Table.Td>
@@ -584,7 +706,7 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
           createDisabled={!form.values.company_id}
           onCreate={async (name) => {
             if (!form.values.company_id) throw new Error("请先选择公司");
-            const data = await createRecruitmentJob({ company_id: form.values.company_id, title: name });
+            const data = await createRecruitmentJob(await jobBodyFromTitle(form.values.company_id, name));
             await queryClient.invalidateQueries({ queryKey: recruitmentKeys.jobs("all") });
             return data.job.id;
           }}
@@ -602,7 +724,8 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
 }
 
 function MaterialModal({ opened, onClose, job, material }: { opened: boolean; onClose: () => void; job: RecruitmentJob; material?: RecruitmentMaterial | null }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const queryClient = useQueryClient();
   const form = useSimpleForm({ type: "copy", title: "", source_text: "", text_content: "", platforms: [], active: true, ai_generated: false });
   const [file, setFile] = useState<File | null>(null);
@@ -679,7 +802,7 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
     <Modal opened={opened} onClose={onClose} title={material ? t("recruitment.materials.editMaterial") : t("recruitment.materials.add")} size="xl" scrollAreaComponent={ScrollArea.Autosize}>
       <Stack gap="md">
         <ErrorAlert error={mutation.error ?? aiMutation.error ?? platformsQuery.error} />
-        <Text size="sm" c="dimmed">{job.title}</Text>
+        <Text size="sm" c="dimmed">{tField(job, "title", lang)}</Text>
         <Group grow align="flex-start">
           <Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} disabled={Boolean(material)} />
           <TextInput label={t("recruitment.materials.name")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} />
@@ -723,7 +846,8 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
 }
 
 export function JobDetailPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -744,7 +868,12 @@ export function JobDetailPageImpl() {
         <Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.offered")}</Text><Text fw={700}>{query.data?.summary.offered ?? 0}</Text></Card>
         <Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.gap")}</Text><Text fw={700}>{query.data?.summary.gap ?? 0}</Text></Card>
       </SimpleGrid>
-      <Card withBorder><Group justify="space-between"><Text fw={600}>{job.title}</Text><StatusBadge value={job.status} ns="jobStatus" /></Group><Text mt="sm">{job.job_content ?? "-"}</Text><Text c="dimmed" mt="xs">{job.requirements ?? "-"}</Text></Card>
+      <Card withBorder>
+        <Group justify="space-between"><Text fw={600}>{tField(job, "title", lang)}</Text><StatusBadge value={job.status} ns="jobStatus" /></Group>
+        <Text mt="sm">{tField(job, "jobContent", lang) || "-"}</Text>
+        <Text c="dimmed" mt="xs">{tField(job, "requirements", lang) || "-"}</Text>
+        {tField(job, "salaryNote", lang) ? <Text c="dimmed" mt="xs">{t("recruitment.fields.salaryNote")}: {tField(job, "salaryNote", lang)}</Text> : null}
+      </Card>
       <Card withBorder>
         <Group justify="space-between" mb="md"><Text fw={600}>{t("recruitment.materials.title")}</Text><Button size="xs" onClick={() => { setEditingMaterial(null); setMaterialOpen(true); }}>{t("recruitment.materials.add")}</Button></Group>
         <Table withTableBorder withColumnBorders highlightOnHover>
@@ -810,14 +939,15 @@ export function CampaignsPageImpl() {
 }
 
 export function CampaignDetailPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const { id } = useParams();
   const navigate = useNavigate();
   const query = useQuery({ queryKey: recruitmentKeys.campaign(id ?? ""), queryFn: () => getRecruitmentCampaign(id ?? ""), enabled: Boolean(id) });
   const data = query.data;
   if (query.isLoading) return <Group justify="center"><Loader /></Group>;
   if (!data) return <ErrorAlert error={query.error} />;
-  return <Stack gap="md"><Group justify="space-between"><Button variant="subtle" onClick={() => navigate("/recruitment/campaigns")}>{t("common.back")}</Button><Button onClick={() => navigate(`/recruitment/capture?campaignId=${data.campaign.id}`)}>{t("recruitment.capture.title")}</Button></Group><Card withBorder><Group justify="space-between"><Text fw={600}>{data.campaign.name}</Text><StatusBadge value={data.campaign.status} ns="campaignStatus" /></Group><Text mt="sm">{data.campaign.location}</Text><Text c="dimmed">{data.campaign.planned_date} {data.campaign.planned_start}-{data.campaign.planned_end}</Text></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.fields.jobs")}</Text><Group>{data.jobs.map((job) => <Badge key={job.id}>{job.title}</Badge>)}</Group></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.candidates.title")}</Text><CandidateTable rows={data.candidates} loading={false} /></Card></Stack>;
+  return <Stack gap="md"><Group justify="space-between"><Button variant="subtle" onClick={() => navigate("/recruitment/campaigns")}>{t("common.back")}</Button><Button onClick={() => navigate(`/recruitment/capture?campaignId=${data.campaign.id}`)}>{t("recruitment.capture.title")}</Button></Group><Card withBorder><Group justify="space-between"><Text fw={600}>{data.campaign.name}</Text><StatusBadge value={data.campaign.status} ns="campaignStatus" /></Group><Text mt="sm">{data.campaign.location}</Text><Text c="dimmed">{data.campaign.planned_date} {data.campaign.planned_start}-{data.campaign.planned_end}</Text></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.fields.jobs")}</Text><Group>{data.jobs.map((job) => <Badge key={job.id}>{tField(job, "title", lang)}</Badge>)}</Group></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.candidates.title")}</Text><CandidateTable rows={data.candidates} loading={false} /></Card></Stack>;
 }
 
 function CandidateTable({ rows, loading }: { rows: RecruitmentCandidate[]; loading: boolean }) {
@@ -867,25 +997,35 @@ export function QuickCapturePageImpl() {
 }
 
 export function RecruitmentDashboardPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const query = useQuery({ queryKey: recruitmentKeys.dashboard(), queryFn: getRecruitmentDashboard });
   const data = query.data?.dashboard;
   if (query.isLoading) return <Group justify="center"><Loader /></Group>;
   if (!data) return <ErrorAlert error={query.error} />;
   const maxPlatform = Math.max(1, ...data.platform_effectiveness.map((row) => row.leads));
-  return <Stack gap="md"><SimpleGrid cols={{ base: 1, md: 3 }}><Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.totalGap")}</Text><Text fw={700} size="xl">{data.gap_overview.total_gap}</Text></Card><Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.urgent")}</Text><Text fw={700} size="xl">{data.urgent_jobs.length}</Text></Card><Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.overdue")}</Text><Text fw={700} size="xl">{data.overdue.count}</Text></Card></SimpleGrid><SimpleGrid cols={{ base: 1, lg: 2 }}><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.gapOverview")}</Text><Stack>{data.gap_overview.jobs.map((row) => <Box key={row.job.id}><Group justify="space-between"><Text>{row.job.title}</Text><Text>{row.gap}</Text></Group><Progress value={Math.min(100, (row.offered / Math.max(1, row.headcount)) * 100)} /></Box>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.urgentJobs")}</Text><Stack>{data.urgent_jobs.map((row) => <Group key={row.job.id} justify="space-between"><Text>{row.job.title}</Text><Badge color="red">{row.gap}</Badge></Group>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.dailyLeads")}</Text><Table withTableBorder withColumnBorders><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.date")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.dashboard.leads")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{data.daily_leads.slice(-10).map((row, index) => <Table.Tr key={`${row.day}-${index}`}><Table.Td>{row.day}</Table.Td><Table.Td>{row.job_id ?? "-"}</Table.Td><Table.Td>{row.count}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.campaignReports")}</Text><Table withTableBorder withColumnBorders><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.dashboard.leads")}</Table.Th><Table.Th>{t("recruitment.dashboard.interviews")}</Table.Th><Table.Th>{t("recruitment.dashboard.offers")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{data.campaign_reports.map((row) => <Table.Tr key={row.campaign.id}><Table.Td>{row.campaign.name}</Table.Td><Table.Td>{row.leads}</Table.Td><Table.Td>{row.interviews}</Table.Td><Table.Td>{row.offers}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.platformEffect")}</Text><Stack>{data.platform_effectiveness.map((row) => <Box key={row.posting_id}><Group justify="space-between"><Text>{row.platform}</Text><Text>{row.leads}/{row.interviews}/{row.offers}</Text></Group><Progress value={(row.leads / maxPlatform) * 100} /></Box>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.overdueList")}</Text><Stack>{data.overdue.candidates.map((row) => <Group key={row.id} justify="space-between"><Text>{row.name}</Text><StatusBadge value={row.status} ns="candidateStatus" /></Group>)}</Stack></Card></SimpleGrid></Stack>;
+  return <Stack gap="md"><SimpleGrid cols={{ base: 1, md: 3 }}><Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.totalGap")}</Text><Text fw={700} size="xl">{data.gap_overview.total_gap}</Text></Card><Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.urgent")}</Text><Text fw={700} size="xl">{data.urgent_jobs.length}</Text></Card><Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.overdue")}</Text><Text fw={700} size="xl">{data.overdue.count}</Text></Card></SimpleGrid><SimpleGrid cols={{ base: 1, lg: 2 }}><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.gapOverview")}</Text><Stack>{data.gap_overview.jobs.map((row) => <Box key={row.job.id}><Group justify="space-between"><Text>{tField(row.job, "title", lang)}</Text><Text>{row.gap}</Text></Group><Progress value={Math.min(100, (row.offered / Math.max(1, row.headcount)) * 100)} /></Box>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.urgentJobs")}</Text><Stack>{data.urgent_jobs.map((row) => <Group key={row.job.id} justify="space-between"><Text>{tField(row.job, "title", lang)}</Text><Badge color="red">{row.gap}</Badge></Group>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.dailyLeads")}</Text><Table withTableBorder withColumnBorders><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.date")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.dashboard.leads")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{data.daily_leads.slice(-10).map((row, index) => <Table.Tr key={`${row.day}-${index}`}><Table.Td>{row.day}</Table.Td><Table.Td>{row.job_id ?? "-"}</Table.Td><Table.Td>{row.count}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.campaignReports")}</Text><Table withTableBorder withColumnBorders><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.dashboard.leads")}</Table.Th><Table.Th>{t("recruitment.dashboard.interviews")}</Table.Th><Table.Th>{t("recruitment.dashboard.offers")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{data.campaign_reports.map((row) => <Table.Tr key={row.campaign.id}><Table.Td>{row.campaign.name}</Table.Td><Table.Td>{row.leads}</Table.Td><Table.Td>{row.interviews}</Table.Td><Table.Td>{row.offers}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.platformEffect")}</Text><Stack>{data.platform_effectiveness.map((row) => <Box key={row.posting_id}><Group justify="space-between"><Text>{row.platform}</Text><Text>{row.leads}/{row.interviews}/{row.offers}</Text></Group><Progress value={(row.leads / maxPlatform) * 100} /></Box>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.dashboard.overdueList")}</Text><Stack>{data.overdue.candidates.map((row) => <Group key={row.id} justify="space-between"><Text>{row.name}</Text><StatusBadge value={row.status} ns="candidateStatus" /></Group>)}</Stack></Card></SimpleGrid></Stack>;
 }
 
 export function RecruitmentSettingsPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const queryClient = useQueryClient();
   const base = useBaseOptions();
   const industriesQuery = useQuery({ queryKey: recruitmentKeys.industries(), queryFn: () => listRecruitmentIndustries() });
   const settingsQuery = useQuery({ queryKey: recruitmentKeys.settings(), queryFn: listRecruitmentSettings });
-  const [name, setName] = useState("");
+  const [nameZh, setNameZh] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const createIndustry = useMutation({ mutationFn: () => createRecruitmentIndustry({ company_id: companyId ?? base.companyOptions[0]?.value, name }), onSuccess: async () => { setName(""); await queryClient.invalidateQueries({ queryKey: recruitmentKeys.industries() }); } });
+  const createIndustry = useMutation({
+    mutationFn: async () => createRecruitmentIndustry(await industryBody(companyId ?? base.companyOptions[0]?.value, nameZh, nameEn)),
+    onSuccess: async () => {
+      setNameZh("");
+      setNameEn("");
+      await queryClient.invalidateQueries({ queryKey: recruitmentKeys.industries() });
+    }
+  });
   const updateIndustry = useMutation({ mutationFn: ({ id, active }: { id: string; active: boolean }) => updateRecruitmentIndustry(id, { active }), onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.industries() }) });
   const updateSettings = useMutation({ mutationFn: ({ id, body }: { id: string; body: Dict }) => updateRecruitmentSettings(id, body), onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.settings() }) });
-  return <Stack gap="md"><ErrorAlert error={industriesQuery.error ?? settingsQuery.error ?? createIndustry.error ?? updateIndustry.error ?? updateSettings.error} /><Card withBorder><Text fw={600} mb="md">{t("recruitment.settings.industries")}</Text><Group align="flex-end" mb="md"><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={companyId ?? base.companyOptions[0]?.value ?? null} onChange={setCompanyId} /><TextInput label={t("recruitment.fields.name")} value={name} onChange={(e) => setName(e.currentTarget.value)} /><Button onClick={() => createIndustry.mutate()} loading={createIndustry.isPending}>{t("recruitment.settings.addIndustry")}</Button></Group><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.active")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(industriesQuery.data?.industries ?? []).map((row: RecruitmentIndustry) => <Table.Tr key={row.id}><Table.Td>{row.name}</Table.Td><Table.Td>{row.active ? t("common.yes") : t("common.no")}</Table.Td><Table.Td><Button size="xs" variant="subtle" color={row.active ? "red" : "green"} onClick={() => updateIndustry.mutate({ id: row.id, active: !row.active })}>{row.active ? t("common.delete") : t("recruitment.settings.enable")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.settings.thresholds")}</Text><Stack>{(settingsQuery.data?.settings ?? []).map((row) => <Group key={row.id} align="flex-end"><Text w={160}>{optionLabel(base.companyOptions, row.company_id)}</Text><NumberInput label={t("recruitment.settings.overdueInviteDays")} min={1} defaultValue={row.overdue_invite_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_invite_days: Number(e.currentTarget.value) } })} /><NumberInput label={t("recruitment.settings.overdueFollowupDays")} min={1} defaultValue={row.overdue_followup_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_followup_days: Number(e.currentTarget.value) } })} /></Group>)}</Stack></Card></Stack>;
+  return <Stack gap="md"><ErrorAlert error={industriesQuery.error ?? settingsQuery.error ?? createIndustry.error ?? updateIndustry.error ?? updateSettings.error} /><Card withBorder><Text fw={600} mb="md">{t("recruitment.settings.industries")}</Text><Stack gap="sm" mb="md"><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={companyId ?? base.companyOptions[0]?.value ?? null} onChange={setCompanyId} /><BilingualInput label={t("recruitment.fields.name")} valueZh={nameZh} valueEn={nameEn} onChangeZh={setNameZh} onChangeEn={setNameEn} /><Group justify="flex-end"><Button onClick={() => createIndustry.mutate()} loading={createIndustry.isPending} disabled={!firstText(nameZh, nameEn)}>{t("recruitment.settings.addIndustry")}</Button></Group></Stack><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.active")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(industriesQuery.data?.industries ?? []).map((row: RecruitmentIndustry) => <Table.Tr key={row.id}><Table.Td>{pickLang(row.name_i18n, lang) || row.name}</Table.Td><Table.Td>{row.active ? t("common.yes") : t("common.no")}</Table.Td><Table.Td><Button size="xs" variant="subtle" color={row.active ? "red" : "green"} onClick={() => updateIndustry.mutate({ id: row.id, active: !row.active })}>{row.active ? t("common.delete") : t("recruitment.settings.enable")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.settings.thresholds")}</Text><Stack>{(settingsQuery.data?.settings ?? []).map((row) => <Group key={row.id} align="flex-end"><Text w={160}>{optionLabel(base.companyOptions, row.company_id)}</Text><NumberInput label={t("recruitment.settings.overdueInviteDays")} min={1} defaultValue={row.overdue_invite_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_invite_days: Number(e.currentTarget.value) } })} /><NumberInput label={t("recruitment.settings.overdueFollowupDays")} min={1} defaultValue={row.overdue_followup_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_followup_days: Number(e.currentTarget.value) } })} /></Group>)}</Stack></Card></Stack>;
 }

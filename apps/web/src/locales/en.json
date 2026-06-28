@@ -85,6 +85,13 @@
     "original": "Original",
     "comingSoon": "Coming soon"
   },
+  "bilingual": {
+    "zh": "ZH",
+    "en": "EN",
+    "retranslate": "Retranslate",
+    "translating": "Translating…",
+    "titleRequired": "Fill at least one language"
+  },
   "dashboard": {
     "welcome": "Welcome, {{name}}",
     "title": "Finance Dashboard",

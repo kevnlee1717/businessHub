@@ -30,6 +30,35 @@ export async function saveTranslation(
     });
 }
 
+/**
+ * 显式保存前端提交的双语值,不重新翻译,避免覆盖人工修改。
+ */
+export async function saveTranslationPair(
+  entityType: string,
+  entityId: string,
+  field: string,
+  zh: string | null,
+  en: string | null,
+  sourceLang: Lang
+): Promise<void> {
+  if (!zh && !en) return;
+
+  await db
+    .insert(translations)
+    .values({
+      entityType,
+      entityId,
+      field,
+      textZh: zh,
+      textEn: en,
+      sourceLang
+    })
+    .onConflictDoUpdate({
+      target: [translations.entityType, translations.entityId, translations.field],
+      set: { textZh: zh, textEn: en, sourceLang, updatedAt: new Date() }
+    });
+}
+
 export type TranslationValue = { zh: string | null; en: string | null; source_lang: Lang };
 
 /** 读时附加:批量取一组实体某字段的翻译,返回 entityId → 译文 的 Map。 */

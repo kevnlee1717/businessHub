@@ -50,6 +50,7 @@ import { registerStatutoryRoutes } from "./statutory";
 import { registerStudentRoutes } from "./students";
 import { registerTaskRoutes } from "./tasks";
 import { registerTrackingRoutes } from "./tracking";
+import { registerTranslateRoutes } from "./translate";
 import { registerWorkShiftRoutes } from "./workShifts";
 import { registerWorkflowTemplateRoutes } from "./workflowTemplates";
 import { registerWsqRoutes } from "./wsq";
@@ -99,6 +100,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerReportRoutes);
   await app.register(registerRecruitmentRoutes);
   await app.register(registerFranchiseRoutes);
+  await app.register(registerTranslateRoutes);
   await app.register(registerDashboardRoutes);
   await app.register(registerRecurringCostRoutes);
   await app.register(registerCompanyExpenseRoutes);
