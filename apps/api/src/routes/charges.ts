@@ -16,6 +16,7 @@ import {
 import { and, asc, desc, eq, lt, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import type { DbExecutor } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
@@ -158,6 +159,24 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
       return sendNotFound(reply);
     }
 
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!billingRow.businessId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [business] = await db
+        .select({ companyId: businesses.companyId })
+        .from(businesses)
+        .where(eq(businesses.id, billingRow.businessId))
+        .limit(1);
+
+      if (!business || !companyIds.includes(business.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    }
+
     const rows = await db
       .select({
         charge: billingCharges,
@@ -194,7 +213,31 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
 
-    if (!caseRow || !caseRow.billingId) {
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!caseRow.billingId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [billingRow] = await db
+        .select({
+          businessId: billing.businessId,
+          companyId: businesses.companyId
+        })
+        .from(billing)
+        .leftJoin(businesses, eq(billing.businessId, businesses.id))
+        .where(eq(billing.id, caseRow.billingId))
+        .limit(1);
+
+      if (!billingRow?.companyId || !companyIds.includes(billingRow.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    } else if (!caseRow.billingId) {
       return sendNotFound(reply);
     }
 
@@ -233,6 +276,10 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
   app.get("/charges", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(chargesQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) filters.push(accessFilter);
 
     if (query.business_id) filters.push(eq(billing.businessId, query.business_id));
     if (query.company_id) filters.push(eq(businesses.companyId, query.company_id));
@@ -291,7 +338,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  app.post("/charges", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/charges", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(chargeCreateSchema, request.body);
     const [billingRow] = await db.select().from(billing).where(eq(billing.id, body.billing_id)).limit(1);
 
@@ -328,7 +375,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     return reply.code(201).send({ charge: serializeCharge(charge) });
   });
 
-  app.patch("/charges/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/charges/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(chargeUpdateSchema, request.body);
     const [current] = await db.select().from(billingCharges).where(eq(billingCharges.id, id)).limit(1);
@@ -367,7 +414,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     return { charge: serializeCharge(charge) };
   });
 
-  app.delete("/charges/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/charges/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [current] = await db.select().from(billingCharges).where(eq(billingCharges.id, id)).limit(1);
 
@@ -382,7 +429,7 @@ export async function registerChargeRoutes(app: FastifyInstance): Promise<void> 
     return { ok: true };
   });
 
-  app.post("/charges/:id/collect", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/charges/:id/collect", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
 
     if (proofMissing(request.body)) {

@@ -16,11 +16,10 @@ import {
   TextInput,
   Title
 } from "@mantine/core";
-import { can } from "@bh/shared";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "../../auth/AuthContext";
+import { useCan } from "../../auth/permissions";
 import {
   getAcademyCollection,
   getAcademyHealth,
@@ -207,9 +206,8 @@ function CollectionRowsTable({ rows, canManage }: CollectionRowsTableProps) {
 
 export function AcademyCollectionPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [period, setPeriod] = useState(currentPeriod());
-  const canManageEducation = user ? can(user.role, "education.manage") : false;
+  const canManageEducation = useCan("education.manage");
 
   const trendPeriods = useMemo(() => Array.from({ length: 6 }, (_, index) => shiftPeriod(period, index - 5)), [period]);
 

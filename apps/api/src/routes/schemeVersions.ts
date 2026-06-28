@@ -137,7 +137,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
 
   app.post(
     "/businesses/:businessId/scheme-versions",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { businessId } = parseWithSchema(businessIdParamsSchema, request.params);
       const body = parseWithSchema(schemeVersionCreateSchema, request.body);
@@ -257,7 +257,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
 
   app.post(
     "/scheme-versions/:id/milestones",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(milestoneCreateSchema, request.body);
@@ -297,7 +297,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
 
   app.patch(
     "/scheme-milestones/:id",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(milestoneUpdateSchema, request.body);
@@ -327,7 +327,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
 
   app.delete(
     "/scheme-milestones/:id",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const [milestone] = await db.delete(schemeMilestones).where(eq(schemeMilestones.id, id)).returning();
@@ -340,7 +340,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
     }
   );
 
-  app.patch("/scheme-versions/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/scheme-versions/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(schemeVersionUpdateSchema, request.body);
 
@@ -368,7 +368,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
 
   app.post(
     "/scheme-versions/:id/lines",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(schemeLineSchema, request.body);
@@ -411,7 +411,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
     }
   );
 
-  app.patch("/scheme-lines/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/scheme-lines/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(schemeLineSchema.partial(), request.body);
     const [current] = await db.select().from(schemeLines).where(eq(schemeLines.id, id)).limit(1);
@@ -474,7 +474,7 @@ export async function registerSchemeVersionRoutes(app: FastifyInstance): Promise
     return { scheme_line: serializeSchemeLine(line) };
   });
 
-  app.delete("/scheme-lines/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/scheme-lines/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [line] = await db.delete(schemeLines).where(eq(schemeLines.id, id)).returning();
 

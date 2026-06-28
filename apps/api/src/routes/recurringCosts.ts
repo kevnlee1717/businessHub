@@ -3,6 +3,7 @@ import { recurringCostCreateSchema, recurringCostUpdateSchema } from "@bh/shared
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
@@ -31,6 +32,12 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
   app.get("/recurring-costs", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(recurringCostQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, recurringCosts.companyId);
+
+    if (accessFilter) {
+      filters.push(accessFilter);
+    }
 
     if (query.company_id) {
       filters.push(eq(recurringCosts.companyId, query.company_id));
@@ -45,7 +52,7 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
     return { recurring_costs: rows.map(serializeRecurringCost) };
   });
 
-  app.post("/recurring-costs", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/recurring-costs", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(recurringCostCreateSchema, request.body);
     const [cost] = await db
       .insert(recurringCosts)
@@ -68,7 +75,7 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
     return reply.code(201).send({ recurring_cost: serializeRecurringCost(cost) });
   });
 
-  app.patch("/recurring-costs/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/recurring-costs/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(recurringCostUpdateSchema, request.body);
     const amount = body.amount === undefined ? undefined : (toNumeric(body.amount) as string);
@@ -95,7 +102,7 @@ export async function registerRecurringCostRoutes(app: FastifyInstance): Promise
     return { recurring_cost: serializeRecurringCost(cost) };
   });
 
-  app.delete("/recurring-costs/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/recurring-costs/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [cost] = await db.delete(recurringCosts).where(eq(recurringCosts.id, id)).returning();
 

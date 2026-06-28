@@ -23,7 +23,6 @@ import {
   Title
 } from "@mantine/core";
 import {
-  can,
   diplomaCourseCreateSchema,
   diplomaCourseUpdateSchema,
   diplomaEnrollmentCreateSchema,
@@ -61,6 +60,7 @@ import {
 import { fileUrl, searchDocuments, type DocumentMeta } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
 import { TeacherSelect } from "../../components/TeacherSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
@@ -495,7 +495,7 @@ export function DiplomaPage() {
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [enrollmentFormError, setEnrollmentFormError] = useState<string | null>(null);
-  const canManageEducation = user ? can(user.role, "education.manage") : false;
+  const canManageEducation = useCan("education.manage");
   const canReviewAssignments = Boolean(user && teacherRoles.has(user.role));
 
   const studentsQuery = useQuery({

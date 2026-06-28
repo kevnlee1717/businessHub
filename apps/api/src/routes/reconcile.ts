@@ -32,7 +32,7 @@ export async function registerReconcileRoutes(app: FastifyInstance): Promise<voi
 
   app.post(
     "/bank-accounts/:id/statement-lines",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(statementLinesImportSchema, request.body);
@@ -182,7 +182,7 @@ export async function registerReconcileRoutes(app: FastifyInstance): Promise<voi
     }
   );
 
-  app.post("/reconcile/match", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/reconcile/match", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(matchSchema, request.body);
 
     const result = await db.transaction(async (tx) => {
@@ -232,7 +232,7 @@ export async function registerReconcileRoutes(app: FastifyInstance): Promise<voi
     };
   });
 
-  app.post("/reconcile/unmatch", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/reconcile/unmatch", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(z.object({ ledger_entry_id: z.string().uuid() }), request.body);
 
     const result = await db.transaction(async (tx) => {
@@ -269,7 +269,7 @@ export async function registerReconcileRoutes(app: FastifyInstance): Promise<voi
     return { ledger_entry: serializeLedgerEntry(result) };
   });
 
-  app.post("/ledger/:id/ignore", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/ledger/:id/ignore", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [entry] = await db
       .update(ledgerEntries)

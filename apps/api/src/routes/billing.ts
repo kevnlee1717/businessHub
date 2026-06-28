@@ -1,6 +1,7 @@
 import {
   billing,
   billingCharges,
+  businesses,
   caseSteps,
   cases,
   db,
@@ -22,6 +23,7 @@ import {
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { generateCommissionEntries } from "./commissionUtils";
 import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
@@ -322,6 +324,12 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
   app.get("/billing", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(billingQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, businesses.companyId);
+
+    if (accessFilter) {
+      filters.push(accessFilter);
+    }
 
     if (query.ref_type) {
       filters.push(eq(billing.refType, query.ref_type));
@@ -334,12 +342,13 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const rows = await db
-      .select()
+      .select({ billing })
       .from(billing)
+      .leftJoin(businesses, eq(billing.businessId, businesses.id))
       .where(filters.length > 0 ? and(...filters) : sql`true`)
       .orderBy(desc(billing.createdAt));
 
-    return { billings: rows.map(serializeBilling) };
+    return { billings: rows.map((row) => serializeBilling(row.billing)) };
   });
 
   app.get("/billing/:id", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
@@ -348,6 +357,24 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
     if (!billingRow) {
       return sendNotFound(reply);
+    }
+
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!billingRow.businessId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [business] = await db
+        .select({ companyId: businesses.companyId })
+        .from(businesses)
+        .where(eq(businesses.id, billingRow.businessId))
+        .limit(1);
+
+      if (!business || !companyIds.includes(business.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
     }
 
     const paymentRows = await db
@@ -379,7 +406,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post("/billing", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/billing", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const body = parseWithSchema(billingCreateSchema, request.body);
     const totalPriceSgd = toNumeric(body.total_price_sgd) ?? "0";
     const inputs = inputsWithTotalPrice(body.inputs, totalPriceSgd);
@@ -455,7 +482,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     });
   });
 
-  app.patch("/billing/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/billing/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(billingUpdateSchema, request.body);
 
@@ -604,7 +631,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
   app.post(
     "/billing/:id/payments",
-    { preHandler: requirePerm("finance.manage") },
+    { preHandler: requirePerm("finance.edit") },
     async (request, reply) => {
       const { id } = parseWithSchema(idParamsSchema, request.params);
       const body = parseWithSchema(paymentCreateSchema, request.body);
@@ -668,6 +695,24 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       return sendNotFound(reply);
     }
 
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all") {
+      if (!billingRow.businessId) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+
+      const [business] = await db
+        .select({ companyId: businesses.companyId })
+        .from(businesses)
+        .where(eq(businesses.id, billingRow.businessId))
+        .limit(1);
+
+      if (!business || !companyIds.includes(business.companyId)) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
+    }
+
     const rows = await db
       .select()
       .from(payments)
@@ -677,7 +722,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     return { payments: rows.map(serializePayment) };
   });
 
-  app.delete("/payments/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/payments/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
 
     const deleted = await db.transaction(async (tx) => {

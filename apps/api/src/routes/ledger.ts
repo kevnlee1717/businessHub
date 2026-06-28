@@ -9,6 +9,7 @@ import { ledgerCreateSchema, ledgerQuerySchema, ledgerUpdateSchema } from "@bh/s
 import { and, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { endOfDate, idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { computeSgdEquivalent, serializeLedgerEntry } from "./ledgerUtils";
@@ -82,6 +83,12 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
   app.get("/ledger", { preHandler: requirePerm("finance.view") }, async (request) => {
     const query = parseWithSchema(ledgerQuerySchema, request.query);
     const filters: SQL[] = [];
+    const companyIds = await getAccessibleCompanyIds(request);
+    const accessFilter = companyFilter(companyIds, ledgerEntries.companyId);
+
+    if (accessFilter) {
+      filters.push(accessFilter);
+    }
 
     if (query.company_id) filters.push(eq(ledgerEntries.companyId, query.company_id));
     if (query.bank_account_id) filters.push(eq(ledgerEntries.bankAccountId, query.bank_account_id));
@@ -145,8 +152,14 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  app.get("/ledger/proof-missing", { preHandler: requirePerm("finance.view") }, async (request) => {
+  app.get("/ledger/proof-missing", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
     const query = parseWithSchema(z.object({ company_id: z.string().uuid() }), request.query);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && !companyIds.includes(query.company_id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     const rows = await db
       .select()
       .from(ledgerEntries)
@@ -158,8 +171,14 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return { rows: rows.map(serializeLedgerEntry) };
   });
 
-  app.get("/ledger/uncategorized", { preHandler: requirePerm("finance.view") }, async (request) => {
+  app.get("/ledger/uncategorized", { preHandler: requirePerm("finance.view") }, async (request, reply) => {
     const query = parseWithSchema(z.object({ company_id: z.string().uuid() }), request.query);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && !companyIds.includes(query.company_id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     const rows = await db
       .select()
       .from(ledgerEntries)
@@ -174,7 +193,7 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return { rows: rows.map(serializeLedgerEntry) };
   });
 
-  app.post("/ledger", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.post("/ledger", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     if (proofMissing(request.body)) {
       return reply.code(422).send({ error: "proof_required" });
     }
@@ -220,7 +239,7 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return reply.code(201).send({ ledger_entry: serializeLedgerEntry(entry) });
   });
 
-  app.patch("/ledger/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.patch("/ledger/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     if (
       typeof request.body === "object" &&
@@ -306,7 +325,7 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     return { ledger_entry: serializeLedgerEntry(entry) };
   });
 
-  app.delete("/ledger/:id", { preHandler: requirePerm("finance.manage") }, async (request, reply) => {
+  app.delete("/ledger/:id", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [current] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, id)).limit(1);
 

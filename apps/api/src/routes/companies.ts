@@ -2,6 +2,7 @@ import { companies, db } from "@bh/db";
 import { companyCreateSchema, companyUpdateSchema } from "@bh/shared";
 import { eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
@@ -22,13 +23,24 @@ function serializeCompany(company: typeof companies.$inferSelect) {
 export async function registerCompanyRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/companies", async () => {
-    const rows = await db.select().from(companies).orderBy(companies.createdAt);
+  app.get("/companies", async (request) => {
+    const companyIds = await getAccessibleCompanyIds(request);
+    const filter = companyFilter(companyIds, companies.id);
+    const rows = filter
+      ? await db.select().from(companies).where(filter).orderBy(companies.createdAt)
+      : await db.select().from(companies).orderBy(companies.createdAt);
+
     return { companies: rows.map(serializeCompany) };
   });
 
   app.get("/companies/:id", async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
+    const companyIds = await getAccessibleCompanyIds(request);
+
+    if (companyIds !== "all" && !companyIds.includes(id)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     const [company] = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
 
     if (!company) {

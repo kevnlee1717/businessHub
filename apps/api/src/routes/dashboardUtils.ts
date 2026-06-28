@@ -128,13 +128,21 @@ export function monthDiff(fromPeriod: string, toPeriod: string): number {
   return (toYear - fromYear) * 12 + (toMonth - fromMonth);
 }
 
-export async function buildDashboardOverview(periodInput?: string): Promise<DashboardOverview> {
+export async function buildDashboardOverview(
+  periodInput?: string,
+  companyIds: string[] | "all" = "all"
+): Promise<DashboardOverview> {
   const ctx = getPeriodContext(periodInput);
-  const companyRows = await db.select().from(companies).orderBy(asc(companies.name));
+  const accessibleCompanyIds = companyIds === "all" ? undefined : companyIds;
+  const companyRows = accessibleCompanyIds
+    ? accessibleCompanyIds.length === 0
+      ? []
+      : await db.select().from(companies).where(inArray(companies.id, accessibleCompanyIds)).orderBy(asc(companies.name))
+    : await db.select().from(companies).orderBy(asc(companies.name));
   const academyCompanyId = resolveAcademyCompanyId(companyRows);
-  const paymentCalendar = await buildPaymentCalendar(ctx.period);
+  const paymentCalendar = await buildPaymentCalendar(ctx.period, undefined, companyIds);
   const remainingByCompany = sumRowsByCompany(paymentCalendar.rows.filter((row) => row.date >= ctx.today));
-  const receivables = await buildReceivables(undefined, ctx.period);
+  const receivables = await buildReceivables(undefined, ctx.period, companyIds);
   const receivableByCompany = new Map<string, number>();
 
   if (academyCompanyId) {
@@ -190,10 +198,23 @@ export async function buildDashboardOverview(periodInput?: string): Promise<Dash
   };
 }
 
-export async function buildPaymentCalendar(periodInput?: string, companyId?: string) {
+export async function buildPaymentCalendar(
+  periodInput?: string,
+  companyId?: string,
+  companyIds: string[] | "all" = "all"
+) {
   const ctx = getPeriodContext(periodInput);
+  const accessibleCompanyIds = companyIds === "all" ? undefined : companyIds;
   const filters = [eq(recurringCosts.active, true)];
   if (companyId) filters.push(eq(recurringCosts.companyId, companyId));
+  if (!companyId && accessibleCompanyIds) {
+    filters.push(
+      inArray(
+        recurringCosts.companyId,
+        accessibleCompanyIds.length ? accessibleCompanyIds : ["00000000-0000-0000-0000-000000000000"]
+      )
+    );
+  }
 
   const recurringRows = await db
     .select()
@@ -203,6 +224,14 @@ export async function buildPaymentCalendar(periodInput?: string, companyId?: str
 
   const payrollFilters = [eq(payslips.period, ctx.period), ne(payslips.status, "paid" as const)];
   if (companyId) payrollFilters.push(eq(employees.companyId, companyId));
+  if (!companyId && accessibleCompanyIds) {
+    payrollFilters.push(
+      inArray(
+        employees.companyId,
+        accessibleCompanyIds.length ? accessibleCompanyIds : ["00000000-0000-0000-0000-000000000000"]
+      )
+    );
+  }
 
   const payrollRows = await db
     .select({
@@ -246,10 +275,23 @@ export async function buildPaymentCalendar(periodInput?: string, companyId?: str
   };
 }
 
-export async function buildReceivables(companyId?: string, asOfPeriod = currentSgtPeriod()) {
-  const companyRows = await db.select().from(companies).orderBy(asc(companies.name));
+export async function buildReceivables(
+  companyId?: string,
+  asOfPeriod = currentSgtPeriod(),
+  companyIds: string[] | "all" = "all"
+) {
+  const accessibleCompanyIds = companyIds === "all" ? undefined : companyIds;
+  const companyRows = companyId
+    ? await db.select().from(companies).where(eq(companies.id, companyId)).orderBy(asc(companies.name))
+    : accessibleCompanyIds
+      ? accessibleCompanyIds.length === 0
+        ? []
+        : await db.select().from(companies).where(inArray(companies.id, accessibleCompanyIds)).orderBy(asc(companies.name))
+      : await db.select().from(companies).orderBy(asc(companies.name));
   const academyCompanyId = resolveAcademyCompanyId(companyRows);
-  const includeAcademy = !companyId || companyId === academyCompanyId;
+  const academyAccessible =
+    companyIds === "all" ? Boolean(academyCompanyId) : Boolean(academyCompanyId && companyIds.includes(academyCompanyId));
+  const includeAcademy = academyAccessible && (!companyId || companyId === academyCompanyId);
   const rows: ReceivableRow[] = [];
 
   if (includeAcademy) {
@@ -283,11 +325,20 @@ export async function buildReceivables(companyId?: string, asOfPeriod = currentS
   };
 }
 
-export async function buildKpi(periodInput?: string, companyId?: string): Promise<KpiRow[]> {
+export async function buildKpi(
+  periodInput?: string,
+  companyId?: string,
+  companyIds: string[] | "all" = "all"
+): Promise<KpiRow[]> {
   const ctx = getPeriodContext(periodInput);
+  const accessibleCompanyIds = companyIds === "all" ? undefined : companyIds;
   const companyRows = companyId
     ? await db.select().from(companies).where(eq(companies.id, companyId)).orderBy(asc(companies.name))
-    : await db.select().from(companies).orderBy(asc(companies.name));
+    : accessibleCompanyIds
+      ? accessibleCompanyIds.length === 0
+        ? []
+        : await db.select().from(companies).where(inArray(companies.id, accessibleCompanyIds)).orderBy(asc(companies.name))
+      : await db.select().from(companies).orderBy(asc(companies.name));
   const fixedCosts = new Map<string, number>();
   const rows: KpiRow[] = [];
 
@@ -303,13 +354,13 @@ export async function buildKpi(periodInput?: string, companyId?: string): Promis
     });
   }
 
-  const companyIds = companyRows.map((company) => company.id);
-  if (companyIds.length === 0) return rows;
+  const scopedCompanyIds = companyRows.map((company) => company.id);
+  if (scopedCompanyIds.length === 0) return rows;
 
   const businessRows = await db
     .select()
     .from(businesses)
-    .where(and(inArray(businesses.companyId, companyIds), eq(businesses.status, "active" as const)))
+    .where(and(inArray(businesses.companyId, scopedCompanyIds), eq(businesses.status, "active" as const)))
     .orderBy(asc(businesses.companyId), asc(businesses.sortOrder), asc(businesses.name));
   const businessCountByCompany = countBusinessesByCompany(businessRows);
 

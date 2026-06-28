@@ -15,6 +15,7 @@ import {
   documentCategories,
   diplomaEnrollments,
   diplomaPayments,
+  employeeCompanyAccess,
   employeeCompensation,
   employees,
   expenseCategories,
@@ -46,7 +47,8 @@ const [owner] = await db
     email: ownerEmail,
     name: ownerName,
     passwordHash,
-    role: "owner"
+    role: "owner",
+    dataScope: "all"
   })
   .onConflictDoUpdate({
     target: employees.email,
@@ -55,6 +57,7 @@ const [owner] = await db
       passwordHash,
       role: "owner",
       status: "active",
+      dataScope: "all",
       updatedAt: new Date()
     }
   })
@@ -1345,6 +1348,7 @@ async function seedDemoSales() {
         companyId: juyiCompany.id,
         employmentType: "full_time",
         status: "active",
+        dataScope: "self",
         salaryCurrency: "SGD"
       })
       .onConflictDoUpdate({
@@ -1356,6 +1360,7 @@ async function seedDemoSales() {
           companyId: juyiCompany.id,
           employmentType: "full_time",
           status: "active",
+          dataScope: "self",
           salaryCurrency: "SGD",
           updatedAt: new Date()
         }
@@ -1418,8 +1423,58 @@ async function seedDemoSales() {
 
 const demoSalesStats = await seedDemoSales();
 
+const backfillPermissionSeedData = async () => {
+  // owner + admin 默认组织级(all):管理员要管公司本身,且多无单一 companyId,
+  // 若设成 company 而无公司访问会被公司闸锁死。公司级隔离的灵活性留给 accountant/principal/sales 等,
+  // 授权界面仍可把任一 admin 单独收窄为 company + 指定公司。
+  await db
+    .update(employees)
+    .set({ dataScope: "all" })
+    .where(sql`${employees.role} in ('owner', 'admin')`);
+
+  await db
+    .update(employees)
+    .set({ dataScope: "company" })
+    .where(sql`${employees.role} in ('accountant', 'principal')`);
+
+  await db
+    .update(employees)
+    .set({ dataScope: "self" })
+    .where(sql`${employees.role} in ('sales', 'clerk', 'teacher', 'photographer')`);
+
+  const companyEmployees = await db
+    .select({
+      employeeId: employees.id,
+      companyId: employees.companyId
+    })
+    .from(employees)
+    .where(sql`${employees.companyId} is not null`);
+
+  for (const employee of companyEmployees) {
+    if (!employee.companyId) {
+      continue;
+    }
+
+    await db
+      .insert(employeeCompanyAccess)
+      .values({
+        employeeId: employee.employeeId,
+        companyId: employee.companyId
+      })
+      .onConflictDoNothing({
+        target: [employeeCompanyAccess.employeeId, employeeCompanyAccess.companyId]
+      });
+  }
+
+  return {
+    employeeCompanyAccessBackfilled: companyEmployees.filter((employee) => employee.companyId).length
+  };
+};
+
+const permissionSeedStats = await backfillPermissionSeedData();
+
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, oneTimePriceLinesPatched=${oneTimePriceLinesPatched}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, oneTimePriceLinesPatched=${oneTimePriceLinesPatched}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, employeeCompanyAccessBackfilled=${permissionSeedStats.employeeCompanyAccessBackfilled}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

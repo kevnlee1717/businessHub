@@ -1,10 +1,9 @@
 import { Alert, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
-import { can } from "@bh/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listStudents, type Student } from "../../api/education";
-import { useAuth } from "../../auth/AuthContext";
+import { useCan } from "../../auth/permissions";
 import { StudentFormModal } from "../../components/StudentFormModal";
 
 export const studentsQueryKey = ["education", "students"] as const;
@@ -35,11 +34,10 @@ export function displayStudentName(student?: Pick<Student, "name" | "name_en"> |
 
 export function StudentsPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
-  const canManageEducation = user ? can(user.role, "education.manage") : false;
+  const canManageEducation = useCan("education.manage");
 
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,

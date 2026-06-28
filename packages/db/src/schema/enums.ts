@@ -23,6 +23,7 @@ import {
   contractSubjectTypes,
   contractVersionStatuses,
   currencies,
+  dataScopes,
   diplomaAssignmentActions,
   diplomaAssignmentStatuses,
   employeeStatuses,
@@ -37,6 +38,7 @@ import {
   paymentTypes,
   payrollSchemes,
   payslipStatuses,
+  permissionEffects,
   reconcileStatuses,
   reportSections,
   schemeLineBases,
@@ -52,6 +54,8 @@ import {
 } from "@bh/shared";
 
 export const roleEnum = pgEnum("role", roles);
+export const dataScopeEnum = pgEnum("data_scope", dataScopes);
+export const permissionEffectEnum = pgEnum("permission_effect", permissionEffects);
 export const employmentTypeEnum = pgEnum("employment_type", employmentTypes);
 export const employeeStatusEnum = pgEnum("employee_status", employeeStatuses);
 export const payrollSchemeEnum = pgEnum("payroll_scheme", payrollSchemes);

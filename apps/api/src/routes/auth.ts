@@ -1,9 +1,10 @@
-import { db, employees } from "@bh/db";
+import { companies, db, employees } from "@bh/db";
 import { loginSchema } from "@bh/shared";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import { loadAuthContext } from "../auth/context";
 import { env } from "../env";
 
 const authCookieName = "bh_token";
@@ -82,6 +83,32 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(401).send({ error: "unauthorized" });
     }
 
-    return { user: publicEmployee(employee) };
+    const ctx = await loadAuthContext(request);
+    const companyRows =
+      ctx.companyIds === "all"
+        ? await db
+            .select({
+              id: companies.id,
+              name: companies.name
+            })
+            .from(companies)
+            .orderBy(asc(companies.name))
+        : ctx.companyIds.length > 0
+          ? await db
+              .select({
+                id: companies.id,
+                name: companies.name
+              })
+              .from(companies)
+              .where(inArray(companies.id, ctx.companyIds))
+              .orderBy(asc(companies.name))
+          : [];
+
+    return {
+      user: publicEmployee(employee),
+      permissions: ctx.permissions,
+      dataScope: ctx.dataScope,
+      companies: companyRows
+    };
   });
 }

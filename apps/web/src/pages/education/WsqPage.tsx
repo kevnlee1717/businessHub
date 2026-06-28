@@ -19,7 +19,6 @@ import {
   Title
 } from "@mantine/core";
 import {
-  can,
   wsqCourseCreateSchema,
   wsqCourseUpdateSchema,
   wsqEnrollmentCreateSchema,
@@ -42,7 +41,7 @@ import {
   type WsqCourse
 } from "../../api/education";
 import { listEmployees, type Employee } from "../../api/hr";
-import { useAuth } from "../../auth/AuthContext";
+import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
 import { TeacherSelect } from "../../components/TeacherSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
@@ -90,7 +89,6 @@ function getCourseDefaultValues(course?: WsqCourse): CourseFormValues {
 
 export function WsqPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [editingCourse, setEditingCourse] = useState<WsqCourse | null>(null);
@@ -98,7 +96,7 @@ export function WsqPage() {
   const [enrollmentModalOpened, setEnrollmentModalOpened] = useState(false);
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [enrollmentFormError, setEnrollmentFormError] = useState<string | null>(null);
-  const canManageEducation = user ? can(user.role, "education.manage") : false;
+  const canManageEducation = useCan("education.manage");
 
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,

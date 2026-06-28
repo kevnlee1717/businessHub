@@ -166,8 +166,15 @@
     {
       "idx": 23,
       "version": "7",
-      "when": 1782626788997,
-      "tag": "0023_foamy_komodo",
+      "when": 1782627669319,
+      "tag": "0023_closed_killmonger",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1782636327532,
+      "tag": "0024_icy_susan_delgado",
       "breakpoints": true
     }
   ]

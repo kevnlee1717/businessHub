@@ -20,12 +20,12 @@ import {
   TextInput,
   Title
 } from "@mantine/core";
-import { can, currencies, type Currency } from "@bh/shared";
+import { currencies, type Currency } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useCan } from "../auth/permissions";
 import { listBusinesses } from "../api/businessSchemes";
 import {
   createRecurringCost,
@@ -131,9 +131,8 @@ function accountToForm(account: BankAccount): AccountForm {
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const canManageFinance = user ? can(user.role, "finance.manage") : false;
+  const canManageFinance = useCan("finance.edit");
   const [period, setPeriod] = useState(currentPeriod());
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);

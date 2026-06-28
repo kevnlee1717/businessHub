@@ -19,7 +19,6 @@ import {
   Title
 } from "@mantine/core";
 import {
-  can,
   englishClassCreateSchema,
   englishClassUpdateSchema,
   englishLevelCreateSchema,
@@ -52,7 +51,7 @@ import {
   type EnglishLevel
 } from "../../api/education";
 import { listEmployees } from "../../api/hr";
-import { useAuth } from "../../auth/AuthContext";
+import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
 import { TeacherSelect } from "../../components/TeacherSelect";
 import { displayStudentName, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
@@ -117,7 +116,6 @@ function getClassDefaultValues(englishClass?: EnglishClass): ClassFormValues {
 
 export function EnglishPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingLevel, setEditingLevel] = useState<EnglishLevel | null>(null);
   const [levelModalOpened, setLevelModalOpened] = useState(false);
@@ -132,7 +130,7 @@ export function EnglishPage() {
   const [presentEnrollmentIds, setPresentEnrollmentIds] = useState<Set<string>>(new Set());
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null);
-  const canManageEducation = user ? can(user.role, "education.manage") : false;
+  const canManageEducation = useCan("education.manage");
 
   const levelsQuery = useQuery({
     queryKey: englishLevelsQueryKey,

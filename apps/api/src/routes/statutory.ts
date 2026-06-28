@@ -32,7 +32,7 @@ export async function registerStatutoryRoutes(app: FastifyInstance): Promise<voi
     return { payments };
   });
 
-  app.post("/statutory", { preHandler: requirePerm("payroll.manage") }, async (request, reply) => {
+  app.post("/statutory", { preHandler: requirePerm("payroll.edit") }, async (request, reply) => {
     const input = parseWithSchema(statutoryPaymentSchema, request.body);
 
     const [payment] = await db

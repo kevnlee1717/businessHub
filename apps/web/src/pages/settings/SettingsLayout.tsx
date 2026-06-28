@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 export const tabs = [
   { value: "companies", path: "/settings/companies", labelKey: "settings.tabs.companies" },
+  { value: "permissions", path: "/settings/permissions", labelKey: "settings.tabs.permissions" },
   { value: "positions", path: "/settings/positions", labelKey: "settings.tabs.positions" },
   { value: "work-shifts", path: "/settings/work-shifts", labelKey: "settings.tabs.workShifts" },
   { value: "industries", path: "/settings/industries", labelKey: "settings.tabs.industries" },
