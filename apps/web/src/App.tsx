@@ -2,11 +2,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
-<<<<<<< Updated upstream
 import { AccountPasswordPage } from "./pages/account/AccountPasswordPage";
-=======
 import { FranchisePage } from "./pages/FranchisePage";
->>>>>>> Stashed changes
 import { BusinessLayout } from "./pages/business/BusinessLayout";
 import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { EpSection } from "./pages/business/EpSection";
