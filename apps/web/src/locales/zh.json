@@ -1767,12 +1767,15 @@
       "editFnbSite": "编辑餐饮场地",
       "newContact": "新建联系人",
       "editContact": "编辑联系人",
-      "newVisit": "新增拜访"
+      "newVisit": "新增拜访",
+      "selectContact": "选择联系人",
+      "clearContact": "清除",
+      "createOrgNamed": "新建 {{name}}"
     },
     "fields": {
       "company": "公司",
       "name": "名称",
-      "org": "集团/公司",
+      "org": "公司/集团",
       "orgType": "集团类型",
       "role": "职务",
       "phone": "电话",
@@ -1819,6 +1822,10 @@
     },
     "contacts": {
       "introducedByThisContact": "TA 介绍的人"
+    },
+    "contactPicker": {
+      "searchMode": "按姓名搜索",
+      "orgMode": "按公司/集团"
     },
     "survey": {
       "interestedServices": "② 感兴趣服务",

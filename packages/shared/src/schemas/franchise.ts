@@ -29,7 +29,7 @@ const listQueryBaseSchema = z.object({
 });
 
 export const franchiseOrgCreateSchema = z.object({
-  company_id: uuidField,
+  company_id: uuidField.optional(),
   name: z.string().trim().min(1).max(200),
   type: z.enum(franchiseOrgTypes),
   note: nullableOptionalText
@@ -49,10 +49,11 @@ const franchiseContactBaseSchema = z.object({
   owner_id: nullableOptionalUuid,
   note: nullableOptionalText
 });
-export const franchiseContactCreateSchema = franchiseContactBaseSchema.extend({ company_id: uuidField });
+export const franchiseContactCreateSchema = franchiseContactBaseSchema.extend({ company_id: uuidField.optional() });
 export const franchiseContactUpdateSchema = franchiseContactBaseSchema.partial();
 export const franchiseContactListQuerySchema = listQueryBaseSchema.extend({
   org_type: z.enum(franchiseOrgTypes).optional(),
+  org_id: optionalUuid,
   due_before: dateTimeString.optional(),
   owner_id: optionalUuid
 });
@@ -73,7 +74,7 @@ const franchisePropertyBaseSchema = z.object({
   status: z.enum(franchiseSiteStatuses).optional(),
   owner_id: nullableOptionalUuid
 });
-export const franchisePropertyCreateSchema = franchisePropertyBaseSchema.extend({ company_id: uuidField });
+export const franchisePropertyCreateSchema = franchisePropertyBaseSchema.extend({ company_id: uuidField.optional() });
 export const franchisePropertyUpdateSchema = franchisePropertyBaseSchema.partial();
 export const franchisePropertyListQuerySchema = listQueryBaseSchema.extend({
   is_vending_site: booleanQuery,
@@ -121,7 +122,7 @@ const franchiseFnbSiteBaseSchema = z.object({
   status: z.enum(franchiseSiteStatuses).optional(),
   owner_id: nullableOptionalUuid
 });
-export const franchiseFnbSiteCreateSchema = franchiseFnbSiteBaseSchema.extend({ company_id: uuidField });
+export const franchiseFnbSiteCreateSchema = franchiseFnbSiteBaseSchema.extend({ company_id: uuidField.optional() });
 export const franchiseFnbSiteUpdateSchema = franchiseFnbSiteBaseSchema.partial();
 export const franchiseFnbSiteListQuerySchema = listQueryBaseSchema.extend({
   priority: z.enum(franchisePriorities).optional(),

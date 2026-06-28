@@ -38,17 +38,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
-import { listCompanies, listEmployees } from "../../api/hr";
+import { listEmployees } from "../../api/hr";
 import {
   createFranchiseContact,
   createFranchiseFnbSite,
   createFranchiseFnbVisit,
-  createFranchiseOrg,
   createFranchiseProperty,
   createFranchisePropertyVisit,
   deleteFranchiseContact,
   deleteFranchiseFnbSite,
-  deleteFranchiseOrg,
   deleteFranchiseProperty,
   franchiseKeys,
   getFranchiseKpi,
@@ -61,7 +59,6 @@ import {
   listFranchiseVisits,
   updateFranchiseContact,
   updateFranchiseFnbSite,
-  updateFranchiseOrg,
   updateFranchiseProperty,
   type FranchiseContact,
   type FranchiseFnbSite,
@@ -76,6 +73,8 @@ import {
   visiblePropertySurveySections,
   type PropertySurveyField
 } from "./propertySurvey";
+import { ContactPicker } from "./ContactPicker";
+import { OrgSelect } from "./OrgSelect";
 
 const pageSize = 10;
 
@@ -174,20 +173,17 @@ function useSimpleForm(initial: Dict = {}) {
 }
 
 function useBaseOptions() {
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
   const employeesQuery = useQuery({ queryKey: ["hr", "employees"], queryFn: listEmployees });
   const orgsQuery = useQuery({ queryKey: franchiseKeys.orgs("all"), queryFn: () => listFranchiseOrgs() });
   const contactsQuery = useQuery({ queryKey: franchiseKeys.contacts("all"), queryFn: () => listFranchiseContacts() });
   return {
-    companies: companiesQuery.data?.companies ?? [],
     employees: employeesQuery.data?.employees ?? [],
     orgs: orgsQuery.data?.orgs ?? [],
     contacts: contactsQuery.data?.contacts ?? [],
-    companyOptions: (companiesQuery.data?.companies ?? []).map((row) => ({ value: row.id, label: row.name })),
     employeeOptions: (employeesQuery.data?.employees ?? []).map((row) => ({ value: row.id, label: row.name })),
     orgOptions: (orgsQuery.data?.orgs ?? []).map((row) => ({ value: row.id, label: row.name })),
     contactOptions: (contactsQuery.data?.contacts ?? []).map((row) => ({ value: row.id, label: `${row.name}${row.phone ? ` · ${row.phone}` : ""}` })),
-    error: companiesQuery.error ?? employeesQuery.error ?? orgsQuery.error ?? contactsQuery.error
+    error: employeesQuery.error ?? orgsQuery.error ?? contactsQuery.error
   };
 }
 
@@ -438,40 +434,11 @@ export function TrackingDashboardPageImpl() {
   );
 }
 
-function OrgQuickCreate({ companyOptions }: { companyOptions: Option[] }) {
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const form = useSimpleForm({ company_id: companyOptions[0]?.value ?? "", name: "", type: "property_company" });
-  const [opened, setOpened] = useState(false);
-  const mutation = useMutation({
-    mutationFn: () => createFranchiseOrg({ ...form.values, note: emptyToNull(form.values.note) }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: franchiseKeys.all });
-      setOpened(false);
-    }
-  });
-  return (
-    <>
-      <Button variant="light" onClick={() => setOpened(true)}>{t("franchise.actions.newOrg")}</Button>
-      <FieldModal opened={opened} onClose={() => setOpened(false)} title={t("franchise.actions.newOrg")} onSubmit={() => mutation.mutate()} saving={mutation.isPending}>
-        <ErrorAlert error={mutation.error} />
-        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <SelectField label={t("franchise.fields.company")} value={form.values.company_id} data={companyOptions} onChange={(v) => form.set("company_id", v)} clearable={false} />
-          <Select label={t("franchise.fields.orgType")} data={enumOptions(franchiseOrgTypes, "orgType", t)} value={(form.values.type as string) ?? null} onChange={(v) => form.set("type", v)} />
-          <TextInput label={t("franchise.fields.name")} value={(form.values.name as string) ?? ""} onChange={(e) => form.set("name", e.currentTarget.value)} />
-        </SimpleGrid>
-        <Textarea label={t("franchise.fields.note")} value={(form.values.note as string) ?? ""} onChange={(e) => form.set("note", e.currentTarget.value)} />
-      </FieldModal>
-    </>
-  );
-}
-
 function PropertyFormModal({ opened, onClose, property }: { opened: boolean; onClose: () => void; property?: FranchiseProperty }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm({
-    company_id: property?.company_id ?? base.companyOptions[0]?.value ?? "",
     name: property?.name ?? "",
     property_type: property?.property_type ?? "mall",
     address: property?.address ?? "",
@@ -505,20 +472,18 @@ function PropertyFormModal({ opened, onClose, property }: { opened: boolean; onC
   return (
     <FieldModal opened={opened} onClose={onClose} title={property ? t("franchise.actions.editProperty") : t("franchise.actions.newProperty")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="xl">
       <ErrorAlert error={mutation.error ?? base.error} />
-      <Group justify="flex-end"><OrgQuickCreate companyOptions={base.companyOptions} /></Group>
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <SelectField label={t("franchise.fields.company")} value={form.values.company_id} data={base.companyOptions} onChange={(v) => form.set("company_id", v)} clearable={false} />
         <TextInput label={t("franchise.fields.name")} value={(form.values.name as string) ?? ""} onChange={(e) => form.set("name", e.currentTarget.value)} />
         <Select label={t("franchise.fields.propertyType")} data={enumOptions(franchisePropertyTypes, "propertyType", t)} value={(form.values.property_type as string) ?? null} onChange={(v) => form.set("property_type", v)} />
         <Select label={t("franchise.fields.priority")} data={enumOptions(franchisePriorities, "priority", t)} value={(form.values.priority as string) ?? null} onChange={(v) => form.set("priority", v)} />
-        <SelectField label={t("franchise.fields.org")} value={form.values.org_id} data={base.orgOptions} onChange={(v) => form.set("org_id", v)} />
+        <OrgSelect label={t("franchise.fields.org")} value={form.values.org_id as string | null | undefined} onChange={(v) => form.set("org_id", v)} />
         <SelectField label={t("franchise.fields.owner")} value={form.values.owner_id} data={base.employeeOptions} onChange={(v) => form.set("owner_id", v)} />
         <Select label={t("franchise.fields.footfall")} data={enumOptions(franchiseFootfalls, "footfall", t)} value={(form.values.footfall as string | null) ?? null} onChange={(v) => form.set("footfall", v)} clearable />
         <Select label={t("franchise.fields.decisionMaker")} data={enumOptions(franchiseDecisionMakers, "decisionMaker", t)} value={(form.values.decision_maker as string | null) ?? null} onChange={(v) => form.set("decision_maker", v)} clearable />
         <Select label={t("franchise.fields.hasPublicSpace")} data={enumOptions(franchiseTriStates, "triState", t)} value={(form.values.has_public_space as string | null) ?? null} onChange={(v) => form.set("has_public_space", v)} clearable />
         <Select label={t("franchise.fields.status")} data={enumOptions(franchiseSiteStatuses, "siteStatus", t)} value={(form.values.status as string) ?? null} onChange={(v) => form.set("status", v)} />
         <Checkbox label={t("franchise.fields.isVendingSite")} checked={Boolean(form.values.is_vending_site)} onChange={(e) => form.set("is_vending_site", e.currentTarget.checked)} />
-        <SelectField label={t("franchise.fields.introducedBy")} value={form.values.introduced_by_contact_id} data={base.contactOptions} onChange={(v) => form.set("introduced_by_contact_id", v)} />
+        <ContactPicker label={t("franchise.fields.introducedBy")} value={form.values.introduced_by_contact_id as string | null | undefined} onChange={(v) => form.set("introduced_by_contact_id", v)} />
       </SimpleGrid>
       <Textarea label={t("franchise.fields.address")} value={(form.values.address as string) ?? ""} onChange={(e) => form.set("address", e.currentTarget.value)} />
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -534,7 +499,6 @@ function FnbSiteFormModal({ opened, onClose, site }: { opened: boolean; onClose:
   const qc = useQueryClient();
   const base = useBaseOptions();
   const form = useSimpleForm({
-    company_id: site?.company_id ?? base.companyOptions[0]?.value ?? "",
     name: site?.name ?? "",
     org_id: site?.org_id ?? null,
     location: site?.location ?? "",
@@ -558,16 +522,14 @@ function FnbSiteFormModal({ opened, onClose, site }: { opened: boolean; onClose:
   return (
     <FieldModal opened={opened} onClose={onClose} title={site ? t("franchise.actions.editFnbSite") : t("franchise.actions.newFnbSite")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="xl">
       <ErrorAlert error={mutation.error ?? base.error} />
-      <Group justify="flex-end"><OrgQuickCreate companyOptions={base.companyOptions} /></Group>
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <SelectField label={t("franchise.fields.company")} value={form.values.company_id} data={base.companyOptions} onChange={(v) => form.set("company_id", v)} clearable={false} />
         <TextInput label={t("franchise.fields.name")} value={(form.values.name as string) ?? ""} onChange={(e) => form.set("name", e.currentTarget.value)} />
-        <SelectField label={t("franchise.fields.org")} value={form.values.org_id} data={base.orgOptions} onChange={(v) => form.set("org_id", v)} />
+        <OrgSelect label={t("franchise.fields.org")} value={form.values.org_id as string | null | undefined} onChange={(v) => form.set("org_id", v)} />
         <SelectField label={t("franchise.fields.owner")} value={form.values.owner_id} data={base.employeeOptions} onChange={(v) => form.set("owner_id", v)} />
         <Select label={t("franchise.fields.priority")} data={enumOptions(franchisePriorities, "priority", t)} value={(form.values.priority as string) ?? null} onChange={(v) => form.set("priority", v)} />
         <Select label={t("franchise.fields.status")} data={enumOptions(franchiseSiteStatuses, "siteStatus", t)} value={(form.values.status as string) ?? null} onChange={(v) => form.set("status", v)} />
         <Select label={t("franchise.fields.hasAircon")} data={enumOptions(franchiseTriStates.filter((v) => v !== "pending"), "triState", t)} value={form.values.has_aircon === true ? "yes" : form.values.has_aircon === false ? "no" : null} onChange={(v) => form.set("has_aircon", v === "yes" ? true : v === "no" ? false : null)} clearable />
-        <SelectField label={t("franchise.fields.introducedBy")} value={form.values.introduced_by_contact_id} data={base.contactOptions} onChange={(v) => form.set("introduced_by_contact_id", v)} />
+        <ContactPicker label={t("franchise.fields.introducedBy")} value={form.values.introduced_by_contact_id as string | null | undefined} onChange={(v) => form.set("introduced_by_contact_id", v)} />
       </SimpleGrid>
       <Textarea label={t("franchise.fields.location")} value={(form.values.location as string) ?? ""} onChange={(e) => form.set("location", e.currentTarget.value)} />
       <Textarea label={t("franchise.fields.relationshipNote")} value={(form.values.relationship_note as string) ?? ""} onChange={(e) => form.set("relationship_note", e.currentTarget.value)} />
@@ -579,8 +541,8 @@ function ContactFormModal({ opened, onClose, contact }: { opened: boolean; onClo
   const { t } = useTranslation();
   const qc = useQueryClient();
   const base = useBaseOptions();
+  const [roleSearch, setRoleSearch] = useState(contact?.role ?? "");
   const form = useSimpleForm({
-    company_id: contact?.company_id ?? base.companyOptions[0]?.value ?? "",
     name: contact?.name ?? "",
     role: contact?.role ?? "",
     phone: contact?.phone ?? "",
@@ -606,17 +568,23 @@ function ContactFormModal({ opened, onClose, contact }: { opened: boolean; onClo
       onClose();
     }
   });
+  const roleOptions = useMemo(() => {
+    const roles = new Set(base.contacts.map((row) => row.role?.trim()).filter((role): role is string => Boolean(role)));
+    const currentRole = (form.values.role as string | undefined)?.trim();
+    const searchedRole = roleSearch.trim();
+    if (currentRole) roles.add(currentRole);
+    if (searchedRole) roles.add(searchedRole);
+    return [...roles].sort((a, b) => a.localeCompare(b)).map((role) => ({ value: role, label: role }));
+  }, [base.contacts, form.values.role, roleSearch]);
   return (
     <FieldModal opened={opened} onClose={onClose} title={contact ? t("franchise.actions.editContact") : t("franchise.actions.newContact")} onSubmit={() => mutation.mutate()} saving={mutation.isPending} size="xl">
       <ErrorAlert error={mutation.error ?? base.error} />
-      <Group justify="flex-end"><OrgQuickCreate companyOptions={base.companyOptions} /></Group>
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <SelectField label={t("franchise.fields.company")} value={form.values.company_id} data={base.companyOptions} onChange={(v) => form.set("company_id", v)} clearable={false} />
         <TextInput label={t("franchise.fields.name")} value={(form.values.name as string) ?? ""} onChange={(e) => form.set("name", e.currentTarget.value)} />
-        <TextInput label={t("franchise.fields.role")} value={(form.values.role as string) ?? ""} onChange={(e) => form.set("role", e.currentTarget.value)} />
+        <Select label={t("franchise.fields.role")} data={roleOptions} value={(form.values.role as string) || null} onChange={(v) => form.set("role", v ?? "")} searchValue={roleSearch} onSearchChange={setRoleSearch} clearable searchable />
         <TextInput label={t("franchise.fields.phone")} value={(form.values.phone as string) ?? ""} onChange={(e) => form.set("phone", e.currentTarget.value)} />
-        <SelectField label={t("franchise.fields.org")} value={form.values.org_id} data={base.orgOptions} onChange={(v) => form.set("org_id", v)} />
-        <SelectField label={t("franchise.fields.referredBy")} value={form.values.referred_by_contact_id} data={base.contactOptions.filter((o) => o.value !== contact?.id)} onChange={(v) => form.set("referred_by_contact_id", v)} />
+        <OrgSelect label={t("franchise.fields.org")} value={form.values.org_id as string | null | undefined} onChange={(v) => form.set("org_id", v)} />
+        <ContactPicker label={t("franchise.fields.referredBy")} value={form.values.referred_by_contact_id as string | null | undefined} onChange={(v) => form.set("referred_by_contact_id", v)} excludeId={contact?.id} />
         <TextInput type="datetime-local" label={t("franchise.fields.nextVisitAt")} value={(form.values.next_visit_at as string) ?? ""} onChange={(e) => form.set("next_visit_at", e.currentTarget.value)} />
         <SelectField label={t("franchise.fields.owner")} value={form.values.owner_id} data={base.employeeOptions} onChange={(v) => form.set("owner_id", v)} />
       </SimpleGrid>

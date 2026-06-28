@@ -1767,7 +1767,10 @@
       "editFnbSite": "Edit F&B site",
       "newContact": "New contact",
       "editContact": "Edit contact",
-      "newVisit": "New visit"
+      "newVisit": "New visit",
+      "selectContact": "Select contact",
+      "clearContact": "Clear",
+      "createOrgNamed": "Create {{name}}"
     },
     "fields": {
       "company": "Company",
@@ -1819,6 +1822,10 @@
     },
     "contacts": {
       "introducedByThisContact": "Introduced by this contact"
+    },
+    "contactPicker": {
+      "searchMode": "Search by name",
+      "orgMode": "By organization"
     },
     "survey": {
       "interestedServices": "Interested services",

@@ -1,4 +1,5 @@
 import {
+  companies,
   db,
   employees,
   franchiseContacts,
@@ -65,6 +66,27 @@ async function assertCompanyAccess(request: FastifyRequest, reply: FastifyReply,
 
 async function getAccessibleFilter(request: FastifyRequest, column: any): Promise<SQL | undefined> {
   return companyFilter(await getAccessibleCompanyIds(request), column);
+}
+
+async function defaultCompanyIdForRequest(request: FastifyRequest): Promise<string | null> {
+  const [employee] = await db.select({ companyId: employees.companyId }).from(employees).where(eq(employees.id, request.user.id)).limit(1);
+  if (employee?.companyId) return employee.companyId;
+
+  const companyIds = await getAccessibleCompanyIds(request);
+  if (companyIds !== "all") return companyIds[0] ?? null;
+
+  const [company] = await db.select({ id: companies.id }).from(companies).orderBy(asc(companies.name)).limit(1);
+  return company?.id ?? null;
+}
+
+async function resolveCompanyId(request: FastifyRequest, reply: FastifyReply, companyId: string | null | undefined) {
+  const resolved = companyId ?? (await defaultCompanyIdForRequest(request));
+  if (!resolved) {
+    reply.code(400).send({ error: "company_required" });
+    return null;
+  }
+  if (!(await assertCompanyAccess(request, reply, resolved))) return null;
+  return resolved;
 }
 
 function serializeOrg(row: typeof franchiseOrgs.$inferSelect) {
@@ -245,8 +267,9 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
 
   app.post("/franchise/orgs", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
     const body = parseWithSchema(franchiseOrgCreateSchema, request.body);
-    if (!(await assertCompanyAccess(request, reply, body.company_id))) return;
-    const [org] = await db.insert(franchiseOrgs).values({ companyId: body.company_id, name: body.name, type: body.type, note: body.note }).returning();
+    const companyId = await resolveCompanyId(request, reply, body.company_id);
+    if (!companyId) return;
+    const [org] = await db.insert(franchiseOrgs).values({ companyId, name: body.name, type: body.type, note: body.note }).returning();
     const resource = serializeOrg(mustReturn(org));
     return reply.code(201).send({ org: resource, resource });
   });
@@ -282,6 +305,7 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
     if (accessFilter) filters.push(accessFilter);
     if (query.due_before) filters.push(lte(franchiseContacts.nextVisitAt, new Date(query.due_before)));
     if (query.owner_id) filters.push(eq(franchiseContacts.ownerId, query.owner_id));
+    if (query.org_id) filters.push(eq(franchiseContacts.orgId, query.org_id));
     if (query.q) {
       filters.push(or(sql`${franchiseContacts.name} ilike ${`%${query.q}%`}`, sql`${franchiseContacts.phone} ilike ${`%${query.q}%`}`, sql`${franchiseContacts.role} ilike ${`%${query.q}%`}`)!);
     }
@@ -300,11 +324,12 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
 
   app.post("/franchise/contacts", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
     const body = parseWithSchema(franchiseContactCreateSchema, request.body);
-    if (!(await assertCompanyAccess(request, reply, body.company_id))) return;
+    const companyId = await resolveCompanyId(request, reply, body.company_id);
+    if (!companyId) return;
     const [contact] = await db
       .insert(franchiseContacts)
       .values({
-        companyId: body.company_id,
+        companyId,
         name: body.name,
         role: body.role,
         phone: body.phone,
@@ -371,8 +396,9 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
 
   app.post("/franchise/properties", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
     const body = parseWithSchema(franchisePropertyCreateSchema, request.body);
-    if (!(await assertCompanyAccess(request, reply, body.company_id))) return;
-    const [property] = await db.insert(franchiseProperties).values(toPropertyInsert(body)).returning();
+    const companyId = await resolveCompanyId(request, reply, body.company_id);
+    if (!companyId) return;
+    const [property] = await db.insert(franchiseProperties).values(toPropertyInsert({ ...body, company_id: companyId })).returning();
     const resource = serializeProperty(mustReturn(property));
     return reply.code(201).send({ property: resource, resource });
   });
@@ -478,8 +504,9 @@ export async function registerFranchiseRoutes(app: FastifyInstance): Promise<voi
 
   app.post("/franchise/fnb-sites", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
     const body = parseWithSchema(franchiseFnbSiteCreateSchema, request.body);
-    if (!(await assertCompanyAccess(request, reply, body.company_id))) return;
-    const [site] = await db.insert(franchiseFnbSites).values(toFnbSiteInsert(body)).returning();
+    const companyId = await resolveCompanyId(request, reply, body.company_id);
+    if (!companyId) return;
+    const [site] = await db.insert(franchiseFnbSites).values(toFnbSiteInsert({ ...body, company_id: companyId })).returning();
     const resource = serializeFnbSite(mustReturn(site));
     return reply.code(201).send({ site: resource, resource });
   });
