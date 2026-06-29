@@ -4,6 +4,7 @@ export * from "./finance/generateCharges";
 export * from "./finance/presets";
 export * from "./finance/splitCommissionByMilestones";
 export * from "./permissions";
+export * from "./reapply";
 export * from "./schemas/auth";
 export * from "./schemas/cases";
 export * from "./schemas/collectionItems";
