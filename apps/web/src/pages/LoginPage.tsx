@@ -76,8 +76,8 @@ export function LoginPage() {
               ) : null}
               <TextInput
                 label={t("auth.email")}
-                type="email"
-                autoComplete="email"
+                type="text"
+                autoComplete="username"
                 error={errors.email?.message}
                 {...register("email")}
               />
