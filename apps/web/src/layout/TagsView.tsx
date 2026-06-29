@@ -60,6 +60,9 @@ export function TagsView({
 
   function openMenu(event: React.MouseEvent, path: string) {
     event.preventDefault();
+    // 阻止冒泡:否则这次右键会立刻被下方 document 级的 contextmenu 关闭监听吃掉,
+    // 导致菜单"刚渲染就被关掉"(React 对 discrete 事件同步 flush effect 引发)。
+    event.stopPropagation();
     const rect = containerRef.current?.getBoundingClientRect();
     // 菜单宽约 110px,贴近光标但不溢出右边界
     const maxLeft = (rect ? rect.right : window.innerWidth) - 120;
