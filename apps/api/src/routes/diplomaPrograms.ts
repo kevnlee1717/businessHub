@@ -18,6 +18,7 @@ function serializeDiplomaProgram(program: typeof diplomaPrograms.$inferSelect) {
     name_en: program.nameEn,
     active: program.active,
     sort_order: program.sortOrder,
+    months: program.months,
     created_at: program.createdAt
   };
 }
@@ -66,7 +67,8 @@ export async function registerDiplomaProgramRoutes(app: FastifyInstance): Promis
         name: body.name,
         nameEn: body.name_en,
         active: body.active,
-        sortOrder: body.sort_order
+        sortOrder: body.sort_order,
+        months: body.months
       })
       .returning();
 
@@ -86,7 +88,8 @@ export async function registerDiplomaProgramRoutes(app: FastifyInstance): Promis
         name: body.name,
         nameEn: body.name_en,
         active: body.active,
-        sortOrder: body.sort_order
+        sortOrder: body.sort_order,
+        months: body.months
       })
       .where(eq(diplomaPrograms.id, id))
       .returning();

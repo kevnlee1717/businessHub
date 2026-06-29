@@ -49,6 +49,7 @@ export type DiplomaProgram = {
   name_en?: string | null;
   active: boolean;
   sort_order?: number | null;
+  months?: number | null;
   created_at: string;
 };
 

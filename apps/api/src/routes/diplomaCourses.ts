@@ -1,6 +1,6 @@
-import { db, diplomaCourses, diplomaEnrollments, diplomaIntakes } from "@bh/db";
+import { db, diplomaCourses, diplomaEnrollments, diplomaIntakes, diplomaPrograms } from "@bh/db";
 import { diplomaCourseCreateSchema, diplomaCourseUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -14,6 +14,12 @@ import {
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 const COURSE_KIND = "diploma";
+
+function badRequest(message: "diploma_month_out_of_range" | "diploma_month_taken") {
+  const error = new Error(message) as Error & { statusCode: number };
+  error.statusCode = 400;
+  return error;
+}
 
 function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect, teachers: SerializedCourseTeacher[] = []) {
   return {
@@ -88,6 +94,28 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
   app.post("/diploma-courses", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
     const body = parseWithSchema(diplomaCourseCreateSchema, request.body);
     const course = await db.transaction(async (tx) => {
+      if (body.program_id !== null && body.program_id !== undefined && body.month_index !== null && body.month_index !== undefined) {
+        const [program] = await tx
+          .select({ months: diplomaPrograms.months })
+          .from(diplomaPrograms)
+          .where(eq(diplomaPrograms.id, body.program_id))
+          .limit(1);
+
+        if (program?.months !== null && program?.months !== undefined && (body.month_index < 1 || body.month_index > program.months)) {
+          throw badRequest("diploma_month_out_of_range");
+        }
+
+        const [takenCourse] = await tx
+          .select({ id: diplomaCourses.id })
+          .from(diplomaCourses)
+          .where(and(eq(diplomaCourses.programId, body.program_id), eq(diplomaCourses.monthIndex, body.month_index)))
+          .limit(1);
+
+        if (takenCourse) {
+          throw badRequest("diploma_month_taken");
+        }
+      }
+
       const [created] = await tx
         .insert(diplomaCourses)
         .values({
@@ -117,6 +145,47 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(diplomaCourseUpdateSchema, request.body);
     const course = await db.transaction(async (tx) => {
+      const [currentCourse] = await tx.select().from(diplomaCourses).where(eq(diplomaCourses.id, id)).limit(1);
+
+      if (!currentCourse) {
+        return undefined;
+      }
+
+      const effectiveProgramId = body.program_id !== undefined ? body.program_id : currentCourse.programId;
+      const effectiveMonthIndex = body.month_index !== undefined ? body.month_index : currentCourse.monthIndex;
+
+      if (effectiveProgramId !== null && effectiveProgramId !== undefined && effectiveMonthIndex !== null && effectiveMonthIndex !== undefined) {
+        const [program] = await tx
+          .select({ months: diplomaPrograms.months })
+          .from(diplomaPrograms)
+          .where(eq(diplomaPrograms.id, effectiveProgramId))
+          .limit(1);
+
+        if (
+          program?.months !== null &&
+          program?.months !== undefined &&
+          (effectiveMonthIndex < 1 || effectiveMonthIndex > program.months)
+        ) {
+          throw badRequest("diploma_month_out_of_range");
+        }
+
+        const [takenCourse] = await tx
+          .select({ id: diplomaCourses.id })
+          .from(diplomaCourses)
+          .where(
+            and(
+              eq(diplomaCourses.programId, effectiveProgramId),
+              eq(diplomaCourses.monthIndex, effectiveMonthIndex),
+              ne(diplomaCourses.id, id)
+            )
+          )
+          .limit(1);
+
+        if (takenCourse) {
+          throw badRequest("diploma_month_taken");
+        }
+      }
+
       const update: Partial<typeof diplomaCourses.$inferInsert> = {};
       if (body.name !== undefined) update.name = body.name;
       if (body.program_id !== undefined) update.programId = body.program_id;
@@ -130,7 +199,7 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
       const [updated] =
         Object.keys(update).length > 0
           ? await tx.update(diplomaCourses).set(update).where(eq(diplomaCourses.id, id)).returning()
-          : await tx.select().from(diplomaCourses).where(eq(diplomaCourses.id, id)).limit(1);
+          : [currentCourse];
 
       if (updated && body.teacher_ids !== undefined) {
         await replaceCourseTeachers(tx, COURSE_KIND, updated.id, body.teacher_ids);
