@@ -16,6 +16,16 @@ export const studentCreateSchema = z.object({
 
 export const studentUpdateSchema = studentCreateSchema.partial();
 
+export const teacherCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  name_en: optionalText,
+  phone: optionalText,
+  note: optionalText,
+  active: z.boolean().optional()
+});
+
+export const teacherUpdateSchema = teacherCreateSchema.partial();
+
 export const diplomaEnrollmentCreateSchema = z.object({
   student_id: uuidField,
   course_id: uuidField.nullable().optional(),
@@ -35,6 +45,7 @@ export const diplomaCourseCreateSchema = z.object({
   name_en: optionalText,
   content: nullableOptionalText,
   teacher_id: uuidField.nullable().optional(),
+  teacher_ids: z.array(uuidField).optional(),
   price_sgd: z.union([z.string(), z.number()]).nullable().optional(),
   duration: optionalText,
   month_index: z.number().int().min(1).max(6).nullable().optional()
@@ -61,6 +72,7 @@ export const wsqCourseCreateSchema = z.object({
   start_date: dateString.optional(),
   duration: optionalText,
   teacher_id: uuidField.nullable().optional(),
+  teacher_ids: z.array(uuidField).optional(),
   price_sgd: z.union([z.string(), z.number()]).nullable().optional(),
   min_students: z.number().int().min(0).nullable().optional()
 });
@@ -86,6 +98,7 @@ export const englishLevelUpdateSchema = englishLevelCreateSchema.partial();
 export const englishClassCreateSchema = z.object({
   level_id: uuidField.nullable().optional(),
   teacher_id: uuidField.nullable().optional(),
+  teacher_ids: z.array(uuidField).optional(),
   schedule: optionalText,
   start_date: dateString.optional(),
   end_date: dateString.optional()
@@ -113,6 +126,8 @@ export const englishClassAttendanceSchema = z.object({
 
 export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
+export type TeacherCreateInput = z.infer<typeof teacherCreateSchema>;
+export type TeacherUpdateInput = z.infer<typeof teacherUpdateSchema>;
 export type DiplomaCourseCreateInput = z.infer<typeof diplomaCourseCreateSchema>;
 export type DiplomaCourseUpdateInput = z.infer<typeof diplomaCourseUpdateSchema>;
 export type DiplomaEnrollmentCreateInput = z.infer<typeof diplomaEnrollmentCreateSchema>;

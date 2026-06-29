@@ -3,14 +3,27 @@ import { wsqCourseCreateSchema, wsqCourseUpdateSchema, wsqEnrollmentCreateSchema
 import { eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import {
+  courseTeachersByCourseIds,
+  courseTeachersForCourse,
+  deleteCourseTeacherLinks,
+  replaceCourseTeachers,
+  type SerializedCourseTeacher
+} from "./courseTeacherUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
+
+const COURSE_KIND = "wsq";
 
 type CourseStats = {
   enrollmentCount: number;
   canOpen: boolean;
 };
 
-function serializeWsqCourse(course: typeof wsqCourses.$inferSelect, stats?: CourseStats) {
+function serializeWsqCourse(
+  course: typeof wsqCourses.$inferSelect,
+  stats?: CourseStats,
+  teachers: SerializedCourseTeacher[] = []
+) {
   const enrollmentCount = stats?.enrollmentCount ?? 0;
 
   return {
@@ -21,6 +34,7 @@ function serializeWsqCourse(course: typeof wsqCourses.$inferSelect, stats?: Cour
     start_date: course.startDate,
     duration: course.duration,
     teacher_id: course.teacherId,
+    teachers,
     price_sgd: course.priceSgd,
     min_students: course.minStudents,
     enrollment_count: enrollmentCount,
@@ -70,14 +84,19 @@ export async function registerWsqRoutes(app: FastifyInstance): Promise<void> {
       db.select().from(wsqCourses).orderBy(wsqCourses.createdAt),
       enrollmentCountsByCourse()
     ]);
+    const teachersByCourse = await courseTeachersByCourseIds(COURSE_KIND, courses.map((course) => course.id));
 
     return {
       courses: courses.map((course) => {
         const enrollmentCount = counts.get(course.id) ?? 0;
-        return serializeWsqCourse(course, {
-          enrollmentCount,
-          canOpen: enrollmentCount >= (course.minStudents ?? 0)
-        });
+        return serializeWsqCourse(
+          course,
+          {
+            enrollmentCount,
+            canOpen: enrollmentCount >= (course.minStudents ?? 0)
+          },
+          teachersByCourse.get(course.id) ?? []
+        );
       })
     };
   });
@@ -92,53 +111,70 @@ export async function registerWsqRoutes(app: FastifyInstance): Promise<void> {
 
     const enrollmentCount = await enrollmentCountForCourse(id);
     return {
-      course: serializeWsqCourse(course, {
-        enrollmentCount,
-        canOpen: enrollmentCount >= (course.minStudents ?? 0)
-      })
+      course: serializeWsqCourse(
+        course,
+        {
+          enrollmentCount,
+          canOpen: enrollmentCount >= (course.minStudents ?? 0)
+        },
+        await courseTeachersForCourse(COURSE_KIND, id)
+      )
     };
   });
 
   app.post("/wsq-courses", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
     const body = parseWithSchema(wsqCourseCreateSchema, request.body);
-    const [course] = await db
-      .insert(wsqCourses)
-      .values({
-        name: body.name,
-        nameEn: body.name_en,
-        content: body.content,
-        startDate: body.start_date,
-        duration: body.duration,
-        teacherId: body.teacher_id,
-        priceSgd: toNumeric(body.price_sgd),
-        minStudents: body.min_students
-      })
-      .returning();
+    const course = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(wsqCourses)
+        .values({
+          name: body.name,
+          nameEn: body.name_en,
+          content: body.content,
+          startDate: body.start_date,
+          duration: body.duration,
+          teacherId: body.teacher_id,
+          priceSgd: toNumeric(body.price_sgd),
+          minStudents: body.min_students
+        })
+        .returning();
 
-    if (!course) {
-      throw new Error("wsq_course_create_failed");
-    }
+      if (!created) {
+        throw new Error("wsq_course_create_failed");
+      }
 
-    return reply.code(201).send({ course: serializeWsqCourse(course) });
+      await replaceCourseTeachers(tx, COURSE_KIND, created.id, body.teacher_ids ?? []);
+      return created;
+    });
+
+    return reply.code(201).send({ course: serializeWsqCourse(course, undefined, await courseTeachersForCourse(COURSE_KIND, course.id)) });
   });
 
   app.patch("/wsq-courses/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(wsqCourseUpdateSchema, request.body);
-    const [course] = await db
-      .update(wsqCourses)
-      .set({
-        name: body.name,
-        nameEn: body.name_en,
-        content: body.content,
-        startDate: body.start_date,
-        duration: body.duration,
-        teacherId: body.teacher_id,
-        priceSgd: toNumeric(body.price_sgd),
-        minStudents: body.min_students
-      })
-      .where(eq(wsqCourses.id, id))
-      .returning();
+    const course = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(wsqCourses)
+        .set({
+          name: body.name,
+          nameEn: body.name_en,
+          content: body.content,
+          startDate: body.start_date,
+          duration: body.duration,
+          teacherId: body.teacher_id,
+          priceSgd: toNumeric(body.price_sgd),
+          minStudents: body.min_students
+        })
+        .where(eq(wsqCourses.id, id))
+        .returning();
+
+      if (updated && body.teacher_ids !== undefined) {
+        await replaceCourseTeachers(tx, COURSE_KIND, updated.id, body.teacher_ids);
+      }
+
+      return updated;
+    });
 
     if (!course) {
       return sendNotFound(reply);
@@ -146,11 +182,24 @@ export async function registerWsqRoutes(app: FastifyInstance): Promise<void> {
 
     const enrollmentCount = await enrollmentCountForCourse(id);
     return {
-      course: serializeWsqCourse(course, {
-        enrollmentCount,
-        canOpen: enrollmentCount >= (course.minStudents ?? 0)
-      })
+      course: serializeWsqCourse(
+        course,
+        {
+          enrollmentCount,
+          canOpen: enrollmentCount >= (course.minStudents ?? 0)
+        },
+        await courseTeachersForCourse(COURSE_KIND, course.id)
+      )
     };
+  });
+
+  app.delete("/wsq-courses/:id", { preHandler: requirePerm("education.manage") }, async (request) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    await db.transaction(async (tx) => {
+      await deleteCourseTeacherLinks(tx, COURSE_KIND, id);
+      await tx.delete(wsqCourses).where(eq(wsqCourses.id, id));
+    });
+    return { ok: true };
   });
 
   app.get("/wsq-courses/:id/enrollments", { preHandler: requirePerm("education.view") }, async (request) => {

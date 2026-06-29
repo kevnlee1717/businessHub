@@ -40,17 +40,16 @@ import {
   updateWsqCourse,
   type WsqCourse
 } from "../../api/education";
-import { listEmployees, type Employee } from "../../api/hr";
 import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
-import { TeacherSelect } from "../../components/TeacherSelect";
+import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
   name?: string | undefined;
   name_en?: string | undefined;
   content?: string | null | undefined;
-  teacher_id?: string | null | undefined;
+  teacher_ids?: string[] | undefined;
   start_date?: string | undefined;
   duration?: string | undefined;
   price_sgd?: string | number | null | undefined;
@@ -64,7 +63,6 @@ type EnrollmentFormValues = {
 
 const wsqCoursesQueryKey = ["education", "wsq-courses"] as const;
 const wsqEnrollmentsQueryKey = ["education", "wsq-enrollments"] as const;
-const employeesQueryKey = ["hr", "employees"] as const;
 
 function numberOrNull(value: string | number) {
   if (value === "") {
@@ -74,12 +72,24 @@ function numberOrNull(value: string | number) {
   return value;
 }
 
+function displayName(item?: { name: string; name_en?: string | null } | null) {
+  if (!item) {
+    return "";
+  }
+
+  return item.name_en ? `${item.name} / ${item.name_en}` : item.name;
+}
+
+function displayTeachers(teachers?: { name: string; name_en?: string | null }[]) {
+  return teachers?.map((teacher) => displayName(teacher)).filter(Boolean) ?? [];
+}
+
 function getCourseDefaultValues(course?: WsqCourse): CourseFormValues {
   return {
     name: course?.name ?? "",
     name_en: course?.name_en ?? undefined,
     content: course?.content ?? null,
-    teacher_id: course?.teacher_id ?? null,
+    teacher_ids: course?.teachers?.map((teacher) => teacher.id) ?? [],
     start_date: course?.start_date ?? undefined,
     duration: course?.duration ?? undefined,
     price_sgd: course?.price_sgd ?? null,
@@ -106,10 +116,6 @@ export function WsqPage() {
   const coursesQuery = useQuery({
     queryKey: wsqCoursesQueryKey,
     queryFn: listWsqCourses
-  });
-  const employeesQuery = useQuery({
-    queryKey: employeesQueryKey,
-    queryFn: listEmployees
   });
 
   const enrollmentsQuery = useQuery({
@@ -181,11 +187,6 @@ export function WsqPage() {
   const isSavingCourse = createCourseMutation.isPending || updateCourseMutation.isPending;
   const isSavingEnrollment = createEnrollmentMutation.isPending;
   const studentsById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students]);
-  const employees = employeesQuery.data?.employees ?? [];
-  const employeesById = useMemo(
-    () => new Map<string, Employee>(employees.map((employee) => [employee.id, employee])),
-    [employees]
-  );
 
   useEffect(() => {
     if (coursesQuery.isLoading) {
@@ -238,7 +239,7 @@ export function WsqPage() {
     try {
       const body = {
         ...values,
-        teacher_id: values.teacher_id ?? null,
+        teacher_ids: values.teacher_ids ?? [],
         price_sgd: values.price_sgd ?? null,
         min_students: values.min_students ?? null
       };
@@ -278,17 +279,15 @@ export function WsqPage() {
         {canManageEducation ? <Button onClick={openCreateCourseModal}>{t("wsq.course.add")}</Button> : null}
       </Group>
 
-      {studentsQuery.error || coursesQuery.error || employeesQuery.error || enrollmentsQuery.error ? (
+      {studentsQuery.error || coursesQuery.error || enrollmentsQuery.error ? (
         <Alert color="red" variant="light">
           {studentsQuery.error instanceof Error
             ? studentsQuery.error.message
             : coursesQuery.error instanceof Error
               ? coursesQuery.error.message
-              : employeesQuery.error instanceof Error
-                ? employeesQuery.error.message
-                : enrollmentsQuery.error instanceof Error
-                  ? enrollmentsQuery.error.message
-                  : t("common.unknown_error")}
+              : enrollmentsQuery.error instanceof Error
+                ? enrollmentsQuery.error.message
+                : t("common.unknown_error")}
         </Alert>
       ) : null}
 
@@ -308,7 +307,7 @@ export function WsqPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {coursesQuery.isLoading || employeesQuery.isLoading ? (
+                {coursesQuery.isLoading ? (
                   <Table.Tr>
                     <Table.Td colSpan={canManageEducation ? 7 : 6}>
                       <Group justify="center" py="lg">
@@ -337,7 +336,17 @@ export function WsqPage() {
                     >
                       <Table.Td>{displayStudentName(course)}</Table.Td>
                       <Table.Td>
-                        {displayStudentName(employeesById.get(course.teacher_id ?? "")) || t("common.not_available")}
+                        {displayTeachers(course.teachers).length > 0 ? (
+                          <Group gap={4}>
+                            {displayTeachers(course.teachers).map((teacher) => (
+                              <Badge key={teacher} size="sm" variant="light">
+                                {teacher}
+                              </Badge>
+                            ))}
+                          </Group>
+                        ) : (
+                          t("common.not_available")
+                        )}
                       </Table.Td>
                       <Table.Td>{course.price_sgd ?? t("common.not_available")}</Table.Td>
                       <Table.Td>{course.min_students ?? t("common.not_available")}</Table.Td>
@@ -469,10 +478,10 @@ export function WsqPage() {
             />
             <Controller
               control={courseForm.control}
-              name="teacher_id"
+              name="teacher_ids"
               render={({ field }) => (
-                <Input.Wrapper label={t("wsq.course.fields.teacher")} error={courseErrors.teacher_id?.message}>
-                  <TeacherSelect value={field.value ?? null} onChange={(value) => field.onChange(value)} />
+                <Input.Wrapper label={t("wsq.course.fields.teacher")} error={courseErrors.teacher_ids?.message}>
+                  <TeacherMultiSelect value={field.value ?? []} onChange={(value) => field.onChange(value)} />
                 </Input.Wrapper>
               )}
             />

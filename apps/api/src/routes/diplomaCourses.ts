@@ -3,9 +3,18 @@ import { diplomaCourseCreateSchema, diplomaCourseUpdateSchema } from "@bh/shared
 import { eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import {
+  courseTeachersByCourseIds,
+  courseTeachersForCourse,
+  deleteCourseTeacherLinks,
+  replaceCourseTeachers,
+  type SerializedCourseTeacher
+} from "./courseTeacherUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
-function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect) {
+const COURSE_KIND = "diploma";
+
+function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect, teachers: SerializedCourseTeacher[] = []) {
   return {
     id: course.id,
     name: course.name,
@@ -15,6 +24,7 @@ function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect) {
     price_sgd: course.priceSgd,
     duration: course.duration,
     month_index: course.monthIndex,
+    teachers,
     created_at: course.createdAt
   };
 }
@@ -38,8 +48,11 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
 
   app.get("/diploma-courses", { preHandler: requirePerm("education.view") }, async () => {
     const courses = await db.select().from(diplomaCourses).orderBy(diplomaCourses.createdAt);
+    const teachersByCourse = await courseTeachersByCourseIds(COURSE_KIND, courses.map((course) => course.id));
 
-    return { courses: courses.map(serializeDiplomaCourse) };
+    return {
+      courses: courses.map((course) => serializeDiplomaCourse(course, teachersByCourse.get(course.id) ?? []))
+    };
   });
 
   app.get("/diploma-courses/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {
@@ -50,58 +63,74 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
       return sendNotFound(reply);
     }
 
-    return { course: serializeDiplomaCourse(course) };
+    return { course: serializeDiplomaCourse(course, await courseTeachersForCourse(COURSE_KIND, id)) };
   });
 
   app.post("/diploma-courses", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
     const body = parseWithSchema(diplomaCourseCreateSchema, request.body);
-    const [course] = await db
-      .insert(diplomaCourses)
-      .values({
-        name: body.name,
-        nameEn: body.name_en,
-        content: body.content,
-        teacherId: body.teacher_id,
-        priceSgd: toNumeric(body.price_sgd),
-        duration: body.duration,
-        monthIndex: body.month_index
-      })
-      .returning();
+    const course = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(diplomaCourses)
+        .values({
+          name: body.name,
+          nameEn: body.name_en,
+          content: body.content,
+          teacherId: body.teacher_id,
+          priceSgd: toNumeric(body.price_sgd),
+          duration: body.duration,
+          monthIndex: body.month_index
+        })
+        .returning();
 
-    if (!course) {
-      throw new Error("diploma_course_create_failed");
-    }
+      if (!created) {
+        throw new Error("diploma_course_create_failed");
+      }
 
-    return reply.code(201).send({ course: serializeDiplomaCourse(course) });
+      await replaceCourseTeachers(tx, COURSE_KIND, created.id, body.teacher_ids ?? []);
+      return created;
+    });
+
+    return reply.code(201).send({ course: serializeDiplomaCourse(course, await courseTeachersForCourse(COURSE_KIND, course.id)) });
   });
 
   app.patch("/diploma-courses/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(diplomaCourseUpdateSchema, request.body);
-    const [course] = await db
-      .update(diplomaCourses)
-      .set({
-        name: body.name,
-        nameEn: body.name_en,
-        content: body.content,
-        teacherId: body.teacher_id,
-        priceSgd: toNumeric(body.price_sgd),
-        duration: body.duration,
-        monthIndex: body.month_index
-      })
-      .where(eq(diplomaCourses.id, id))
-      .returning();
+    const course = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(diplomaCourses)
+        .set({
+          name: body.name,
+          nameEn: body.name_en,
+          content: body.content,
+          teacherId: body.teacher_id,
+          priceSgd: toNumeric(body.price_sgd),
+          duration: body.duration,
+          monthIndex: body.month_index
+        })
+        .where(eq(diplomaCourses.id, id))
+        .returning();
+
+      if (updated && body.teacher_ids !== undefined) {
+        await replaceCourseTeachers(tx, COURSE_KIND, updated.id, body.teacher_ids);
+      }
+
+      return updated;
+    });
 
     if (!course) {
       return sendNotFound(reply);
     }
 
-    return { course: serializeDiplomaCourse(course) };
+    return { course: serializeDiplomaCourse(course, await courseTeachersForCourse(COURSE_KIND, course.id)) };
   });
 
   app.delete("/diploma-courses/:id", { preHandler: requirePerm("education.manage") }, async (request) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    await db.delete(diplomaCourses).where(eq(diplomaCourses.id, id));
+    await db.transaction(async (tx) => {
+      await deleteCourseTeacherLinks(tx, COURSE_KIND, id);
+      await tx.delete(diplomaCourses).where(eq(diplomaCourses.id, id));
+    });
     return { ok: true };
   });
 

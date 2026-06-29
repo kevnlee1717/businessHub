@@ -28,6 +28,7 @@ import { AcademyCollectionPage } from "./pages/education/AcademyCollectionPage";
 import { DiplomaSection } from "./pages/education/DiplomaSection";
 import { EducationLayout } from "./pages/education/EducationLayout";
 import { EnglishSection } from "./pages/education/EnglishSection";
+import { TeachersPage } from "./pages/education/TeachersPage";
 import { WsqSection } from "./pages/education/WsqSection";
 import { BusinessDetailPage } from "./pages/businessFinance/BusinessDetailPage";
 import { BusinessListPage } from "./pages/businessFinance/BusinessListPage";
@@ -115,6 +116,7 @@ export function App() {
             <Route path="diploma" element={<DiplomaSection />} />
             <Route path="english" element={<EnglishSection />} />
             <Route path="wsq" element={<WsqSection />} />
+            <Route path="teachers" element={<TeachersPage />} />
             <Route path="academy-collection" element={<AcademyCollectionPage />} />
           </Route>
           <Route path="documents" element={<DocumentsLayout />}>

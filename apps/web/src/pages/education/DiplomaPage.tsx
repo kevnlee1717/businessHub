@@ -61,14 +61,14 @@ import { fileUrl, searchDocuments, type DocumentMeta } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
-import { TeacherSelect } from "../../components/TeacherSelect";
+import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
   name?: string | undefined;
   name_en?: string | undefined;
   content?: string | null | undefined;
-  teacher_id?: string | null | undefined;
+  teacher_ids?: string[] | undefined;
   price_sgd?: string | number | null | undefined;
   duration?: string | undefined;
   month_index?: number | null | undefined;
@@ -103,6 +103,10 @@ function displayName(item?: { name: string; name_en?: string | null } | null) {
   }
 
   return item.name_en ? `${item.name} / ${item.name_en}` : item.name;
+}
+
+function displayTeachers(teachers?: { name: string; name_en?: string | null }[]) {
+  return teachers?.map((teacher) => displayName(teacher)).filter(Boolean) ?? [];
 }
 
 function truncateText(value?: string | null) {
@@ -166,7 +170,7 @@ function getCourseDefaultValues(course?: DiplomaCourse): CourseFormValues {
     name: course?.name ?? "",
     name_en: course?.name_en ?? undefined,
     content: course?.content ?? null,
-    teacher_id: course?.teacher_id ?? null,
+    teacher_ids: course?.teachers?.map((teacher) => teacher.id) ?? [],
     price_sgd: course?.price_sgd ?? null,
     duration: course?.duration ?? undefined,
     month_index: course?.month_index ?? null
@@ -771,7 +775,7 @@ export function DiplomaPage() {
     try {
       const body = {
         ...values,
-        teacher_id: values.teacher_id ?? null,
+        teacher_ids: values.teacher_ids ?? [],
         price_sgd: values.price_sgd ?? null,
         month_index: values.month_index ?? null
       };
@@ -888,7 +892,17 @@ export function DiplomaPage() {
                           : t("common.not_available")}
                       </Table.Td>
                       <Table.Td>
-                        {displayName(employeesById.get(course.teacher_id ?? "")) || t("common.not_available")}
+                        {displayTeachers(course.teachers).length > 0 ? (
+                          <Group gap={4}>
+                            {displayTeachers(course.teachers).map((teacher) => (
+                              <Badge key={teacher} size="sm" variant="light">
+                                {teacher}
+                              </Badge>
+                            ))}
+                          </Group>
+                        ) : (
+                          t("common.not_available")
+                        )}
                       </Table.Td>
                       <Table.Td>{course.price_sgd ?? t("common.not_available")}</Table.Td>
                       <Table.Td>{course.duration ?? t("common.not_available")}</Table.Td>
@@ -1063,11 +1077,11 @@ export function DiplomaPage() {
             <Group grow align="flex-start">
               <Controller
                 control={courseForm.control}
-                name="teacher_id"
+                name="teacher_ids"
                 render={({ field }) => (
-                  <Input.Wrapper label={t("diplomaCourse.fields.teacher")} error={courseErrors.teacher_id?.message}>
-                    <TeacherSelect
-                      value={field.value ?? null}
+                  <Input.Wrapper label={t("diplomaCourse.fields.teacher")} error={courseErrors.teacher_ids?.message}>
+                    <TeacherMultiSelect
+                      value={field.value ?? []}
                       onChange={(nextValue) => field.onChange(nextValue)}
                     />
                   </Input.Wrapper>

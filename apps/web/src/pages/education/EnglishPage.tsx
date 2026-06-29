@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Alert,
+  Badge,
   Button,
   Checkbox,
   Group,
@@ -50,10 +51,9 @@ import {
   type EnglishEnrollment,
   type EnglishLevel
 } from "../../api/education";
-import { listEmployees } from "../../api/hr";
 import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
-import { TeacherSelect } from "../../components/TeacherSelect";
+import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
 import { displayStudentName, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type LevelFormValues = {
@@ -66,7 +66,7 @@ type LevelFormValues = {
 
 type ClassFormValues = {
   level_id?: string | null | undefined;
-  teacher_id?: string | null | undefined;
+  teacher_ids?: string[] | undefined;
   schedule?: string | undefined;
   start_date?: string | undefined;
   end_date?: string | undefined;
@@ -76,7 +76,6 @@ const englishLevelsQueryKey = ["education", "english-levels"] as const;
 const englishClassesQueryKey = ["education", "english-classes"] as const;
 const englishEnrollmentsQueryKey = ["education", "english-enrollments"] as const;
 const englishAttendanceQueryKey = ["education", "english-attendance"] as const;
-const employeesQueryKey = ["hr", "employees"] as const;
 
 function numberOrNull(value: string | number) {
   if (value === "") {
@@ -94,6 +93,10 @@ function displayName(item?: { name: string; name_en?: string | null } | null) {
   return item.name_en ? `${item.name} / ${item.name_en}` : item.name;
 }
 
+function displayTeachers(teachers?: { name: string; name_en?: string | null }[]) {
+  return teachers?.map((teacher) => displayName(teacher)).filter(Boolean) ?? [];
+}
+
 function getLevelDefaultValues(level?: EnglishLevel): LevelFormValues {
   return {
     name: level?.name ?? "",
@@ -107,7 +110,7 @@ function getLevelDefaultValues(level?: EnglishLevel): LevelFormValues {
 function getClassDefaultValues(englishClass?: EnglishClass): ClassFormValues {
   return {
     level_id: englishClass?.level_id ?? null,
-    teacher_id: englishClass?.teacher_id ?? null,
+    teacher_ids: englishClass?.teachers?.map((teacher) => teacher.id) ?? [],
     schedule: englishClass?.schedule ?? undefined,
     start_date: englishClass?.start_date ?? undefined,
     end_date: englishClass?.end_date ?? undefined
@@ -143,10 +146,6 @@ export function EnglishPage() {
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,
     queryFn: listStudents
-  });
-  const employeesQuery = useQuery({
-    queryKey: employeesQueryKey,
-    queryFn: listEmployees
   });
   const enrollmentsQuery = useQuery({
     queryKey: [...englishEnrollmentsQueryKey, selectedClassId],
@@ -233,12 +232,10 @@ export function EnglishPage() {
   const levels = levelsQuery.data?.levels ?? [];
   const classes = classesQuery.data?.classes ?? [];
   const students = studentsQuery.data?.students ?? [];
-  const employees = employeesQuery.data?.employees ?? [];
   const enrollments = enrollmentsQuery.data?.enrollments ?? [];
   const selectedClass = classes.find((englishClass) => englishClass.id === selectedClassId) ?? null;
   const levelById = useMemo(() => new Map(levels.map((level) => [level.id, level])), [levels]);
   const studentById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students]);
-  const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
   const summaryByEnrollmentId = useMemo(() => {
     const summaries = new Map<string, { total_sessions: number; attended_sessions: number }>();
     enrollments.forEach((enrollment, index) => {
@@ -255,7 +252,7 @@ export function EnglishPage() {
   const isSavingLevel = createLevelMutation.isPending || updateLevelMutation.isPending;
   const isSavingClass = createClassMutation.isPending || updateClassMutation.isPending;
   const loadError =
-    levelsQuery.error ?? classesQuery.error ?? studentsQuery.error ?? employeesQuery.error ?? enrollmentsQuery.error;
+    levelsQuery.error ?? classesQuery.error ?? studentsQuery.error ?? enrollmentsQuery.error;
 
   useEffect(() => {
     if (classesQuery.isLoading) {
@@ -346,7 +343,7 @@ export function EnglishPage() {
       const body = {
         ...values,
         level_id: values.level_id ?? null,
-        teacher_id: values.teacher_id ?? null
+        teacher_ids: values.teacher_ids ?? []
       };
 
       if (editingClass) {
@@ -527,7 +524,7 @@ export function EnglishPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {classesQuery.isLoading || levelsQuery.isLoading || employeesQuery.isLoading ? (
+                    {classesQuery.isLoading || levelsQuery.isLoading ? (
                       <Table.Tr>
                         <Table.Td colSpan={canManageEducation ? 5 : 4}>
                           <Group justify="center" py="lg">
@@ -558,7 +555,17 @@ export function EnglishPage() {
                             {displayName(levelById.get(englishClass.level_id ?? "")) || t("common.not_available")}
                           </Table.Td>
                           <Table.Td>
-                            {displayName(employeeById.get(englishClass.teacher_id ?? "")) || t("common.not_available")}
+                            {displayTeachers(englishClass.teachers).length > 0 ? (
+                              <Group gap={4}>
+                                {displayTeachers(englishClass.teachers).map((teacher) => (
+                                  <Badge key={teacher} size="sm" variant="light">
+                                    {teacher}
+                                  </Badge>
+                                ))}
+                              </Group>
+                            ) : (
+                              t("common.not_available")
+                            )}
                           </Table.Td>
                           <Table.Td>{englishClass.schedule ?? t("common.not_available")}</Table.Td>
                           <Table.Td>
@@ -847,11 +854,11 @@ export function EnglishPage() {
               />
               <Controller
                 control={classForm.control}
-                name="teacher_id"
+                name="teacher_ids"
                 render={({ field }) => (
-                  <Input.Wrapper label={t("englishClass.fields.teacher")} error={classErrors.teacher_id?.message}>
-                    <TeacherSelect
-                      value={field.value ?? null}
+                  <Input.Wrapper label={t("englishClass.fields.teacher")} error={classErrors.teacher_ids?.message}>
+                    <TeacherMultiSelect
+                      value={field.value ?? []}
                       onChange={(nextValue) => field.onChange(nextValue)}
                     />
                   </Input.Wrapper>

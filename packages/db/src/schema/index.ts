@@ -34,6 +34,8 @@ export * from "./priceAdjustments";
 export * from "./billingCharges";
 export * from "./payments";
 export * from "./students";
+export * from "./teachers";
+export * from "./courseTeachers";
 export * from "./englishLevels";
 export * from "./englishClasses";
 export * from "./englishEnrollments";

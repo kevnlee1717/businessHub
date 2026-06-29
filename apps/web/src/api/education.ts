@@ -33,6 +33,12 @@ export type Student = {
   updated_at: string;
 };
 
+export type CourseTeacher = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+};
+
 export type DiplomaEnrollment = {
   id: string;
   student_id: string;
@@ -56,6 +62,7 @@ export type DiplomaCourse = {
   name_en?: string | null;
   content?: string | null;
   teacher_id?: string | null;
+  teachers?: CourseTeacher[];
   price_sgd?: string | null;
   duration?: string | null;
   month_index?: number | null;
@@ -194,6 +201,7 @@ export type WsqCourse = {
   start_date?: string | null;
   duration?: string | null;
   teacher_id?: string | null;
+  teachers?: CourseTeacher[];
   price_sgd?: string | null;
   min_students?: number | null;
   enrollment_count: number;
@@ -223,6 +231,7 @@ export type EnglishClass = {
   id: string;
   level_id?: string | null;
   teacher_id?: string | null;
+  teachers?: CourseTeacher[];
   schedule?: string | null;
   start_date?: string | null;
   end_date?: string | null;

@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
       { to: "/education/diploma", key: "nav.diploma", perm: "education.view" },
       { to: "/education/wsq", key: "nav.wsq", perm: "education.view" },
       { to: "/education/english", key: "nav.english", perm: "education.view" },
+      { to: "/education/teachers", key: "师资", perm: "education.view" },
       { to: "/education/academy-collection", key: "nav.academy_collection", perm: "education.view" }
     ]
   },

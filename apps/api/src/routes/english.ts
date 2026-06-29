@@ -12,7 +12,16 @@ import { and, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import {
+  courseTeachersByCourseIds,
+  courseTeachersForCourse,
+  deleteCourseTeacherLinks,
+  replaceCourseTeachers,
+  type SerializedCourseTeacher
+} from "./courseTeacherUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
+
+const CLASS_COURSE_KIND = "english";
 
 function serializeLevel(level: typeof englishLevels.$inferSelect) {
   return {
@@ -26,11 +35,12 @@ function serializeLevel(level: typeof englishLevels.$inferSelect) {
   };
 }
 
-function serializeClass(englishClass: typeof englishClasses.$inferSelect) {
+function serializeClass(englishClass: typeof englishClasses.$inferSelect, teachers: SerializedCourseTeacher[] = []) {
   return {
     id: englishClass.id,
     level_id: englishClass.levelId,
     teacher_id: englishClass.teacherId,
+    teachers,
     schedule: englishClass.schedule,
     start_date: englishClass.startDate,
     end_date: englishClass.endDate,
@@ -137,50 +147,86 @@ export async function registerEnglishRoutes(app: FastifyInstance): Promise<void>
       .from(englishClasses)
       .where(filters.length > 0 ? and(...filters) : sql`true`)
       .orderBy(englishClasses.createdAt);
+    const teachersByCourse = await courseTeachersByCourseIds(CLASS_COURSE_KIND, rows.map((row) => row.id));
 
-    return { classes: rows.map(serializeClass) };
+    return { classes: rows.map((row) => serializeClass(row, teachersByCourse.get(row.id) ?? [])) };
   });
 
-  app.post("/english-classes", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
-    const body = parseWithSchema(englishClassCreateSchema, request.body);
-    const [englishClass] = await db
-      .insert(englishClasses)
-      .values({
-        levelId: body.level_id,
-        teacherId: body.teacher_id,
-        schedule: body.schedule,
-        startDate: body.start_date,
-        endDate: body.end_date
-      })
-      .returning();
-
-    if (!englishClass) {
-      throw new Error("english_class_create_failed");
-    }
-
-    return reply.code(201).send({ class: serializeClass(englishClass) });
-  });
-
-  app.patch("/english-classes/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
+  app.get("/english-classes/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    const body = parseWithSchema(englishClassUpdateSchema, request.body);
-    const [englishClass] = await db
-      .update(englishClasses)
-      .set({
-        levelId: body.level_id,
-        teacherId: body.teacher_id,
-        schedule: body.schedule,
-        startDate: body.start_date,
-        endDate: body.end_date
-      })
-      .where(eq(englishClasses.id, id))
-      .returning();
+    const [englishClass] = await db.select().from(englishClasses).where(eq(englishClasses.id, id)).limit(1);
 
     if (!englishClass) {
       return sendNotFound(reply);
     }
 
-    return { class: serializeClass(englishClass) };
+    return { class: serializeClass(englishClass, await courseTeachersForCourse(CLASS_COURSE_KIND, id)) };
+  });
+
+  app.post("/english-classes", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
+    const body = parseWithSchema(englishClassCreateSchema, request.body);
+    const englishClass = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(englishClasses)
+        .values({
+          levelId: body.level_id,
+          teacherId: body.teacher_id,
+          schedule: body.schedule,
+          startDate: body.start_date,
+          endDate: body.end_date
+        })
+        .returning();
+
+      if (!created) {
+        throw new Error("english_class_create_failed");
+      }
+
+      await replaceCourseTeachers(tx, CLASS_COURSE_KIND, created.id, body.teacher_ids ?? []);
+      return created;
+    });
+
+    return reply
+      .code(201)
+      .send({ class: serializeClass(englishClass, await courseTeachersForCourse(CLASS_COURSE_KIND, englishClass.id)) });
+  });
+
+  app.patch("/english-classes/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(englishClassUpdateSchema, request.body);
+    const englishClass = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(englishClasses)
+        .set({
+          levelId: body.level_id,
+          teacherId: body.teacher_id,
+          schedule: body.schedule,
+          startDate: body.start_date,
+          endDate: body.end_date
+        })
+        .where(eq(englishClasses.id, id))
+        .returning();
+
+      if (updated && body.teacher_ids !== undefined) {
+        await replaceCourseTeachers(tx, CLASS_COURSE_KIND, updated.id, body.teacher_ids);
+      }
+
+      return updated;
+    });
+
+    if (!englishClass) {
+      return sendNotFound(reply);
+    }
+
+    return { class: serializeClass(englishClass, await courseTeachersForCourse(CLASS_COURSE_KIND, englishClass.id)) };
+  });
+
+  app.delete("/english-classes/:id", { preHandler: requirePerm("education.manage") }, async (request) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    await db.transaction(async (tx) => {
+      await deleteCourseTeacherLinks(tx, CLASS_COURSE_KIND, id);
+      await tx.delete(englishClasses).where(eq(englishClasses.id, id));
+    });
+    return { ok: true };
   });
 
   app.get("/english-classes/:id/enrollments", { preHandler: requirePerm("education.view") }, async (request) => {
