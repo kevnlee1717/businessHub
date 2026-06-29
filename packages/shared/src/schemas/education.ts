@@ -31,7 +31,8 @@ export const diplomaProgramCreateSchema = z.object({
   name_en: optionalText,
   active: z.boolean().optional(),
   sort_order: z.number().int().optional(),
-  months: z.number().int().min(1).max(60).nullable().optional()
+  months: z.number().int().min(1).max(60).nullable().optional(),
+  price_sgd: z.union([z.string(), z.number()]).nullable().optional()
 });
 
 export const diplomaProgramUpdateSchema = diplomaProgramCreateSchema.partial();
