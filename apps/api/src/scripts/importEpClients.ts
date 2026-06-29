@@ -626,19 +626,43 @@ async function purgeApplicant(
     return [];
   }
 
-  const caseRows = await tx
+  const rootCaseRows = await tx
     .select()
     .from(cases)
     .where(and(eq(cases.clientId, clientRow.id), inArray(cases.businessType, ["ep", "dp"])))
     .orderBy(asc(cases.createdAt));
 
-  if (caseRows.length === 0) {
+  if (rootCaseRows.length === 0) {
     console.log(`  purge skipped: no EP/DP cases for ${name} (${clientRow.id})`);
     return [];
   }
 
+  const caseRows = [...rootCaseRows];
+  const seenCaseIds = new Set(caseRows.map((caseRow) => caseRow.id));
+  let frontierIds = [...seenCaseIds];
+
+  while (frontierIds.length > 0) {
+    const childCaseRows = await tx
+      .select()
+      .from(cases)
+      .where(and(inArray(cases.parentCaseId, frontierIds), inArray(cases.businessType, ["ep", "dp"])))
+      .orderBy(asc(cases.createdAt));
+
+    const nextFrontierIds: string[] = [];
+    for (const caseRow of childCaseRows) {
+      if (seenCaseIds.has(caseRow.id)) {
+        continue;
+      }
+      seenCaseIds.add(caseRow.id);
+      caseRows.push(caseRow);
+      nextFrontierIds.push(caseRow.id);
+    }
+    frontierIds = nextFrontierIds;
+  }
+
   console.log(`  purge client: ${name} (${clientRow.id}) cases=${caseRows.length}`);
   const caseIds = caseRows.map((caseRow) => caseRow.id);
+  const affectedClientIds = [...new Set(caseRows.map((caseRow) => caseRow.clientId).filter((id): id is string => Boolean(id)))];
   const stepRows = await tx.select().from(caseSteps).where(inArray(caseSteps.caseId, caseIds));
   const stepIds = stepRows.map((step) => step.id);
 
@@ -671,10 +695,12 @@ async function purgeApplicant(
   stats.documentsPurged += documentRows.length;
 
   if (dryRun) {
-    const allClientCases = await tx.select({ id: cases.id }).from(cases).where(eq(cases.clientId, clientRow.id));
     const purgedCaseIds = new Set(caseIds);
-    if (allClientCases.every((caseRow) => purgedCaseIds.has(caseRow.id))) {
-      stats.clientsPurged += 1;
+    for (const affectedClientId of affectedClientIds) {
+      const allClientCases = await tx.select({ id: cases.id }).from(cases).where(eq(cases.clientId, affectedClientId));
+      if (allClientCases.length > 0 && allClientCases.every((caseRow) => purgedCaseIds.has(caseRow.id))) {
+        stats.clientsPurged += 1;
+      }
     }
     return storagePaths;
   }
@@ -690,13 +716,20 @@ async function purgeApplicant(
   }
   await tx.delete(cases).where(inArray(cases.id, caseIds));
 
-  const [remainingCase] = await tx.select({ id: cases.id }).from(cases).where(eq(cases.clientId, clientRow.id)).limit(1);
-  if (!remainingCase) {
-    await tx.delete(clients).where(eq(clients.id, clientRow.id));
-    stats.clientsPurged += 1;
-    console.log(`    client deleted: ${name}`);
-  } else {
-    console.log(`    client kept: ${name} still has other cases`);
+  for (const affectedClientId of affectedClientIds) {
+    const [remainingCase] = await tx.select({ id: cases.id }).from(cases).where(eq(cases.clientId, affectedClientId)).limit(1);
+    if (!remainingCase) {
+      const [deletedClient] = await tx
+        .delete(clients)
+        .where(eq(clients.id, affectedClientId))
+        .returning({ name: clients.name });
+      if (deletedClient) {
+        stats.clientsPurged += 1;
+        console.log(`    client deleted: ${deletedClient.name}`);
+      }
+    } else if (affectedClientId === clientRow.id) {
+      console.log(`    client kept: ${name} still has other cases`);
+    }
   }
 
   return storagePaths;
