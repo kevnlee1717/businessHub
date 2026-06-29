@@ -3,18 +3,24 @@ import { copyFile, mkdir, readFile, stat, unlink } from "node:fs/promises";
 import { dirname, extname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  billing,
+  billingCharges,
+  businesses,
   caseStepDocuments,
   caseSteps,
   cases,
   clients,
   db,
   documents,
+  payments,
   pool,
+  schemeVersions,
   templateSteps,
   workflowTemplates
 } from "@bh/db";
-import { type BusinessType, type CaseStepStatus } from "@bh/shared";
+import { type BillingRefType, type BusinessType, type CaseStepStatus } from "@bh/shared";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { refreshBillingCharges } from "../routes/billing";
 
 type ImportDocument = {
   file: string;
@@ -29,6 +35,17 @@ type ImportCase = {
   current_step: number;
   step_status: Record<string, CaseStepStatus>;
   documents?: ImportDocument[];
+  billing?: ImportBilling;
+};
+
+type ImportBilling = {
+  skip_billing?: boolean;
+  contract_amount?: number;
+  contract_date?: string;
+  currency?: string;
+  deposit_paid?: number;
+  deposit_paid_at?: string;
+  note?: string;
 };
 
 type ImportClient = {
@@ -81,6 +98,10 @@ type Stats = {
   documentsPurged: number;
   filesUnlinked: number;
   clientsPurged: number;
+  billingCreated: number;
+  chargesCreated: number;
+  paymentsRecorded: number;
+  billingSkipped: number;
   warnings: number;
 };
 
@@ -545,6 +566,239 @@ async function attachDocumentsForCase(
   }
 }
 
+function money(value: number): string {
+  return value.toFixed(2);
+}
+
+function dateOnly(value: string | undefined): string {
+  if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
+function billingRefTypeForCase(caseItem: ImportCase): BillingRefType | null {
+  if (caseItem.business_type === "ep" || caseItem.business_type === "ica") {
+    return caseItem.business_type;
+  }
+  return null;
+}
+
+function normalizedLabel(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, "").toLowerCase();
+}
+
+async function selectEpSchemeVersion(tx: DbLike, contractDate: string, stats: Stats) {
+  const [epBusiness] = await tx
+    .select()
+    .from(businesses)
+    .where(eq(businesses.code, "ep"))
+    .limit(1);
+
+  if (!epBusiness) {
+    stats.warnings += 1;
+    console.warn("    warning: EP business not found; billing skipped");
+    return null;
+  }
+
+  const versions = await tx
+    .select()
+    .from(schemeVersions)
+    .where(eq(schemeVersions.businessId, epBusiness.id))
+    .orderBy(asc(schemeVersions.effectiveFrom), asc(schemeVersions.createdAt));
+
+  const matched = versions.find((version) => {
+    const effectiveFrom = version.effectiveFrom ? String(version.effectiveFrom) : null;
+    const effectiveTo = version.effectiveTo ? String(version.effectiveTo) : null;
+    return (!effectiveFrom || contractDate >= effectiveFrom) && (!effectiveTo || contractDate <= effectiveTo);
+  });
+
+  if (matched) {
+    return { businessId: epBusiness.id, version: matched, matchedBy: "effective range" };
+  }
+
+  const defaultVersion = epBusiness.defaultVersionId
+    ? versions.find((version) => version.id === epBusiness.defaultVersionId) ??
+      (await tx.select().from(schemeVersions).where(eq(schemeVersions.id, epBusiness.defaultVersionId)).limit(1))[0]
+    : null;
+
+  if (defaultVersion) {
+    stats.warnings += 1;
+    console.warn(
+      `    warning: no EP scheme effective range matched contract_date=${contractDate}; using default version ${defaultVersion.label}`
+    );
+    return { businessId: epBusiness.id, version: defaultVersion, matchedBy: "business default" };
+  }
+
+  stats.warnings += 1;
+  console.warn(`    warning: no EP scheme version available for contract_date=${contractDate}; billing skipped`);
+  return null;
+}
+
+async function recordImportedDepositPayment(
+  tx: DbLike,
+  billingId: string,
+  importBilling: ImportBilling,
+  contractDate: string,
+  stats: Stats
+) {
+  const depositPaid = Number(importBilling.deposit_paid ?? 0);
+  if (!Number.isFinite(depositPaid) || depositPaid <= 0) {
+    return;
+  }
+
+  const chargeRows = await tx
+    .select()
+    .from(billingCharges)
+    .where(eq(billingCharges.billingId, billingId))
+    .orderBy(asc(billingCharges.seq), asc(billingCharges.createdAt));
+  const [billingRef] = await tx.select({ refId: billing.refId }).from(billing).where(eq(billing.id, billingId)).limit(1);
+  const [stepOne] = billingRef
+    ? await tx
+        .select({ id: caseSteps.id })
+        .from(caseSteps)
+        .where(and(eq(caseSteps.caseId, billingRef.refId), eq(caseSteps.stepOrder, 1)))
+        .limit(1)
+    : [];
+  const depositCharge =
+    chargeRows.find((charge) => charge.chargeKind === "milestone" && charge.seq === 1) ??
+    chargeRows.find((charge) => normalizedLabel(charge.label) === "订金") ??
+    (stepOne ? chargeRows.find((charge) => charge.caseStepId === stepOne.id) : undefined);
+
+  const paidAt = new Date(importBilling.deposit_paid_at ?? contractDate);
+  const paidAtValue = Number.isNaN(paidAt.getTime()) ? new Date(contractDate) : paidAt;
+
+  await tx.insert(payments).values({
+    billingId,
+    chargeId: depositCharge?.id ?? null,
+    paidCurrency: "SGD",
+    paidAmount: money(depositPaid),
+    fxRate: null,
+    sgdEquivalent: money(depositPaid),
+    type: "deposit",
+    recordedBy: null,
+    paidAt: paidAtValue,
+    note: "导入:已付订金; method=bank_transfer"
+  });
+
+  if (depositCharge) {
+    const collected = Number(depositCharge.amountCollected ?? 0) + depositPaid;
+    const expected = Number(depositCharge.amountExpected ?? 0);
+    await tx
+      .update(billingCharges)
+      .set({
+        amountCollected: money(collected),
+        status: collected >= expected ? "paid" : collected > 0 ? "partial" : "pending"
+      })
+      .where(eq(billingCharges.id, depositCharge.id));
+  }
+
+  const [billingRow] = await tx.select().from(billing).where(eq(billing.id, billingId)).limit(1);
+  if (billingRow) {
+    const status = depositPaid >= Number(billingRow.totalPriceSgd) ? "paid" : "partial";
+    await tx.update(billing).set({ status, updatedAt: new Date() }).where(eq(billing.id, billingId));
+  }
+
+  stats.paymentsRecorded += 1;
+  console.log(`    billing payment recorded: deposit=${depositPaid} charge=${depositCharge?.id ?? "none"}`);
+}
+
+async function createBillingForCase(tx: DbLike, createdCase: CreatedCase, caseItem: ImportCase, stats: Stats) {
+  const importBilling = caseItem.billing;
+  const amount = Number(importBilling?.contract_amount ?? 0);
+
+  const [caseRow] = await tx.select().from(cases).where(eq(cases.id, createdCase.caseId)).limit(1);
+  if (!caseRow) {
+    stats.billingSkipped += 1;
+    stats.warnings += 1;
+    console.warn(`    warning: billing skipped for ${caseItem.applicant}; case not found`);
+    return;
+  }
+
+  if (caseRow.billingId) {
+    stats.billingSkipped += 1;
+    console.log(`    billing skipped: existing billingId=${caseRow.billingId}`);
+    return;
+  }
+
+  if (importBilling?.skip_billing === true) {
+    stats.billingSkipped += 1;
+    console.log(`    billing skipped: skip_billing=true${importBilling.note ? ` (${importBilling.note})` : ""}`);
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    stats.billingSkipped += 1;
+    console.log(`    billing skipped: missing contract_amount${importBilling?.note ? ` (${importBilling.note})` : ""}`);
+    return;
+  }
+
+  const currency = importBilling?.currency ?? "SGD";
+  if (currency !== "SGD") {
+    stats.billingSkipped += 1;
+    stats.warnings += 1;
+    console.warn(`    warning: billing skipped for ${caseItem.applicant}; unsupported currency=${currency}`);
+    return;
+  }
+
+  const refType = billingRefTypeForCase(caseItem);
+  if (!refType) {
+    stats.billingSkipped += 1;
+    stats.warnings += 1;
+    console.warn(`    warning: billing skipped for ${caseItem.applicant}; unsupported billing ref type for ${caseItem.business_type}`);
+    return;
+  }
+
+  const contractDate = dateOnly(importBilling?.contract_date);
+  const selected = await selectEpSchemeVersion(tx, contractDate, stats);
+  if (!selected) {
+    stats.billingSkipped += 1;
+    return;
+  }
+
+  const inputs = {
+    price: amount,
+    contract_date: contractDate,
+    import_note: importBilling?.note ?? null,
+    import_billing: importBilling ?? null
+  };
+
+  const [billingRow] = await tx
+    .insert(billing)
+    .values({
+      refType,
+      refId: createdCase.caseId,
+      totalPriceSgd: money(amount),
+      depositSgd: money(Math.max(0, Number(importBilling?.deposit_paid ?? 0) || 0)),
+      status: "unpaid",
+      salesId: null,
+      commissionType: null,
+      commissionValue: null,
+      commissionAmountSgd: null,
+      businessId: selected.businessId,
+      schemeVersionId: selected.version.id,
+      inputs,
+      externalPayees: {}
+    })
+    .returning();
+
+  if (!billingRow) {
+    throw new Error(`billing_create_failed: ${caseItem.applicant}`);
+  }
+
+  await tx.update(cases).set({ billingId: billingRow.id, updatedAt: new Date() }).where(eq(cases.id, createdCase.caseId));
+  await refreshBillingCharges(billingRow.id, tx);
+
+  const chargeRows = await tx.select().from(billingCharges).where(eq(billingCharges.billingId, billingRow.id));
+  stats.billingCreated += 1;
+  stats.chargesCreated += chargeRows.length;
+  console.log(
+    `    billing created: amount=${amount} contract_date=${contractDate} scheme=${selected.version.label} (${selected.matchedBy}) charges=${chargeRows.length}`
+  );
+
+  await recordImportedDepositPayment(tx, billingRow.id, importBilling ?? {}, contractDate, stats);
+}
+
 async function importClient(importClientData: ImportClient, epRoot: string, stats: Stats) {
   console.log(`client folder: ${importClientData.folder}`);
   const rootFolder = join(epRoot, importClientData.folder);
@@ -599,6 +853,17 @@ async function importClient(importClientData: ImportClient, epRoot: string, stat
         console.log(`    shared file: ${sharedDocument.file} -> ${epCase.applicant} step ${sharedDocument.step}`);
         await attachImportDocument(tx, rootFolder, epCase, sharedDocument, copiedFiles, stats);
       }
+    }
+
+    for (const caseItem of importClientData.cases) {
+      const createdCase = createdCases.get(`${caseItem.applicant}:${caseItem.business_type}`);
+      if (!createdCase) {
+        stats.billingSkipped += 1;
+        stats.warnings += 1;
+        console.warn(`    warning: billing skipped for ${caseItem.applicant}; case was not created or found`);
+        continue;
+      }
+      await createBillingForCase(tx, createdCase, caseItem, stats);
     }
   });
 }
@@ -785,12 +1050,49 @@ function countDryRun(data: ImportData, stats: Stats) {
     stats.clientsCreated += casesCount;
     stats.casesCreated += casesCount;
     stats.filesLinked += caseFiles + sharedFiles;
+
+    for (const caseItem of importClientData.cases) {
+      const importBilling = caseItem.billing;
+      const amount = Number(importBilling?.contract_amount ?? 0);
+      if (importBilling?.skip_billing === true) {
+        stats.billingSkipped += 1;
+        console.log(`  would skip billing: ${caseItem.applicant} skip_billing=true${importBilling.note ? ` (${importBilling.note})` : ""}`);
+        continue;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        stats.billingSkipped += 1;
+        console.log(`  would skip billing: ${caseItem.applicant} missing contract_amount`);
+        continue;
+      }
+      if ((importBilling?.currency ?? "SGD") !== "SGD") {
+        stats.billingSkipped += 1;
+        stats.warnings += 1;
+        console.log(`  would skip billing: ${caseItem.applicant} unsupported currency=${importBilling?.currency}`);
+        continue;
+      }
+      if (!billingRefTypeForCase(caseItem)) {
+        stats.billingSkipped += 1;
+        stats.warnings += 1;
+        console.log(`  would skip billing: ${caseItem.applicant} unsupported billing ref type for ${caseItem.business_type}`);
+        continue;
+      }
+
+      stats.billingCreated += 1;
+      stats.chargesCreated += 2;
+      const depositPaid = Number(importBilling?.deposit_paid ?? 0);
+      if (Number.isFinite(depositPaid) && depositPaid > 0) {
+        stats.paymentsRecorded += 1;
+      }
+      console.log(
+        `  would create billing: ${caseItem.applicant} amount=${amount} contract_date=${dateOnly(importBilling?.contract_date)} deposit=${depositPaid || 0}`
+      );
+    }
   }
 }
 
 function printStats(label: string, stats: Stats) {
   console.log(
-    `${label}: clientsCreated=${stats.clientsCreated}, clientsReused=${stats.clientsReused}, casesCreated=${stats.casesCreated}, casesSkipped=${stats.casesSkipped}, stepsCreated=${stats.stepsCreated}, stepStatusesUpdated=${stats.stepStatusesUpdated}, documentSlotsCreated=${stats.documentSlotsCreated}, filesCopied=${stats.filesCopied}, filesLinked=${stats.filesLinked}, filesMissing=${stats.filesMissing}, casesPurged=${stats.casesPurged}, stepsPurged=${stats.stepsPurged}, documentSlotsPurged=${stats.documentSlotsPurged}, documentsPurged=${stats.documentsPurged}, filesUnlinked=${stats.filesUnlinked}, clientsPurged=${stats.clientsPurged}, warnings=${stats.warnings}`
+    `${label}: clientsCreated=${stats.clientsCreated}, clientsReused=${stats.clientsReused}, casesCreated=${stats.casesCreated}, casesSkipped=${stats.casesSkipped}, stepsCreated=${stats.stepsCreated}, stepStatusesUpdated=${stats.stepStatusesUpdated}, documentSlotsCreated=${stats.documentSlotsCreated}, filesCopied=${stats.filesCopied}, filesLinked=${stats.filesLinked}, filesMissing=${stats.filesMissing}, casesPurged=${stats.casesPurged}, stepsPurged=${stats.stepsPurged}, documentSlotsPurged=${stats.documentSlotsPurged}, documentsPurged=${stats.documentsPurged}, filesUnlinked=${stats.filesUnlinked}, clientsPurged=${stats.clientsPurged}, billingCreated=${stats.billingCreated}, chargesCreated=${stats.chargesCreated}, paymentsRecorded=${stats.paymentsRecorded}, billingSkipped=${stats.billingSkipped}, warnings=${stats.warnings}`
   );
 }
 
@@ -814,6 +1116,10 @@ async function main() {
     documentsPurged: 0,
     filesUnlinked: 0,
     clientsPurged: 0,
+    billingCreated: 0,
+    chargesCreated: 0,
+    paymentsRecorded: 0,
+    billingSkipped: 0,
     warnings: 0
   };
 
