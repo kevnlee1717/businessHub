@@ -239,6 +239,13 @@
       "when": 1782657607862,
       "tag": "0033_careless_next_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782721956580,
+      "tag": "0034_steep_vivisector",
+      "breakpoints": true
     }
   ]
 }
