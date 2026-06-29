@@ -1,11 +1,6 @@
 import { db, diplomaCourses, diplomaEnrollments, diplomaIntakes } from "@bh/db";
-import {
-  diplomaCourseCreateSchema,
-  diplomaCourseUpdateSchema,
-  diplomaIntakeCreateSchema,
-  diplomaIntakeUpdateSchema
-} from "@bh/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { diplomaCourseCreateSchema, diplomaCourseUpdateSchema } from "@bh/shared";
+import { eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -23,6 +18,7 @@ const COURSE_KIND = "diploma";
 function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect, teachers: SerializedCourseTeacher[] = []) {
   return {
     id: course.id,
+    program_id: course.programId,
     name: course.name,
     name_en: course.nameEn,
     content: course.content,
@@ -35,18 +31,6 @@ function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect, teac
   };
 }
 
-function serializeDiplomaIntake(intake: typeof diplomaIntakes.$inferSelect) {
-  return {
-    id: intake.id,
-    course_id: intake.courseId,
-    label: intake.label,
-    start_date: intake.startDate,
-    active: intake.active,
-    sort_order: intake.sortOrder,
-    created_at: intake.createdAt
-  };
-}
-
 function serializeDiplomaEnrollment(
   enrollment: typeof diplomaEnrollments.$inferSelect,
   intake?: Pick<typeof diplomaIntakes.$inferSelect, "id" | "label"> | null
@@ -54,6 +38,7 @@ function serializeDiplomaEnrollment(
   return {
     id: enrollment.id,
     student_id: enrollment.studentId,
+    program_id: enrollment.programId,
     course_id: enrollment.courseId,
     intake_id: enrollment.intakeId,
     intake_label: intake?.label ?? null,
@@ -66,16 +51,22 @@ function serializeDiplomaEnrollment(
   };
 }
 
-const courseIntakeParamsSchema = z.object({
-  courseId: z.string().uuid(),
-  id: z.string().uuid()
+const diplomaCourseQuerySchema = z.object({
+  program_id: z.string().uuid().optional()
 });
 
 export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/diploma-courses", { preHandler: requirePerm("education.view") }, async () => {
-    const courses = await db.select().from(diplomaCourses).orderBy(diplomaCourses.createdAt);
+  app.get("/diploma-courses", { preHandler: requirePerm("education.view") }, async (request) => {
+    const query = parseWithSchema(diplomaCourseQuerySchema, request.query);
+    const courses = query.program_id
+      ? await db
+          .select()
+          .from(diplomaCourses)
+          .where(eq(diplomaCourses.programId, query.program_id))
+          .orderBy(diplomaCourses.createdAt)
+      : await db.select().from(diplomaCourses).orderBy(diplomaCourses.createdAt);
     const teachersByCourse = await courseTeachersByCourseIds(COURSE_KIND, courses.map((course) => course.id));
 
     return {
@@ -101,6 +92,7 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
         .insert(diplomaCourses)
         .values({
           name: body.name,
+          programId: body.program_id,
           nameEn: body.name_en,
           content: body.content,
           teacherId: body.teacher_id,
@@ -127,6 +119,7 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
     const course = await db.transaction(async (tx) => {
       const update: Partial<typeof diplomaCourses.$inferInsert> = {};
       if (body.name !== undefined) update.name = body.name;
+      if (body.program_id !== undefined) update.programId = body.program_id;
       if (body.name_en !== undefined) update.nameEn = body.name_en;
       if (body.content !== undefined) update.content = body.content;
       if (body.teacher_id !== undefined) update.teacherId = body.teacher_id;
@@ -159,68 +152,6 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
       await deleteCourseTeacherLinks(tx, COURSE_KIND, id);
       await tx.delete(diplomaCourses).where(eq(diplomaCourses.id, id));
     });
-    return { ok: true };
-  });
-
-  app.get("/diploma-courses/:id/intakes", { preHandler: requirePerm("education.view") }, async (request) => {
-    const { id } = parseWithSchema(idParamsSchema, request.params);
-    const intakes = await db
-      .select()
-      .from(diplomaIntakes)
-      .where(eq(diplomaIntakes.courseId, id))
-      .orderBy(asc(diplomaIntakes.sortOrder), asc(diplomaIntakes.startDate), asc(diplomaIntakes.createdAt));
-
-    return { intakes: intakes.map(serializeDiplomaIntake) };
-  });
-
-  app.post("/diploma-courses/:id/intakes", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
-    const { id } = parseWithSchema(idParamsSchema, request.params);
-    const body = parseWithSchema(diplomaIntakeCreateSchema, {
-      ...(request.body as Record<string, unknown>),
-      course_id: id
-    });
-    const [intake] = await db
-      .insert(diplomaIntakes)
-      .values({
-        courseId: body.course_id,
-        label: body.label,
-        startDate: body.start_date,
-        active: body.active,
-        sortOrder: body.sort_order
-      })
-      .returning();
-
-    if (!intake) {
-      throw new Error("diploma_intake_create_failed");
-    }
-
-    return reply.code(201).send({ intake: serializeDiplomaIntake(intake) });
-  });
-
-  app.patch("/diploma-courses/:courseId/intakes/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
-    const { courseId, id } = parseWithSchema(courseIntakeParamsSchema, request.params);
-    const body = parseWithSchema(diplomaIntakeUpdateSchema, request.body);
-    const [intake] = await db
-      .update(diplomaIntakes)
-      .set({
-        label: body.label,
-        startDate: body.start_date,
-        active: body.active,
-        sortOrder: body.sort_order
-      })
-      .where(and(eq(diplomaIntakes.id, id), eq(diplomaIntakes.courseId, courseId)))
-      .returning();
-
-    if (!intake) {
-      return sendNotFound(reply);
-    }
-
-    return { intake: serializeDiplomaIntake(intake) };
-  });
-
-  app.delete("/diploma-courses/:courseId/intakes/:id", { preHandler: requirePerm("education.manage") }, async (request) => {
-    const { courseId, id } = parseWithSchema(courseIntakeParamsSchema, request.params);
-    await db.delete(diplomaIntakes).where(and(eq(diplomaIntakes.id, id), eq(diplomaIntakes.courseId, courseId)));
     return { ok: true };
   });
 

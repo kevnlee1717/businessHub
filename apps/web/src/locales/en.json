@@ -270,6 +270,7 @@
   },
   "education": {
     "tabs": {
+      "programs": "Programs",
       "courses": "Courses",
       "enrollments": "Enrollments",
       "coursesAndSchedule": "Courses and schedules",
@@ -342,7 +343,23 @@
       "manage": "Manage intakes",
       "empty": "No intakes yet",
       "placeholder": "Select or create an intake",
-      "selectCourseFirst": "Select a course first"
+      "selectCourseFirst": "Select a course first",
+      "selectProgramFirst": "Select a program first"
+    }
+  },
+  "diplomaProgram": {
+    "add": "Add program",
+    "edit": "Edit program",
+    "empty": "No programs yet",
+    "inactive": "Inactive",
+    "enable": "Enable",
+    "disable": "Disable",
+    "confirmDelete": "Delete program {{name}}?",
+    "fields": {
+      "name": "Program name",
+      "nameEn": "English name",
+      "sortOrder": "Sort order",
+      "status": "Status"
     }
   },
   "diplomaCourse": {
@@ -350,8 +367,12 @@
     "edit": "Edit course",
     "empty": "No courses yet",
     "confirmDelete": "Delete course {{name}}?",
+    "filters": {
+      "program": "Filter by program"
+    },
     "fields": {
       "name": "Name",
+      "program": "Program",
       "nameEn": "English name",
       "content": "Course content",
       "teacher": "Teacher",
