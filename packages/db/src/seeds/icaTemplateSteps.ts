@@ -3,7 +3,20 @@
  * 被 seed.ts 引用（新建模板时使用），也被 applyIcaTemplate.ts（更新已有模板）使用。
  */
 
-export const icaTemplateSteps = [
+export type IcaTemplateStep = {
+  stepOrder: number;
+  name: string;
+  nameEn: string;
+  description?: string;
+  requiredDocuments: {
+    name: string;
+    name_en?: string;
+    category_id?: string | null;
+    required: boolean;
+  }[];
+};
+
+export const icaTemplateSteps: IcaTemplateStep[] = [
   {
     stepOrder: 1,
     name: "签约",

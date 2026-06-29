@@ -1,8 +1,7 @@
 import { config } from "dotenv";
 config({ path: "../../.env" });
 
-import { db, pool, templateSteps, workflowTemplates } from "@bh/db";
-import { icaTemplateSteps } from "../../../../packages/db/src/seeds/icaTemplateSteps.js";
+import { db, icaTemplateSteps, pool, templateSteps, workflowTemplates } from "@bh/db";
 import { and, asc, eq } from "drizzle-orm";
 
 async function main() {
