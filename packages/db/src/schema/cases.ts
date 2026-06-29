@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { billing } from "./billing";
 import { clients } from "./clients";
 import { businessTypeEnum, caseStatusEnum } from "./enums";
@@ -16,6 +16,7 @@ export const cases = pgTable("cases", {
   guarantorName: text("guarantor_name"),
   guarantorRelation: text("guarantor_relation"),
   guarantorContact: text("guarantor_contact"),
+  signedAt: date("signed_at"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });

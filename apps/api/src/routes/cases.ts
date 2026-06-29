@@ -47,6 +47,7 @@ function serializeCase(row: typeof cases.$inferSelect) {
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
     guarantor_contact: row.guarantorContact,
+    signed_at: row.signedAt,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
@@ -178,11 +179,30 @@ const caseQuerySchema = z.object({
   business_type: z.enum(businessTypes).optional(),
   status: z.enum(caseStatuses).optional(),
   client_id: z.string().uuid().optional(),
-  parent_case_id: z.string().uuid().optional()
+  parent_case_id: z.string().uuid().optional(),
+  order_by: z.enum(["signed_at", "created_at"]).optional().default("created_at"),
+  order: z.enum(["asc", "desc"]).optional().default("desc")
+});
+
+const caseStatsQuerySchema = z.object({
+  year: z.coerce.number().int().min(1900).max(9999).optional(),
+  business_type: z.enum(businessTypes).optional()
 });
 
 function hasOwn(input: object, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(input, field);
+}
+
+function getCaseSort(orderBy: "signed_at" | "created_at", order: "asc" | "desc") {
+  if (orderBy === "signed_at") {
+    return [
+      sql`${cases.signedAt} is null`,
+      order === "asc" ? asc(cases.signedAt) : desc(cases.signedAt),
+      desc(cases.createdAt)
+    ];
+  }
+
+  return [order === "asc" ? asc(cases.createdAt) : desc(cases.createdAt)];
 }
 
 async function recalculateCurrentStep(caseId: string): Promise<void> {
@@ -254,9 +274,61 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       .select()
       .from(cases)
       .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(cases.createdAt));
+      .orderBy(...getCaseSort(query.order_by ?? "created_at", query.order ?? "desc"));
 
     return { cases: rows.map(serializeCase) };
+  });
+
+  app.get("/cases/stats", { preHandler: requirePerm("case.view") }, async (request) => {
+    const query = parseWithSchema(caseStatsQuerySchema, request.query);
+    const ctx = await loadAuthContext(request);
+    const filters: SQL[] = [];
+    const effectiveDate = sql`coalesce(${cases.signedAt}, ${cases.createdAt}::date)`;
+
+    if (query.business_type) {
+      filters.push(eq(cases.businessType, query.business_type));
+    }
+
+    if (ctx.dataScope === "self") {
+      const visibleCaseIds = await getVisibleCaseIds(request.user.id);
+      filters.push(inArray(cases.id, visibleCaseIds.length ? visibleCaseIds : ["00000000-0000-0000-0000-000000000000"]));
+    }
+
+    const yearRows = await db
+      .select({
+        year: sql<number>`extract(year from ${effectiveDate})::int`
+      })
+      .from(cases)
+      .where(filters.length > 0 ? and(...filters) : sql`true`)
+      .groupBy(sql`extract(year from ${effectiveDate})::int`)
+      .orderBy(desc(sql`extract(year from ${effectiveDate})::int`));
+    const availableYears = yearRows.map((row) => Number(row.year)).filter((year) => Number.isFinite(year));
+    const selectedYear = query.year ?? availableYears[0] ?? new Date().getFullYear();
+    const statsFilters = [
+      ...filters,
+      sql`extract(year from ${effectiveDate})::int = ${selectedYear}`
+    ];
+    const monthRows = await db
+      .select({
+        month: sql<number>`extract(month from ${effectiveDate})::int`,
+        count: sql<number>`count(*)::int`
+      })
+      .from(cases)
+      .where(and(...statsFilters))
+      .groupBy(sql`extract(month from ${effectiveDate})::int`);
+    const countByMonth = new Map(monthRows.map((row) => [Number(row.month), Number(row.count)]));
+    const months = Array.from({ length: 12 }, (_value, index) => {
+      const month = index + 1;
+      return { month, count: countByMonth.get(month) ?? 0 };
+    });
+
+    return {
+      year: selectedYear,
+      business_type: query.business_type ?? null,
+      months,
+      total: months.reduce((sum, item) => sum + item.count, 0),
+      available_years: availableYears
+    };
   });
 
   app.get("/cases/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {
@@ -380,7 +452,8 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           billingId: body.billing_id ?? null,
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
-          guarantorContact: body.guarantor_contact
+          guarantorContact: body.guarantor_contact,
+          signedAt: body.signed_at ?? null
         })
         .returning();
 
@@ -483,6 +556,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
           guarantorContact: body.guarantor_contact,
+          signedAt: body.signed_at,
           updatedAt: new Date()
         })
         .where(eq(cases.id, id))

@@ -1,6 +1,7 @@
 import { Tabs } from "@mantine/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CaseStatsPanel } from "./CaseStatsPanel";
 import { CasesPage } from "./CasesPage";
 import { ClientsPage } from "./ClientsPage";
 import { TemplatesPage } from "./TemplatesPage";
@@ -15,6 +16,7 @@ export function EpSection() {
         <Tabs.Tab value="cases">{t("business.tabs.cases")}</Tabs.Tab>
         <Tabs.Tab value="clients">{t("business.tabs.clients")}</Tabs.Tab>
         <Tabs.Tab value="templates">{t("business.tabs.templates")}</Tabs.Tab>
+        <Tabs.Tab value="stats">{t("business.tabs.stats")}</Tabs.Tab>
       </Tabs.List>
 
       <Tabs.Panel value="cases" pt="md">
@@ -25,6 +27,9 @@ export function EpSection() {
       </Tabs.Panel>
       <Tabs.Panel value="templates" pt="md">
         <TemplatesPage businessType="ep" />
+      </Tabs.Panel>
+      <Tabs.Panel value="stats" pt="md">
+        <CaseStatsPanel />
       </Tabs.Panel>
     </Tabs>
   );

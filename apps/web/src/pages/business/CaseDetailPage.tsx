@@ -90,6 +90,10 @@ function formatDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function formatDate(value?: string | null) {
+  return value ? new Date(`${value}T00:00:00`).toLocaleDateString() : "-";
+}
+
 function toDateTimeLocalValue(value?: string | null) {
   if (!value) {
     return "";
@@ -1338,6 +1342,7 @@ export function CaseDetailPage() {
   const { user, can } = useAuth();
   const { id } = useParams();
   const [statusDraft, setStatusDraft] = useState<CaseStatus | null>(null);
+  const [signedAtDraft, setSignedAtDraft] = useState<string>("");
   const [statusError, setStatusError] = useState<string | null>(null);
   const [caseCharges, setCaseCharges] = useState<Charge[]>([]);
 
@@ -1363,8 +1368,8 @@ export function CaseDetailPage() {
     queryFn: listDocumentCategories
   });
   const updateCaseMutation = useMutation({
-    mutationFn: ({ caseId, status }: { caseId: string; status: CaseStatus }) =>
-      updateCase(caseId, { status }),
+    mutationFn: ({ caseId, status, signedAt }: { caseId: string; status: CaseStatus; signedAt: string | null }) =>
+      updateCase(caseId, { status, signed_at: signedAt }),
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", variables.caseId] });
       await queryClient.invalidateQueries({ queryKey: ["business", "cases"] });
@@ -1415,6 +1420,7 @@ export function CaseDetailPage() {
   useEffect(() => {
     if (caseItem) {
       setStatusDraft(caseItem.status);
+      setSignedAtDraft(caseItem.signed_at ?? "");
     }
   }, [caseItem]);
 
@@ -1425,7 +1431,11 @@ export function CaseDetailPage() {
 
     setStatusError(null);
     try {
-      await updateCaseMutation.mutateAsync({ caseId: id, status: statusDraft });
+      await updateCaseMutation.mutateAsync({
+        caseId: id,
+        status: statusDraft,
+        signedAt: signedAtDraft || null
+      });
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -1513,6 +1523,12 @@ export function CaseDetailPage() {
                     ) : null}
                     <Stack gap={2}>
                       <Text size="sm" c="dimmed">
+                        {t("case.fields.signedAt")}
+                      </Text>
+                      <Text fw={500}>{formatDate(caseItem.signed_at)}</Text>
+                    </Stack>
+                    <Stack gap={2}>
+                      <Text size="sm" c="dimmed">
                         {t("case.fields.createdAt")}
                       </Text>
                       <Text fw={500}>{formatDateTime(caseItem.created_at)}</Text>
@@ -1533,6 +1549,12 @@ export function CaseDetailPage() {
                   </SimpleGrid>
                 </Stack>
                 <Group align="flex-end">
+                  <TextInput
+                    type="date"
+                    label={t("case.fields.signedAt")}
+                    value={signedAtDraft}
+                    onChange={(event) => setSignedAtDraft(event.currentTarget.value)}
+                  />
                   <Select
                     label={t("case.fields.status")}
                     data={statusOptions}

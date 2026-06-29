@@ -73,8 +73,20 @@ export type Case = {
   guarantor_name?: string | null;
   guarantor_relation?: string | null;
   guarantor_contact?: string | null;
+  signed_at?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type CaseOrderBy = "signed_at" | "created_at";
+export type SortOrder = "asc" | "desc";
+
+export type CaseStats = {
+  year: number;
+  business_type: BusinessType | null;
+  months: { month: number; count: number }[];
+  total: number;
+  available_years: number[];
 };
 
 export type Guarantor = {
@@ -296,6 +308,8 @@ export function listCases(params: {
   status?: CaseStatus | undefined;
   client_id?: string | undefined;
   parent_case_id?: string | undefined;
+  order_by?: CaseOrderBy | undefined;
+  order?: SortOrder | undefined;
 } = {}): Promise<{ cases: Case[] }> {
   const searchParams = new URLSearchParams();
 
@@ -315,8 +329,34 @@ export function listCases(params: {
     searchParams.set("parent_case_id", params.parent_case_id);
   }
 
+  if (params.order_by) {
+    searchParams.set("order_by", params.order_by);
+  }
+
+  if (params.order) {
+    searchParams.set("order", params.order);
+  }
+
   const query = searchParams.toString();
   return api<{ cases: Case[] }>(`/cases${query ? `?${query}` : ""}`);
+}
+
+export function getCaseStats(params: {
+  year?: number | undefined;
+  business_type?: BusinessType | undefined;
+} = {}): Promise<CaseStats> {
+  const searchParams = new URLSearchParams();
+
+  if (params.year) {
+    searchParams.set("year", String(params.year));
+  }
+
+  if (params.business_type) {
+    searchParams.set("business_type", params.business_type);
+  }
+
+  const query = searchParams.toString();
+  return api<CaseStats>(`/cases/stats${query ? `?${query}` : ""}`);
 }
 
 export function getCase(id: string): Promise<{

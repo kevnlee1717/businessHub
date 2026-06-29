@@ -1,0 +1,1 @@
+ALTER TABLE "cases" ADD COLUMN "signed_at" date;

@@ -43,6 +43,7 @@ type CaseFormValues = {
   guarantor_name?: string | undefined;
   guarantor_relation?: string | undefined;
   guarantor_contact?: string | undefined;
+  signed_at?: string | null | undefined;
 };
 
 type CaseListBusinessType = Extract<BusinessType, "ep" | "ica">;
@@ -67,6 +68,10 @@ function formatDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function formatDate(value?: string | null) {
+  return value ? new Date(`${value}T00:00:00`).toLocaleDateString() : "-";
+}
+
 function statusColor(status: CaseStatus) {
   switch (status) {
     case "completed":
@@ -87,7 +92,8 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
     template_id: undefined,
     guarantor_name: undefined,
     guarantor_relation: undefined,
-    guarantor_contact: undefined
+    guarantor_contact: undefined,
+    signed_at: null
   };
 }
 
@@ -97,17 +103,20 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<CaseStatus | null>(null);
   const [clientFilter, setClientFilter] = useState<string | null>(null);
+  const [signedAtOrder, setSignedAtOrder] = useState<"asc" | "desc" | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const canManageCases = can("case.manage");
 
   const casesQuery = useQuery({
-    queryKey: ["business", "cases", businessType, statusFilter, clientFilter],
+    queryKey: ["business", "cases", businessType, statusFilter, clientFilter, signedAtOrder],
     queryFn: () =>
       listCases({
         business_type: businessType,
         status: statusFilter ?? undefined,
-        client_id: clientFilter ?? undefined
+        client_id: clientFilter ?? undefined,
+        order_by: signedAtOrder ? "signed_at" : undefined,
+        order: signedAtOrder ?? undefined
       })
   });
   const clientsQuery = useQuery({
@@ -172,6 +181,10 @@ export function CasesPage({ businessType }: CasesPageProps) {
     return client ? displayName(client.name, client.name_en) : t("common.not_available");
   }
 
+  function toggleSignedAtSort() {
+    setSignedAtOrder((current) => (current === "asc" ? "desc" : "asc"));
+  }
+
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
 
@@ -181,7 +194,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
     }
 
     try {
-      await createMutation.mutateAsync({ ...values, business_type: businessType } as CaseCreateInput);
+      await createMutation.mutateAsync({
+        ...values,
+        business_type: businessType,
+        signed_at: values.signed_at || null
+      } as CaseCreateInput);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -220,13 +237,20 @@ export function CasesPage({ businessType }: CasesPageProps) {
       </Group>
 
       <ScrollArea>
-        <Table miw={920} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
+        <Table miw={1040} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("case.fields.businessType")}</Table.Th>
                 <Table.Th>{t("case.fields.client")}</Table.Th>
                 <Table.Th>{t("case.fields.status")}</Table.Th>
                 <Table.Th>{t("case.fields.currentStep")}</Table.Th>
+                <Table.Th
+                  onClick={toggleSignedAtSort}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                >
+                  {t("case.fields.signedAt")}
+                  {signedAtOrder ? ` ${signedAtOrder === "asc" ? "↑" : "↓"}` : ""}
+                </Table.Th>
                 <Table.Th>{t("case.fields.createdAt")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
@@ -234,7 +258,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={7}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -242,7 +266,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Tr>
               ) : cases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={7}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
@@ -263,6 +287,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                       </Badge>
                     </Table.Td>
                     <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
+                    <Table.Td>{formatDate(caseItem.signed_at)}</Table.Td>
                     <Table.Td>{formatDateTime(caseItem.created_at)}</Table.Td>
                     <Table.Td>
                       <Button
@@ -305,6 +330,19 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 )}
               />
             </Group>
+            <Controller
+              name="signed_at"
+              control={form.control}
+              render={({ field }) => (
+                <TextInput
+                  type="date"
+                  label={t("case.fields.signedAt")}
+                  value={field.value ?? ""}
+                  onChange={(event) => field.onChange(event.currentTarget.value || null)}
+                  error={errors.signed_at?.message}
+                />
+              )}
+            />
             <Controller
               name="template_id"
               control={form.control}
