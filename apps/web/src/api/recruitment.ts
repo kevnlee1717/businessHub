@@ -47,6 +47,9 @@ export type RecruitmentJob = {
   headcount: number;
   salary_min?: number | null;
   salary_max?: number | null;
+  employment_types?: ("full_time" | "part_time")[];
+  pt_salary_min?: number | null;
+  pt_salary_max?: number | null;
   salary_note?: string | null;
   salaryNote_i18n?: { zh?: string | null; en?: string | null };
   job_content?: string | null;

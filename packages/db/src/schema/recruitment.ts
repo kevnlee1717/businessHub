@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, integer, pgTable, text, time, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, integer, numeric, pgTable, text, time, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 import { companies } from "./companies";
 import { documents } from "./documents";
 import { employees } from "./employees";
@@ -39,6 +39,9 @@ export const recruitmentJobs = pgTable("recruitment_jobs", {
   headcount: integer("headcount").notNull().default(1),
   salaryMin: integer("salary_min"),
   salaryMax: integer("salary_max"),
+  employmentTypes: text("employment_types").array().notNull().default(sql`ARRAY['full_time']::text[]`),
+  ptSalaryMin: numeric("pt_salary_min", { precision: 6, scale: 2 }),
+  ptSalaryMax: numeric("pt_salary_max", { precision: 6, scale: 2 }),
   salaryNote: varchar("salary_note", { length: 200 }),
   jobContent: text("job_content"),
   requirements: text("requirements"),

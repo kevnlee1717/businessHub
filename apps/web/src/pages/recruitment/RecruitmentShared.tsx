@@ -101,6 +101,7 @@ import { normalizeLang, pickLang, tField, type AppLang, type I18nValue } from ".
 const pageSize = 10;
 
 type Dict = Record<string, unknown>;
+type EmploymentType = "full_time" | "part_time";
 
 function toDateInput(value?: string | null) {
   return value ? value.slice(0, 10) : "";
@@ -123,6 +124,19 @@ function firstText(...values: unknown[]) {
 
 function nullableFirstText(...values: unknown[]) {
   return firstText(...values) || null;
+}
+
+function renderJobSalary(job: RecruitmentJob, t: (key: string) => string, lang: AppLang) {
+  const employmentTypes = job.employment_types?.length ? job.employment_types : ["full_time"];
+  const rows = [];
+  if (employmentTypes.includes("full_time") && (job.salary_min != null || job.salary_max != null)) {
+    rows.push(`${t("recruitment.fields.salaryFullTimeTag")} ${job.salary_min ?? "-"}-${job.salary_max ?? "-"}${t("recruitment.fields.perMonth")}`);
+  }
+  if (employmentTypes.includes("part_time") && (job.pt_salary_min != null || job.pt_salary_max != null)) {
+    rows.push(`${t("recruitment.fields.salaryPartTimeTag")} ${job.pt_salary_min ?? "-"}-${job.pt_salary_max ?? "-"}${t("recruitment.fields.perHour")}`);
+  }
+  if (!rows.length) return tField(job, "salaryNote", lang) || "-";
+  return <Stack gap={2}>{rows.map((row) => <Text key={row} size="sm">{row}</Text>)}</Stack>;
 }
 
 function looksChinese(value: string) {
@@ -330,6 +344,7 @@ function JobFormModal({
   const base = useBaseOptions();
   const form = useSimpleForm();
   const [titleError, setTitleError] = useState<string | undefined>();
+  const [employmentTypeError, setEmploymentTypeError] = useState<string | undefined>();
   const mutation = useMutation({
     mutationFn: (body: Dict) => (job ? updateRecruitmentJob(job.id, body) : createRecruitmentJob(body)),
     onSuccess: async () => {
@@ -352,6 +367,9 @@ function JobFormModal({
         headcount: job?.headcount ?? 1,
         salary_min: job?.salary_min ?? undefined,
         salary_max: job?.salary_max ?? undefined,
+        employment_types: job?.employment_types?.length ? job.employment_types : ["full_time"],
+        pt_salary_min: job?.pt_salary_min ?? undefined,
+        pt_salary_max: job?.pt_salary_max ?? undefined,
         salaryNoteZh: salaryNote.zh,
         salaryNoteEn: salaryNote.en,
         jobContentZh: jobContent.zh,
@@ -364,6 +382,7 @@ function JobFormModal({
         owner_id: job?.owner_id ?? null
       });
       setTitleError(undefined);
+      setEmploymentTypeError(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, job?.id, base.companyOptions.length]);
@@ -374,8 +393,14 @@ function JobFormModal({
       setTitleError(t("bilingual.titleRequired"));
       return;
     }
+    const employmentTypes = (form.values.employment_types as EmploymentType[] | undefined) ?? [];
+    if (!employmentTypes.length) {
+      setEmploymentTypeError(t("recruitment.fields.employmentType"));
+      return;
+    }
 
     setTitleError(undefined);
+    setEmploymentTypeError(undefined);
     mutation.mutate({
       ...form.values,
       title,
@@ -385,6 +410,9 @@ function JobFormModal({
       salary_note: nullableFirstText(form.values.salaryNoteZh, form.values.salaryNoteEn),
       salary_min: emptyToNull(form.values.salary_min),
       salary_max: emptyToNull(form.values.salary_max),
+      employment_types: employmentTypes,
+      pt_salary_min: emptyToNull(form.values.pt_salary_min),
+      pt_salary_max: emptyToNull(form.values.pt_salary_max),
       titleZh: firstText(form.values.titleZh),
       titleEn: firstText(form.values.titleEn),
       jobContentZh: firstText(form.values.jobContentZh),
@@ -431,10 +459,24 @@ function JobFormModal({
         error={titleError}
       />
       <NumberInput label={t("recruitment.fields.headcount")} min={1} value={Number(form.values.headcount ?? 1)} onChange={(v) => form.set("headcount", v)} />
-      <Group grow align="flex-start">
-        <NumberInput label={t("recruitment.fields.salaryMin")} min={0} value={(form.values.salary_min as number | undefined) ?? ""} onChange={(v) => form.set("salary_min", v)} />
-        <NumberInput label={t("recruitment.fields.salaryMax")} min={0} value={(form.values.salary_max as number | undefined) ?? ""} onChange={(v) => form.set("salary_max", v)} />
-      </Group>
+      <Checkbox.Group label={t("recruitment.fields.employmentType")} value={(form.values.employment_types as string[]) ?? []} onChange={(v) => form.set("employment_types", v)} error={employmentTypeError}>
+        <Group mt="xs">
+          <Checkbox value="full_time" label={t("recruitment.fields.fullTime")} />
+          <Checkbox value="part_time" label={t("recruitment.fields.partTime")} />
+        </Group>
+      </Checkbox.Group>
+      {((form.values.employment_types as string[] | undefined) ?? []).includes("full_time") ? (
+        <Group grow align="flex-start">
+          <NumberInput label={t("recruitment.fields.fullTimeSalaryMin")} min={0} value={(form.values.salary_min as number | undefined) ?? ""} onChange={(v) => form.set("salary_min", v)} />
+          <NumberInput label={t("recruitment.fields.fullTimeSalaryMax")} min={0} value={(form.values.salary_max as number | undefined) ?? ""} onChange={(v) => form.set("salary_max", v)} />
+        </Group>
+      ) : null}
+      {((form.values.employment_types as string[] | undefined) ?? []).includes("part_time") ? (
+        <Group grow align="flex-start">
+          <NumberInput label={t("recruitment.fields.partTimeSalaryMin")} min={0} decimalScale={2} step={0.5} value={(form.values.pt_salary_min as number | undefined) ?? ""} onChange={(v) => form.set("pt_salary_min", v)} />
+          <NumberInput label={t("recruitment.fields.partTimeSalaryMax")} min={0} decimalScale={2} step={0.5} value={(form.values.pt_salary_max as number | undefined) ?? ""} onChange={(v) => form.set("pt_salary_max", v)} />
+        </Group>
+      ) : null}
       <BilingualInput
         label={t("recruitment.fields.salaryNote")}
         valueZh={String(form.values.salaryNoteZh ?? "")}
@@ -503,7 +545,7 @@ export function JobsPageImpl() {
                 <Table.Td><Anchor onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{tField(row, "title", lang)}</Anchor></Table.Td>
                 <Table.Td>{optionLabel(base.industryOptions, row.industry_id)}</Table.Td>
                 <Table.Td>{row.headcount}</Table.Td>
-                <Table.Td>{row.salary_min || row.salary_max ? `${row.salary_min ?? "-"}-${row.salary_max ?? "-"}` : tField(row, "salaryNote", lang) || "-"}</Table.Td>
+                <Table.Td>{renderJobSalary(row, t, lang)}</Table.Td>
                 <Table.Td><StatusBadge value={row.status} ns="jobStatus" /></Table.Td>
                 <Table.Td><StatusBadge value={row.priority} ns="jobPriority" /></Table.Td>
                 <Table.Td><Group gap="xs"><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{t("common.view")}</Button><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpened(true); }}>{t("common.edit")}</Button></Group></Table.Td>
