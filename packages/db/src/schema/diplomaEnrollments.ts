@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { boolean, date, integer, numeric, pgTable, timestamp, text, uuid } from "drizzle-orm/pg-core";
 import { billing } from "./billing";
 import { diplomaCourses } from "./diplomaCourses";
+import { diplomaIntakes } from "./diplomaIntakes";
 import { documents } from "./documents";
 import { students } from "./students";
 
@@ -9,6 +10,7 @@ export const diplomaEnrollments = pgTable("diploma_enrollments", {
   id: uuid("id").primaryKey().defaultRandom(),
   studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
   courseId: uuid("course_id").references(() => diplomaCourses.id, { onDelete: "set null" }),
+  intakeId: uuid("intake_id").references(() => diplomaIntakes.id, { onDelete: "set null" }),
   program: text("program").notNull(),
   enrollDate: date("enroll_date"),
   billingId: uuid("billing_id").references(() => billing.id, { onDelete: "set null" }),

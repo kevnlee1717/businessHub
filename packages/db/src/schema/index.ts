@@ -43,6 +43,7 @@ export * from "./englishAttendance";
 export * from "./wsqCourses";
 export * from "./wsqEnrollments";
 export * from "./diplomaCourses";
+export * from "./diplomaIntakes";
 export * from "./diplomaEnrollments";
 export * from "./diplomaAssignments";
 export * from "./diplomaAssignmentMessages";

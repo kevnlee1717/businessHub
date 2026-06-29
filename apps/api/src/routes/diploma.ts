@@ -4,6 +4,7 @@ import {
   diplomaAssignments,
   diplomaCourses,
   diplomaEnrollments,
+  diplomaIntakes,
   diplomaPayments,
   documents
 } from "@bh/db";
@@ -21,11 +22,16 @@ import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
-function serializeDiploma(enrollment: typeof diplomaEnrollments.$inferSelect) {
+function serializeDiploma(
+  enrollment: typeof diplomaEnrollments.$inferSelect,
+  intake?: Pick<typeof diplomaIntakes.$inferSelect, "id" | "label"> | null
+) {
   return {
     id: enrollment.id,
     student_id: enrollment.studentId,
     course_id: enrollment.courseId,
+    intake_id: enrollment.intakeId,
+    intake_label: intake?.label ?? null,
     program: enrollment.program,
     enroll_date: enrollment.enrollDate,
     billing_id: enrollment.billingId,
@@ -171,22 +177,52 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     const query = parseWithSchema(diplomaEnrollmentQuerySchema, request.query);
     const rows = query.student_id
       ? await db
-          .select()
+          .select({
+            enrollment: diplomaEnrollments,
+            intake: {
+              id: diplomaIntakes.id,
+              label: diplomaIntakes.label
+            }
+          })
           .from(diplomaEnrollments)
+          .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
           .where(eq(diplomaEnrollments.studentId, query.student_id))
           .orderBy(diplomaEnrollments.createdAt)
-      : await db.select().from(diplomaEnrollments).orderBy(diplomaEnrollments.createdAt);
+      : await db
+          .select({
+            enrollment: diplomaEnrollments,
+            intake: {
+              id: diplomaIntakes.id,
+              label: diplomaIntakes.label
+            }
+          })
+          .from(diplomaEnrollments)
+          .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
+          .orderBy(diplomaEnrollments.createdAt);
 
-    return { enrollments: rows.map(serializeDiploma) };
+    return { enrollments: rows.map((row) => serializeDiploma(row.enrollment, row.intake)) };
   });
 
   app.get("/diploma-enrollments/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    const [enrollment] = await db.select().from(diplomaEnrollments).where(eq(diplomaEnrollments.id, id)).limit(1);
+    const [enrollmentRow] = await db
+      .select({
+        enrollment: diplomaEnrollments,
+        intake: {
+          id: diplomaIntakes.id,
+          label: diplomaIntakes.label
+        }
+      })
+      .from(diplomaEnrollments)
+      .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
+      .where(eq(diplomaEnrollments.id, id))
+      .limit(1);
 
-    if (!enrollment) {
+    if (!enrollmentRow) {
       return sendNotFound(reply);
     }
+
+    const enrollment = enrollmentRow.enrollment;
 
     const assignmentRows = await db
       .select({
@@ -235,7 +271,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     const paymentsPaid = paymentRows.filter((payment) => payment.paid).length;
 
     return {
-      enrollment: serializeDiploma(enrollment),
+      enrollment: serializeDiploma(enrollment, enrollmentRow.intake),
       progress: {
         start_period: enrollment.startPeriod,
         months_read: monthsRead(enrollment.startPeriod),
@@ -263,6 +299,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
         .values({
           studentId: body.student_id,
           courseId: body.course_id,
+          intakeId: body.intake_id,
           program: body.program,
           enrollDate: body.enroll_date,
           billingId: body.billing_id,
@@ -317,6 +354,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
       .set({
         studentId: body.student_id,
         courseId: body.course_id,
+        intakeId: body.intake_id,
         program: body.program,
         enrollDate: body.enroll_date,
         billingId: body.billing_id,
