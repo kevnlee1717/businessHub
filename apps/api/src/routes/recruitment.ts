@@ -175,6 +175,9 @@ function serializeJob(row: typeof recruitmentJobs.$inferSelect) {
     headcount: row.headcount,
     salary_min: row.salaryMin,
     salary_max: row.salaryMax,
+    employment_types: row.employmentTypes,
+    pt_salary_min: row.ptSalaryMin == null ? null : Number(row.ptSalaryMin),
+    pt_salary_max: row.ptSalaryMax == null ? null : Number(row.ptSalaryMax),
     salary_note: row.salaryNote,
     job_content: row.jobContent,
     requirements: row.requirements,
@@ -758,6 +761,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         headcount: body.headcount,
         salaryMin: body.salary_min,
         salaryMax: body.salary_max,
+        employmentTypes: body.employment_types ?? ["full_time"],
+        ptSalaryMin: body.pt_salary_min == null ? null : String(body.pt_salary_min),
+        ptSalaryMax: body.pt_salary_max == null ? null : String(body.pt_salary_max),
         salaryNote: body.salary_note,
         jobContent: body.job_content,
         requirements: body.requirements,
@@ -833,6 +839,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.headcount !== undefined) update.headcount = body.headcount;
     if (hasOwn(body, "salary_min")) update.salaryMin = body.salary_min;
     if (hasOwn(body, "salary_max")) update.salaryMax = body.salary_max;
+    if (body.employment_types !== undefined) update.employmentTypes = body.employment_types;
+    if (hasOwn(body, "pt_salary_min")) update.ptSalaryMin = body.pt_salary_min == null ? null : String(body.pt_salary_min);
+    if (hasOwn(body, "pt_salary_max")) update.ptSalaryMax = body.pt_salary_max == null ? null : String(body.pt_salary_max);
     if (hasOwn(body, "salary_note")) update.salaryNote = body.salary_note;
     if (hasOwn(body, "job_content")) update.jobContent = body.job_content;
     if (hasOwn(body, "requirements")) update.requirements = body.requirements;
