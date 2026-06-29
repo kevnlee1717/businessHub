@@ -246,6 +246,20 @@
       "when": 1782721956580,
       "tag": "0034_steep_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1782722964662,
+      "tag": "0035_flimsy_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1782730294811,
+      "tag": "0036_wakeful_post",
+      "breakpoints": true
     }
   ]
 }
