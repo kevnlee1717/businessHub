@@ -33,6 +33,7 @@ import {
   workflowTemplates,
   workShifts
 } from "./schema/index";
+import { icaTemplateSteps } from "./seeds/icaTemplateSteps.js";
 
 config({ path: "../../.env" });
 
@@ -370,48 +371,7 @@ const workflowTemplateSeeds: WorkflowTemplateSeed[] = [
   {
     businessType: "ica",
     name: "ICA 申诉",
-    steps: [
-      {
-        name: "签约",
-        nameEn: "Sign Contract",
-        requiredDocuments: [{ name: "签约合同", name_en: "Service Contract", required: true }]
-      },
-      {
-        name: "搜集资料",
-        nameEn: "Collect Documents",
-        requiredDocuments: [
-          { name: "身份证", name_en: "ID Card", required: true },
-          { name: "拒签信", name_en: "Rejection Letter", required: false }
-        ]
-      },
-      {
-        name: "写申诉信",
-        nameEn: "Write Appeal Letter",
-        requiredDocuments: [{ name: "申诉信", name_en: "Appeal Letter", required: true }]
-      },
-      {
-        name: "填表格",
-        nameEn: "Fill Forms",
-        requiredDocuments: [{ name: "申请表格", name_en: "Application Form", required: true }]
-      },
-      {
-        name: "选担保人",
-        nameEn: "Select Guarantor",
-        description: "从担保人库选(后续版本)",
-        requiredDocuments: []
-      },
-      {
-        name: "担保人扫脸",
-        nameEn: "Guarantor Face Scan",
-        requiredDocuments: []
-      },
-      {
-        name: "提交",
-        nameEn: "Submit",
-        description: "结果一般3个月后,失败需重走担保人扫脸再提交(后续版本记录每次提交/拒绝时间)",
-        requiredDocuments: []
-      }
-    ]
+    steps: icaTemplateSteps
   },
   {
     businessType: "dp",
