@@ -118,14 +118,66 @@ const [owner] = await db
   })
   .returning({ id: employees.id, email: employees.email });
 
+const epCategoryIds = {
+  serviceContract: "8538a916-0000-4000-8000-000000000001",
+  idCard: "50ce37fa-0000-4000-8000-000000000002",
+  educationCertificate: "b169cad5-0000-4000-8000-000000000003",
+  workExperience: "227f6772-0000-4000-8000-000000000004",
+  kycVideo: "901d8d79-0000-4000-8000-000000000005",
+  companyRegistrationForm: "2b66ec9d-0000-4000-8000-000000000006",
+  epQuotaScreenshot: "1438f8cf-0000-4000-8000-000000000007",
+  tenancyAgreement: "49ad58b2-0000-4000-8000-000000000008",
+  cpfProof: "a9bda01e-0000-4000-8000-000000000009",
+  ipa: "7dfbe224-0000-4000-8000-000000000010",
+  appointmentScreenshot: "4ae3080b-0000-4000-8000-000000000011",
+  epCard: "e86d2014-0000-4000-8000-000000000012",
+  passport: "6f8b19b7-2a1b-47b5-a0cb-ac0790a7a1be",
+  bizfile: "f8f6c7dd-180f-4378-a56d-e60c9e065aab",
+  receipt: "5feda2a6-a46a-4de9-9dfa-4d19142e9e95",
+  other: "0b4b7d2b-6f62-4724-b965-3d72c8152ce2",
+  invoice: "d1fe1eaf-8909-424c-bca1-dc8216d7ad5b",
+  paymentProof: "1df57a51-925c-4e84-b011-1e3c96bfb4ff",
+  epApplicationForm: "d1f41aad-3a60-4bbe-bda5-6595800153a4",
+  employmentLetter: "93f6a49c-92d8-4f51-8eee-a017bd8e2c6b",
+  photo: "efedffd3-586c-4189-b39a-aaecc38204a2",
+  constitution: "8b6802f4-3fcc-4163-9ac6-e359a0737ce4",
+  certificateOfIncorporation: "8f6eb27-b002-4524-b9a5-0fc08d8f8ffc",
+  summaryLetter: "814ee382-bd77-4bf8-bddb-a01765697c34",
+  notificationLetter: "28f66ddc-8349-47bd-89a6-2810a36838d9",
+  appointmentLetter: "fe3c6a0b-3ccb-4dd0-a3de-ec53b2828648",
+  epCardBothSides: "b3b631bc-a25e-4ef3-a52e-d759d763f0f5"
+} as const;
+
 const categorySeeds = [
-  { name: "护照", nameEn: "Passport" },
+  { id: epCategoryIds.serviceContract, name: "签约合同", nameEn: "Service Contract" },
+  { id: epCategoryIds.idCard, name: "身份证", nameEn: "ID Card" },
+  { id: epCategoryIds.educationCertificate, name: "学历证书", nameEn: "Education Certificate" },
+  { id: epCategoryIds.workExperience, name: "工作经历", nameEn: "Work Experience" },
+  { id: epCategoryIds.kycVideo, name: "客户认证视频", nameEn: "KYC Video" },
+  { id: epCategoryIds.companyRegistrationForm, name: "注册公司表格", nameEn: "Company Registration Form" },
+  { id: epCategoryIds.epQuotaScreenshot, name: "EP通道截图", nameEn: "EP Quota Screenshot" },
+  { id: epCategoryIds.tenancyAgreement, name: "租房合同", nameEn: "Tenancy Agreement" },
+  { id: epCategoryIds.cpfProof, name: "CPF证明", nameEn: "CPF Proof" },
+  { id: epCategoryIds.ipa, name: "IPA", nameEn: "IPA" },
+  { id: epCategoryIds.appointmentScreenshot, name: "预约截图", nameEn: "Appointment Screenshot" },
+  { id: epCategoryIds.epCard, name: "EP卡", nameEn: "EP Card" },
+  { id: epCategoryIds.passport, name: "护照", nameEn: "Passport" },
   { name: "学历证明", nameEn: "Education Certificate" },
   { name: "合同", nameEn: "Contract" },
-  { name: "租房合同", nameEn: "Tenancy Agreement" },
-  { name: "bizfile", nameEn: "Bizfile" },
-  { name: "收据", nameEn: "Receipt" },
-  { name: "其它", nameEn: "Other" }
+  { id: epCategoryIds.bizfile, name: "bizfile", nameEn: "Bizfile" },
+  { id: epCategoryIds.receipt, name: "收据", nameEn: "Receipt" },
+  { id: epCategoryIds.other, name: "其它", nameEn: "Other" },
+  { id: epCategoryIds.invoice, name: "发票", nameEn: "Invoice" },
+  { id: epCategoryIds.paymentProof, name: "付款凭证/转账截图", nameEn: "Payment Proof" },
+  { id: epCategoryIds.epApplicationForm, name: "EP申请表", nameEn: "EP Application Form" },
+  { id: epCategoryIds.employmentLetter, name: "在职证明", nameEn: "Employment Letter" },
+  { id: epCategoryIds.photo, name: "证件照", nameEn: "Photo" },
+  { id: epCategoryIds.constitution, name: "公司章程", nameEn: "Constitution" },
+  { id: epCategoryIds.certificateOfIncorporation, name: "注册证书COI", nameEn: "Certificate of Incorporation" },
+  { id: epCategoryIds.summaryLetter, name: "申请摘要", nameEn: "Summary Letter" },
+  { id: epCategoryIds.notificationLetter, name: "批准通知", nameEn: "Notification Letter" },
+  { id: epCategoryIds.appointmentLetter, name: "办卡预约函", nameEn: "Appointment Letter" },
+  { id: epCategoryIds.epCardBothSides, name: "EP卡正反面", nameEn: "EP Card (Both Sides)" }
 ] as const;
 
 let insertedCategories = 0;
@@ -137,6 +189,7 @@ for (const category of categorySeeds) {
 
   if (!existing) {
     await db.insert(documentCategories).values({
+      id: "id" in category ? category.id : undefined,
       name: category.name,
       nameEn: category.nameEn,
       isSystem: true
@@ -207,6 +260,7 @@ type WorkflowTemplateSeed = {
     requiredDocuments: {
       name: string;
       name_en?: string;
+      category_id?: string | null;
       required: boolean;
     }[];
   }[];
@@ -220,48 +274,96 @@ const workflowTemplateSeeds: WorkflowTemplateSeed[] = [
       {
         name: "签约",
         nameEn: "Sign Contract",
-        requiredDocuments: [{ name: "签约合同", name_en: "Service Contract", required: true }]
+        requiredDocuments: [
+          { name: "签约合同", name_en: "Service Contract", category_id: epCategoryIds.serviceContract, required: true },
+          { name: "发票", name_en: "Invoice", category_id: epCategoryIds.invoice, required: false },
+          { name: "付款凭证/转账截图", name_en: "Payment Proof", category_id: epCategoryIds.paymentProof, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       },
       {
         name: "搜集资料",
         nameEn: "Collect Documents",
         requiredDocuments: [
-          { name: "身份证", name_en: "ID Card", required: true },
-          { name: "学历证书", name_en: "Education Certificate", required: true },
-          { name: "工作经历", name_en: "Work Experience", required: true }
+          { name: "身份证", name_en: "ID Card", category_id: epCategoryIds.idCard, required: true },
+          { name: "学历证书", name_en: "Education Certificate", category_id: epCategoryIds.educationCertificate, required: true },
+          { name: "工作经历", name_en: "Work Experience", category_id: epCategoryIds.workExperience, required: true },
+          { name: "护照", name_en: "Passport", category_id: epCategoryIds.passport, required: false },
+          { name: "EP申请表", name_en: "EP Application Form", category_id: epCategoryIds.epApplicationForm, required: false },
+          { name: "在职证明", name_en: "Employment Letter", category_id: epCategoryIds.employmentLetter, required: false },
+          { name: "证件照", name_en: "Photo", category_id: epCategoryIds.photo, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
         ]
       },
       {
         name: "注册公司",
         nameEn: "Register Company",
         description: "含预约视频 KYC(预约时间 + 保存 KYC 视频,后续版本支持)",
-        requiredDocuments: [{ name: "公司注册文件", name_en: "Company Registration", required: false }]
+        requiredDocuments: [
+          { name: "客户认证视频", name_en: "KYC Video", category_id: epCategoryIds.kycVideo, required: false },
+          { name: "注册公司表格", name_en: "Company Registration Form", category_id: epCategoryIds.companyRegistrationForm, required: false },
+          { name: "公司Bizfile", name_en: "ACRA Bizfile", category_id: epCategoryIds.bizfile, required: false },
+          { name: "公司章程", name_en: "Constitution", category_id: epCategoryIds.constitution, required: false },
+          {
+            name: "注册证书COI",
+            name_en: "Certificate of Incorporation",
+            category_id: epCategoryIds.certificateOfIncorporation,
+            required: false
+          },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       },
       {
         name: "等 EP 通道",
         nameEn: "Wait for EP Quota",
-        requiredDocuments: []
+        requiredDocuments: [
+          { name: "EP通道截图", name_en: "EP Quota Screenshot", category_id: epCategoryIds.epQuotaScreenshot, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       },
       {
         name: "提交申请",
         nameEn: "Submit Application",
-        requiredDocuments: []
+        requiredDocuments: [
+          { name: "EP提交截图", name_en: "EP Submission Screenshot", category_id: epCategoryIds.epQuotaScreenshot, required: false },
+          { name: "申请摘要", name_en: "Summary Letter", category_id: epCategoryIds.summaryLetter, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       },
       {
         name: "获批",
         nameEn: "Approval",
         description: "可能要求补材料(补材料中),附材料清单",
-        requiredDocuments: [{ name: "补充材料(如租房合同)", name_en: "Supplementary (e.g. Tenancy)", required: false }]
+        requiredDocuments: [
+          { name: "租房合同", name_en: "Tenancy Agreement", category_id: epCategoryIds.tenancyAgreement, required: false },
+          { name: "CPF证明", name_en: "CPF Proof", category_id: epCategoryIds.cpfProof, required: false },
+          { name: "本地合同", name_en: "Local Employment Contract", category_id: epCategoryIds.serviceContract, required: false },
+          { name: "IPA", name_en: "IPA", category_id: epCategoryIds.ipa, required: false },
+          { name: "Employer IPA Letter", name_en: "Employer IPA Letter", category_id: epCategoryIds.ipa, required: false },
+          { name: "Foreigner IPA Letter", name_en: "Foreigner IPA Letter", category_id: epCategoryIds.ipa, required: false },
+          { name: "Sponsor IPA Letter", name_en: "Sponsor IPA Letter", category_id: epCategoryIds.ipa, required: false },
+          { name: "批准通知", name_en: "Notification Letter", category_id: epCategoryIds.notificationLetter, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       },
       {
         name: "预约指纹",
         nameEn: "Book Fingerprint",
-        requiredDocuments: []
+        requiredDocuments: [
+          { name: "预约截图", name_en: "Appointment Screenshot", category_id: epCategoryIds.appointmentScreenshot, required: false },
+          { name: "办卡预约函", name_en: "Appointment Letter", category_id: epCategoryIds.appointmentLetter, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       },
       {
         name: "完成",
         nameEn: "Completed",
-        requiredDocuments: []
+        requiredDocuments: [
+          { name: "EP卡", name_en: "EP Card", category_id: epCategoryIds.epCard, required: false },
+          { name: "尾款付款凭证", name_en: "Final Payment Proof", category_id: epCategoryIds.paymentProof, required: false },
+          { name: "EP卡正反面", name_en: "EP Card (Both Sides)", category_id: epCategoryIds.epCardBothSides, required: false },
+          { name: "其他补充材料", name_en: "Other Supporting Documents", category_id: epCategoryIds.other, required: false }
+        ]
       }
     ]
   },
