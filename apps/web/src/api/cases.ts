@@ -75,6 +75,9 @@ export type Case = {
   guarantor_contact?: string | null;
   created_at: string;
   updated_at: string;
+  latest_result?: "pending" | "approved" | "rejected" | null;
+  latest_rejected_at?: string | null;
+  latest_submission_at?: string | null;
 };
 
 export type Guarantor = {

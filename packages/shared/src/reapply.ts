@@ -16,7 +16,7 @@ export interface ReapplyStatus {
 
 export function computeReapplyStatus(submissions: ReapplySubmissionInput[], now: Date): ReapplyStatus {
   if (submissions.length === 0) return { state: "pending", eligibleAt: null, daysRemaining: null };
-  const latest = [...submissions].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const latest = [...submissions].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]!;
   if (latest.result === "approved") return { state: "approved", eligibleAt: null, daysRemaining: null };
   if (latest.result === "pending") return { state: "pending", eligibleAt: null, daysRemaining: null };
   if (!latest.rejectedAt) return { state: "rejected_no_date", eligibleAt: null, daysRemaining: null };

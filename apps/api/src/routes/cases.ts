@@ -256,7 +256,34 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       .where(filters.length > 0 ? and(...filters) : sql`true`)
       .orderBy(desc(cases.createdAt));
 
-    return { cases: rows.map(serializeCase) };
+    const caseIds = rows.map((r) => r.id);
+    const subs = caseIds.length
+      ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, caseIds))
+      : [];
+    const byCase = new Map<string, typeof subs>();
+    for (const s of subs) {
+      const arr = byCase.get(s.caseId) ?? [];
+      arr.push(s);
+      byCase.set(s.caseId, arr);
+    }
+
+    return {
+      cases: rows.map((r) => {
+        const list = (byCase.get(r.id) ?? []).sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
+        const latest = list[0] ?? null;
+        return {
+          ...serializeCase(r),
+          latest_result: latest?.result ?? null,
+          latest_rejected_at:
+            latest && latest.result === "rejected"
+              ? (latest.rejectedAt?.toISOString() ?? null)
+              : null,
+          latest_submission_at: latest?.createdAt.toISOString() ?? null
+        };
+      })
+    };
   });
 
   app.get("/cases/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {
