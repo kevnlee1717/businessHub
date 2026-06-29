@@ -359,6 +359,7 @@
       "name": "Program name",
       "nameEn": "English name",
       "sortOrder": "Sort order",
+      "months": "Months",
       "status": "Status"
     }
   },
@@ -381,7 +382,14 @@
       "monthIndex": "Month"
     },
     "monthHint": "Which month this course belongs to",
-    "monthValue": "Month {{month}}"
+    "monthValue": "Month {{month}}",
+    "monthPicker": {
+      "selectProgramFirst": "Select a program first"
+    },
+    "errors": {
+      "monthTaken": "This month is already taken by another course",
+      "monthOutOfRange": "Month is out of the program's range"
+    }
   },
   "diplomaAssignment": {
     "title": "Assignment review",

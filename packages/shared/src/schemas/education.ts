@@ -30,7 +30,8 @@ export const diplomaProgramCreateSchema = z.object({
   name: z.string().trim().min(1),
   name_en: optionalText,
   active: z.boolean().optional(),
-  sort_order: z.number().int().optional()
+  sort_order: z.number().int().optional(),
+  months: z.number().int().min(1).max(60).nullable().optional()
 });
 
 export const diplomaProgramUpdateSchema = diplomaProgramCreateSchema.partial();
@@ -60,7 +61,7 @@ export const diplomaCourseCreateSchema = z.object({
   teacher_ids: z.array(uuidField).optional(),
   price_sgd: z.union([z.string(), z.number()]).nullable().optional(),
   duration: optionalText,
-  month_index: z.number().int().min(1).max(6).nullable().optional()
+  month_index: z.number().int().min(1).nullable().optional()
 });
 
 export const diplomaCourseUpdateSchema = diplomaCourseCreateSchema.partial();

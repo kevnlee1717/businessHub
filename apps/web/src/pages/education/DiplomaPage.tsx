@@ -40,7 +40,7 @@ import {
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useForm, type Resolver } from "react-hook-form";
+import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
   createDiplomaCourse,
@@ -87,7 +87,6 @@ type CourseFormValues = {
   content?: string | null | undefined;
   teacher_ids?: string[] | undefined;
   price_sgd?: string | number | null | undefined;
-  duration?: string | undefined;
   month_index?: number | null | undefined;
 };
 
@@ -115,6 +114,7 @@ type ProgramFormValues = {
   name_en?: string | undefined;
   active?: boolean | undefined;
   sort_order?: number | null | undefined;
+  months?: number | null | undefined;
 };
 
 type DiplomaPageSection = "programs" | "courses" | "enrollments" | "all";
@@ -230,7 +230,6 @@ function getCourseDefaultValues(course?: DiplomaCourse): CourseFormValues {
     content: course?.content ?? null,
     teacher_ids: course?.teachers?.map((teacher) => teacher.id) ?? [],
     price_sgd: course?.price_sgd ?? null,
-    duration: course?.duration ?? undefined,
     month_index: course?.month_index ?? null
   };
 }
@@ -255,7 +254,8 @@ function getProgramDefaultValues(program?: DiplomaProgram): ProgramFormValues {
     name: program?.name ?? "",
     name_en: program?.name_en ?? undefined,
     active: program?.active ?? true,
-    sort_order: program?.sort_order ?? null
+    sort_order: program?.sort_order ?? null,
+    months: program?.months ?? null
   };
 }
 
@@ -661,6 +661,16 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     ) as Resolver<CourseFormValues>,
     defaultValues: getCourseDefaultValues(editingCourse ?? undefined)
   });
+  const selectedCourseProgramId = useWatch({
+    control: courseForm.control,
+    name: "program_id"
+  });
+
+  const selectedProgramCoursesQuery = useQuery({
+    queryKey: [...diplomaCoursesQueryKey, selectedCourseProgramId],
+    queryFn: () => listDiplomaCourses(selectedCourseProgramId),
+    enabled: courseModalOpened && Boolean(selectedCourseProgramId)
+  });
 
   const programForm = useForm<ProgramFormValues>({
     resolver: zodResolver(
@@ -848,6 +858,17 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   const studentsById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students]);
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
   const programsById = useMemo(() => new Map(programs.map((program) => [program.id, program])), [programs]);
+  const selectedCourseProgram = programsById.get(selectedCourseProgramId ?? "");
+  const selectedProgramCourses = selectedProgramCoursesQuery.data?.courses ?? [];
+  const occupiedCourseMonths = useMemo(
+    () =>
+      new Set(
+        selectedProgramCourses
+          .filter((course) => course.id !== editingCourse?.id && course.month_index !== null && course.month_index !== undefined)
+          .map((course) => course.month_index as number)
+      ),
+    [editingCourse?.id, selectedProgramCourses]
+  );
   const employeesById = useMemo(
     () => new Map<string, Employee>(employees.map((employee) => [employee.id, employee])),
     [employees]
@@ -1018,7 +1039,14 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
 
       await createCourseMutation.mutateAsync(body as DiplomaCourseCreateInput);
     } catch (error) {
-      setCourseFormError(error instanceof Error ? error.message : t("common.unknown_error"));
+      const message = error instanceof Error ? error.message : "";
+      if (message === "diploma_month_taken") {
+        setCourseFormError(t("diplomaCourse.errors.monthTaken"));
+      } else if (message === "diploma_month_out_of_range") {
+        setCourseFormError(t("diplomaCourse.errors.monthOutOfRange"));
+      } else {
+        setCourseFormError(message || t("common.unknown_error"));
+      }
     }
   });
 
@@ -1030,7 +1058,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         name: values.name,
         name_en: values.name_en,
         active: values.active ?? true,
-        sort_order: values.sort_order ?? undefined
+        sort_order: values.sort_order ?? undefined,
+        months: values.months ?? null
       };
 
       if (editingProgram) {
@@ -1297,7 +1326,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   <Table.Th>{t("diplomaCourse.fields.monthIndex")}</Table.Th>
                   <Table.Th>{t("diplomaCourse.fields.teacher")}</Table.Th>
                   <Table.Th>{t("diplomaCourse.fields.priceSgd")}</Table.Th>
-                  <Table.Th>{t("diplomaCourse.fields.duration")}</Table.Th>
                   <Table.Th>{t("diplomaCourse.fields.content")}</Table.Th>
                   {canManageEducation ? <Table.Th>{t("common.actions")}</Table.Th> : null}
                 </Table.Tr>
@@ -1305,7 +1333,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
               <Table.Tbody>
                 {coursesQuery.isLoading || employeesQuery.isLoading ? (
                   <Table.Tr>
-                    <Table.Td colSpan={canManageEducation ? 8 : 7}>
+                    <Table.Td colSpan={canManageEducation ? 7 : 6}>
                       <Group justify="center" py="lg">
                         <Loader size="sm" />
                       </Group>
@@ -1313,7 +1341,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Table.Tr>
                 ) : courses.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={canManageEducation ? 8 : 7}>
+                    <Table.Td colSpan={canManageEducation ? 7 : 6}>
                       <Text ta="center" c="dimmed" py="lg">
                         {t("diplomaCourse.empty")}
                       </Text>
@@ -1353,7 +1381,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                         )}
                       </Table.Td>
                       <Table.Td>{course.price_sgd ?? t("common.not_available")}</Table.Td>
-                      <Table.Td>{course.duration ?? t("common.not_available")}</Table.Td>
                       <Table.Td>{truncateText(course.content) || t("common.not_available")}</Table.Td>
                       {canManageEducation ? (
                         <Table.Td>
@@ -1526,6 +1553,20 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             <Group grow align="flex-start">
               <Controller
                 control={programForm.control}
+                name="months"
+                render={({ field }) => (
+                  <NumberInput
+                    label={t("diplomaProgram.fields.months")}
+                    value={field.value ?? ""}
+                    onChange={(value) => field.onChange(numberOrNull(value))}
+                    error={programErrors.months?.message}
+                    min={1}
+                    allowDecimal={false}
+                  />
+                )}
+              />
+              <Controller
+                control={programForm.control}
                 name="sort_order"
                 render={({ field }) => (
                   <NumberInput
@@ -1601,7 +1642,10 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                     label={t("diplomaCourse.fields.program")}
                     data={programOptions}
                     value={field.value ?? null}
-                    onChange={(value) => field.onChange(value)}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      courseForm.setValue("month_index", null);
+                    }}
                     error={courseErrors.program_id?.message}
                     clearable
                     searchable
@@ -1620,13 +1664,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Input.Wrapper>
                 )}
               />
-              <TextInput
-                label={t("diplomaCourse.fields.duration")}
-                error={courseErrors.duration?.message}
-                {...courseForm.register("duration", { setValueAs: emptyToUndefined })}
-              />
-            </Group>
-            <Group grow align="flex-start">
               <Controller
                 control={courseForm.control}
                 name="price_sgd"
@@ -1640,23 +1677,46 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   />
                 )}
               />
-              <Controller
-                control={courseForm.control}
-                name="month_index"
-                render={({ field }) => (
-                  <NumberInput
-                    label={t("diplomaCourse.fields.monthIndex")}
-                    description={t("diplomaCourse.monthHint")}
-                    value={field.value ?? ""}
-                    onChange={(value) => field.onChange(numberOrNull(value))}
-                    error={courseErrors.month_index?.message}
-                    min={1}
-                    max={6}
-                    allowDecimal={false}
-                  />
-                )}
-              />
             </Group>
+            <Controller
+              control={courseForm.control}
+              name="month_index"
+              render={({ field }) => {
+                const months = selectedCourseProgram?.months ?? null;
+
+                return (
+                  <Input.Wrapper label={t("diplomaCourse.fields.monthIndex")} error={courseErrors.month_index?.message}>
+                    {!selectedCourseProgramId || !months ? (
+                      <Text size="sm" c="dimmed">
+                        {t("diplomaCourse.monthPicker.selectProgramFirst")}
+                      </Text>
+                    ) : (
+                      <Group gap="xs" wrap="wrap">
+                        {Array.from({ length: months }, (_, index) => {
+                          const month = index + 1;
+                          const occupied = occupiedCourseMonths.has(month);
+                          const selected = field.value === month;
+
+                          return (
+                            <Button
+                              key={month}
+                              type="button"
+                              size="xs"
+                              variant={selected ? "filled" : occupied ? "light" : "outline"}
+                              color={occupied ? "gray" : "blue"}
+                              disabled={occupied || selectedProgramCoursesQuery.isLoading}
+                              onClick={() => field.onChange(month)}
+                            >
+                              {month}
+                            </Button>
+                          );
+                        })}
+                      </Group>
+                    )}
+                  </Input.Wrapper>
+                );
+              }}
+            />
             <Group justify="flex-end">
               <Button variant="subtle" onClick={closeCourseModal}>
                 {t("common.cancel")}

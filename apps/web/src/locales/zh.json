@@ -359,6 +359,7 @@
       "name": "专业名称",
       "nameEn": "英文名",
       "sortOrder": "排序",
+      "months": "总月数",
       "status": "状态"
     }
   },
@@ -381,7 +382,14 @@
       "monthIndex": "月份"
     },
     "monthHint": "第几个月的课",
-    "monthValue": "第 {{month}} 月"
+    "monthValue": "第 {{month}} 月",
+    "monthPicker": {
+      "selectProgramFirst": "请先选专业"
+    },
+    "errors": {
+      "monthTaken": "该月份已被其他课程占用",
+      "monthOutOfRange": "月份超出专业总月数范围"
+    }
   },
   "diplomaAssignment": {
     "title": "作业批改",
