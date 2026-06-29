@@ -1,7 +1,13 @@
-import { db, diplomaCourses, diplomaEnrollments } from "@bh/db";
-import { diplomaCourseCreateSchema, diplomaCourseUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { db, diplomaCourses, diplomaEnrollments, diplomaIntakes } from "@bh/db";
+import {
+  diplomaCourseCreateSchema,
+  diplomaCourseUpdateSchema,
+  diplomaIntakeCreateSchema,
+  diplomaIntakeUpdateSchema
+} from "@bh/shared";
+import { and, asc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import {
   courseTeachersByCourseIds,
@@ -29,11 +35,28 @@ function serializeDiplomaCourse(course: typeof diplomaCourses.$inferSelect, teac
   };
 }
 
-function serializeDiplomaEnrollment(enrollment: typeof diplomaEnrollments.$inferSelect) {
+function serializeDiplomaIntake(intake: typeof diplomaIntakes.$inferSelect) {
+  return {
+    id: intake.id,
+    course_id: intake.courseId,
+    label: intake.label,
+    start_date: intake.startDate,
+    active: intake.active,
+    sort_order: intake.sortOrder,
+    created_at: intake.createdAt
+  };
+}
+
+function serializeDiplomaEnrollment(
+  enrollment: typeof diplomaEnrollments.$inferSelect,
+  intake?: Pick<typeof diplomaIntakes.$inferSelect, "id" | "label"> | null
+) {
   return {
     id: enrollment.id,
     student_id: enrollment.studentId,
     course_id: enrollment.courseId,
+    intake_id: enrollment.intakeId,
+    intake_label: intake?.label ?? null,
     program: enrollment.program,
     enroll_date: enrollment.enrollDate,
     billing_id: enrollment.billingId,
@@ -42,6 +65,11 @@ function serializeDiplomaEnrollment(enrollment: typeof diplomaEnrollments.$infer
     created_at: enrollment.createdAt
   };
 }
+
+const courseIntakeParamsSchema = z.object({
+  courseId: z.string().uuid(),
+  id: z.string().uuid()
+});
 
 export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
@@ -134,14 +162,83 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
     return { ok: true };
   });
 
+  app.get("/diploma-courses/:id/intakes", { preHandler: requirePerm("education.view") }, async (request) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const intakes = await db
+      .select()
+      .from(diplomaIntakes)
+      .where(eq(diplomaIntakes.courseId, id))
+      .orderBy(asc(diplomaIntakes.sortOrder), asc(diplomaIntakes.startDate), asc(diplomaIntakes.createdAt));
+
+    return { intakes: intakes.map(serializeDiplomaIntake) };
+  });
+
+  app.post("/diploma-courses/:id/intakes", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(diplomaIntakeCreateSchema, {
+      ...(request.body as Record<string, unknown>),
+      course_id: id
+    });
+    const [intake] = await db
+      .insert(diplomaIntakes)
+      .values({
+        courseId: body.course_id,
+        label: body.label,
+        startDate: body.start_date,
+        active: body.active,
+        sortOrder: body.sort_order
+      })
+      .returning();
+
+    if (!intake) {
+      throw new Error("diploma_intake_create_failed");
+    }
+
+    return reply.code(201).send({ intake: serializeDiplomaIntake(intake) });
+  });
+
+  app.patch("/diploma-courses/:courseId/intakes/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
+    const { courseId, id } = parseWithSchema(courseIntakeParamsSchema, request.params);
+    const body = parseWithSchema(diplomaIntakeUpdateSchema, request.body);
+    const [intake] = await db
+      .update(diplomaIntakes)
+      .set({
+        label: body.label,
+        startDate: body.start_date,
+        active: body.active,
+        sortOrder: body.sort_order
+      })
+      .where(and(eq(diplomaIntakes.id, id), eq(diplomaIntakes.courseId, courseId)))
+      .returning();
+
+    if (!intake) {
+      return sendNotFound(reply);
+    }
+
+    return { intake: serializeDiplomaIntake(intake) };
+  });
+
+  app.delete("/diploma-courses/:courseId/intakes/:id", { preHandler: requirePerm("education.manage") }, async (request) => {
+    const { courseId, id } = parseWithSchema(courseIntakeParamsSchema, request.params);
+    await db.delete(diplomaIntakes).where(and(eq(diplomaIntakes.id, id), eq(diplomaIntakes.courseId, courseId)));
+    return { ok: true };
+  });
+
   app.get("/diploma-courses/:id/enrollments", { preHandler: requirePerm("education.view") }, async (request) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const enrollments = await db
-      .select()
+      .select({
+        enrollment: diplomaEnrollments,
+        intake: {
+          id: diplomaIntakes.id,
+          label: diplomaIntakes.label
+        }
+      })
       .from(diplomaEnrollments)
+      .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
       .where(eq(diplomaEnrollments.courseId, id))
       .orderBy(diplomaEnrollments.createdAt);
 
-    return { enrollments: enrollments.map(serializeDiplomaEnrollment) };
+    return { enrollments: enrollments.map((row) => serializeDiplomaEnrollment(row.enrollment, row.intake)) };
   });
 }

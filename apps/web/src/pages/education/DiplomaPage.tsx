@@ -31,7 +31,8 @@ import {
   type DiplomaCourseUpdateInput,
   type DiplomaAssignmentAction,
   type DiplomaEnrollmentCreateInput,
-  type DiplomaEnrollmentUpdateInput
+  type DiplomaEnrollmentUpdateInput,
+  type DiplomaIntakeCreateInput
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -40,26 +41,32 @@ import { useTranslation } from "react-i18next";
 import {
   createDiplomaCourse,
   createDiplomaEnrollment,
+  createDiplomaIntake,
   deleteDiplomaCourse,
+  deleteDiplomaIntake,
   getDiplomaEnrollment,
   listDiplomaCourseEnrollments,
   listDiplomaCourses,
   listDiplomaEnrollments,
+  listCourseIntakes,
   listStudents,
   postAssignmentMessage,
   updateDiplomaPayment,
   updateDiplomaCourse,
   updateDiplomaEnrollment,
+  updateDiplomaIntake,
   uploadDiplomaCertificate,
   uploadDiplomaMedia,
   type DiplomaAssignment,
   type DiplomaCourse,
   type DiplomaEnrollment,
+  type DiplomaIntake,
   type DiplomaPayment
 } from "../../api/education";
 import { fileUrl, searchDocuments, type DocumentMeta } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useCan } from "../../auth/permissions";
+import { CreatableCombobox } from "../../components/CreatableCombobox";
 import { StudentSelect } from "../../components/StudentSelect";
 import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
@@ -77,6 +84,7 @@ type CourseFormValues = {
 type DiplomaFormValues = {
   student_id?: string | undefined;
   course_id?: string | null | undefined;
+  intake_id?: string | null | undefined;
   program?: string | undefined;
   enroll_date?: string | undefined;
   installments_count?: number | null | undefined;
@@ -85,7 +93,20 @@ type DiplomaFormValues = {
   graduated?: boolean | undefined;
 };
 
+type IntakeFormValues = {
+  label: string;
+  start_date: string;
+  active: boolean;
+};
+
+type DiplomaPageSection = "courses" | "enrollments" | "all";
+
+type DiplomaPageProps = {
+  section?: DiplomaPageSection;
+};
+
 const diplomaCoursesQueryKey = ["education", "diploma-courses"] as const;
+const diplomaIntakesQueryKey = ["education", "diploma-intakes"] as const;
 const diplomaQueryKey = ["education", "diploma-enrollments"] as const;
 const employeesQueryKey = ["hr", "employees"] as const;
 
@@ -121,6 +142,10 @@ function formatDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function formatDate(value?: string | null) {
+  return value || "-";
+}
+
 function toDateTimeLocalValue(value?: string | null) {
   if (!value) {
     return "";
@@ -137,6 +162,19 @@ function toDateTimeLocalValue(value?: string | null) {
 
 function toIsoDateTime(value?: string | null) {
   return value ? new Date(value).toISOString() : null;
+}
+
+// 取日期部分 YYYY-MM-DD,用于 <input type="date">
+function toDateValue(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
 }
 
 function assignmentStatusColor(status: DiplomaAssignment["status"]) {
@@ -181,11 +219,12 @@ function getEnrollmentDefaultValues(enrollment?: DiplomaEnrollment): DiplomaForm
   return {
     student_id: enrollment?.student_id ?? undefined,
     course_id: enrollment?.course_id ?? null,
-    program: enrollment?.program ?? "",
+    intake_id: enrollment?.intake_id ?? null,
+    program: enrollment?.program ?? "-",
     enroll_date: enrollment?.enroll_date ?? undefined,
-    installments_count: enrollment?.installments_count ?? null,
+    installments_count: enrollment?.installments_count ?? 6,
     deposit_amount: enrollment?.deposit_amount ?? null,
-    deposit_paid_at: toDateTimeLocalValue(enrollment?.deposit_paid_at),
+    deposit_paid_at: toDateValue(enrollment?.deposit_paid_at),
     graduated: enrollment?.graduated ?? false
   };
 }
@@ -481,15 +520,23 @@ function DocumentLinks({ documents }: { documents: DocumentMeta[] }) {
   );
 }
 
-export function DiplomaPage() {
+export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [studentFilter, setStudentFilter] = useState<string | null>(null);
   const [editingCourse, setEditingCourse] = useState<DiplomaCourse | null>(null);
   const [courseModalOpened, setCourseModalOpened] = useState(false);
+  const [intakeCourse, setIntakeCourse] = useState<DiplomaCourse | null>(null);
+  const [intakeFormValues, setIntakeFormValues] = useState<IntakeFormValues>({
+    label: "",
+    start_date: "",
+    active: true
+  });
+  const [intakeFormError, setIntakeFormError] = useState<string | null>(null);
   const [editingEnrollment, setEditingEnrollment] = useState<DiplomaEnrollment | null>(null);
   const [enrollmentModalOpened, setEnrollmentModalOpened] = useState(false);
+  const [enrollmentSelectedCourseId, setEnrollmentSelectedCourseId] = useState<string | null>(null);
   const [detailEnrollmentId, setDetailEnrollmentId] = useState<string | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
@@ -498,10 +545,14 @@ export function DiplomaPage() {
   const [enrollmentFormError, setEnrollmentFormError] = useState<string | null>(null);
   const canManageEducation = useCan("education.manage");
   const canReviewAssignments = useCan("education.view");
+  const showCourses = section !== "enrollments";
+  const showEnrollments = section !== "courses";
+  const enrollmentCourseId = section === "enrollments" ? null : selectedCourseId;
 
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,
-    queryFn: listStudents
+    queryFn: listStudents,
+    enabled: showEnrollments
   });
 
   const employeesQuery = useQuery({
@@ -517,13 +568,25 @@ export function DiplomaPage() {
   const enrollmentsQuery = useQuery({
     queryKey: [...diplomaQueryKey, studentFilter],
     queryFn: () => listDiplomaEnrollments(studentFilter ?? undefined),
-    enabled: !selectedCourseId
+    enabled: showEnrollments && !enrollmentCourseId
   });
 
   const courseEnrollmentsQuery = useQuery({
-    queryKey: [...diplomaQueryKey, "course", selectedCourseId],
-    queryFn: () => listDiplomaCourseEnrollments(selectedCourseId ?? ""),
-    enabled: Boolean(selectedCourseId)
+    queryKey: [...diplomaQueryKey, "course", enrollmentCourseId],
+    queryFn: () => listDiplomaCourseEnrollments(enrollmentCourseId ?? ""),
+    enabled: showEnrollments && Boolean(enrollmentCourseId)
+  });
+
+  const manageIntakesQuery = useQuery({
+    queryKey: [...diplomaIntakesQueryKey, intakeCourse?.id],
+    queryFn: () => listCourseIntakes(intakeCourse?.id ?? ""),
+    enabled: Boolean(intakeCourse)
+  });
+
+  const enrollmentIntakesQuery = useQuery({
+    queryKey: [...diplomaIntakesQueryKey, enrollmentSelectedCourseId],
+    queryFn: () => listCourseIntakes(enrollmentSelectedCourseId ?? ""),
+    enabled: enrollmentModalOpened && Boolean(enrollmentSelectedCourseId)
   });
 
   const enrollmentDetailQuery = useQuery({
@@ -596,6 +659,39 @@ export function DiplomaPage() {
     }
   });
 
+  const createIntakeMutation = useMutation({
+    mutationFn: createDiplomaIntake,
+    onSuccess: async (_data, variables) => {
+      setIntakeFormValues({ label: "", start_date: "", active: true });
+      await queryClient.invalidateQueries({ queryKey: [...diplomaIntakesQueryKey, variables.course_id] });
+    }
+  });
+
+  const createEnrollmentIntakeMutation = useMutation({
+    mutationFn: createDiplomaIntake
+  });
+
+  const updateIntakeMutation = useMutation({
+    mutationFn: ({ id, courseId, active }: { id: string; courseId: string; active: boolean }) =>
+      updateDiplomaIntake(id, { course_id: courseId, active }),
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...diplomaIntakesQueryKey, variables.courseId] }),
+        queryClient.invalidateQueries({ queryKey: diplomaQueryKey })
+      ]);
+    }
+  });
+
+  const deleteIntakeMutation = useMutation({
+    mutationFn: ({ courseId, id }: { courseId: string; id: string }) => deleteDiplomaIntake(courseId, id),
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...diplomaIntakesQueryKey, variables.courseId] }),
+        queryClient.invalidateQueries({ queryKey: diplomaQueryKey })
+      ]);
+    }
+  });
+
   const createEnrollmentMutation = useMutation({
     mutationFn: createDiplomaEnrollment,
     onSuccess: async (_data, variables) => {
@@ -648,10 +744,10 @@ export function DiplomaPage() {
   const students = studentsQuery.data?.students ?? [];
   const employees = employeesQuery.data?.employees ?? [];
   const courseEnrollments = courseEnrollmentsQuery.data?.enrollments ?? [];
-  const enrollments = selectedCourseId
+  const enrollments = enrollmentCourseId
     ? filterEnrollmentsByStudent(courseEnrollments, studentFilter)
     : (enrollmentsQuery.data?.enrollments ?? []);
-  const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
+  const selectedCourse = courses.find((course) => course.id === enrollmentCourseId) ?? null;
   const studentOptions = students.map((student) => ({
     value: student.id,
     label: displayStudentName(student)
@@ -660,6 +756,13 @@ export function DiplomaPage() {
     value: course.id,
     label: displayName(course)
   }));
+  const managedIntakes = manageIntakesQuery.data?.intakes ?? [];
+  const enrollmentIntakeOptions = (enrollmentIntakesQuery.data?.intakes ?? [])
+    .filter((intake) => intake.active || intake.id === editingEnrollment?.intake_id)
+    .map((intake) => ({
+      value: intake.id,
+      label: intake.start_date ? `${intake.label} (${intake.start_date})` : intake.label
+    }));
   const studentsById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students]);
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
   const employeesById = useMemo(
@@ -679,9 +782,12 @@ export function DiplomaPage() {
   const enrollmentErrors = enrollmentForm.formState.errors;
   const isSavingCourse = createCourseMutation.isPending || updateCourseMutation.isPending;
   const isSavingEnrollment = createEnrollmentMutation.isPending || updateEnrollmentMutation.isPending;
-  const isLoadingEnrollments = selectedCourseId ? courseEnrollmentsQuery.isLoading : enrollmentsQuery.isLoading;
+  const isLoadingEnrollments = enrollmentCourseId ? courseEnrollmentsQuery.isLoading : enrollmentsQuery.isLoading;
   const loadError =
-    studentsQuery.error ?? employeesQuery.error ?? coursesQuery.error ?? enrollmentsQuery.error ?? courseEnrollmentsQuery.error;
+    (showEnrollments ? studentsQuery.error : null) ??
+    employeesQuery.error ??
+    coursesQuery.error ??
+    (showEnrollments ? (enrollmentsQuery.error ?? courseEnrollmentsQuery.error) : null);
 
   function openCreateCourseModal() {
     setEditingCourse(null);
@@ -704,13 +810,27 @@ export function DiplomaPage() {
     courseForm.reset(getCourseDefaultValues());
   }
 
+  function openIntakesModal(course: DiplomaCourse) {
+    setIntakeCourse(course);
+    setIntakeFormValues({ label: "", start_date: "", active: true });
+    setIntakeFormError(null);
+  }
+
+  function closeIntakesModal() {
+    setIntakeCourse(null);
+    setIntakeFormValues({ label: "", start_date: "", active: true });
+    setIntakeFormError(null);
+  }
+
   function openCreateEnrollmentModal() {
     setEditingEnrollment(null);
     setEnrollmentFormError(null);
+    setEnrollmentSelectedCourseId(enrollmentCourseId ?? null);
     enrollmentForm.reset({
       ...getEnrollmentDefaultValues(),
       student_id: studentFilter ?? undefined,
-      course_id: selectedCourseId ?? null
+      course_id: enrollmentCourseId ?? null,
+      program: getProgramFromCourseId(enrollmentCourseId)
     });
     setEnrollmentModalOpened(true);
   }
@@ -718,6 +838,7 @@ export function DiplomaPage() {
   function openEditEnrollmentModal(enrollment: DiplomaEnrollment) {
     setEditingEnrollment(enrollment);
     setEnrollmentFormError(null);
+    setEnrollmentSelectedCourseId(enrollment.course_id ?? null);
     enrollmentForm.reset(getEnrollmentDefaultValues(enrollment));
     setEnrollmentModalOpened(true);
   }
@@ -725,6 +846,7 @@ export function DiplomaPage() {
   function closeEnrollmentModal() {
     setEnrollmentModalOpened(false);
     setEditingEnrollment(null);
+    setEnrollmentSelectedCourseId(null);
     setEnrollmentFormError(null);
     enrollmentForm.reset(getEnrollmentDefaultValues());
   }
@@ -793,6 +915,7 @@ export function DiplomaPage() {
 
   const onEnrollmentSubmit = enrollmentForm.handleSubmit(async (values) => {
     setEnrollmentFormError(null);
+    const program = getProgramFromCourseId(values.course_id);
 
     try {
       if (editingEnrollment) {
@@ -800,6 +923,8 @@ export function DiplomaPage() {
           id: editingEnrollment.id,
           body: {
             course_id: values.course_id ?? null,
+            intake_id: values.intake_id ?? null,
+            program,
             installments_count: values.installments_count ?? null,
             deposit_amount: values.deposit_amount ?? null,
             deposit_paid_at: toIsoDateTime(values.deposit_paid_at),
@@ -812,6 +937,8 @@ export function DiplomaPage() {
       await createEnrollmentMutation.mutateAsync({
         ...values,
         course_id: values.course_id ?? null,
+        intake_id: values.intake_id ?? null,
+        program,
         installments_count: values.installments_count ?? null,
         deposit_amount: values.deposit_amount ?? null,
         deposit_paid_at: toIsoDateTime(values.deposit_paid_at)
@@ -829,11 +956,82 @@ export function DiplomaPage() {
     await deleteCourseMutation.mutateAsync(course.id);
   }
 
+  async function handleCreateIntake() {
+    if (!intakeCourse) {
+      return;
+    }
+
+    setIntakeFormError(null);
+    try {
+      await createIntakeMutation.mutateAsync({
+        course_id: intakeCourse.id,
+        label: intakeFormValues.label.trim(),
+        start_date: intakeFormValues.start_date || null,
+        active: intakeFormValues.active
+      } satisfies DiplomaIntakeCreateInput);
+    } catch (error) {
+      setIntakeFormError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  }
+
+  async function handleToggleIntake(intake: DiplomaIntake) {
+    if (!intakeCourse) {
+      return;
+    }
+
+    setIntakeFormError(null);
+    try {
+      await updateIntakeMutation.mutateAsync({
+        id: intake.id,
+        courseId: intakeCourse.id,
+        active: !intake.active
+      });
+    } catch (error) {
+      setIntakeFormError(error instanceof Error ? error.message : t("common.unknown_error"));
+    }
+  }
+
+  async function handleDeleteIntake(intake: DiplomaIntake) {
+    if (!intakeCourse) {
+      return;
+    }
+
+    await deleteIntakeMutation.mutateAsync({ courseId: intakeCourse.id, id: intake.id });
+  }
+
+  function getProgramFromCourseId(courseId?: string | null) {
+    const course = courseId ? coursesById.get(courseId) : undefined;
+    return course ? displayName(course) || course.name : "-";
+  }
+
+  async function handleCreateEnrollmentIntake(label: string) {
+    if (!enrollmentSelectedCourseId) {
+      return "";
+    }
+
+    const result = await createEnrollmentIntakeMutation.mutateAsync({
+      course_id: enrollmentSelectedCourseId,
+      label
+    });
+    await queryClient.invalidateQueries({
+      queryKey: [...diplomaIntakesQueryKey, enrollmentSelectedCourseId]
+    });
+    return result.intake.id;
+  }
+
+  const ContentLayout = section === "all" ? SimpleGrid : Stack;
+  const contentLayoutProps =
+    section === "all"
+      ? { cols: { base: 1, xl: 2 }, spacing: "md" }
+      : { gap: "md" };
+
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
         <Title order={2}>{t("diploma.title")}</Title>
-        {canManageEducation ? <Button onClick={openCreateCourseModal}>{t("diplomaCourse.add")}</Button> : null}
+        {showCourses && canManageEducation ? (
+          <Button onClick={openCreateCourseModal}>{t("diplomaCourse.add")}</Button>
+        ) : null}
       </Group>
 
       {loadError ? (
@@ -842,8 +1040,9 @@ export function DiplomaPage() {
         </Alert>
       ) : null}
 
-      <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
-        <Paper withBorder radius="md">
+      <ContentLayout {...contentLayoutProps}>
+        {showCourses ? (
+          <Paper withBorder radius="md">
           <ScrollArea>
             <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
@@ -915,6 +1114,16 @@ export function DiplomaPage() {
                               variant="light"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                openIntakesModal(course);
+                              }}
+                            >
+                              {t("diploma.intakes.manage")}
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 openEditCourseModal(course);
                               }}
                             >
@@ -941,9 +1150,11 @@ export function DiplomaPage() {
               </Table.Tbody>
             </Table>
           </ScrollArea>
-        </Paper>
+          </Paper>
+        ) : null}
 
-        <Paper withBorder radius="md" p="md">
+        {showEnrollments ? (
+          <Paper withBorder radius="md" p="md">
           <Stack gap="md">
             <Group justify="space-between" align="flex-end">
               <Group align="flex-end">
@@ -978,6 +1189,7 @@ export function DiplomaPage() {
                   <Table.Tr>
                     <Table.Th>{t("diploma.fields.student")}</Table.Th>
                     <Table.Th>{t("diploma.fields.course")}</Table.Th>
+                    <Table.Th>{t("diploma.fields.intake")}</Table.Th>
                     <Table.Th>{t("diploma.fields.program")}</Table.Th>
                     <Table.Th>{t("diploma.fields.enrollDate")}</Table.Th>
                     <Table.Th>{t("diploma.fields.depositAmount")}</Table.Th>
@@ -990,7 +1202,7 @@ export function DiplomaPage() {
                 <Table.Tbody>
                   {isLoadingEnrollments || studentsQuery.isLoading || coursesQuery.isLoading ? (
                     <Table.Tr>
-                      <Table.Td colSpan={canManageEducation ? 9 : 8}>
+                      <Table.Td colSpan={canManageEducation ? 10 : 9}>
                         <Group justify="center" py="lg">
                           <Loader size="sm" />
                         </Group>
@@ -998,7 +1210,7 @@ export function DiplomaPage() {
                     </Table.Tr>
                   ) : enrollments.length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={canManageEducation ? 9 : 8}>
+                      <Table.Td colSpan={canManageEducation ? 10 : 9}>
                         <Text ta="center" c="dimmed" py="lg">
                           {t("diploma.empty")}
                         </Text>
@@ -1013,6 +1225,7 @@ export function DiplomaPage() {
                         <Table.Td>
                           {displayName(coursesById.get(enrollment.course_id ?? "")) || t("common.not_available")}
                         </Table.Td>
+                        <Table.Td>{enrollment.intake_label ?? t("common.not_available")}</Table.Td>
                         <Table.Td>{enrollment.program}</Table.Td>
                         <Table.Td>{enrollment.enroll_date ?? t("common.not_available")}</Table.Td>
                         <Table.Td>{enrollment.deposit_amount ?? t("common.not_available")}</Table.Td>
@@ -1041,8 +1254,9 @@ export function DiplomaPage() {
               </Table>
             </ScrollArea>
           </Stack>
-        </Paper>
-      </SimpleGrid>
+          </Paper>
+        ) : null}
+      </ContentLayout>
 
       <Modal
         opened={courseModalOpened}
@@ -1137,6 +1351,107 @@ export function DiplomaPage() {
       </Modal>
 
       <Modal
+        opened={Boolean(intakeCourse)}
+        onClose={closeIntakesModal}
+        title={`${t("diploma.intakes.title")} - ${intakeCourse ? displayName(intakeCourse) : ""}`}
+        size="lg"
+      >
+        <Stack gap="md">
+          {intakeFormError ? (
+            <Alert color="red" variant="light">
+              {intakeFormError}
+            </Alert>
+          ) : null}
+          <Group grow align="flex-end">
+            <TextInput
+              label={t("diploma.intakes.label")}
+              value={intakeFormValues.label}
+              onChange={(event) => setIntakeFormValues((current) => ({ ...current, label: event.currentTarget.value }))}
+              withAsterisk
+            />
+            <TextInput
+              type="date"
+              label={t("diploma.intakes.startDate")}
+              value={intakeFormValues.start_date}
+              onChange={(event) =>
+                setIntakeFormValues((current) => ({ ...current, start_date: event.currentTarget.value }))
+              }
+            />
+            <Checkbox
+              label={t("common.active")}
+              checked={intakeFormValues.active}
+              onChange={(event) =>
+                setIntakeFormValues((current) => ({ ...current, active: event.currentTarget.checked }))
+              }
+            />
+            <Button
+              onClick={() => void handleCreateIntake()}
+              loading={createIntakeMutation.isPending}
+              disabled={!intakeFormValues.label.trim()}
+            >
+              {t("diploma.intakes.add")}
+            </Button>
+          </Group>
+          <ScrollArea>
+            <Table miw={640} verticalSpacing="sm" withTableBorder withColumnBorders>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t("diploma.intakes.label")}</Table.Th>
+                  <Table.Th>{t("diploma.intakes.startDate")}</Table.Th>
+                  <Table.Th>{t("common.active")}</Table.Th>
+                  <Table.Th>{t("common.actions")}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {manageIntakesQuery.isLoading ? (
+                  <Table.Tr>
+                    <Table.Td colSpan={4}>
+                      <Group justify="center" py="lg">
+                        <Loader size="sm" />
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ) : managedIntakes.length === 0 ? (
+                  <Table.Tr>
+                    <Table.Td colSpan={4}>
+                      <Text ta="center" c="dimmed" py="lg">
+                        {t("diploma.intakes.empty")}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ) : (
+                  managedIntakes.map((intake) => (
+                    <Table.Tr key={intake.id}>
+                      <Table.Td>{intake.label}</Table.Td>
+                      <Table.Td>{formatDate(intake.start_date)}</Table.Td>
+                      <Table.Td>
+                        <Switch
+                          checked={intake.active}
+                          onChange={() => void handleToggleIntake(intake)}
+                          disabled={updateIntakeMutation.isPending}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="red"
+                          onClick={() => void handleDeleteIntake(intake)}
+                          loading={deleteIntakeMutation.isPending}
+                        >
+                          {t("common.delete")}
+                        </Button>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))
+                )}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        </Stack>
+      </Modal>
+
+      <Modal
         opened={enrollmentModalOpened}
         onClose={closeEnrollmentModal}
         title={editingEnrollment ? t("diploma.edit") : t("diploma.add")}
@@ -1175,27 +1490,45 @@ export function DiplomaPage() {
                   label={t("diploma.fields.course")}
                   data={courseOptions}
                   value={field.value ?? null}
-                  onChange={field.onChange}
+                  onChange={(value) => {
+                    field.onChange(value);
+                    setEnrollmentSelectedCourseId(value);
+                    enrollmentForm.setValue("intake_id", null);
+                    enrollmentForm.setValue("program", getProgramFromCourseId(value));
+                  }}
                   error={enrollmentErrors.course_id?.message}
                   clearable
                   searchable
                 />
               )}
             />
+            <Controller
+              control={enrollmentForm.control}
+              name="intake_id"
+              render={({ field }) => (
+                <CreatableCombobox
+                  label={t("diploma.fields.intake")}
+                  placeholder={
+                    enrollmentSelectedCourseId ? t("diploma.intakes.placeholder") : t("diploma.intakes.selectCourseFirst")
+                  }
+                  options={enrollmentIntakeOptions}
+                  value={field.value ?? null}
+                  onChange={(value) => field.onChange(value)}
+                  onCreate={handleCreateEnrollmentIntake}
+                  creating={createEnrollmentIntakeMutation.isPending}
+                  disabled={!enrollmentSelectedCourseId}
+                  createDisabled={!enrollmentSelectedCourseId}
+                  error={enrollmentErrors.intake_id?.message}
+                />
+              )}
+            />
             {editingEnrollment ? null : (
-              <Group grow align="flex-start">
-                <TextInput
-                  label={t("diploma.fields.program")}
-                  error={enrollmentErrors.program?.message}
-                  {...enrollmentForm.register("program")}
-                />
-                <TextInput
-                  label={t("diploma.fields.enrollDate")}
-                  placeholder="YYYY-MM-DD"
-                  error={enrollmentErrors.enroll_date?.message}
-                  {...enrollmentForm.register("enroll_date", { setValueAs: emptyToUndefined })}
-                />
-              </Group>
+              <TextInput
+                type="date"
+                label={t("diploma.fields.enrollDate")}
+                error={enrollmentErrors.enroll_date?.message}
+                {...enrollmentForm.register("enroll_date", { setValueAs: emptyToUndefined })}
+              />
             )}
             <Group grow align="flex-start">
               <Controller
@@ -1207,7 +1540,9 @@ export function DiplomaPage() {
                     value={field.value ?? ""}
                     onChange={(value) => field.onChange(numberOrNull(value))}
                     error={enrollmentErrors.installments_count?.message}
-                    min={0}
+                    min={1}
+                    max={6}
+                    clampBehavior="strict"
                     allowDecimal={false}
                   />
                 )}
@@ -1240,7 +1575,7 @@ export function DiplomaPage() {
                 )}
               />
               <TextInput
-                type="datetime-local"
+                type="date"
                 label={t("diploma.fields.depositPaidAt")}
                 error={enrollmentErrors.deposit_paid_at?.message}
                 {...enrollmentForm.register("deposit_paid_at")}
@@ -1286,6 +1621,12 @@ export function DiplomaPage() {
                   </Badge>
                 </Group>
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
+                  <Stack gap={2}>
+                    <Text size="xs" c="dimmed">
+                      {t("diploma.fields.intake")}
+                    </Text>
+                    <Text fw={600}>{enrollmentDetail.enrollment.intake_label ?? t("common.not_available")}</Text>
+                  </Stack>
                   <Stack gap={2}>
                     <Text size="xs" c="dimmed">
                       {t("diploma.progress.startPeriod")}

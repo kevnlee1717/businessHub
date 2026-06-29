@@ -1,6 +1,8 @@
 import {
   type DiplomaCourseCreateInput,
   type DiplomaCourseUpdateInput,
+  type DiplomaIntakeCreateInput,
+  type DiplomaIntakeUpdateInput,
   type DiplomaAssignmentAction,
   type DiplomaAssignmentMessageInput,
   type DiplomaAssignmentStatus,
@@ -43,6 +45,8 @@ export type DiplomaEnrollment = {
   id: string;
   student_id: string;
   course_id?: string | null;
+  intake_id?: string | null;
+  intake_label?: string | null;
   program: string;
   enroll_date?: string | null;
   billing_id?: string | null;
@@ -53,6 +57,16 @@ export type DiplomaEnrollment = {
   certificate_document_id?: string | null;
   media_document_ids?: string[];
   graduated: boolean;
+  created_at: string;
+};
+
+export type DiplomaIntake = {
+  id: string;
+  course_id: string;
+  label: string;
+  start_date?: string | null;
+  active: boolean;
+  sort_order?: number | null;
   created_at: string;
 };
 
@@ -452,6 +466,33 @@ export function updateDiplomaCourse(
 
 export function deleteDiplomaCourse(id: string): Promise<{ ok: true }> {
   return api<{ ok: true }>(`/diploma-courses/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function listCourseIntakes(courseId: string): Promise<{ intakes: DiplomaIntake[] }> {
+  return api<{ intakes: DiplomaIntake[] }>(`/diploma-courses/${courseId}/intakes`);
+}
+
+export function createDiplomaIntake(body: DiplomaIntakeCreateInput): Promise<{ intake: DiplomaIntake }> {
+  return api<{ intake: DiplomaIntake }>(`/diploma-courses/${body.course_id}/intakes`, {
+    method: "POST",
+    body
+  });
+}
+
+export function updateDiplomaIntake(
+  id: string,
+  body: DiplomaIntakeUpdateInput & { course_id: string }
+): Promise<{ intake: DiplomaIntake }> {
+  return api<{ intake: DiplomaIntake }>(`/diploma-courses/${body.course_id}/intakes/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteDiplomaIntake(courseId: string, id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/diploma-courses/${courseId}/intakes/${id}`, {
     method: "DELETE"
   });
 }

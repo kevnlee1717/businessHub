@@ -29,10 +29,11 @@ export const teacherUpdateSchema = teacherCreateSchema.partial();
 export const diplomaEnrollmentCreateSchema = z.object({
   student_id: uuidField,
   course_id: uuidField.nullable().optional(),
+  intake_id: uuidField.nullable().optional(),
   program: z.string().trim().min(1),
   enroll_date: dateString.optional(),
   billing_id: uuidField.nullable().optional(),
-  installments_count: z.number().int().min(0).nullable().optional(),
+  installments_count: z.number().int().min(1).max(6).nullable().optional(),
   deposit_amount: z.union([z.string(), z.number()]).nullable().optional(),
   deposit_paid_at: z.string().datetime().nullable().optional(),
   graduated: z.boolean().optional()
@@ -52,6 +53,21 @@ export const diplomaCourseCreateSchema = z.object({
 });
 
 export const diplomaCourseUpdateSchema = diplomaCourseCreateSchema.partial();
+
+export const diplomaIntakeCreateSchema = z.object({
+  course_id: uuidField,
+  label: z.string().trim().min(1),
+  start_date: dateString.nullable().optional(),
+  active: z.boolean().optional(),
+  sort_order: z.number().int().nullable().optional()
+});
+
+export const diplomaIntakeUpdateSchema = z.object({
+  label: z.string().trim().min(1).optional(),
+  start_date: dateString.nullable().optional(),
+  active: z.boolean().optional(),
+  sort_order: z.number().int().nullable().optional()
+});
 
 export const diplomaPaymentUpdateSchema = z.object({
   paid: z.boolean().optional(),
@@ -130,6 +146,8 @@ export type TeacherCreateInput = z.infer<typeof teacherCreateSchema>;
 export type TeacherUpdateInput = z.infer<typeof teacherUpdateSchema>;
 export type DiplomaCourseCreateInput = z.infer<typeof diplomaCourseCreateSchema>;
 export type DiplomaCourseUpdateInput = z.infer<typeof diplomaCourseUpdateSchema>;
+export type DiplomaIntakeCreateInput = z.infer<typeof diplomaIntakeCreateSchema>;
+export type DiplomaIntakeUpdateInput = z.infer<typeof diplomaIntakeUpdateSchema>;
 export type DiplomaEnrollmentCreateInput = z.infer<typeof diplomaEnrollmentCreateSchema>;
 export type DiplomaEnrollmentUpdateInput = z.infer<typeof diplomaEnrollmentUpdateSchema>;
 export type DiplomaPaymentUpdateInput = z.infer<typeof diplomaPaymentUpdateSchema>;

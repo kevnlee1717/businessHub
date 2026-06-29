@@ -17,6 +17,7 @@
     "templates": "流程模板",
     "guarantors": "担保人",
     "education": "教育",
+    "teachers": "师资",
     "education_business": "教育业务",
     "diploma": "成人大专",
     "wsq": "WSQ",
@@ -72,6 +73,7 @@
     "save": "保存",
     "cancel": "取消",
     "collapse": "收起",
+    "active": "启用",
     "yes": "是",
     "no": "否",
     "all": "全部",
@@ -243,9 +245,33 @@
       "guarantors": "担保人"
     }
   },
+  "teachers": {
+    "title": "师资管理",
+    "add": "新增老师",
+    "edit": "编辑老师",
+    "addInline": "+ 新增老师",
+    "select": "选择老师",
+    "empty": "暂无老师",
+    "confirmDelete": "确认删除老师「{{name}}」？",
+    "saveFailed": "保存老师失败",
+    "createFailed": "创建老师失败",
+    "loadFailed": "加载老师失败",
+    "active": "启用",
+    "inactive": "停用",
+    "enable": "启用",
+    "disable": "停用",
+    "fields": {
+      "name": "姓名",
+      "nameEn": "英文名",
+      "phone": "电话",
+      "note": "备注",
+      "status": "状态"
+    }
+  },
   "education": {
     "tabs": {
-      "courses": "课程与报名",
+      "courses": "课程",
+      "enrollments": "报名",
       "coursesAndSchedule": "课程与排课",
       "students": "学生",
       "diploma": "成人大专",
@@ -286,6 +312,7 @@
     "fields": {
       "student": "学生",
       "course": "课程",
+      "intake": "开课批次",
       "program": "课程",
       "enrollDate": "报名日期",
       "depositAmount": "定金金额",
@@ -306,6 +333,16 @@
       "depositPaidAt": "定金时间",
       "payments": "学费已收",
       "paymentsValue": "{{paid}}/{{total}} 期"
+    },
+    "intakes": {
+      "title": "开课批次",
+      "add": "新增开课",
+      "label": "期次名",
+      "startDate": "开课日期",
+      "manage": "管理开课",
+      "empty": "暂无开课",
+      "placeholder": "选择或输入开课批次",
+      "selectCourseFirst": "请先选择课程"
     }
   },
   "diplomaCourse": {

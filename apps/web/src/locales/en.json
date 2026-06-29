@@ -17,6 +17,7 @@
     "templates": "Workflow templates",
     "guarantors": "Guarantors",
     "education": "Education",
+    "teachers": "Teachers",
     "education_business": "Education Business",
     "diploma": "Adult Course",
     "wsq": "WSQ",
@@ -72,6 +73,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "collapse": "Collapse",
+    "active": "Active",
     "yes": "Yes",
     "no": "No",
     "all": "All",
@@ -243,9 +245,33 @@
       "guarantors": "Guarantors"
     }
   },
+  "teachers": {
+    "title": "Teacher Management",
+    "add": "Add teacher",
+    "edit": "Edit teacher",
+    "addInline": "+ Add teacher",
+    "select": "Select teacher",
+    "empty": "No teachers yet",
+    "confirmDelete": "Delete teacher \"{{name}}\"?",
+    "saveFailed": "Failed to save teacher",
+    "createFailed": "Failed to create teacher",
+    "loadFailed": "Failed to load teachers",
+    "active": "Active",
+    "inactive": "Inactive",
+    "enable": "Enable",
+    "disable": "Disable",
+    "fields": {
+      "name": "Name",
+      "nameEn": "English name",
+      "phone": "Phone",
+      "note": "Note",
+      "status": "Status"
+    }
+  },
   "education": {
     "tabs": {
-      "courses": "Courses and enrollments",
+      "courses": "Courses",
+      "enrollments": "Enrollments",
       "coursesAndSchedule": "Courses and schedules",
       "students": "Students",
       "diploma": "Adult Course",
@@ -286,6 +312,7 @@
     "fields": {
       "student": "Student",
       "course": "Course",
+      "intake": "Intake",
       "program": "Program",
       "enrollDate": "Enroll date",
       "depositAmount": "Deposit amount",
@@ -306,6 +333,16 @@
       "depositPaidAt": "Deposit time",
       "payments": "Tuition received",
       "paymentsValue": "{{paid}}/{{total}} periods"
+    },
+    "intakes": {
+      "title": "Course Intakes",
+      "add": "Add intake",
+      "label": "Label",
+      "startDate": "Start date",
+      "manage": "Manage intakes",
+      "empty": "No intakes yet",
+      "placeholder": "Select or create an intake",
+      "selectCourseFirst": "Select a course first"
     }
   },
   "diplomaCourse": {
