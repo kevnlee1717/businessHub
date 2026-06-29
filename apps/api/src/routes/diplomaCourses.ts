@@ -97,19 +97,19 @@ export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(diplomaCourseUpdateSchema, request.body);
     const course = await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(diplomaCourses)
-        .set({
-          name: body.name,
-          nameEn: body.name_en,
-          content: body.content,
-          teacherId: body.teacher_id,
-          priceSgd: toNumeric(body.price_sgd),
-          duration: body.duration,
-          monthIndex: body.month_index
-        })
-        .where(eq(diplomaCourses.id, id))
-        .returning();
+      const update: Partial<typeof diplomaCourses.$inferInsert> = {};
+      if (body.name !== undefined) update.name = body.name;
+      if (body.name_en !== undefined) update.nameEn = body.name_en;
+      if (body.content !== undefined) update.content = body.content;
+      if (body.teacher_id !== undefined) update.teacherId = body.teacher_id;
+      if (body.price_sgd !== undefined) update.priceSgd = toNumeric(body.price_sgd);
+      if (body.duration !== undefined) update.duration = body.duration;
+      if (body.month_index !== undefined) update.monthIndex = body.month_index;
+
+      const [updated] =
+        Object.keys(update).length > 0
+          ? await tx.update(diplomaCourses).set(update).where(eq(diplomaCourses.id, id)).returning()
+          : await tx.select().from(diplomaCourses).where(eq(diplomaCourses.id, id)).limit(1);
 
       if (updated && body.teacher_ids !== undefined) {
         await replaceCourseTeachers(tx, COURSE_KIND, updated.id, body.teacher_ids);

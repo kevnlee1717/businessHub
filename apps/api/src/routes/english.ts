@@ -194,17 +194,17 @@ export async function registerEnglishRoutes(app: FastifyInstance): Promise<void>
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(englishClassUpdateSchema, request.body);
     const englishClass = await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(englishClasses)
-        .set({
-          levelId: body.level_id,
-          teacherId: body.teacher_id,
-          schedule: body.schedule,
-          startDate: body.start_date,
-          endDate: body.end_date
-        })
-        .where(eq(englishClasses.id, id))
-        .returning();
+      const update: Partial<typeof englishClasses.$inferInsert> = {};
+      if (body.level_id !== undefined) update.levelId = body.level_id;
+      if (body.teacher_id !== undefined) update.teacherId = body.teacher_id;
+      if (body.schedule !== undefined) update.schedule = body.schedule;
+      if (body.start_date !== undefined) update.startDate = body.start_date;
+      if (body.end_date !== undefined) update.endDate = body.end_date;
+
+      const [updated] =
+        Object.keys(update).length > 0
+          ? await tx.update(englishClasses).set(update).where(eq(englishClasses.id, id)).returning()
+          : await tx.select().from(englishClasses).where(eq(englishClasses.id, id)).limit(1);
 
       if (updated && body.teacher_ids !== undefined) {
         await replaceCourseTeachers(tx, CLASS_COURSE_KIND, updated.id, body.teacher_ids);

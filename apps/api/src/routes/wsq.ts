@@ -154,20 +154,20 @@ export async function registerWsqRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(wsqCourseUpdateSchema, request.body);
     const course = await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(wsqCourses)
-        .set({
-          name: body.name,
-          nameEn: body.name_en,
-          content: body.content,
-          startDate: body.start_date,
-          duration: body.duration,
-          teacherId: body.teacher_id,
-          priceSgd: toNumeric(body.price_sgd),
-          minStudents: body.min_students
-        })
-        .where(eq(wsqCourses.id, id))
-        .returning();
+      const update: Partial<typeof wsqCourses.$inferInsert> = {};
+      if (body.name !== undefined) update.name = body.name;
+      if (body.name_en !== undefined) update.nameEn = body.name_en;
+      if (body.content !== undefined) update.content = body.content;
+      if (body.start_date !== undefined) update.startDate = body.start_date;
+      if (body.duration !== undefined) update.duration = body.duration;
+      if (body.teacher_id !== undefined) update.teacherId = body.teacher_id;
+      if (body.price_sgd !== undefined) update.priceSgd = toNumeric(body.price_sgd);
+      if (body.min_students !== undefined) update.minStudents = body.min_students;
+
+      const [updated] =
+        Object.keys(update).length > 0
+          ? await tx.update(wsqCourses).set(update).where(eq(wsqCourses.id, id)).returning()
+          : await tx.select().from(wsqCourses).where(eq(wsqCourses.id, id)).limit(1);
 
       if (updated && body.teacher_ids !== undefined) {
         await replaceCourseTeachers(tx, COURSE_KIND, updated.id, body.teacher_ids);
