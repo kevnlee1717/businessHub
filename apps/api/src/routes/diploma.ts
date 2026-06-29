@@ -345,11 +345,23 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
         );
       }
 
+      const installmentsCount = Math.max(1, program.months ?? 6);
+      const programPrice = program.priceSgd === null || program.priceSgd === undefined ? null : Number(program.priceSgd);
+      const otherInstallmentAmount =
+        programPrice === null || Number.isNaN(programPrice) ? null : Math.floor(programPrice / installmentsCount);
+      const firstInstallmentAmount =
+        programPrice === null || otherInstallmentAmount === null
+          ? null
+          : programPrice - (installmentsCount - 1) * otherInstallmentAmount;
+
       await tx.insert(diplomaPayments).values(
-        Array.from({ length: 6 }, (_, index) => ({
+        Array.from({ length: installmentsCount }, (_, index) => ({
           enrollmentId: createdEnrollment.id,
           period: addMonthsToPeriod(startPeriod, index),
-          amount: courses[index]?.priceSgd ?? null,
+          amount:
+            firstInstallmentAmount === null || otherInstallmentAmount === null
+              ? null
+              : (index === 0 ? firstInstallmentAmount : otherInstallmentAmount).toFixed(2),
           paid: false
         }))
       );

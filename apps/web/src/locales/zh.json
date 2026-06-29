@@ -360,6 +360,7 @@
       "nameEn": "英文名",
       "sortOrder": "排序",
       "months": "总月数",
+      "priceSgd": "价格 SGD",
       "status": "状态"
     }
   },

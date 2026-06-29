@@ -50,6 +50,7 @@ export type DiplomaProgram = {
   active: boolean;
   sort_order?: number | null;
   months?: number | null;
+  price_sgd?: string | null;
   created_at: string;
 };
 

@@ -9,7 +9,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 function serializeDiplomaProgram(program: typeof diplomaPrograms.$inferSelect) {
   return {
@@ -19,6 +19,7 @@ function serializeDiplomaProgram(program: typeof diplomaPrograms.$inferSelect) {
     active: program.active,
     sort_order: program.sortOrder,
     months: program.months,
+    price_sgd: program.priceSgd,
     created_at: program.createdAt
   };
 }
@@ -68,7 +69,8 @@ export async function registerDiplomaProgramRoutes(app: FastifyInstance): Promis
         nameEn: body.name_en,
         active: body.active,
         sortOrder: body.sort_order,
-        months: body.months
+        months: body.months,
+        priceSgd: toNumeric(body.price_sgd)
       })
       .returning();
 
@@ -89,7 +91,8 @@ export async function registerDiplomaProgramRoutes(app: FastifyInstance): Promis
         nameEn: body.name_en,
         active: body.active,
         sortOrder: body.sort_order,
-        months: body.months
+        months: body.months,
+        priceSgd: toNumeric(body.price_sgd)
       })
       .where(eq(diplomaPrograms.id, id))
       .returning();

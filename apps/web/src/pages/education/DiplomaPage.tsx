@@ -86,7 +86,6 @@ type CourseFormValues = {
   name_en?: string | undefined;
   content?: string | null | undefined;
   teacher_ids?: string[] | undefined;
-  price_sgd?: string | number | null | undefined;
   month_index?: number | null | undefined;
 };
 
@@ -115,6 +114,7 @@ type ProgramFormValues = {
   active?: boolean | undefined;
   sort_order?: number | null | undefined;
   months?: number | null | undefined;
+  price_sgd?: string | number | null | undefined;
 };
 
 type DiplomaPageSection = "programs" | "courses" | "enrollments" | "all";
@@ -229,7 +229,6 @@ function getCourseDefaultValues(course?: DiplomaCourse): CourseFormValues {
     name_en: course?.name_en ?? undefined,
     content: course?.content ?? null,
     teacher_ids: course?.teachers?.map((teacher) => teacher.id) ?? [],
-    price_sgd: course?.price_sgd ?? null,
     month_index: course?.month_index ?? null
   };
 }
@@ -255,7 +254,8 @@ function getProgramDefaultValues(program?: DiplomaProgram): ProgramFormValues {
     name_en: program?.name_en ?? undefined,
     active: program?.active ?? true,
     sort_order: program?.sort_order ?? null,
-    months: program?.months ?? null
+    months: program?.months ?? null,
+    price_sgd: program?.price_sgd ?? null
   };
 }
 
@@ -1028,7 +1028,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         ...values,
         program_id: values.program_id ?? null,
         teacher_ids: values.teacher_ids ?? [],
-        price_sgd: values.price_sgd ?? null,
         month_index: values.month_index ?? null
       };
 
@@ -1059,7 +1058,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         name_en: values.name_en,
         active: values.active ?? true,
         sort_order: values.sort_order ?? undefined,
-        months: values.months ?? null
+        months: values.months ?? null,
+        price_sgd: values.price_sgd ?? null
       };
 
       if (editingProgram) {
@@ -1325,7 +1325,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   <Table.Th>{t("diplomaCourse.fields.program")}</Table.Th>
                   <Table.Th>{t("diplomaCourse.fields.monthIndex")}</Table.Th>
                   <Table.Th>{t("diplomaCourse.fields.teacher")}</Table.Th>
-                  <Table.Th>{t("diplomaCourse.fields.priceSgd")}</Table.Th>
                   <Table.Th>{t("diplomaCourse.fields.content")}</Table.Th>
                   {canManageEducation ? <Table.Th>{t("common.actions")}</Table.Th> : null}
                 </Table.Tr>
@@ -1333,7 +1332,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
               <Table.Tbody>
                 {coursesQuery.isLoading || employeesQuery.isLoading ? (
                   <Table.Tr>
-                    <Table.Td colSpan={canManageEducation ? 7 : 6}>
+                    <Table.Td colSpan={canManageEducation ? 6 : 5}>
                       <Group justify="center" py="lg">
                         <Loader size="sm" />
                       </Group>
@@ -1341,7 +1340,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Table.Tr>
                 ) : courses.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={canManageEducation ? 7 : 6}>
+                    <Table.Td colSpan={canManageEducation ? 6 : 5}>
                       <Text ta="center" c="dimmed" py="lg">
                         {t("diplomaCourse.empty")}
                       </Text>
@@ -1380,7 +1379,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                           t("common.not_available")
                         )}
                       </Table.Td>
-                      <Table.Td>{course.price_sgd ?? t("common.not_available")}</Table.Td>
                       <Table.Td>{truncateText(course.content) || t("common.not_available")}</Table.Td>
                       {canManageEducation ? (
                         <Table.Td>
@@ -1553,6 +1551,19 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             <Group grow align="flex-start">
               <Controller
                 control={programForm.control}
+                name="price_sgd"
+                render={({ field }) => (
+                  <NumberInput
+                    label={t("diplomaProgram.fields.priceSgd")}
+                    value={field.value ?? ""}
+                    onChange={(value) => field.onChange(numberOrNull(value))}
+                    error={programErrors.price_sgd?.message}
+                    min={0}
+                  />
+                )}
+              />
+              <Controller
+                control={programForm.control}
                 name="months"
                 render={({ field }) => (
                   <NumberInput
@@ -1578,6 +1589,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   />
                 )}
               />
+            </Group>
+            <Group grow align="flex-start">
               <Controller
                 control={programForm.control}
                 name="active"
@@ -1662,19 +1675,6 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                       onChange={(nextValue) => field.onChange(nextValue)}
                     />
                   </Input.Wrapper>
-                )}
-              />
-              <Controller
-                control={courseForm.control}
-                name="price_sgd"
-                render={({ field }) => (
-                  <NumberInput
-                    label={t("diplomaCourse.fields.priceSgd")}
-                    value={field.value ?? ""}
-                    onChange={(value) => field.onChange(numberOrNull(value))}
-                    error={courseErrors.price_sgd?.message}
-                    min={0}
-                  />
                 )}
               />
             </Group>
