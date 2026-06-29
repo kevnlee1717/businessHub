@@ -152,7 +152,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   });
 
   const cases = (casesQuery.data?.cases ?? []).filter((c) => {
-    if (!onlyReapply) return true;
+    if (businessType !== "ica" || !onlyReapply) return true;
     const s = computeReapplyStatus(
       c.latest_result
         ? [{ result: c.latest_result, rejectedAt: c.latest_rejected_at ?? null, createdAt: c.latest_submission_at ?? c.created_at }]
