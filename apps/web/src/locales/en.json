@@ -18,7 +18,7 @@
     "guarantors": "Guarantors",
     "education": "Education",
     "education_business": "Education Business",
-    "diploma": "Adult diploma",
+    "diploma": "Adult Course",
     "wsq": "WSQ",
     "english": "Adult English",
     "academy_collection": "Academy Collection",
@@ -248,7 +248,7 @@
       "courses": "Courses and enrollments",
       "coursesAndSchedule": "Courses and schedules",
       "students": "Students",
-      "diploma": "Adult diploma",
+      "diploma": "Adult Course",
       "english": "Adult English",
       "wsq": "WSQ"
     }
@@ -270,12 +270,12 @@
     "add": "Add teacher"
   },
   "diploma": {
-    "title": "Adult Diploma Courses",
+    "title": "Adult Courses",
     "add": "Add enrollment",
     "edit": "Edit enrollment",
     "empty": "No enrollments yet",
     "enrollment": {
-      "title": "Adult diploma enrollments"
+      "title": "Adult Course enrollments"
     },
     "detail": {
       "title": "Student enrollment detail"
@@ -1546,7 +1546,7 @@
   "billingRefType": {
     "ep": "EP",
     "ica": "ICA",
-    "diploma": "Adult diploma",
+    "diploma": "Adult Course",
     "english": "Adult English",
     "wsq": "WSQ"
   },
