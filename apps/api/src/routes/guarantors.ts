@@ -1,8 +1,8 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { cases, db, documents, guarantors } from "@bh/db";
-import { guarantorCreateSchema, guarantorUpdateSchema } from "@bh/shared";
-import { desc, eq, sql } from "drizzle-orm";
+import { caseSubmissions, cases, db, documents, guarantors } from "@bh/db";
+import { computeGuarantorStats, guarantorCreateSchema, guarantorUpdateSchema } from "@bh/shared";
+import { desc, eq, inArray } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
@@ -63,28 +63,35 @@ async function discardFile(file: NodeJS.ReadableStream): Promise<void> {
   );
 }
 
-async function sponsoredCount(guarantorId: string): Promise<number> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(cases)
-    .where(eq(cases.guarantorId, guarantorId));
-
-  return row?.count ?? 0;
-}
-
 export async function registerGuarantorRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/guarantors", { preHandler: requirePerm("case.view") }, async () => {
     const rows = await db.select().from(guarantors).orderBy(desc(guarantors.createdAt));
-    const serialized = await Promise.all(
-      rows.map(async (row) => ({
-        ...serializeGuarantor(row),
-        sponsored_count: await sponsoredCount(row.id)
-      }))
+    const result = await Promise.all(
+      rows.map(async (g) => {
+        const caseRows = await db.select().from(cases).where(eq(cases.guarantorId, g.id));
+        const ids = caseRows.map((c) => c.id);
+        const subs = ids.length
+          ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, ids))
+          : [];
+        const stats = computeGuarantorStats(
+          caseRows.map((c) => {
+            const list = subs
+              .filter((s) => s.caseId === c.id)
+              .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            return {
+              caseId: c.id,
+              createdAt: c.createdAt.toISOString(),
+              latestResult: list[0]?.result ?? null
+            };
+          })
+        );
+        return { ...serializeGuarantor(g), sponsored_count: stats.total, stats };
+      })
     );
 
-    return { guarantors: serialized };
+    return { guarantors: result };
   });
 
   app.get("/guarantors/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {
