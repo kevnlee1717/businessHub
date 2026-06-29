@@ -261,6 +261,8 @@ export function GuarantorsPage() {
                 <Table.Th>{t("guarantor.fields.gender")}</Table.Th>
                 <Table.Th>{t("guarantor.fields.age")}</Table.Th>
                 <Table.Th>{t("guarantor.fields.sponsoredCount")}</Table.Th>
+                <Table.Th>担保时间</Table.Th>
+                <Table.Th>成功率</Table.Th>
                 <Table.Th>{t("guarantor.fields.idCard")}</Table.Th>
                 {canManageCases ? <Table.Th>{t("common.actions")}</Table.Th> : null}
               </Table.Tr>
@@ -268,7 +270,7 @@ export function GuarantorsPage() {
             <Table.Tbody>
               {guarantorsQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={canManageCases ? 7 : 6}>
+                  <Table.Td colSpan={canManageCases ? 9 : 8}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -276,7 +278,7 @@ export function GuarantorsPage() {
                 </Table.Tr>
               ) : guarantors.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={canManageCases ? 7 : 6}>
+                  <Table.Td colSpan={canManageCases ? 9 : 8}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("guarantor.empty")}
                     </Text>
@@ -290,6 +292,18 @@ export function GuarantorsPage() {
                     <Table.Td>{guarantor.gender ? t(`gender.${guarantor.gender}`) : t("common.not_available")}</Table.Td>
                     <Table.Td>{guarantor.age ?? t("common.not_available")}</Table.Td>
                     <Table.Td>{t("guarantor.sponsoredCount", { count: guarantor.sponsored_count })}</Table.Td>
+                    <Table.Td>
+                      {guarantor.stats?.firstAt
+                        ? `${guarantor.stats.firstAt.slice(0, 7)} ~ ${(guarantor.stats.lastAt ?? "").slice(0, 7)}`
+                        : "—"}
+                    </Table.Td>
+                    <Table.Td>
+                      {guarantor.stats && guarantor.stats.successRate !== null
+                        ? <Badge color={guarantor.stats.successRate >= 0.5 ? "green" : "orange"} variant="light">
+                            {Math.round(guarantor.stats.successRate * 100)}% ({guarantor.stats.approved}/{guarantor.stats.approved + guarantor.stats.rejected})
+                          </Badge>
+                        : <Badge color="gray" variant="light">无判定</Badge>}
+                    </Table.Td>
                     <Table.Td>
                       <IdCardUpload guarantor={guarantor} canManageCases={canManageCases} />
                     </Table.Td>
