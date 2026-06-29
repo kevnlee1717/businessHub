@@ -1,7 +1,7 @@
 import { BarChart } from "@mantine/charts";
 import { Alert, Group, Paper, Select, Stack, Text, Title } from "@mantine/core";
 import { type BusinessType } from "@bh/shared";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCaseStats } from "../../api/cases";
@@ -13,37 +13,32 @@ const businessTypeOptions: BusinessTypeFilter[] = ["all", "ep", "ica", "dp"];
 export function CaseStatsPanel() {
   const { t } = useTranslation();
   const [businessType, setBusinessType] = useState<BusinessTypeFilter>("ep");
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const currentYear = new Date().getFullYear();
 
-  const statsQuery = useQuery({
-    queryKey: ["business", "case-stats", selectedYear, businessType],
+  const availableYearsQuery = useQuery({
+    queryKey: ["business", "case-stats", "available-years", businessType],
     queryFn: () =>
       getCaseStats({
-        year: selectedYear ?? undefined,
         business_type: businessType === "all" ? undefined : businessType
       })
   });
 
-  const stats = statsQuery.data;
-  const activeYear = selectedYear ?? stats?.year ?? currentYear;
-  const yearOptions = useMemo(() => {
-    const years = new Set(stats?.available_years ?? []);
-    years.add(activeYear);
-    return [...years].sort((a, b) => b - a).map((year) => ({
-      value: String(year),
-      label: String(year)
-    }));
-  }, [activeYear, stats?.available_years]);
-  const chartData = Array.from({ length: 12 }, (_value, index) => {
-    const month = index + 1;
-    const item = stats?.months.find((entry) => entry.month === month);
+  const availableYears = useMemo(
+    () => [...(availableYearsQuery.data?.available_years ?? [])].sort((a, b) => b - a),
+    [availableYearsQuery.data?.available_years]
+  );
 
-    return {
-      month: t("case.stats.month", { month }),
-      count: item?.count ?? 0
-    };
+  const yearlyStatsQueries = useQueries({
+    queries: availableYears.map((year) => ({
+      queryKey: ["business", "case-stats", year, businessType],
+      queryFn: () =>
+        getCaseStats({
+          year,
+          business_type: businessType === "all" ? undefined : businessType
+        })
+    }))
   });
+
+  const loadError = availableYearsQuery.error ?? yearlyStatsQueries.find((query) => query.error)?.error;
 
   return (
     <Paper p="md">
@@ -51,18 +46,8 @@ export function CaseStatsPanel() {
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <Stack gap={2}>
             <Title order={3}>{t("case.stats.title")}</Title>
-            <Text size="sm" c="dimmed">
-              {t("case.stats.total", { year: activeYear, count: stats?.total ?? 0 })}
-            </Text>
           </Stack>
           <Group align="flex-end" wrap="wrap">
-            <Select
-              label={t("case.stats.year")}
-              data={yearOptions}
-              value={String(activeYear)}
-              onChange={(value) => setSelectedYear(value ? Number(value) : null)}
-              w={140}
-            />
             <Select
               label={t("case.stats.businessType")}
               data={businessTypeOptions.map((value) => ({
@@ -76,21 +61,46 @@ export function CaseStatsPanel() {
           </Group>
         </Group>
 
-        {statsQuery.error ? (
+        {loadError ? (
           <Alert color="red" variant="light">
-            {statsQuery.error instanceof Error ? statsQuery.error.message : t("common.unknown_error")}
+            {loadError instanceof Error ? loadError.message : t("common.unknown_error")}
           </Alert>
         ) : null}
 
-        <BarChart
-          h={320}
-          data={chartData}
-          dataKey="month"
-          series={[{ name: "count", label: t("case.stats.count"), color: "teal.6" }]}
-          tickLine="y"
-          gridAxis="xy"
-          withLegend={false}
-        />
+        {availableYears.length === 0 && !availableYearsQuery.isLoading ? (
+          <Text c="dimmed">{t("case.empty")}</Text>
+        ) : null}
+
+        {availableYears.map((year, index) => {
+          const stats = yearlyStatsQueries[index]?.data;
+          const chartData = Array.from({ length: 12 }, (_value, monthIndex) => {
+            const month = monthIndex + 1;
+            const item = stats?.months.find((entry) => entry.month === month);
+
+            return {
+              month: t("case.stats.month", { month }),
+              count: item?.count ?? 0
+            };
+          });
+
+          return (
+            <Stack key={year} gap="xs">
+              <Title order={4}>{t("case.stats.total", { year, count: stats?.total ?? 0 })}</Title>
+              <BarChart
+                h={320}
+                data={chartData}
+                dataKey="month"
+                series={[{ name: "count", label: t("case.stats.count"), color: "teal.6" }]}
+                tickLine="y"
+                gridAxis="xy"
+                withLegend={false}
+                withBarValueLabel
+                valueLabelProps={{ position: "top" }}
+                barChartProps={{ margin: { top: 24 } }}
+              />
+            </Stack>
+          );
+        })}
       </Stack>
     </Paper>
   );
