@@ -6,6 +6,7 @@ import {
   diplomaEnrollments,
   diplomaIntakes,
   diplomaPayments,
+  diplomaPrograms,
   documents
 } from "@bh/db";
 import {
@@ -29,6 +30,7 @@ function serializeDiploma(
   return {
     id: enrollment.id,
     student_id: enrollment.studentId,
+    program_id: enrollment.programId,
     course_id: enrollment.courseId,
     intake_id: enrollment.intakeId,
     intake_label: intake?.label ?? null,
@@ -265,7 +267,12 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
       .from(diplomaPayments)
       .where(eq(diplomaPayments.enrollmentId, id))
       .orderBy(asc(diplomaPayments.period));
-    const [coursesTotalRow] = await db.select({ count: sql<number>`count(*)::int` }).from(diplomaCourses);
+    const [coursesTotalRow] = enrollment.programId
+      ? await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(diplomaCourses)
+          .where(eq(diplomaCourses.programId, enrollment.programId))
+      : await db.select({ count: sql<number>`count(*)::int` }).from(diplomaCourses);
     const coursesTotal = coursesTotalRow?.count ?? 0;
     const coursesPassed = assignmentRows.filter((row) => row.assignment.status === "passed").length;
     const paymentsPaid = paymentRows.filter((payment) => payment.paid).length;
@@ -294,13 +301,20 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     const body = parseWithSchema(diplomaEnrollmentCreateSchema, request.body);
     const startPeriod = getStartPeriod(body.enroll_date);
     const enrollment = await db.transaction(async (tx) => {
+      const [program] = await tx.select().from(diplomaPrograms).where(eq(diplomaPrograms.id, body.program_id)).limit(1);
+
+      if (!program) {
+        throw new Error("diploma_program_not_found");
+      }
+
       const [createdEnrollment] = await tx
         .insert(diplomaEnrollments)
         .values({
           studentId: body.student_id,
+          programId: body.program_id,
           courseId: body.course_id,
           intakeId: body.intake_id,
-          program: body.program,
+          program: program.name,
           enrollDate: body.enroll_date,
           billingId: body.billing_id,
           installmentsCount: body.installments_count,
@@ -315,7 +329,11 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
         throw new Error("diploma_enrollment_create_failed");
       }
 
-      const courses = await tx.select().from(diplomaCourses).orderBy(asc(diplomaCourses.monthIndex), asc(diplomaCourses.createdAt));
+      const courses = await tx
+        .select()
+        .from(diplomaCourses)
+        .where(eq(diplomaCourses.programId, body.program_id))
+        .orderBy(asc(diplomaCourses.monthIndex), asc(diplomaCourses.createdAt));
 
       if (courses.length > 0) {
         await tx.insert(diplomaAssignments).values(
@@ -349,22 +367,39 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
   app.patch("/diploma-enrollments/:id", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(diplomaEnrollmentUpdateSchema, request.body);
-    const [enrollment] = await db
-      .update(diplomaEnrollments)
-      .set({
-        studentId: body.student_id,
-        courseId: body.course_id,
-        intakeId: body.intake_id,
-        program: body.program,
-        enrollDate: body.enroll_date,
-        billingId: body.billing_id,
-        installmentsCount: body.installments_count,
-        depositAmount: toNumeric(body.deposit_amount),
-        depositPaidAt: body.deposit_paid_at === undefined ? undefined : body.deposit_paid_at ? new Date(body.deposit_paid_at) : null,
-        graduated: body.graduated
-      })
-      .where(eq(diplomaEnrollments.id, id))
-      .returning();
+    const enrollment = await db.transaction(async (tx) => {
+      let programName = body.program;
+
+      if (body.program_id !== undefined) {
+        const [program] = await tx.select().from(diplomaPrograms).where(eq(diplomaPrograms.id, body.program_id)).limit(1);
+
+        if (!program) {
+          return null;
+        }
+
+        programName = program.name;
+      }
+
+      const [updated] = await tx
+        .update(diplomaEnrollments)
+        .set({
+          studentId: body.student_id,
+          programId: body.program_id,
+          courseId: body.course_id,
+          intakeId: body.intake_id,
+          program: programName,
+          enrollDate: body.enroll_date,
+          billingId: body.billing_id,
+          installmentsCount: body.installments_count,
+          depositAmount: toNumeric(body.deposit_amount),
+          depositPaidAt: body.deposit_paid_at === undefined ? undefined : body.deposit_paid_at ? new Date(body.deposit_paid_at) : null,
+          graduated: body.graduated
+        })
+        .where(eq(diplomaEnrollments.id, id))
+        .returning();
+
+      return updated ?? undefined;
+    });
 
     if (!enrollment) {
       return sendNotFound(reply);

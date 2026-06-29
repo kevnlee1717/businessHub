@@ -6,16 +6,20 @@ import { StudentsPage } from "./StudentsPage";
 
 export function DiplomaSection() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<string | null>("courses");
+  const [activeTab, setActiveTab] = useState<string | null>("programs");
 
   return (
     <Tabs value={activeTab} onChange={setActiveTab} keepMounted={false}>
       <Tabs.List>
+        <Tabs.Tab value="programs">{t("education.tabs.programs")}</Tabs.Tab>
         <Tabs.Tab value="courses">{t("education.tabs.courses")}</Tabs.Tab>
         <Tabs.Tab value="enrollments">{t("education.tabs.enrollments")}</Tabs.Tab>
         <Tabs.Tab value="students">{t("education.tabs.students")}</Tabs.Tab>
       </Tabs.List>
 
+      <Tabs.Panel value="programs" pt="md">
+        <DiplomaPage section="programs" />
+      </Tabs.Panel>
       <Tabs.Panel value="courses" pt="md">
         <DiplomaPage section="courses" />
       </Tabs.Panel>

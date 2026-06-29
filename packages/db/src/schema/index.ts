@@ -42,6 +42,7 @@ export * from "./englishEnrollments";
 export * from "./englishAttendance";
 export * from "./wsqCourses";
 export * from "./wsqEnrollments";
+export * from "./diplomaPrograms";
 export * from "./diplomaCourses";
 export * from "./diplomaIntakes";
 export * from "./diplomaEnrollments";

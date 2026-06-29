@@ -1,6 +1,8 @@
 import {
   type DiplomaCourseCreateInput,
   type DiplomaCourseUpdateInput,
+  type DiplomaProgramCreateInput,
+  type DiplomaProgramUpdateInput,
   type DiplomaIntakeCreateInput,
   type DiplomaIntakeUpdateInput,
   type DiplomaAssignmentAction,
@@ -41,9 +43,19 @@ export type CourseTeacher = {
   name_en?: string | null;
 };
 
+export type DiplomaProgram = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  active: boolean;
+  sort_order?: number | null;
+  created_at: string;
+};
+
 export type DiplomaEnrollment = {
   id: string;
   student_id: string;
+  program_id?: string | null;
   course_id?: string | null;
   intake_id?: string | null;
   intake_label?: string | null;
@@ -62,7 +74,7 @@ export type DiplomaEnrollment = {
 
 export type DiplomaIntake = {
   id: string;
-  course_id: string;
+  program_id: string;
   label: string;
   start_date?: string | null;
   active: boolean;
@@ -72,6 +84,7 @@ export type DiplomaIntake = {
 
 export type DiplomaCourse = {
   id: string;
+  program_id?: string | null;
   name: string;
   name_en?: string | null;
   content?: string | null;
@@ -443,8 +456,41 @@ export function uploadDiplomaMedia(enrollmentId: string, files: File[]): Promise
   return multipartApi<{ enrollment: DiplomaEnrollment }>(`/diploma-enrollments/${enrollmentId}/media`, formData);
 }
 
-export function listDiplomaCourses(): Promise<{ courses: DiplomaCourse[] }> {
-  return api<{ courses: DiplomaCourse[] }>("/diploma-courses");
+export function listDiplomaPrograms(): Promise<{ programs: DiplomaProgram[] }> {
+  return api<{ programs: DiplomaProgram[] }>("/diploma-programs");
+}
+
+export function createDiplomaProgram(body: DiplomaProgramCreateInput): Promise<{ program: DiplomaProgram }> {
+  return api<{ program: DiplomaProgram }>("/diploma-programs", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateDiplomaProgram(
+  id: string,
+  body: DiplomaProgramUpdateInput
+): Promise<{ program: DiplomaProgram }> {
+  return api<{ program: DiplomaProgram }>(`/diploma-programs/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteDiplomaProgram(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/diploma-programs/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function listDiplomaCourses(programId?: string | null): Promise<{ courses: DiplomaCourse[] }> {
+  const searchParams = new URLSearchParams();
+  if (programId) {
+    searchParams.set("program_id", programId);
+  }
+
+  const query = searchParams.toString();
+  return api<{ courses: DiplomaCourse[] }>(`/diploma-courses${query ? `?${query}` : ""}`);
 }
 
 export function createDiplomaCourse(body: DiplomaCourseCreateInput): Promise<{ course: DiplomaCourse }> {
@@ -470,29 +516,33 @@ export function deleteDiplomaCourse(id: string): Promise<{ ok: true }> {
   });
 }
 
-export function listCourseIntakes(courseId: string): Promise<{ intakes: DiplomaIntake[] }> {
-  return api<{ intakes: DiplomaIntake[] }>(`/diploma-courses/${courseId}/intakes`);
+export function listDiplomaIntakes(programId: string): Promise<{ intakes: DiplomaIntake[] }> {
+  return api<{ intakes: DiplomaIntake[] }>(`/diploma-programs/${programId}/intakes`);
 }
 
-export function createDiplomaIntake(body: DiplomaIntakeCreateInput): Promise<{ intake: DiplomaIntake }> {
-  return api<{ intake: DiplomaIntake }>(`/diploma-courses/${body.course_id}/intakes`, {
+export function createDiplomaIntake(
+  programId: string,
+  body: DiplomaIntakeCreateInput
+): Promise<{ intake: DiplomaIntake }> {
+  return api<{ intake: DiplomaIntake }>(`/diploma-programs/${programId}/intakes`, {
     method: "POST",
     body
   });
 }
 
 export function updateDiplomaIntake(
+  programId: string,
   id: string,
-  body: DiplomaIntakeUpdateInput & { course_id: string }
+  body: DiplomaIntakeUpdateInput
 ): Promise<{ intake: DiplomaIntake }> {
-  return api<{ intake: DiplomaIntake }>(`/diploma-courses/${body.course_id}/intakes/${id}`, {
+  return api<{ intake: DiplomaIntake }>(`/diploma-programs/${programId}/intakes/${id}`, {
     method: "PATCH",
     body
   });
 }
 
-export function deleteDiplomaIntake(courseId: string, id: string): Promise<{ ok: true }> {
-  return api<{ ok: true }>(`/diploma-courses/${courseId}/intakes/${id}`, {
+export function deleteDiplomaIntake(programId: string, id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/diploma-programs/${programId}/intakes/${id}`, {
     method: "DELETE"
   });
 }

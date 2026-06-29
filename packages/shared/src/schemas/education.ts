@@ -26,11 +26,21 @@ export const teacherCreateSchema = z.object({
 
 export const teacherUpdateSchema = teacherCreateSchema.partial();
 
+export const diplomaProgramCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  name_en: optionalText,
+  active: z.boolean().optional(),
+  sort_order: z.number().int().optional()
+});
+
+export const diplomaProgramUpdateSchema = diplomaProgramCreateSchema.partial();
+
 export const diplomaEnrollmentCreateSchema = z.object({
   student_id: uuidField,
+  program_id: uuidField,
   course_id: uuidField.nullable().optional(),
   intake_id: uuidField.nullable().optional(),
-  program: z.string().trim().min(1),
+  program: optionalText,
   enroll_date: dateString.optional(),
   billing_id: uuidField.nullable().optional(),
   installments_count: z.number().int().min(1).max(6).nullable().optional(),
@@ -42,6 +52,7 @@ export const diplomaEnrollmentCreateSchema = z.object({
 export const diplomaEnrollmentUpdateSchema = diplomaEnrollmentCreateSchema.partial();
 
 export const diplomaCourseCreateSchema = z.object({
+  program_id: uuidField.nullable().optional(),
   name: z.string().trim().min(1),
   name_en: optionalText,
   content: nullableOptionalText,
@@ -55,7 +66,7 @@ export const diplomaCourseCreateSchema = z.object({
 export const diplomaCourseUpdateSchema = diplomaCourseCreateSchema.partial();
 
 export const diplomaIntakeCreateSchema = z.object({
-  course_id: uuidField,
+  program_id: uuidField,
   label: z.string().trim().min(1),
   start_date: dateString.nullable().optional(),
   active: z.boolean().optional(),
@@ -144,6 +155,8 @@ export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
 export type TeacherCreateInput = z.infer<typeof teacherCreateSchema>;
 export type TeacherUpdateInput = z.infer<typeof teacherUpdateSchema>;
+export type DiplomaProgramCreateInput = z.infer<typeof diplomaProgramCreateSchema>;
+export type DiplomaProgramUpdateInput = z.infer<typeof diplomaProgramUpdateSchema>;
 export type DiplomaCourseCreateInput = z.infer<typeof diplomaCourseCreateSchema>;
 export type DiplomaCourseUpdateInput = z.infer<typeof diplomaCourseUpdateSchema>;
 export type DiplomaIntakeCreateInput = z.infer<typeof diplomaIntakeCreateSchema>;
