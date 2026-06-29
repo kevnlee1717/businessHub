@@ -1,6 +1,7 @@
 import { Alert, Button, Group, Modal, MultiSelect, Stack, TextInput } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createTeacher, listTeachers } from "../api/teachers";
 
 type TeacherMultiSelectProps = {
@@ -28,6 +29,7 @@ function emptyToUndefined(value: string) {
 }
 
 export function TeacherMultiSelect({ value, onChange, placeholder }: TeacherMultiSelectProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [modalOpened, setModalOpened] = useState(false);
   const [form, setForm] = useState<CreateTeacherForm>({ name: "", name_en: "", phone: "" });
@@ -68,7 +70,7 @@ export function TeacherMultiSelect({ value, onChange, placeholder }: TeacherMult
         active: true
       });
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "创建老师失败");
+      setError(createError instanceof Error ? createError.message : t("teachers.createFailed"));
     }
   }
 
@@ -79,18 +81,18 @@ export function TeacherMultiSelect({ value, onChange, placeholder }: TeacherMult
           data={options}
           value={value}
           onChange={onChange}
-          placeholder={placeholder ?? "选择老师"}
+          placeholder={placeholder ?? t("teachers.select")}
           searchable
           clearable
           disabled={teachersQuery.isLoading}
           style={{ flex: 1 }}
         />
         <Button variant="light" onClick={() => setModalOpened(true)}>
-          + 新增老师
+          {t("teachers.addInline")}
         </Button>
       </Group>
 
-      <Modal opened={modalOpened} onClose={closeModal} title="新增老师" size="md">
+      <Modal opened={modalOpened} onClose={closeModal} title={t("teachers.add")} size="md">
         <Stack gap="md">
           {error ? (
             <Alert color="red" variant="light">
@@ -98,27 +100,27 @@ export function TeacherMultiSelect({ value, onChange, placeholder }: TeacherMult
             </Alert>
           ) : null}
           <TextInput
-            label="姓名"
+            label={t("teachers.fields.name")}
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.currentTarget.value }))}
             withAsterisk
           />
           <TextInput
-            label="英文名"
+            label={t("teachers.fields.nameEn")}
             value={form.name_en}
             onChange={(event) => setForm((current) => ({ ...current, name_en: event.currentTarget.value }))}
           />
           <TextInput
-            label="电话"
+            label={t("teachers.fields.phone")}
             value={form.phone}
             onChange={(event) => setForm((current) => ({ ...current, phone: event.currentTarget.value }))}
           />
           <Group justify="flex-end">
             <Button variant="subtle" onClick={closeModal}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button onClick={handleCreate} loading={createMutation.isPending} disabled={!form.name.trim()}>
-              保存
+              {t("common.save")}
             </Button>
           </Group>
         </Stack>

@@ -25,6 +25,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { createTeacher, deleteTeacher, listTeachers, updateTeacher, type Teacher } from "../../api/teachers";
 import { useCan } from "../../auth/permissions";
 import { teachersQueryKey } from "../../components/TeacherMultiSelect";
@@ -60,6 +61,7 @@ function getDefaultValues(teacher?: Teacher): TeacherFormValues {
 }
 
 export function TeachersPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canManageEducation = useCan("education.manage");
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
@@ -135,12 +137,12 @@ export function TeachersPage() {
 
       await createMutation.mutateAsync(values as TeacherCreateInput);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "保存老师失败");
+      setFormError(error instanceof Error ? error.message : t("teachers.saveFailed"));
     }
   });
 
   async function handleDelete(teacher: Teacher) {
-    if (!window.confirm(`确认删除老师「${displayName(teacher)}」？`)) {
+    if (!window.confirm(t("teachers.confirmDelete", { name: displayName(teacher) }))) {
       return;
     }
 
@@ -150,13 +152,13 @@ export function TeachersPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Title order={2}>师资</Title>
-        {canManageEducation ? <Button onClick={openCreateModal}>新增老师</Button> : null}
+        <Title order={2}>{t("teachers.title")}</Title>
+        {canManageEducation ? <Button onClick={openCreateModal}>{t("teachers.add")}</Button> : null}
       </Group>
 
       {teachersQuery.error ? (
         <Alert color="red" variant="light">
-          {teachersQuery.error instanceof Error ? teachersQuery.error.message : "加载老师失败"}
+          {teachersQuery.error instanceof Error ? teachersQuery.error.message : t("teachers.loadFailed")}
         </Alert>
       ) : null}
 
@@ -165,11 +167,11 @@ export function TeachersPage() {
           <Table miw={780} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>姓名</Table.Th>
-                <Table.Th>电话</Table.Th>
-                <Table.Th>备注</Table.Th>
-                <Table.Th>状态</Table.Th>
-                {canManageEducation ? <Table.Th>操作</Table.Th> : null}
+                <Table.Th>{t("teachers.fields.name")}</Table.Th>
+                <Table.Th>{t("teachers.fields.phone")}</Table.Th>
+                <Table.Th>{t("teachers.fields.note")}</Table.Th>
+                <Table.Th>{t("teachers.fields.status")}</Table.Th>
+                {canManageEducation ? <Table.Th>{t("common.actions")}</Table.Th> : null}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -185,7 +187,7 @@ export function TeachersPage() {
                 <Table.Tr>
                   <Table.Td colSpan={canManageEducation ? 5 : 4}>
                     <Text ta="center" c="dimmed" py="lg">
-                      暂无老师
+                      {t("teachers.empty")}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -197,14 +199,14 @@ export function TeachersPage() {
                     <Table.Td>{teacher.note ?? "-"}</Table.Td>
                     <Table.Td>
                       <Badge color={teacher.active ? "green" : "gray"} variant="light">
-                        {teacher.active ? "启用" : "停用"}
+                        {teacher.active ? t("teachers.active") : t("teachers.inactive")}
                       </Badge>
                     </Table.Td>
                     {canManageEducation ? (
                       <Table.Td>
                         <Group gap="xs" wrap="nowrap">
                           <Button size="xs" variant="light" onClick={() => openEditModal(teacher)}>
-                            编辑
+                            {t("common.edit")}
                           </Button>
                           <Button
                             size="xs"
@@ -218,7 +220,7 @@ export function TeachersPage() {
                               })
                             }
                           >
-                            {teacher.active ? "停用" : "启用"}
+                            {teacher.active ? t("teachers.disable") : t("teachers.enable")}
                           </Button>
                           <Button
                             size="xs"
@@ -227,7 +229,7 @@ export function TeachersPage() {
                             loading={deleteMutation.isPending}
                             onClick={() => handleDelete(teacher)}
                           >
-                            删除
+                            {t("common.delete")}
                           </Button>
                         </Group>
                       </Table.Td>
@@ -240,7 +242,7 @@ export function TeachersPage() {
         </ScrollArea>
       </Paper>
 
-      <Modal opened={modalOpened} onClose={closeModal} title={editingTeacher ? "编辑老师" : "新增老师"} size="lg">
+      <Modal opened={modalOpened} onClose={closeModal} title={editingTeacher ? t("teachers.edit") : t("teachers.add")} size="lg">
         <form onSubmit={onSubmit}>
           <Stack gap="md">
             {formError ? (
@@ -249,20 +251,20 @@ export function TeachersPage() {
               </Alert>
             ) : null}
             <Group grow align="flex-start">
-              <TextInput label="姓名" error={errors.name?.message} {...form.register("name")} />
+              <TextInput label={t("teachers.fields.name")} error={errors.name?.message} {...form.register("name")} />
               <TextInput
-                label="英文名"
+                label={t("teachers.fields.nameEn")}
                 error={errors.name_en?.message}
                 {...form.register("name_en", { setValueAs: emptyToUndefined })}
               />
             </Group>
             <TextInput
-              label="电话"
+              label={t("teachers.fields.phone")}
               error={errors.phone?.message}
               {...form.register("phone", { setValueAs: emptyToUndefined })}
             />
             <Textarea
-              label="备注"
+              label={t("teachers.fields.note")}
               error={errors.note?.message}
               {...form.register("note", { setValueAs: emptyToUndefined })}
             />
@@ -271,7 +273,7 @@ export function TeachersPage() {
               name="active"
               render={({ field }) => (
                 <Checkbox
-                  label="启用"
+                  label={t("teachers.active")}
                   checked={field.value ?? true}
                   onChange={(event) => field.onChange(event.currentTarget.checked)}
                 />
@@ -279,10 +281,10 @@ export function TeachersPage() {
             />
             <Group justify="flex-end">
               <Button variant="subtle" onClick={closeModal}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button type="submit" loading={isSaving}>
-                保存
+                {t("common.save")}
               </Button>
             </Group>
           </Stack>
