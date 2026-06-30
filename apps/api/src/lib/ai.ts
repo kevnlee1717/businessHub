@@ -3,6 +3,8 @@ import { spawn } from "node:child_process";
 export type RecruitmentCopyType = "ad" | "job_description" | "invite_script";
 
 export type RecruitmentCopyInput = {
+  base_prompt?: string | undefined;
+  tune_prompt?: string | null | undefined;
   industry?: string | undefined;
   job_title: string;
   salary_min?: number | null | undefined;
@@ -45,9 +47,12 @@ function buildRecruitmentPrompt(input: RecruitmentCopyInput) {
     input.salary_min || input.salary_max
       ? `${input.salary_min ?? ""}${input.salary_min && input.salary_max ? "-" : ""}${input.salary_max ?? ""} SGD/月`
       : input.salary_note;
+  const basePrompt = input.base_prompt?.trim();
+  const tunePrompt = input.tune_prompt?.trim();
 
   return [
-    "你是新加坡本地招聘文案助手。请只输出可直接给招聘人员使用的中文文案，不要解释过程。",
+    basePrompt || "你是新加坡本地招聘文案助手。请只输出可直接给招聘人员使用的中文文案，不要解释过程。",
+    tunePrompt ? `微调要求:${tunePrompt}` : undefined,
     `文案类型:${copyTypeLabel(input.copy_type)}`,
     input.platform ? `发布平台:${input.platform}` : undefined,
     input.tone ? `语气:${input.tone}` : undefined,

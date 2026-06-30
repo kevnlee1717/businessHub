@@ -31,6 +31,20 @@ export const recruitmentIndustries = pgTable(
   (table) => [unique("recruitment_industries_company_name_unique").on(table.companyId, table.name)]
 );
 
+export const recruitmentPlatforms = pgTable(
+  "recruitment_platforms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 120 }).notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [unique("recruitment_platforms_company_name_unique").on(table.companyId, table.name)]
+);
+
 export const recruitmentJobs = pgTable("recruitment_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
@@ -60,6 +74,7 @@ export const recruitmentMaterials = pgTable("recruitment_materials", {
   type: recruitmentMaterialTypeEnum("type").notNull(),
   title: varchar("title", { length: 200 }).notNull(),
   sourceText: text("source_text"),
+  tunePrompt: text("tune_prompt"),
   textContent: text("text_content"),
   documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
   platforms: text("platforms").array(),
@@ -68,6 +83,19 @@ export const recruitmentMaterials = pgTable("recruitment_materials", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
+
+export const recruitmentPromptTemplates = pgTable(
+  "recruitment_prompt_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    materialType: recruitmentMaterialTypeEnum("material_type").notNull(),
+    basePrompt: text("base_prompt").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [unique("recruitment_prompt_templates_company_type_unique").on(table.companyId, table.materialType)]
+);
 
 export const recruitmentPostings = pgTable("recruitment_postings", {
   id: uuid("id").primaryKey().defaultRandom(),

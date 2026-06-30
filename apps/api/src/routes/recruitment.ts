@@ -10,7 +10,9 @@ import {
   recruitmentInterviews,
   recruitmentJobs,
   recruitmentMaterials,
+  recruitmentPlatforms,
   recruitmentPostings,
+  recruitmentPromptTemplates,
   recruitmentSettings
 } from "@bh/db";
 import {
@@ -32,9 +34,13 @@ import {
   recruitmentJobUpdateSchema,
   recruitmentMaterialCreateSchema,
   recruitmentMaterialUpdateSchema,
+  recruitmentPlatformCreateSchema,
+  recruitmentPlatformListQuerySchema,
   recruitmentPostingCreateSchema,
   recruitmentPostingListQuerySchema,
   recruitmentPostingUpdateSchema,
+  recruitmentPromptTemplateListQuerySchema,
+  recruitmentPromptTemplateUpdateSchema,
   recruitmentSettingsUpdateSchema
 } from "@bh/shared";
 import { and, asc, count, desc, eq, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
@@ -166,6 +172,29 @@ function serializeIndustry(row: typeof recruitmentIndustries.$inferSelect) {
   };
 }
 
+function serializePlatform(row: typeof recruitmentPlatforms.$inferSelect) {
+  return {
+    id: row.id,
+    company_id: row.companyId,
+    name: row.name,
+    sort_order: row.sortOrder,
+    active: row.active,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializePromptTemplate(row: typeof recruitmentPromptTemplates.$inferSelect) {
+  return {
+    id: row.id,
+    company_id: row.companyId,
+    material_type: row.materialType,
+    base_prompt: row.basePrompt,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
 function serializeJob(row: typeof recruitmentJobs.$inferSelect) {
   return {
     id: row.id,
@@ -277,6 +306,7 @@ function serializeMaterial(
     type: row.type,
     title: row.title,
     source_text: row.sourceText,
+    tune_prompt: row.tunePrompt,
     text_content: row.textContent,
     document_id: row.documentId,
     platforms: row.platforms,
@@ -540,6 +570,7 @@ async function parseMaterialBody(request: FastifyRequest) {
     ai_generated: booleanValue(fields.ai_generated),
     platforms: arrayValue(fields.platforms),
     source_text: nullableValue(fields.source_text),
+    tune_prompt: nullableValue(fields.tune_prompt),
     document_id: fields.document_id ?? document?.id
   });
 
@@ -576,6 +607,7 @@ async function parseMaterialUpdateBody(request: FastifyRequest) {
     ai_generated: booleanValue(fields.ai_generated),
     platforms: arrayValue(fields.platforms),
     source_text: nullableValue(fields.source_text),
+    tune_prompt: nullableValue(fields.tune_prompt),
     document_id: fields.document_id ?? document?.id
   });
 
@@ -726,6 +758,84 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       if (isUniqueViolation(error)) return sendConflict(reply, "recruitment_industry_exists");
       throw error;
     }
+  });
+
+  app.get("/recruitment/platforms", { preHandler: requirePerm("recruitment.view") }, async (request) => {
+    const query = parseWithSchema(recruitmentPlatformListQuerySchema, request.query);
+    const filters: SQL[] = [];
+    const accessFilter = await getAccessibleFilter(request, recruitmentPlatforms.companyId);
+    if (accessFilter) filters.push(accessFilter);
+    if (query.company_id) filters.push(eq(recruitmentPlatforms.companyId, query.company_id));
+    if (query.active) filters.push(eq(recruitmentPlatforms.active, query.active === "1" || query.active === "true"));
+
+    const rows = await db
+      .select()
+      .from(recruitmentPlatforms)
+      .where(filters.length ? and(...filters) : sql`true`)
+      .orderBy(asc(recruitmentPlatforms.sortOrder), asc(recruitmentPlatforms.name));
+
+    const platforms = rows.map(serializePlatform);
+    return { platforms, resources: platforms };
+  });
+
+  app.post("/recruitment/platforms", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const body = parseWithSchema(recruitmentPlatformCreateSchema, request.body);
+    if (!(await assertCompanyAccess(request, reply, body.company_id))) return;
+
+    await db
+      .insert(recruitmentPlatforms)
+      .values({
+        companyId: body.company_id,
+        name: body.name
+      })
+      .onConflictDoNothing({
+        target: [recruitmentPlatforms.companyId, recruitmentPlatforms.name]
+      });
+
+    const [platform] = await db
+      .select()
+      .from(recruitmentPlatforms)
+      .where(and(eq(recruitmentPlatforms.companyId, body.company_id), eq(recruitmentPlatforms.name, body.name)))
+      .limit(1);
+    const resource = serializePlatform(mustReturn(platform));
+    return reply.code(201).send({ platform: resource, resource });
+  });
+
+  app.get("/recruitment/prompt-templates", { preHandler: requirePerm("recruitment.view") }, async (request) => {
+    const query = parseWithSchema(recruitmentPromptTemplateListQuerySchema, request.query);
+    const filters: SQL[] = [];
+    const accessFilter = await getAccessibleFilter(request, recruitmentPromptTemplates.companyId);
+    if (accessFilter) filters.push(accessFilter);
+    if (query.company_id) filters.push(eq(recruitmentPromptTemplates.companyId, query.company_id));
+
+    const rows = await db
+      .select()
+      .from(recruitmentPromptTemplates)
+      .where(filters.length ? and(...filters) : sql`true`)
+      .orderBy(asc(recruitmentPromptTemplates.materialType));
+
+    const promptTemplates = rows.map(serializePromptTemplate);
+    return { prompt_templates: promptTemplates, resources: promptTemplates };
+  });
+
+  app.patch("/recruitment/prompt-templates/:id", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(recruitmentPromptTemplateUpdateSchema, request.body);
+    const [existing] = await db.select().from(recruitmentPromptTemplates).where(eq(recruitmentPromptTemplates.id, id)).limit(1);
+    if (!existing) return sendNotFound(reply);
+    if (!(await assertCompanyAccess(request, reply, existing.companyId))) return;
+
+    const [promptTemplate] = await db
+      .update(recruitmentPromptTemplates)
+      .set({
+        basePrompt: body.base_prompt,
+        updatedAt: new Date()
+      })
+      .where(eq(recruitmentPromptTemplates.id, id))
+      .returning();
+
+    const resource = serializePromptTemplate(mustReturn(promptTemplate));
+    return { prompt_template: resource, resource };
   });
 
   app.get("/recruitment/jobs", { preHandler: requirePerm("recruitment.view") }, async (request) => {
@@ -880,6 +990,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         type: body.type,
         title: body.title,
         sourceText: body.source_text,
+        tunePrompt: body.tune_prompt,
         textContent: body.text_content,
         documentId: body.document_id,
         platforms: body.platforms,
@@ -908,6 +1019,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.type !== undefined) update.type = body.type;
     if (body.title !== undefined) update.title = body.title;
     if (hasOwn(body, "source_text")) update.sourceText = body.source_text;
+    if (hasOwn(body, "tune_prompt")) update.tunePrompt = body.tune_prompt;
     if (hasOwn(body, "text_content")) update.textContent = body.text_content;
     if (hasOwn(body, "document_id")) update.documentId = body.document_id;
     if (hasOwn(body, "platforms")) update.platforms = body.platforms;
@@ -933,7 +1045,32 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
 
   app.post("/recruitment/materials/ai-copy", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
     const body = parseWithSchema(recruitmentAiCopySchema, request.body);
-    const result = await generateRecruitmentCopy(body);
+    const materialType = body.material_type ?? "copy";
+    const companyId = body.company_id;
+    const promptTemplate = companyId
+      ? await (async () => {
+          if (!(await assertCompanyAccess(request, reply, companyId))) return undefined;
+
+          const [row] = await db
+            .select()
+            .from(recruitmentPromptTemplates)
+            .where(
+              and(
+                eq(recruitmentPromptTemplates.companyId, companyId),
+                eq(recruitmentPromptTemplates.materialType, materialType)
+              )
+            )
+            .limit(1);
+          return row;
+        })()
+      : undefined;
+    if (reply.sent) return;
+
+    const result = await generateRecruitmentCopy({
+      ...body,
+      base_prompt: promptTemplate?.basePrompt,
+      tune_prompt: body.tune_prompt
+    });
     if (!result.ok) return reply.code(result.statusCode).send({ error: result.error, message: result.message });
     return { draft: result.draft, model: result.model };
   });

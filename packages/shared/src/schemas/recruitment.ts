@@ -42,6 +42,24 @@ export const recruitmentIndustryListQuerySchema = z.object({
   q: optionalText
 });
 
+export const recruitmentPlatformCreateSchema = z.object({
+  company_id: uuidField,
+  name: z.string().trim().min(1).max(120)
+});
+
+export const recruitmentPlatformListQuerySchema = z.object({
+  company_id: optionalUuid,
+  active: booleanQuery
+});
+
+export const recruitmentPromptTemplateListQuerySchema = z.object({
+  company_id: optionalUuid
+});
+
+export const recruitmentPromptTemplateUpdateSchema = z.object({
+  base_prompt: z.string()
+});
+
 const recruitmentJobBaseSchema = z.object({
   industry_id: nullableOptionalUuid,
   title: z.string().trim().min(1).max(200),
@@ -91,6 +109,7 @@ const recruitmentMaterialBaseSchema = z.object({
   type: z.enum(recruitmentMaterialTypes),
   title: z.string().trim().min(1).max(200),
   source_text: nullableOptionalText,
+  tune_prompt: z.string().nullish(),
   text_content: nullableOptionalText,
   document_id: nullableOptionalUuid,
   platforms: z.array(z.string().trim().min(1)).nullable().optional(),
@@ -110,6 +129,7 @@ export const recruitmentMaterialListQuerySchema = z.object({
 });
 
 export const recruitmentAiCopySchema = z.object({
+  company_id: optionalUuid,
   industry: optionalText,
   job_title: z.string().trim().min(1),
   salary_min: z.number().int().min(0).nullable().optional(),
@@ -118,6 +138,8 @@ export const recruitmentAiCopySchema = z.object({
   job_content: nullableOptionalText,
   requirements: nullableOptionalText,
   source_text: nullableOptionalText,
+  tune_prompt: z.string().nullish(),
+  material_type: z.enum(recruitmentMaterialTypes).optional(),
   copy_type: z.enum(["ad", "job_description", "invite_script"]),
   tone: optionalText,
   platform: optionalText
