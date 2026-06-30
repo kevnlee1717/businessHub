@@ -104,6 +104,7 @@ export function RentPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deleteMode, setDeleteMode] = useState(false);
 
   const [locModalOpen, setLocModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -263,9 +264,16 @@ export function RentPage() {
     <Stack gap="md">
       <Group justify="space-between">
         <Title order={2}>{t("documents.tabs.rent")}</Title>
-        <Group>
+        <Group gap="xs">
           <Button variant="default" onClick={openCreateLocation}>
             {t("rent.location.add")}
+          </Button>
+          <Button
+            variant={deleteMode ? "filled" : "default"}
+            color="red"
+            onClick={() => setDeleteMode((v) => !v)}
+          >
+            {deleteMode ? t("documents.library.deleteDone") : t("common.delete")}
           </Button>
           <Button onClick={openUpload} disabled={locations.length === 0}>
             {t("documents.library.upload")}
@@ -418,19 +426,21 @@ export function RentPage() {
                                 >
                                   {t("common.preview")}
                                 </Button>
-                                <Button
-                                  size="xs"
-                                  color="red"
-                                  variant="subtle"
-                                  loading={removeFile.isPending}
-                                  onClick={() => {
-                                    if (window.confirm(t("rent.files.deleteConfirm"))) {
-                                      removeFile.mutate(file.id);
-                                    }
-                                  }}
-                                >
-                                  {t("common.delete")}
-                                </Button>
+                                {deleteMode ? (
+                                  <Button
+                                    size="xs"
+                                    color="red"
+                                    variant="subtle"
+                                    loading={removeFile.isPending}
+                                    onClick={() => {
+                                      if (window.confirm(t("rent.files.deleteConfirm"))) {
+                                        removeFile.mutate(file.id);
+                                      }
+                                    }}
+                                  >
+                                    {t("common.delete")}
+                                  </Button>
+                                ) : null}
                               </Group>
                             </Table.Td>
                           </Table.Tr>

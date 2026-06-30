@@ -6,7 +6,7 @@ import { count, desc, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { saveUpload } from "../lib/files";
+import { deleteUpload, saveUpload } from "../lib/files";
 import { idParamsSchema, parseWithSchema } from "./hrUtils";
 
 function toNumericString(value: unknown): string | null {
@@ -124,11 +124,16 @@ export async function registerRentRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete("/rent/locations/:id", { preHandler: requirePerm("document.manage") }, async (request) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    // 先删该地点下文件对应的 documents(rent_files 会随地点级联删)。
-    const linked = await db.select({ documentId: rentFiles.documentId }).from(rentFiles).where(eq(rentFiles.locationId, id));
+    // 先删该地点下文件对应的 documents + 物理文件(rent_files 会随地点级联删)。
+    const linked = await db
+      .select({ documentId: rentFiles.documentId, storagePath: documents.storagePath })
+      .from(rentFiles)
+      .innerJoin(documents, eq(rentFiles.documentId, documents.id))
+      .where(eq(rentFiles.locationId, id));
     await db.delete(rentLocations).where(eq(rentLocations.id, id));
     for (const link of linked) {
       await db.delete(documents).where(eq(documents.id, link.documentId));
+      await deleteUpload(link.storagePath);
     }
     return { ok: true } as const;
   });
@@ -213,8 +218,12 @@ export async function registerRentRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [row] = await db.select().from(rentFiles).where(eq(rentFiles.id, id));
     if (row) {
+      const [doc] = await db.select({ storagePath: documents.storagePath }).from(documents).where(eq(documents.id, row.documentId));
       await db.delete(rentFiles).where(eq(rentFiles.id, id));
       await db.delete(documents).where(eq(documents.id, row.documentId));
+      if (doc) {
+        await deleteUpload(doc.storagePath);
+      }
     }
     return { ok: true } as const;
   });
