@@ -320,6 +320,78 @@ function useSimpleForm(initial: Dict = {}) {
   return { values, setValues, set };
 }
 
+function CandidateQuickAddModal({
+  opened,
+  onClose,
+  prefill
+}: {
+  opened: boolean;
+  onClose: () => void;
+  prefill: { company_id: string; source_type: "posting" | "campaign"; source_posting_id?: string; source_campaign_id?: string; intended_job_id?: string };
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
+  const base = useBaseOptions();
+  const queryClient = useQueryClient();
+  const form = useSimpleForm({ name: "", phone: "", nationality: "", intended_job_id: "" });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const jobOptions = base.jobs
+    .filter((job) => job.company_id === prefill.company_id)
+    .map((job) => ({ value: job.id, label: tField(job, "title", lang) }));
+  const mutation = useMutation({
+    mutationFn: () => {
+      const data = new FormData();
+      Object.entries({
+        company_id: prefill.company_id,
+        source_type: prefill.source_type,
+        source_posting_id: prefill.source_posting_id,
+        source_campaign_id: prefill.source_campaign_id,
+        intended_job_id: form.values.intended_job_id,
+        name: form.values.name,
+        phone: form.values.phone,
+        nationality: form.values.nationality,
+        status: "new"
+      }).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") data.set(key, String(value));
+      });
+      if (photo) data.set("photo", photo);
+      return createRecruitmentCandidate(data);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all });
+      form.setValues({ name: "", phone: "", nationality: "", intended_job_id: "" });
+      setPhoto(null);
+      onClose();
+    }
+  });
+
+  useEffect(() => {
+    if (!opened) return;
+    form.setValues({ name: "", phone: "", nationality: "", intended_job_id: prefill.intended_job_id ?? "" });
+    setPhoto(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, prefill.company_id, prefill.source_posting_id, prefill.source_campaign_id, prefill.intended_job_id]);
+
+  return (
+    <Modal opened={opened} onClose={onClose} title={t("recruitment.candidates.add")} size="md">
+      <Stack gap="md">
+        <ErrorAlert error={mutation.error} />
+        <TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} />
+        <TextInput label={t("recruitment.fields.phone")} value={String(form.values.phone ?? "")} onChange={(e) => form.set("phone", e.currentTarget.value)} />
+        <TextInput label={t("recruitment.fields.nationality")} value={String(form.values.nationality ?? "")} onChange={(e) => form.set("nationality", e.currentTarget.value)} />
+        <Select label={t("recruitment.fields.job")} data={jobOptions} value={String(form.values.intended_job_id ?? "")} onChange={(v) => form.set("intended_job_id", v ?? "")} clearable searchable />
+        <FileButton onChange={setPhoto} accept="image/*">
+          {(props) => <Button variant="light" {...props}>{photo ? photo.name : t("recruitment.capture.photo")}</Button>}
+        </FileButton>
+        <Group justify="flex-end">
+          <Button variant="subtle" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>{t("common.save")}</Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
 function JobFormModal({
   opened,
   onClose,
@@ -828,22 +900,27 @@ export function JobDetailPageImpl() {
 }
 
 export function PostingsPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const base = useBaseOptions();
   const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentPostingStatus | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecruitmentPosting | null>(null);
+  const [addCandidateFor, setAddCandidateFor] = useState<RecruitmentPosting | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.postings(status), queryFn: () => listRecruitmentPostings({ status: status ?? undefined }) });
   const rows = query.data?.postings ?? [];
-  const filteredRows = companyId ? rows.filter((row) => row.company_id === companyId) : rows;
+  const jobOptionsForCompany = (companyId ? base.jobs.filter((job) => job.company_id === companyId) : base.jobs).map((job) => ({ value: job.id, label: tField(job, "title", lang) }));
+  const filteredRows = rows.filter((row) => (!companyId || row.company_id === companyId) && (!jobId || row.job_id === jobId));
   return (
     <Stack gap="md">
       <ErrorAlert error={query.error} />
       <Group align="flex-end">
         <Select label={t("recruitment.fields.status")} w={180} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentPostingStatus | null)} clearable />
-        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={setCompanyId} clearable />
+        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={(v) => { if (jobId && v && !base.jobs.some((job) => job.id === jobId && job.company_id === v)) setJobId(null); setCompanyId(v); }} clearable />
+        <Select label={t("recruitment.fields.job")} w={180} data={jobOptionsForCompany} value={jobId} onChange={setJobId} clearable searchable />
         <Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.postings.add")}</Button>
       </Group>
       <ScrollArea>
@@ -868,7 +945,12 @@ export function PostingsPageImpl() {
                 <Table.Td>{row.published_on}</Table.Td>
                 <Table.Td><StatusBadge value={row.status} ns="postingStatus" /></Table.Td>
                 <Table.Td>{row.inquiry_count}</Table.Td>
-                <Table.Td><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Table.Td>
+                <Table.Td>
+                  <Group gap="xs">
+                    <Button size="xs" variant="subtle" onClick={() => setAddCandidateFor(row)}>{t("recruitment.candidates.add")}</Button>
+                    <Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button>
+                  </Group>
+                </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -876,6 +958,7 @@ export function PostingsPageImpl() {
       </ScrollArea>
       <TablePagination total={filteredRows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <PostingFormModal opened={modalOpen} onClose={() => setModalOpen(false)} posting={editing} />
+      {addCandidateFor ? <CandidateQuickAddModal opened onClose={() => setAddCandidateFor(null)} prefill={{ company_id: addCandidateFor.company_id, source_type: "posting", source_posting_id: addCandidateFor.id, intended_job_id: addCandidateFor.job_id }} /> : null}
     </Stack>
   );
 }
@@ -901,23 +984,28 @@ function CampaignFormModal({ opened, onClose, campaign, initialJobId }: { opened
 }
 
 export function CampaignsPageImpl() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.language);
   const navigate = useNavigate();
   const base = useBaseOptions();
   const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentCampaignStatus | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecruitmentCampaign | null>(null);
+  const [addCandidateFor, setAddCandidateFor] = useState<RecruitmentCampaign | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.campaigns(status), queryFn: () => listRecruitmentCampaigns({ status: status ?? undefined }) });
   const rows = query.data?.campaigns ?? [];
-  const filteredRows = companyId ? rows.filter((row) => row.company_id === companyId) : rows;
+  const jobOptionsForCompany = (companyId ? base.jobs.filter((job) => job.company_id === companyId) : base.jobs).map((job) => ({ value: job.id, label: tField(job, "title", lang) }));
+  const filteredRows = rows.filter((row) => (!companyId || row.company_id === companyId) && (!jobId || (row.job_ids ?? []).includes(jobId)));
   return (
     <Stack gap="md">
       <ErrorAlert error={query.error} />
       <Group align="flex-end">
         <Select label={t("recruitment.fields.status")} w={180} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentCampaignStatus | null)} clearable />
-        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={setCompanyId} clearable />
+        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={(v) => { if (jobId && v && !base.jobs.some((job) => job.id === jobId && job.company_id === v)) setJobId(null); setCompanyId(v); }} clearable />
+        <Select label={t("recruitment.fields.job")} w={180} data={jobOptionsForCompany} value={jobId} onChange={setJobId} clearable searchable />
         <Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.campaigns.add")}</Button>
       </Group>
       <ScrollArea>
@@ -944,6 +1032,7 @@ export function CampaignsPageImpl() {
                 <Table.Td><StatusBadge value={row.status} ns="campaignStatus" /></Table.Td>
                 <Table.Td>
                   <Group gap="xs">
+                    <Button size="xs" variant="subtle" onClick={() => setAddCandidateFor(row)}>{t("recruitment.candidates.add")}</Button>
                     <Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{t("common.view")}</Button>
                     <Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button>
                   </Group>
@@ -955,6 +1044,7 @@ export function CampaignsPageImpl() {
       </ScrollArea>
       <TablePagination total={filteredRows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <CampaignFormModal opened={modalOpen} onClose={() => setModalOpen(false)} campaign={editing} />
+      {addCandidateFor ? <CandidateQuickAddModal opened onClose={() => setAddCandidateFor(null)} prefill={{ company_id: addCandidateFor.company_id, source_type: "campaign", source_campaign_id: addCandidateFor.id }} /> : null}
     </Stack>
   );
 }

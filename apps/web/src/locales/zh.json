@@ -2278,6 +2278,7 @@
     },
     "candidates": {
       "title": "候选人",
+      "add": "添加候选人",
       "all": "全部",
       "overdue": "待跟进"
     },

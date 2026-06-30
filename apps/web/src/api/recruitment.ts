@@ -137,6 +137,7 @@ export type RecruitmentCampaign = {
   actual_date?: string | null;
   owner_id: string;
   notes?: string | null;
+  job_ids?: string[];
   created_at: string;
   updated_at: string;
 };

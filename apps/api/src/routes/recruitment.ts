@@ -1184,7 +1184,23 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       .from(recruitmentCampaigns)
       .where(filters.length ? and(...filters) : sql`true`)
       .orderBy(desc(recruitmentCampaigns.plannedDate));
-    return { campaigns: rows.map(serializeCampaign), resources: rows.map(serializeCampaign) };
+    const links = rows.length
+      ? await db
+        .select({
+          campaignId: recruitmentCampaignJobs.campaignId,
+          jobId: recruitmentCampaignJobs.jobId
+        })
+        .from(recruitmentCampaignJobs)
+        .where(inArray(recruitmentCampaignJobs.campaignId, rows.map((row) => row.id)))
+      : [];
+    const jobIdsByCampaign = new Map<string, string[]>();
+    for (const link of links) {
+      const current = jobIdsByCampaign.get(link.campaignId) ?? [];
+      current.push(link.jobId);
+      jobIdsByCampaign.set(link.campaignId, current);
+    }
+    const campaigns = rows.map((row) => ({ ...serializeCampaign(row), job_ids: jobIdsByCampaign.get(row.id) ?? [] }));
+    return { campaigns, resources: campaigns };
   });
 
   app.post("/recruitment/campaigns", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {

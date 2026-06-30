@@ -2278,6 +2278,7 @@
     },
     "candidates": {
       "title": "Candidates",
+      "add": "Add candidate",
       "all": "All",
       "overdue": "Overdue"
     },
