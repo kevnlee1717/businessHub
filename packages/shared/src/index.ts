@@ -1,5 +1,6 @@
 export * from "./enums";
 export * from "./guarantorStats";
+export * from "./guarantorSummary";
 export * from "./finance/dealEconomics";
 export * from "./finance/generateCharges";
 export * from "./finance/presets";

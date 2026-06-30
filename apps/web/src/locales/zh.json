@@ -662,6 +662,20 @@
       "note": "备注",
       "sponsoredCount": "担保人数",
       "idCard": "ID 卡"
+    },
+    "summary": {
+      "count": "担保人总数",
+      "sponsored": "总担保人次",
+      "approved": "已批准",
+      "rejected": "被拒",
+      "successRate": "整体成功率"
+    },
+    "detail": {
+      "casesTitle": "担保案件 {{count}} 个",
+      "client": "客户",
+      "status": "状态",
+      "result": "结果",
+      "noResult": "未判定"
     }
   },
   "gender": {
@@ -790,6 +804,11 @@
     "in_progress": "进行中",
     "completed": "已完成",
     "cancelled": "已取消"
+  },
+  "caseResult": {
+    "pending": "提交中",
+    "approved": "已批准",
+    "rejected": "被拒"
   },
   "caseStep": {
     "title": "案件步骤",
