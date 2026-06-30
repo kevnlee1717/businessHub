@@ -982,13 +982,54 @@ function CandidateTable({ rows, loading }: { rows: RecruitmentCandidate[]; loadi
 }
 
 export function CandidatesPageImpl({ talentPool = false }: { talentPool?: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const base = useBaseOptions();
+  const lang = normalizeLang(i18n.language);
   const [tab, setTab] = useState<"all" | "overdue">(talentPool ? "all" : "all");
   const [status, setStatus] = useState<RecruitmentCandidateStatus | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const params = { status: status ?? undefined, overdue: tab === "overdue" ? "1" : undefined, in_talent_pool: talentPool ? "1" : undefined };
   const query = useQuery({ queryKey: recruitmentKeys.candidates(params), queryFn: () => listRecruitmentCandidates(params) });
   const rows = query.data?.candidates ?? [];
-  return <Stack gap="md"><ErrorAlert error={query.error} />{!talentPool ? <Tabs value={tab} onChange={(v) => setTab((v as "all" | "overdue") ?? "all")}><Tabs.List><Tabs.Tab value="all">{t("recruitment.candidates.all")}</Tabs.Tab><Tabs.Tab value="overdue">{t("recruitment.candidates.overdue")}</Tabs.Tab></Tabs.List></Tabs> : null}<Group align="flex-end"><Select label={t("recruitment.fields.status")} w={190} data={recruitmentCandidateStatuses.map((v) => ({ value: v, label: t(`recruitment.candidateStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentCandidateStatus | null)} clearable /></Group><CandidateTable rows={rows} loading={query.isLoading} /></Stack>;
+  const jobOptionsForCompany = (companyId ? base.jobs.filter((j) => j.company_id === companyId) : base.jobs).map((j) => ({ value: j.id, label: tField(j, "title", lang) }));
+  const filteredRows = rows.filter((row) => (!companyId || row.company_id === companyId) && (!jobId || row.intended_job_id === jobId));
+  return (
+    <Stack gap="md">
+      <ErrorAlert error={query.error} />
+      {!talentPool ? (
+        <Tabs value={tab} onChange={(v) => setTab((v as "all" | "overdue") ?? "all")}>
+          <Tabs.List>
+            <Tabs.Tab value="all">{t("recruitment.candidates.all")}</Tabs.Tab>
+            <Tabs.Tab value="overdue">{t("recruitment.candidates.overdue")}</Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
+      ) : null}
+      <Group align="flex-end">
+        <Select
+          label={t("recruitment.fields.company")}
+          w={180}
+          data={base.companyOptions}
+          value={companyId}
+          onChange={(v) => {
+            setCompanyId(v);
+            if (v && jobId && !base.jobs.some((j) => j.id === jobId && j.company_id === v)) setJobId(null);
+          }}
+          clearable
+        />
+        <Select label={t("recruitment.fields.job")} w={180} data={jobOptionsForCompany} value={jobId} onChange={setJobId} clearable searchable />
+        <Select
+          label={t("recruitment.fields.status")}
+          w={190}
+          data={recruitmentCandidateStatuses.map((v) => ({ value: v, label: t(`recruitment.candidateStatus.${v}`) }))}
+          value={status}
+          onChange={(v) => setStatus(v as RecruitmentCandidateStatus | null)}
+          clearable
+        />
+      </Group>
+      <CandidateTable rows={filteredRows} loading={query.isLoading} />
+    </Stack>
+  );
 }
 
 export function CandidateDetailPageImpl() {
