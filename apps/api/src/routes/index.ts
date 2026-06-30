@@ -23,6 +23,7 @@ import { registerDiplomaRoutes } from "./diploma";
 import { registerDocumentCategoryRoutes } from "./documentCategories";
 import { registerDocumentRoutes } from "./documents";
 import { registerEmployeeRoutes } from "./employees";
+import { registerEpPriceFileRoutes } from "./epPriceFiles";
 import { registerEnglishRoutes } from "./english";
 import { registerExpenseCategoryRoutes } from "./expenseCategories";
 import { registerExternalCommissionRoutes } from "./externalCommission";
@@ -95,6 +96,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerGuarantorRoutes);
   await app.register(registerDocumentCategoryRoutes);
   await app.register(registerDocumentRoutes);
+  await app.register(registerEpPriceFileRoutes);
   await app.register(registerBankAccountRoutes);
   await app.register(registerExpenseCategoryRoutes);
   await app.register(registerLedgerRoutes);

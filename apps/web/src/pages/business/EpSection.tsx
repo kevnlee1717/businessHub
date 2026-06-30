@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CasesPage } from "./CasesPage";
 import { ClientsPage } from "./ClientsPage";
+import { PricelistPanel } from "./PricelistPanel";
 import { TemplatesPage } from "./TemplatesPage";
 
 export function EpSection() {
@@ -15,6 +16,7 @@ export function EpSection() {
         <Tabs.Tab value="cases">{t("business.tabs.cases")}</Tabs.Tab>
         <Tabs.Tab value="clients">{t("business.tabs.clients")}</Tabs.Tab>
         <Tabs.Tab value="templates">{t("business.tabs.templates")}</Tabs.Tab>
+        <Tabs.Tab value="pricelist">{t("business.tabs.pricelist")}</Tabs.Tab>
       </Tabs.List>
 
       <Tabs.Panel value="cases" pt="md">
@@ -25,6 +27,9 @@ export function EpSection() {
       </Tabs.Panel>
       <Tabs.Panel value="templates" pt="md">
         <TemplatesPage businessType="ep" />
+      </Tabs.Panel>
+      <Tabs.Panel value="pricelist" pt="md">
+        <PricelistPanel />
       </Tabs.Panel>
     </Tabs>
   );

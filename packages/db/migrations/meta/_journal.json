@@ -295,6 +295,13 @@
       "when": 1782790577245,
       "tag": "0041_strong_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1782798365804,
+      "tag": "0042_majestic_doorman",
+      "breakpoints": true
     }
   ]
 }

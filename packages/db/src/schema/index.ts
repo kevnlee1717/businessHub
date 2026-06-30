@@ -31,6 +31,7 @@ export * from "./caseStepDocuments";
 export * from "./stepReviews";
 export * from "./followUps";
 export * from "./priceAdjustments";
+export * from "./epPriceFiles";
 export * from "./billingCharges";
 export * from "./payments";
 export * from "./students";

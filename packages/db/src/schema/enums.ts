@@ -148,3 +148,5 @@ export const franchiseInterestLevelEnum = pgEnum("franchise_interest_level", fra
 export const franchiseVisitStatusEnum = pgEnum("franchise_visit_status", franchiseVisitStatuses);
 export const franchiseServiceEnum = pgEnum("franchise_service", franchiseServices);
 export const franchiseContractExpiryEnum = pgEnum("franchise_contract_expiry", franchiseContractExpiries);
+export const epPriceFileSlots = ["price_list", "unit_price", "faq"] as const;
+export const epPriceFileSlotEnum = pgEnum("ep_price_file_slot", epPriceFileSlots);
