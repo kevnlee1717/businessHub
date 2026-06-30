@@ -80,6 +80,12 @@ export interface ParsedCase {
 export function parseCaseFolderName(folder: string): ParsedCase {
   let s = folder.trim();
 
+  // ── 0. 剥前导垃圾字符 ─────────────────────────────────────────────────────
+  // 个别文件夹名开头混进不可见的私用区字符(如 U+F021)，会让 ^ 锚定的状态前缀
+  // 剥离正则失配。真实姓名/状态词都以拉丁字母或中文起头，故安全地剥掉开头一切
+  // 非「字母/数字/中文」的字符。
+  s = s.replace(/^[^A-Za-z0-9一-鿿]+/, "");
+
   // ── 1. 提取 AppealID ──────────────────────────────────────────────────────
   // 正常格式: ISC2604AM000493 / ISC2606AE001761
   // 异常格式: (ISCISC2603AM000485) — ISC 重复
@@ -155,6 +161,12 @@ export function parseCaseFolderName(folder: string): ParsedCase {
       name = parts[0]!;
     }
   }
+
+  // ── 7. name 兜底：剥掉残留的紧贴状态词前缀 ───────────────────────────────
+  // 防御性兜底：若上面分段后 name 仍以「状态词+连字符/下划线/空格」紧贴姓名开头
+  // (如前导垃圾字符使前缀剥离失配，残留 "REJECTED-GONG ZIHONG")，再剥一次。
+  // 状态词不会出现在真实拼音姓名里，故安全。
+  name = name.replace(/^(approved|granted|rejected|reject|pending)[-_\s]+/i, "");
 
   return {
     status,

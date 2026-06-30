@@ -133,6 +133,35 @@ describe("parseCaseFolderName", () => {
     expect(r.round).toBe(2);
   });
 
+  // --- 紧贴状态词前缀(无空格) 必须从 name 剥掉，否则破坏去重 ---
+  it("REJECTED-GONG ZIHONG 2nd Appeal (状态紧贴姓名)", () => {
+    const r = parseCaseFolderName("REJECTED-GONG ZIHONG 2nd Appeal");
+    expect(r.status).toBe("rejected");
+    expect(r.name).toBe("GONG ZIHONG");
+    expect(r.round).toBe(2);
+  });
+
+  it("APPROVED-WANG GUOLANG (状态紧贴姓名)", () => {
+    const r = parseCaseFolderName("APPROVED-WANG GUOLANG");
+    expect(r.status).toBe("approved");
+    expect(r.name).toBe("WANG GUOLANG");
+  });
+
+  // --- 开头混入不可见私用区字符(U+F021)，前缀仍须剥净、去重一致 ---
+  it("前导垃圾字符 U+F021 + REJECTED-GONG ZIHONG → 与干净版同 dedupKey", () => {
+    const r = parseCaseFolderName("REJECTED-GONG ZIHONG 2nd Appeal");
+    expect(r.status).toBe("rejected");
+    expect(r.name).toBe("GONG ZIHONG");
+    expect(r.round).toBe(2);
+    // 与 Sep 2025 的 "Rejected-GONG ZIHONG" 必须得到同一个 dedup key
+    expect(r.name).toBe(parseCaseFolderName("Rejected-GONG ZIHONG").name);
+    // 真实磁盘文件夹首字节就是 U+F021，确保前导垃圾字符被剥净
+    const dirty = parseCaseFolderName("REJECTED-GONG ZIHONG 2nd Appeal");
+    expect(dirty.name).toBe("GONG ZIHONG");
+    expect(dirty.status).toBe("rejected");
+    expect(dirty.round).toBe(2);
+  });
+
   // --- 真实文件夹名: REJECTED - 带 AppealID + 经办人 ---
   it("APPROVED - LEI GENHUA - ISC2604AM000493 - WU KS", () => {
     const r = parseCaseFolderName(
