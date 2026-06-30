@@ -30,6 +30,19 @@ export function IcaStatsPanel() {
   const data = statsQuery.data;
   const error = statsQuery.error;
 
+  // 近两年合并成一条连续折线：年份升序铺开各月，裁掉首尾的空月
+  const yearsAsc = [...(data?.years ?? [])].sort((a, b) => a.year - b.year);
+  const flatTrend = yearsAsc.flatMap((yearData) =>
+    yearData.months.map((m) => ({
+      label: `${yearData.year}/${String(m.month).padStart(2, "0")}`,
+      count: m.count
+    }))
+  );
+  const firstIdx = flatTrend.findIndex((p) => p.count > 0);
+  const lastIdx = flatTrend.reduce((acc, p, i) => (p.count > 0 ? i : acc), -1);
+  const trendData = firstIdx === -1 ? [] : flatTrend.slice(firstIdx, lastIdx + 1);
+  const trendTotal = yearsAsc.reduce((sum, y) => sum + y.total, 0);
+
   return (
     <Paper p="md">
       <Stack gap="lg">
@@ -49,33 +62,24 @@ export function IcaStatsPanel() {
           <SummaryCard label={t("icaStats.pending")} value={data?.summary.pending ?? 0} color="blue.6" />
         </SimpleGrid>
 
-        {/* 年度柱状图（years 已按倒序） */}
-        {(data?.years ?? []).map((yearData) => {
-          const chartData = yearData.months.map((m) => ({
-            month: t("icaStats.month", { month: m.month }),
-            count: m.count
-          }));
-
-          return (
-            <Stack key={yearData.year} gap="xs">
-              <Title order={4}>
-                {t("icaStats.chartTitle", { year: yearData.year, count: yearData.total })}
-              </Title>
-              <BarChart
-                h={320}
-                data={chartData}
-                dataKey="month"
-                series={[{ name: "count", label: t("icaStats.newCases"), color: "teal.6" }]}
-                tickLine="y"
-                gridAxis="xy"
-                withLegend={false}
-                withBarValueLabel
-                valueLabelProps={{ position: "top" }}
-                barChartProps={{ margin: { top: 24 } }}
-              />
-            </Stack>
-          );
-        })}
+        {/* 近两年新增案件趋势：跨年合并成一张柱状图 */}
+        {trendData.length > 0 ? (
+          <Stack gap="xs">
+            <Title order={4}>{t("icaStats.trendTitle", { count: trendTotal })}</Title>
+            <BarChart
+              h={340}
+              data={trendData}
+              dataKey="label"
+              series={[{ name: "count", label: t("icaStats.newCases"), color: "teal.6" }]}
+              tickLine="y"
+              gridAxis="xy"
+              withLegend={false}
+              withBarValueLabel
+              valueLabelProps={{ position: "top" }}
+              barChartProps={{ margin: { top: 24 } }}
+            />
+          </Stack>
+        ) : null}
 
         {!statsQuery.isLoading && (data?.years ?? []).length === 0 ? (
           <Text c="dimmed">{t("case.empty")}</Text>

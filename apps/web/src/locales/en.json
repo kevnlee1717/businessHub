@@ -2320,6 +2320,7 @@
     "rejected": "Rejected (Pending Resubmission)",
     "pending": "Submitted (Awaiting Result)",
     "chartTitle": "{{year}}  Total {{count}}",
+    "trendTitle": "New Cases Trend (last 2 years · {{count}} total)",
     "month": "M{{month}}",
     "newCases": "New Cases"
   }

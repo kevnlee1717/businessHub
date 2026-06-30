@@ -2320,6 +2320,7 @@
     "rejected": "被拒等待重提",
     "pending": "提交中等结果",
     "chartTitle": "{{year}}年  共{{count}}个",
+    "trendTitle": "新增案件趋势（近两年 共 {{count}} 个）",
     "month": "{{month}}月",
     "newCases": "新建案件"
   }
