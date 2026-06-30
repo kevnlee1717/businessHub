@@ -1,4 +1,4 @@
-import { Stack, Tabs, Title } from "@mantine/core";
+import { Tabs } from "@mantine/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CasesPage } from "./CasesPage";
@@ -16,6 +16,7 @@ export function IcaSection() {
       <Tabs.List>
         <Tabs.Tab value="cases">{t("business.tabs.cases")}</Tabs.Tab>
         <Tabs.Tab value="clients">{t("business.tabs.clients")}</Tabs.Tab>
+        <Tabs.Tab value="guarantors">{t("business.tabs.guarantors")}</Tabs.Tab>
         <Tabs.Tab value="templates">{t("business.tabs.templates")}</Tabs.Tab>
         <Tabs.Tab value="stats">{t("business.tabs.stats")}</Tabs.Tab>
       </Tabs.List>
@@ -26,14 +27,11 @@ export function IcaSection() {
       <Tabs.Panel value="clients" pt="md">
         <ClientsPage />
       </Tabs.Panel>
+      <Tabs.Panel value="guarantors" pt="md">
+        <GuarantorsPage />
+      </Tabs.Panel>
       <Tabs.Panel value="templates" pt="md">
-        <Stack gap="xl">
-          <TemplatesPage businessType="ica" />
-          <Stack gap="md">
-            <Title order={2}>{t("business.tabs.guarantors")}</Title>
-            <GuarantorsPage />
-          </Stack>
-        </Stack>
+        <TemplatesPage businessType="ica" />
       </Tabs.Panel>
       <Tabs.Panel value="stats" pt="md">
         <IcaStatsPanel />
