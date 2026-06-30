@@ -12,6 +12,7 @@ export const brochureKeys = {
   all: ["brochures"] as const,
   industries: () => ["brochures", "industries"] as const,
   categories: () => ["brochures", "categories"] as const,
+  treeUsage: () => ["brochures", "tree-usage"] as const,
   list: (params?: unknown) => ["brochures", "list", params] as const,
   versions: (id: string) => ["brochures", id, "versions"] as const
 };
@@ -57,6 +58,12 @@ export type Brochure = {
   current_mime?: string | null;
   current_storage_path?: string | null;
   current_url?: string | null;
+};
+
+export type BrochureTreeUsage = {
+  industry_id: string;
+  category_id: string;
+  count: number;
 };
 
 export type BrochureListParams = {
@@ -142,6 +149,7 @@ export const deleteBrochureCategory = (id: string) => api<{ ok: true }>(`/brochu
 
 export const listBrochures = (params: BrochureListParams = {}) =>
   api<{ brochures: Brochure[]; total?: number; page?: number; page_size?: number }>(`/brochures${qs(params)}`);
+export const listBrochureTreeUsage = () => api<{ usage: BrochureTreeUsage[] }>("/brochures/tree-usage");
 export const updateBrochure = (id: string, body: BrochureUpdateInput) =>
   api<{ brochure: Brochure }>(`/brochures/${id}`, { method: "PATCH", body });
 export const deleteBrochure = (id: string) => api<{ ok: true }>(`/brochures/${id}`, { method: "DELETE" });

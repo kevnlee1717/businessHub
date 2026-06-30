@@ -24,7 +24,7 @@ import {
   brochureVersionUploadSchema
 } from "@bh/shared";
 import { type MultipartFile } from "@fastify/multipart";
-import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -328,6 +328,26 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
       total: totalRow?.total ?? 0,
       page: pagination.page,
       page_size: pagination.pageSize
+    };
+  });
+
+  app.get("/brochures/tree-usage", { preHandler: requirePerm("brochure.view") }, async () => {
+    const rows = await db
+      .select({
+        industryId: brochures.industryId,
+        categoryId: brochures.categoryId,
+        count: sql<number>`count(*)::int`
+      })
+      .from(brochures)
+      .where(and(isNotNull(brochures.industryId), isNotNull(brochures.categoryId)))
+      .groupBy(brochures.industryId, brochures.categoryId);
+
+    return {
+      usage: rows.map((row) => ({
+        industry_id: row.industryId,
+        category_id: row.categoryId,
+        count: row.count
+      }))
     };
   });
 

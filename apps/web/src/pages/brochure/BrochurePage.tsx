@@ -21,7 +21,7 @@ import {
   UnstyledButton
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   brochureKeys,
@@ -29,6 +29,7 @@ import {
   deleteBrochureVersion,
   listBrochureCategories,
   listBrochureIndustries,
+  listBrochureTreeUsage,
   listBrochureVersions,
   listBrochures,
   setBrochureCurrentVersion,
@@ -148,6 +149,7 @@ function VersionHistory({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: brochureKeys.all });
       await queryClient.invalidateQueries({ queryKey: brochureKeys.versions(brochure.id) });
+      await queryClient.invalidateQueries({ queryKey: brochureKeys.treeUsage() });
     }
   });
 
@@ -336,6 +338,7 @@ export function BrochurePage() {
 
   const industriesQuery = useQuery({ queryKey: brochureKeys.industries(), queryFn: listBrochureIndustries });
   const categoriesQuery = useQuery({ queryKey: brochureKeys.categories(), queryFn: listBrochureCategories });
+  const treeUsageQuery = useQuery({ queryKey: brochureKeys.treeUsage(), queryFn: listBrochureTreeUsage });
   const params = {
     industry_id: selection.type === "industry" || selection.type === "category" ? selection.industryId : undefined,
     category_id: selection.type === "category" ? selection.categoryId : undefined,
@@ -352,6 +355,7 @@ export function BrochurePage() {
     mutationFn: deleteBrochure,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: brochureKeys.all });
+      await queryClient.invalidateQueries({ queryKey: brochureKeys.treeUsage() });
     }
   });
 
@@ -360,6 +364,10 @@ export function BrochurePage() {
   const brochures = brochuresQuery.data?.brochures ?? [];
   const total = brochuresQuery.data?.total ?? brochures.length;
   const activeKey = selectionKey(selection);
+  const usageSet = useMemo(
+    () => new Set((treeUsageQuery.data?.usage ?? []).filter((row) => row.count > 0).map((row) => `${row.industry_id}:${row.category_id}`)),
+    [treeUsageQuery.data?.usage]
+  );
 
   function openCreate() {
     setEditingBrochure(null);
@@ -397,7 +405,10 @@ export function BrochurePage() {
                     <TreeButton active={activeKey === `industry:${industry.id}`} onClick={() => select({ type: "industry", industryId: industry.id })}>
                       ▸ {industry.name}
                     </TreeButton>
-                    {categories.map((category) => (
+                    {(treeUsageQuery.isLoading
+                      ? []
+                      : categories.filter((category) => usageSet.has(`${industry.id}:${category.id}`))
+                    ).map((category) => (
                       <TreeButton
                         key={`${industry.id}-${category.id}`}
                         indent={18}
@@ -438,7 +449,7 @@ export function BrochurePage() {
               {canManage ? <Button onClick={openCreate}>{t("brochure.add")}</Button> : null}
             </Group>
 
-            <ErrorAlert error={industriesQuery.error ?? categoriesQuery.error ?? brochuresQuery.error ?? deleteMutation.error} />
+            <ErrorAlert error={industriesQuery.error ?? categoriesQuery.error ?? treeUsageQuery.error ?? brochuresQuery.error ?? deleteMutation.error} />
 
             {brochuresQuery.isLoading ? (
               <Group justify="center" py="xl">

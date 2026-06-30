@@ -151,6 +151,7 @@ export function BrochureFormModal({
     mutationFn: createBrochure,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: brochureKeys.all });
+      await queryClient.invalidateQueries({ queryKey: brochureKeys.treeUsage() });
       onClose();
     }
   });
@@ -159,6 +160,7 @@ export function BrochureFormModal({
     mutationFn: ({ id, body }: { id: string; body: Dict }) => updateBrochure(id, body),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: brochureKeys.all });
+      await queryClient.invalidateQueries({ queryKey: brochureKeys.treeUsage() });
       onClose();
     }
   });
@@ -267,6 +269,7 @@ export function UploadVersionModal({
     onSuccess: async (_data, vars) => {
       await queryClient.invalidateQueries({ queryKey: brochureKeys.all });
       await queryClient.invalidateQueries({ queryKey: brochureKeys.versions(vars.id) });
+      await queryClient.invalidateQueries({ queryKey: brochureKeys.treeUsage() });
       onClose();
     }
   });
