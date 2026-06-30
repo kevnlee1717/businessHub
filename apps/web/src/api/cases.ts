@@ -35,6 +35,7 @@ export type Client = {
   id: string;
   name: string;
   name_en?: string | null;
+  nationality?: string | null;
   phone?: string | null;
   email?: string | null;
   note?: string | null;

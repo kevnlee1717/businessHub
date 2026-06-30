@@ -680,10 +680,13 @@
     "fields": {
       "name": "姓名",
       "nameEn": "英文名",
+      "nationality": "国籍",
       "phone": "电话",
       "email": "邮箱",
       "note": "备注"
-    }
+    },
+    "nameEnHint": "留空时,中文名将自动生成拼音",
+    "nationalityPlaceholder": "如:中国 / 新加坡 / 马来西亚"
   },
   "guarantor": {
     "title": "担保人库",
@@ -1444,6 +1447,12 @@
     "company": "公司",
     "client": "客户"
   },
+  "bankAccountType": {
+    "bank_card": "银行卡",
+    "sg_corporate": "新加坡公户",
+    "alipay": "支付宝",
+    "wechat": "微信"
+  },
   "finance": {
     "tabs": {
       "billing": "收款",
@@ -1459,6 +1468,7 @@
     "fields": {
       "company": "公司",
       "accountName": "账户名称",
+      "accountType": "账户类型",
       "bankName": "开户行",
       "accountNo": "账号",
       "currency": "币种",

@@ -42,6 +42,7 @@ export function serializeBankAccount(row: typeof bankAccounts.$inferSelect) {
     id: row.id,
     company_id: row.companyId,
     name: row.name,
+    type: row.type,
     bank_name: row.bankName,
     account_no: row.accountNo,
     currency: row.currency,

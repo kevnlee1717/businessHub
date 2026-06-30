@@ -15,6 +15,7 @@ import { createClient, updateClient, type Client } from "../api/cases";
 type ClientFormValues = {
   name?: string | undefined;
   name_en?: string | undefined;
+  nationality?: string | null | undefined;
   phone?: string | undefined;
   email?: string | undefined;
   note?: string | null | undefined;
@@ -48,6 +49,7 @@ function getDefaultValues(client?: Client | null, initialName?: string): ClientF
   return {
     name: client?.name ?? initialName ?? "",
     name_en: client?.name_en ?? undefined,
+    nationality: client?.nationality ?? undefined,
     phone: client?.phone ?? undefined,
     email: client?.email ?? undefined,
     note: client?.note ?? null
@@ -116,11 +118,18 @@ export function ClientFormModal({
             <TextInput label={t("client.fields.name")} error={errors.name?.message} {...form.register("name")} />
             <TextInput
               label={t("client.fields.nameEn")}
+              description={t("client.nameEnHint")}
               error={errors.name_en?.message}
               {...form.register("name_en", { setValueAs: emptyToUndefined })}
             />
           </Group>
           <Group grow align="flex-start">
+            <TextInput
+              label={t("client.fields.nationality")}
+              placeholder={t("client.nationalityPlaceholder")}
+              error={errors.nationality?.message}
+              {...form.register("nationality", { setValueAs: emptyToUndefined })}
+            />
             <TextInput
               label={t("client.fields.phone")}
               error={errors.phone?.message}

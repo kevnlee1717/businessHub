@@ -344,6 +344,20 @@
       "when": 1782820072182,
       "tag": "0048_candidate_classification",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1782820073181,
+      "tag": "0049_client_nationality",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1782820074181,
+      "tag": "0050_bank_account_type",
+      "breakpoints": true
     }
   ]
 }

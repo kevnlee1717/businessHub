@@ -6,3 +6,6 @@ uploads/
 .DS_Store
 coverage
 .worktrees/
+
+# Claude Code worktrees/scratch
+.claude/

@@ -1,5 +1,6 @@
 import {
   type BankAccountCreateInput,
+  type BankAccountType,
   type BankAccountUpdateInput,
   type Currency,
   type ExpenseCategoryCreateInput,
@@ -19,6 +20,7 @@ export type BankAccount = {
   id: string;
   company_id: string;
   name: string;
+  type?: BankAccountType | null;
   bank_name?: string | null;
   account_no?: string | null;
   currency: Currency;

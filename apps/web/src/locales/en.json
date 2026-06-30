@@ -680,10 +680,13 @@
     "fields": {
       "name": "Name",
       "nameEn": "English name",
+      "nationality": "Nationality",
       "phone": "Phone",
       "email": "Email",
       "note": "Note"
-    }
+    },
+    "nameEnHint": "Leave blank to auto-generate pinyin from a Chinese name",
+    "nationalityPlaceholder": "e.g. China / Singapore / Malaysia"
   },
   "guarantor": {
     "title": "Guarantor Library",
@@ -1444,6 +1447,12 @@
     "company": "Company",
     "client": "Client"
   },
+  "bankAccountType": {
+    "bank_card": "Bank card",
+    "sg_corporate": "Singapore corporate",
+    "alipay": "Alipay",
+    "wechat": "WeChat"
+  },
   "finance": {
     "tabs": {
       "billing": "Collections",
@@ -1459,6 +1468,7 @@
     "fields": {
       "company": "Company",
       "accountName": "Account name",
+      "accountType": "Account type",
       "bankName": "Bank",
       "accountNo": "Account no.",
       "currency": "Currency",

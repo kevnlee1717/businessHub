@@ -40,6 +40,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   createCase,
   createCaseStepDoc,
+  updateCaseStepDoc,
   createFollowUp,
   createSubmission,
   getCase,
@@ -222,9 +223,10 @@ type DocumentRowProps = {
   caseId: string;
   canManageCases: boolean;
   categoryById: Map<string, DocumentCategory>;
+  categoryOptions: { value: string; label: string }[];
 };
 
-function DocumentRow({ doc, caseId, canManageCases, categoryById }: DocumentRowProps) {
+function DocumentRow({ doc, caseId, canManageCases, categoryById, categoryOptions }: DocumentRowProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [files, setFiles] = useState<File[]>([]);
@@ -242,6 +244,12 @@ function DocumentRow({ doc, caseId, canManageCases, categoryById }: DocumentRowP
   });
   const removeFileMutation = useMutation({
     mutationFn: (documentId: string) => removeCaseStepDocFile(doc.id, documentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
+    }
+  });
+  const updateCategoryMutation = useMutation({
+    mutationFn: (categoryId: string | null) => updateCaseStepDoc(doc.id, { category_id: categoryId }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
     }
@@ -275,7 +283,19 @@ function DocumentRow({ doc, caseId, canManageCases, categoryById }: DocumentRowP
         <Stack gap={2}>
           <Group gap="xs">
             <Text fw={500}>{displayName(doc.doc_name, doc.doc_name_en)}</Text>
-            {category ? (
+            {canManageCases ? (
+              <Select
+                size="xs"
+                w={160}
+                placeholder={t("caseStepDoc.fields.category")}
+                data={categoryOptions}
+                value={doc.category_id ?? null}
+                onChange={(value) => updateCategoryMutation.mutate(value)}
+                disabled={updateCategoryMutation.isPending}
+                searchable
+                clearable
+              />
+            ) : category ? (
               <Badge size="xs" variant="light" color="blue">
                 {displayName(category.name, category.name_en)}
               </Badge>
@@ -842,6 +862,7 @@ function StepCard({
                     caseId={caseId}
                     canManageCases={canManageCases}
                     categoryById={categoryById}
+                    categoryOptions={categoryOptions}
                   />
                 ))
               )}
@@ -1492,12 +1513,13 @@ export function CaseDetailPage() {
     const items: CaseNavItem[] = [{ key: "info", label: t("case.section.info") }];
     if (isIca) {
       items.push({ key: "guarantor", label: t("case.section.guarantor") });
+      // 提交周期(再申请记录)是 ICA 专属概念,EP 不显示
+      items.push({ key: "submissions", label: t("case.section.submissions") });
     }
     if (isEp) {
       items.push({ key: "children", label: t("case.section.children") });
     }
     if (isEp || isIca) {
-      items.push({ key: "submissions", label: t("case.section.submissions") });
       items.push({ key: "charges", label: t("case.section.charges") });
     }
     steps.forEach((step, index) => {
@@ -1743,7 +1765,7 @@ export function CaseDetailPage() {
             />
           ) : null}
 
-          {effectiveSelected === "submissions" && (caseItem.business_type === "ep" || caseItem.business_type === "ica") ? (
+          {effectiveSelected === "submissions" && caseItem.business_type === "ica" ? (
             <SubmissionTimeline
               caseId={caseItem.id}
               submissions={submissions}
