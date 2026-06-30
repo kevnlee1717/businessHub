@@ -24,3 +24,4 @@ export * from "./schemas/recruitment";
 export * from "./schemas/reports";
 export * from "./icaImport";
 export * from "./icaStats";
+export * from "./caseStatsSummary";
