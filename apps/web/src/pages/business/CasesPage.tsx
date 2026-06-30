@@ -48,6 +48,7 @@ type CaseFormValues = {
   guarantor_name?: string | undefined;
   guarantor_relation?: string | undefined;
   guarantor_contact?: string | undefined;
+  signed_at?: string | null | undefined;
 };
 
 type CaseListBusinessType = Extract<BusinessType, "ep" | "ica">;
@@ -66,6 +67,10 @@ const emptyToUndefined = (value: unknown) => {
 
 function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
+}
+
+function formatDate(value?: string | null) {
+  return value ? new Date(`${value}T00:00:00`).toLocaleDateString() : "-";
 }
 
 function statusColor(status: CaseStatus) {
@@ -103,7 +108,8 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
     template_id: undefined,
     guarantor_name: undefined,
     guarantor_relation: undefined,
-    guarantor_contact: undefined
+    guarantor_contact: undefined,
+    signed_at: null
   };
 }
 
@@ -114,6 +120,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const [statusFilter, setStatusFilter] = useState<CaseStatus | null>(null);
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [onlyReapply, setOnlyReapply] = useState(false);
+  const [signedAtOrder, setSignedAtOrder] = useState<"asc" | "desc" | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const { page, pageSize, setPage, setPageSize } = usePagination();
@@ -128,6 +135,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
       statusFilter,
       clientFilter,
       onlyReapply,
+      signedAtOrder,
       page,
       pageSize,
       useFrontendPagination
@@ -137,6 +145,8 @@ export function CasesPage({ businessType }: CasesPageProps) {
         business_type: businessType,
         status: statusFilter ?? undefined,
         client_id: clientFilter ?? undefined,
+        order_by: signedAtOrder ? "signed_at" : undefined,
+        order: signedAtOrder ?? undefined,
         page: useFrontendPagination ? undefined : page,
         page_size: useFrontendPagination ? undefined : pageSize
       }),
@@ -242,6 +252,21 @@ export function CasesPage({ businessType }: CasesPageProps) {
     setPage(1);
   }
 
+  function toggleSignedAtSort() {
+    setSignedAtOrder((current) => {
+      if (current === null) {
+        return "desc";
+      }
+
+      if (current === "desc") {
+        return "asc";
+      }
+
+      return null;
+    });
+    setPage(1);
+  }
+
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
 
@@ -251,7 +276,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
     }
 
     try {
-      await createMutation.mutateAsync({ ...values, business_type: businessType } as CaseCreateInput);
+      await createMutation.mutateAsync({
+        ...values,
+        business_type: businessType,
+        signed_at: values.signed_at || null
+      } as CaseCreateInput);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -298,7 +327,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
       </Group>
 
       <ScrollArea>
-        <Table miw={920} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
+        <Table miw={1040} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("case.fields.businessType")}</Table.Th>
@@ -306,13 +335,20 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 <Table.Th>{t("case.fields.status")}</Table.Th>
                 {businessType === "ica" && <Table.Th>再申请</Table.Th>}
                 <Table.Th>{t("case.fields.currentStep")}</Table.Th>
+                <Table.Th
+                  onClick={toggleSignedAtSort}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                >
+                  {t("case.fields.signedAt")}
+                  {signedAtOrder ? ` ${signedAtOrder === "asc" ? "↑" : "↓"}` : ""}
+                </Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 6 : 5}>
+                  <Table.Td colSpan={businessType === "ica" ? 7 : 6}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -320,7 +356,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Tr>
               ) : visibleCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 6 : 5}>
+                  <Table.Td colSpan={businessType === "ica" ? 7 : 6}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
@@ -346,6 +382,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                       </Table.Td>
                     )}
                     <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
+                    <Table.Td>{formatDate(caseItem.signed_at)}</Table.Td>
                     <Table.Td>
                       <Button
                         size="xs"
@@ -406,6 +443,19 @@ export function CasesPage({ businessType }: CasesPageProps) {
                   error={errors.template_id?.message}
                   searchable
                   clearable
+                />
+              )}
+            />
+            <Controller
+              name="signed_at"
+              control={form.control}
+              render={({ field }) => (
+                <TextInput
+                  type="date"
+                  label={t("case.fields.signedAt")}
+                  value={field.value ?? ""}
+                  onChange={(event) => field.onChange(event.currentTarget.value || null)}
+                  error={errors.signed_at?.message}
                 />
               )}
             />

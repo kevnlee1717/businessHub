@@ -48,6 +48,7 @@ function serializeCase(row: typeof cases.$inferSelect) {
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
     guarantor_contact: row.guarantorContact,
+    signed_at: row.signedAt,
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
@@ -180,9 +181,23 @@ const caseQuerySchema = z
     business_type: z.enum(businessTypes).optional(),
     status: z.enum(caseStatuses).optional(),
     client_id: z.string().uuid().optional(),
-    parent_case_id: z.string().uuid().optional()
+    parent_case_id: z.string().uuid().optional(),
+    order_by: z.enum(["signed_at", "created_at"]).optional().default("created_at"),
+    order: z.enum(["asc", "desc"]).optional().default("desc")
   })
   .merge(paginationQuery);
+
+function getCaseSort(orderBy: "signed_at" | "created_at", order: "asc" | "desc") {
+  if (orderBy === "signed_at") {
+    return [
+      sql`${cases.signedAt} is null`,
+      order === "asc" ? asc(cases.signedAt) : desc(cases.signedAt),
+      desc(cases.createdAt)
+    ];
+  }
+
+  return [order === "asc" ? asc(cases.createdAt) : desc(cases.createdAt)];
+}
 
 async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
   const caseIds = rows.map((row) => row.id);
@@ -286,15 +301,16 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
 
     const pagination = getPagination(query);
     const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const orderBy = getCaseSort(query.order_by ?? "created_at", query.order ?? "desc");
     const rows = pagination.paginate
       ? await db
           .select()
           .from(cases)
           .where(whereClause)
-          .orderBy(desc(cases.createdAt))
+          .orderBy(...orderBy)
           .limit(pagination.limit)
           .offset(pagination.offset)
-      : await db.select().from(cases).where(whereClause).orderBy(desc(cases.createdAt));
+      : await db.select().from(cases).where(whereClause).orderBy(...orderBy);
     const serialized = await serializeCasesWithLatest(rows);
 
     if (pagination.paginate) {
@@ -432,7 +448,8 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           billingId: body.billing_id ?? null,
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
-          guarantorContact: body.guarantor_contact
+          guarantorContact: body.guarantor_contact,
+          signedAt: body.signed_at ?? null
         })
         .returning();
 
@@ -535,6 +552,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
           guarantorContact: body.guarantor_contact,
+          signedAt: body.signed_at,
           updatedAt: new Date()
         })
         .where(eq(cases.id, id))

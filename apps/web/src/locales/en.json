@@ -593,6 +593,7 @@
       "template": "Workflow template",
       "status": "Status",
       "currentStep": "Current step",
+      "signedAt": "Signed date",
       "parentCase": "Parent case",
       "createdAt": "Created at",
       "guarantor": "Guarantor",

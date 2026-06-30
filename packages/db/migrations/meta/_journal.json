@@ -288,6 +288,13 @@
       "when": 1782781722302,
       "tag": "0040_motionless_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1782790577245,
+      "tag": "0041_strong_katie_power",
+      "breakpoints": true
     }
   ]
 }

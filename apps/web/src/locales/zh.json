@@ -593,6 +593,7 @@
       "template": "流程模板",
       "status": "状态",
       "currentStep": "当前步骤",
+      "signedAt": "签约日期",
       "parentCase": "父案件",
       "createdAt": "创建时间",
       "guarantor": "担保人",

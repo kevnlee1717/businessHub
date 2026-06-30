@@ -73,12 +73,16 @@ export type Case = {
   guarantor_name?: string | null;
   guarantor_relation?: string | null;
   guarantor_contact?: string | null;
+  signed_at?: string | null;
   created_at: string;
   updated_at: string;
   latest_result?: "pending" | "approved" | "rejected" | null;
   latest_rejected_at?: string | null;
   latest_submission_at?: string | null;
 };
+
+export type CaseOrderBy = "signed_at" | "created_at";
+export type SortOrder = "asc" | "desc";
 
 export type Guarantor = {
   id: string;
@@ -341,6 +345,8 @@ export function listCases(params: {
   status?: CaseStatus | undefined;
   client_id?: string | undefined;
   parent_case_id?: string | undefined;
+  order_by?: CaseOrderBy | undefined;
+  order?: SortOrder | undefined;
   page?: number | undefined;
   page_size?: number | undefined;
 } = {}): Promise<{ cases: Case[]; total?: number; page?: number; page_size?: number }> {
@@ -360,6 +366,14 @@ export function listCases(params: {
 
   if (params.parent_case_id) {
     searchParams.set("parent_case_id", params.parent_case_id);
+  }
+
+  if (params.order_by) {
+    searchParams.set("order_by", params.order_by);
+  }
+
+  if (params.order) {
+    searchParams.set("order", params.order);
   }
 
   if (params.page !== undefined) {

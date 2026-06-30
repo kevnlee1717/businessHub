@@ -4,6 +4,7 @@ import { businessTypes, caseStatuses, caseStepStatuses, caseSubmissionResults, g
 const optionalText = z.string().trim().min(1).optional();
 const nullableOptionalText = z.string().trim().min(1).nullable().optional();
 const uuidField = z.string().uuid();
+const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const clientCreateSchema = z.object({
   name: z.string().trim().min(1),
@@ -54,7 +55,8 @@ export const caseCreateSchema = z.object({
   billing_id: uuidField.nullable().optional(),
   guarantor_name: optionalText,
   guarantor_relation: optionalText,
-  guarantor_contact: optionalText
+  guarantor_contact: optionalText,
+  signed_at: dateField.nullable().optional()
 });
 
 export const caseUpdateSchema = z.object({
@@ -65,7 +67,8 @@ export const caseUpdateSchema = z.object({
   guarantor_id: uuidField.nullable().optional(),
   guarantor_name: optionalText,
   guarantor_relation: optionalText,
-  guarantor_contact: optionalText
+  guarantor_contact: optionalText,
+  signed_at: dateField.nullable().optional()
 });
 
 export const caseStepUpdateSchema = z.object({
