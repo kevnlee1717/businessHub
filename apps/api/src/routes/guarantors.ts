@@ -1,7 +1,7 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { caseSubmissions, cases, db, documents, guarantors } from "@bh/db";
-import { computeGuarantorStats, guarantorCreateSchema, guarantorUpdateSchema } from "@bh/shared";
+import { caseSubmissions, cases, clients, db, documents, guarantors } from "@bh/db";
+import { computeGuarantorStats, computeGuarantorSummary, guarantorCreateSchema, guarantorUpdateSchema, latestSubmissionResult } from "@bh/shared";
 import { count, desc, eq, inArray } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -118,6 +118,32 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
     return { guarantors: result };
   });
 
+  app.get("/guarantors/stats", { preHandler: requirePerm("case.view") }, async () => {
+    const rows = await db.select().from(guarantors);
+    const perGuarantor = await Promise.all(
+      rows.map(async (row) => {
+        const caseRows = await db.select().from(cases).where(eq(cases.guarantorId, row.id));
+        const ids = caseRows.map((c) => c.id);
+        const subs = ids.length
+          ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, ids))
+          : [];
+        return computeGuarantorStats(
+          caseRows.map((c) => {
+            const list = subs
+              .filter((s) => s.caseId === c.id)
+              .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            return {
+              caseId: c.id,
+              createdAt: c.createdAt.toISOString(),
+              latestResult: list[0]?.result ?? null
+            };
+          })
+        );
+      })
+    );
+    return { summary: computeGuarantorSummary(perGuarantor) };
+  });
+
   app.get("/guarantors/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [guarantor] = await db.select().from(guarantors).where(eq(guarantors.id, id)).limit(1);
@@ -127,12 +153,34 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
     }
 
     const caseRows = await db.select().from(cases).where(eq(cases.guarantorId, id)).orderBy(desc(cases.createdAt));
+    const caseIds = caseRows.map((c) => c.id);
+    const subs = caseIds.length
+      ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, caseIds))
+      : [];
+    const clientIds = caseRows.map((c) => c.clientId).filter((x): x is string => Boolean(x));
+    const clientRows = clientIds.length
+      ? await db.select().from(clients).where(inArray(clients.id, clientIds))
+      : [];
+    const clientNameById = new Map(clientRows.map((cl) => [cl.id, cl.name]));
+    const casesWithResult = caseRows.map((c) => ({
+      ...serializeCaseBrief(c),
+      client_name: c.clientId ? clientNameById.get(c.clientId) ?? null : null,
+      latest_result: latestSubmissionResult(
+        subs
+          .filter((s) => s.caseId === c.id)
+          .map((s) => ({
+            result: s.result,
+            submittedAt: s.submittedAt ? s.submittedAt.toISOString() : null,
+            createdAt: s.createdAt.toISOString()
+          }))
+      )
+    }));
 
     return {
       guarantor: {
         ...serializeGuarantor(guarantor),
         sponsored_count: caseRows.length,
-        cases: caseRows.map(serializeCaseBrief)
+        cases: casesWithResult
       }
     };
   });
