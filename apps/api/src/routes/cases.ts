@@ -24,6 +24,7 @@ import {
   stepReviewMessageSchema,
   stepReviewRequestSchema,
   computeIcaStats,
+  computeCaseResultCounts,
   type IcaStatsCaseInput
 } from "@bh/shared";
 import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
@@ -401,13 +402,17 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
 
     const yearRows = await db
       .select({
-        year: sql<number>`extract(year from ${effectiveDate})::int`
+        year: sql<number>`extract(year from ${effectiveDate})::int`,
+        count: sql<number>`count(*)::int`
       })
       .from(cases)
       .where(filters.length > 0 ? and(...filters) : sql`true`)
       .groupBy(sql`extract(year from ${effectiveDate})::int`)
       .orderBy(desc(sql`extract(year from ${effectiveDate})::int`));
-    const availableYears = yearRows.map((row) => Number(row.year)).filter((year) => Number.isFinite(year));
+    const yearTotals = yearRows
+      .map((row) => ({ year: Number(row.year), count: Number(row.count) }))
+      .filter((row) => Number.isFinite(row.year));
+    const availableYears = yearTotals.map((row) => row.year);
     const selectedYear = query.year ?? availableYears[0] ?? new Date().getFullYear();
     const statsFilters = [
       ...filters,
@@ -426,13 +431,50 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       const month = index + 1;
       return { month, count: countByMonth.get(month) ?? 0 };
     });
+    const caseRows = await db
+      .select({ id: cases.id })
+      .from(cases)
+      .where(filters.length > 0 ? and(...filters) : sql`true`);
+    const caseIds = caseRows.map((row) => row.id);
+    const submissionRows =
+      caseIds.length > 0
+        ? await db
+            .select({
+              caseId: caseSubmissions.caseId,
+              result: caseSubmissions.result,
+              submittedAt: caseSubmissions.submittedAt,
+              createdAt: caseSubmissions.createdAt
+            })
+            .from(caseSubmissions)
+            .where(inArray(caseSubmissions.caseId, caseIds))
+        : [];
+    const submissionsByCaseId = new Map<string, typeof submissionRows>();
+
+    for (const submission of submissionRows) {
+      const list = submissionsByCaseId.get(submission.caseId) ?? [];
+      list.push(submission);
+      submissionsByCaseId.set(submission.caseId, list);
+    }
+
+    const statsInput: IcaStatsCaseInput[] = caseRows.map((row) => ({
+      caseId: row.id,
+      submissions: (submissionsByCaseId.get(row.id) ?? []).map((submission) => ({
+        result: submission.result,
+        submittedAt: (submission.submittedAt ?? submission.createdAt).toISOString(),
+        createdAt: submission.createdAt.toISOString()
+      }))
+    }));
 
     return {
       year: selectedYear,
       business_type: query.business_type ?? null,
       months,
       total: months.reduce((sum, item) => sum + item.count, 0),
-      available_years: availableYears
+      available_years: availableYears,
+      summary: {
+        year_totals: yearTotals,
+        result_counts: computeCaseResultCounts(statsInput)
+      }
     };
   });
 
