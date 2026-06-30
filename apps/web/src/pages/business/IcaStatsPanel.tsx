@@ -1,4 +1,4 @@
-import { LineChart } from "@mantine/charts";
+import { BarChart } from "@mantine/charts";
 import { Alert, Group, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -62,23 +62,21 @@ export function IcaStatsPanel() {
           <SummaryCard label={t("icaStats.pending")} value={data?.summary.pending ?? 0} color="blue.6" />
         </SimpleGrid>
 
-        {/* 近两年新增案件趋势：一条跨年连续折线 */}
+        {/* 近两年新增案件趋势：跨年合并成一张柱状图 */}
         {trendData.length > 0 ? (
           <Stack gap="xs">
             <Title order={4}>{t("icaStats.trendTitle", { count: trendTotal })}</Title>
-            <LineChart
+            <BarChart
               h={340}
               data={trendData}
               dataKey="label"
               series={[{ name: "count", label: t("icaStats.newCases"), color: "teal.6" }]}
-              curveType="monotone"
-              withDots
-              withPointLabels
-              withLegend={false}
-              tickLine="xy"
+              tickLine="y"
               gridAxis="xy"
-              dotProps={{ r: 3 }}
-              lineChartProps={{ margin: { top: 24 } }}
+              withLegend={false}
+              withBarValueLabel
+              valueLabelProps={{ position: "top" }}
+              barChartProps={{ margin: { top: 24 } }}
             />
           </Stack>
         ) : null}
