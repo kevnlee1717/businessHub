@@ -1,3 +1,24 @@
+import type { SubmissionResult } from "./icaImport";
+export type { SubmissionResult };
+
+/** 一个案件的若干轮提交里,取最新一轮的 result(无提交返回 null) */
+export function latestSubmissionResult(
+  submissions: { result: SubmissionResult; submittedAt: string | null; createdAt: string }[]
+): SubmissionResult | null {
+  if (submissions.length === 0) {
+    return null;
+  }
+  const sorted = [...submissions].sort((a, b) => {
+    const sa = a.submittedAt ?? a.createdAt;
+    const sb = b.submittedAt ?? b.createdAt;
+    if (sa !== sb) {
+      return sb.localeCompare(sa);
+    }
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+  return sorted[0]!.result;
+}
+
 export interface GuarantorCaseInput {
   caseId: string;
   createdAt: string;
