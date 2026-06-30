@@ -662,6 +662,13 @@
       "note": "备注",
       "sponsoredCount": "担保人数",
       "idCard": "ID 卡"
+    },
+    "summary": {
+      "count": "担保人总数",
+      "sponsored": "总担保人次",
+      "approved": "已批准",
+      "rejected": "被拒",
+      "successRate": "整体成功率"
     }
   },
   "gender": {

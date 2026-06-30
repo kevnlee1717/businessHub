@@ -11,6 +11,7 @@ import {
   Paper,
   ScrollArea,
   Select,
+  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -33,6 +34,7 @@ import { useAuth } from "../../auth/AuthContext";
 import {
   createGuarantor,
   deleteGuarantor,
+  getGuarantorSummary,
   listGuarantors,
   updateGuarantor,
   uploadGuarantorIdCard,
@@ -75,6 +77,19 @@ function getDefaultValues(guarantor?: Guarantor): GuarantorFormValues {
     age: guarantor?.age ?? null,
     note: guarantor?.note ?? null
   };
+}
+
+function SummaryCard({ label, value, color, suffix }: { label: string; value: number; color?: string; suffix?: string }) {
+  return (
+    <Paper withBorder p="md" radius="md">
+      <Stack gap={4} align="center">
+        <Text fz={36} fw={700} c={color ?? "dark"} lh={1}>
+          {value}{suffix ?? ""}
+        </Text>
+        <Text fz="sm" c="dimmed" ta="center">{label}</Text>
+      </Stack>
+    </Paper>
+  );
 }
 
 type IdCardUploadProps = {
@@ -153,6 +168,12 @@ export function GuarantorsPage() {
     placeholderData: keepPreviousData
   });
 
+  const summaryQuery = useQuery({
+    queryKey: ["business", "guarantors", "summary"],
+    queryFn: getGuarantorSummary
+  });
+  const summary = summaryQuery.data?.summary;
+
   const form = useForm<GuarantorFormValues>({
     resolver: zodResolver(editingGuarantor ? guarantorUpdateSchema : guarantorCreateSchema) as Resolver<GuarantorFormValues>,
     defaultValues: getDefaultValues(editingGuarantor ?? undefined)
@@ -162,6 +183,7 @@ export function GuarantorsPage() {
     mutationFn: createGuarantor,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: guarantorQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["business", "guarantors", "summary"] });
       closeModal();
     }
   });
@@ -170,6 +192,7 @@ export function GuarantorsPage() {
     mutationFn: ({ id, body }: { id: string; body: GuarantorUpdateInput }) => updateGuarantor(id, body),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: guarantorQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["business", "guarantors", "summary"] });
       closeModal();
     }
   });
@@ -178,6 +201,7 @@ export function GuarantorsPage() {
     mutationFn: deleteGuarantor,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: guarantorQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["business", "guarantors", "summary"] });
     }
   });
 
@@ -240,6 +264,18 @@ export function GuarantorsPage() {
 
   return (
     <Stack gap="md">
+      <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="md">
+        <SummaryCard label={t("guarantor.summary.count")} value={summary?.guarantorCount ?? 0} />
+        <SummaryCard label={t("guarantor.summary.sponsored")} value={summary?.sponsoredTotal ?? 0} />
+        <SummaryCard label={t("guarantor.summary.approved")} value={summary?.approved ?? 0} color="teal.7" />
+        <SummaryCard label={t("guarantor.summary.rejected")} value={summary?.rejected ?? 0} color="red.6" />
+        <SummaryCard
+          label={t("guarantor.summary.successRate")}
+          value={summary && summary.successRate !== null ? Math.round(summary.successRate * 100) : 0}
+          suffix="%"
+        />
+      </SimpleGrid>
+
       <Group justify="space-between" align="center">
         {canManageCases ? <Button onClick={openCreateModal}>{t("guarantor.add")}</Button> : null}
       </Group>

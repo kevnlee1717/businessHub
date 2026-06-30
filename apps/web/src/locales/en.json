@@ -662,6 +662,13 @@
       "note": "Note",
       "sponsoredCount": "Sponsored count",
       "idCard": "ID card"
+    },
+    "summary": {
+      "count": "Guarantors",
+      "sponsored": "Total Sponsorships",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "successRate": "Success Rate"
     }
   },
   "gender": {
