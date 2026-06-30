@@ -4,18 +4,22 @@ import {
   Badge,
   Box,
   Button,
+  Card,
+  Collapse,
+  Divider,
   Group,
   Loader,
   Paper,
   ScrollArea,
+  SimpleGrid,
   Stack,
-  Table,
   Text,
   TextInput,
+  ThemeIcon,
   UnstyledButton
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   brochureKeys,
@@ -34,7 +38,6 @@ import { TablePagination } from "../../components/TablePagination";
 import { usePagination } from "../../hooks/usePagination";
 import {
   BrochureFormModal,
-  CurrentVersionBadge,
   DictionaryManagerModal,
   FilePreviewModal,
   UploadVersionModal,
@@ -59,31 +62,6 @@ function ErrorAlert({ error }: { error: unknown }) {
       {error instanceof Error ? error.message : t("common.unknown_error")}
     </Alert>
   ) : null;
-}
-
-function LoadingRow({ colSpan }: { colSpan: number }) {
-  return (
-    <Table.Tr>
-      <Table.Td colSpan={colSpan}>
-        <Group justify="center" py="lg">
-          <Loader size="sm" />
-        </Group>
-      </Table.Td>
-    </Table.Tr>
-  );
-}
-
-function EmptyRow({ colSpan }: { colSpan: number }) {
-  const { t } = useTranslation();
-  return (
-    <Table.Tr>
-      <Table.Td colSpan={colSpan}>
-        <Text ta="center" c="dimmed" py="lg">
-          {t("brochure.empty")}
-        </Text>
-      </Table.Td>
-    </Table.Tr>
-  );
 }
 
 function TreeButton({
@@ -114,6 +92,28 @@ function TreeButton({
         {children}
       </Text>
     </UnstyledButton>
+  );
+}
+
+function fileKind(file?: Pick<BrochureVersion, "mime" | "filename"> | null) {
+  const mime = file?.mime ?? "";
+  const filename = file?.filename?.toLowerCase() ?? "";
+  if (mime === "application/pdf" || filename.endsWith(".pdf")) return "pdf";
+  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(filename)) return "image";
+  return "file";
+}
+
+function FileTypeIcon({ version }: { version?: BrochureVersion | null }) {
+  const kind = fileKind(version);
+  const color = kind === "pdf" ? "red" : kind === "image" ? "green" : "gray";
+  const label = kind === "pdf" ? "PDF" : kind === "image" ? "IMG" : "FILE";
+
+  return (
+    <ThemeIcon color={color} variant="light" radius="sm" size="lg">
+      <Text size="9px" fw={700}>
+        {label}
+      </Text>
+    </ThemeIcon>
   );
 }
 
@@ -167,18 +167,18 @@ function VersionHistory({
           (versionsQuery.data?.versions ?? []).map((version) => {
             const isCurrent = brochure.current_version_id === version.id;
             return (
-              <Group key={version.id} justify="space-between" gap="sm" wrap="nowrap">
+              <Group key={version.id} justify="space-between" gap="sm" wrap="wrap">
                 <Group gap="sm" style={{ minWidth: 0 }}>
-                  <Badge color={isCurrent ? "green" : "gray"}>v{version.version_no}{isCurrent ? ` ${t("brochure.current")}` : ""}</Badge>
-                  <Text size="sm" truncate>{version.filename}</Text>
-                  <Text size="sm" c="dimmed">{formatBrochureDate(version.uploaded_at)}</Text>
+                  <Badge color={isCurrent ? "green" : "blue"}>V{version.version_no}{isCurrent ? ` ${t("brochure.current")}` : ""}</Badge>
+                  <Text size="sm" truncate title={version.filename}>{version.filename}</Text>
+                  <Text size="xs" c="dimmed">{formatBrochureDate(version.uploaded_at)}</Text>
                   {version.note ? <Text size="sm" c="dimmed" truncate>{version.note}</Text> : null}
                 </Group>
-                <Group gap="xs" wrap="nowrap">
+                <Group gap="xs" wrap="wrap">
                   <Button size="xs" variant="light" onClick={() => onPreview(version)}>{t("common.preview")}</Button>
                   {version.url ? <Button size="xs" variant="subtle" component="a" href={version.url} target="_blank" rel="noreferrer">{t("brochure.download")}</Button> : null}
-                  {canManage && !isCurrent ? (
-                    <Button size="xs" variant="light" loading={setCurrentMutation.isPending} onClick={() => setCurrentMutation.mutate(version.id)}>
+                  {canManage ? (
+                    <Button size="xs" variant="light" disabled={isCurrent} loading={setCurrentMutation.isPending} onClick={() => setCurrentMutation.mutate(version.id)}>
                       {t("brochure.setCurrent")}
                     </Button>
                   ) : null}
@@ -194,6 +194,114 @@ function VersionHistory({
         )}
       </Stack>
     </Box>
+  );
+}
+
+function BrochureCard({
+  brochure,
+  canManage,
+  expanded,
+  onToggle,
+  onPreview,
+  onUpload,
+  onEdit,
+  onDelete,
+  deleting
+}: {
+  brochure: Brochure;
+  canManage: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onPreview: (version: BrochureVersion) => void;
+  onUpload: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const { t } = useTranslation();
+  const versionsQuery = useQuery({
+    queryKey: brochureKeys.versions(brochure.id),
+    queryFn: () => listBrochureVersions(brochure.id)
+  });
+  const currentVersion = brochure.current_version ?? null;
+  const versionCount = versionsQuery.data?.versions.length;
+
+  return (
+    <Card withBorder shadow="sm" radius="md" padding="md">
+      <Stack gap="xs">
+        <Group gap="sm" wrap="nowrap" align="flex-start">
+          <FileTypeIcon version={currentVersion} />
+          <Text fw={700} truncate title={brochure.name} style={{ flex: 1 }}>
+            {brochure.name}
+          </Text>
+        </Group>
+
+        <Group gap="xs">
+          <Badge color="blue" variant="light">{brochure.category_name ?? t("common.uncategorized")}</Badge>
+          <Badge color="gray" variant="light">{brochure.industry_name ?? t("common.uncategorized")}</Badge>
+        </Group>
+
+        <Divider my="xs" />
+
+        {currentVersion ? (
+          <Stack gap={3}>
+            <Group gap="xs" wrap="nowrap">
+              <Badge color="blue">V{currentVersion.version_no}</Badge>
+              <Anchor component="button" type="button" onClick={() => onPreview(currentVersion)} truncate title={currentVersion.filename} style={{ minWidth: 0 }}>
+                {currentVersion.filename}
+              </Anchor>
+            </Group>
+            <Text size="xs" c="dimmed">
+              {formatBrochureDate(currentVersion.uploaded_at)}
+            </Text>
+          </Stack>
+        ) : (
+          <Text c="dimmed">-</Text>
+        )}
+
+        <Text size="sm" {...(!brochure.notes ? { c: "dimmed" } : {})} lineClamp={2}>
+          {t("brochure.fields.notes")}: {brochure.notes || "-"}
+        </Text>
+
+        <Divider my="xs" />
+
+        <Group gap="xs" wrap="wrap">
+          {currentVersion ? (
+            <>
+              <Button size="xs" variant="light" onClick={() => onPreview(currentVersion)}>
+                {t("common.preview")}
+              </Button>
+              {currentVersion.url ? (
+                <Button size="xs" variant="subtle" component="a" href={currentVersion.url} target="_blank" rel="noreferrer">
+                  {t("brochure.download")}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+          {canManage ? (
+            <>
+              <Button size="xs" variant="light" onClick={onUpload}>
+                {t("brochure.uploadVersion")}
+              </Button>
+              <Button size="xs" variant="light" onClick={onEdit}>
+                {t("common.edit")}
+              </Button>
+              <Button size="xs" color="red" variant="light" loading={deleting} onClick={onDelete}>
+                {t("common.delete")}
+              </Button>
+            </>
+          ) : null}
+          <Button size="xs" variant="subtle" onClick={onToggle}>
+            {t("brochure.history")}({versionCount ?? "..."}) {expanded ? "▴" : "▾"}
+          </Button>
+        </Group>
+
+        <Collapse in={expanded}>
+          <Divider my="xs" />
+          <VersionHistory brochure={brochure} canManage={canManage} onPreview={onPreview} />
+        </Collapse>
+      </Stack>
+    </Card>
   );
 }
 
@@ -238,7 +346,6 @@ export function BrochurePage() {
   const brochures = brochuresQuery.data?.brochures ?? [];
   const total = brochuresQuery.data?.total ?? brochures.length;
   const activeKey = selectionKey(selection);
-  const categoryById = useMemo(() => new Map(categories.map((row) => [row.id, row])), [categories]);
 
   function openCreate() {
     setEditingBrochure(null);
@@ -319,92 +426,32 @@ export function BrochurePage() {
 
             <ErrorAlert error={industriesQuery.error ?? categoriesQuery.error ?? brochuresQuery.error ?? deleteMutation.error} />
 
-            <Paper withBorder radius="sm">
-              <ScrollArea>
-                <Table miw={980} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th w={80}>{t("brochure.history")}</Table.Th>
-                      <Table.Th>{t("brochure.fields.name")}</Table.Th>
-                      <Table.Th w={140}>{t("brochure.fields.category")}</Table.Th>
-                      <Table.Th w={280}>{t("brochure.fields.currentVersion")}</Table.Th>
-                      <Table.Th>{t("brochure.fields.notes")}</Table.Th>
-                      <Table.Th w={300}>{t("common.actions")}</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {brochuresQuery.isLoading ? (
-                      <LoadingRow colSpan={6} />
-                    ) : brochures.length === 0 ? (
-                      <EmptyRow colSpan={6} />
-                    ) : (
-                      brochures.map((brochure) => (
-                        <Fragment key={brochure.id}>
-                          <Table.Tr>
-                            <Table.Td>
-                              <Button size="xs" variant="subtle" onClick={() => setExpandedId(expandedId === brochure.id ? null : brochure.id)}>
-                                {expandedId === brochure.id ? t("common.collapse") : t("brochure.expand")}
-                              </Button>
-                            </Table.Td>
-                            <Table.Td>
-                              <Stack gap={2}>
-                                <Anchor component="button" type="button" onClick={() => setExpandedId(expandedId === brochure.id ? null : brochure.id)}>
-                                  {brochure.name}
-                                </Anchor>
-                                <Text size="xs" c="dimmed">{brochure.industry_name ?? t("common.uncategorized")}</Text>
-                              </Stack>
-                            </Table.Td>
-                            <Table.Td>{brochure.category_name ?? (brochure.category_id ? categoryById.get(brochure.category_id)?.name : null) ?? "-"}</Table.Td>
-                            <Table.Td>
-                              <CurrentVersionBadge brochure={brochure} />
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm" lineClamp={2}>{brochure.notes || "-"}</Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Group gap="xs" wrap="wrap">
-                                {brochure.current_version ? (
-                                  <>
-                                    <Button size="xs" variant="light" onClick={() => setPreviewVersion(brochure.current_version ?? null)}>
-                                      {t("common.preview")}
-                                    </Button>
-                                    {brochure.current_version.url ? (
-                                      <Button size="xs" variant="subtle" component="a" href={brochure.current_version.url} target="_blank" rel="noreferrer">
-                                        {t("brochure.download")}
-                                      </Button>
-                                    ) : null}
-                                  </>
-                                ) : null}
-                                {canManage ? (
-                                  <>
-                                    <Button size="xs" variant="light" onClick={() => setUploadingBrochure(brochure)}>
-                                      {t("brochure.uploadVersion")}
-                                    </Button>
-                                    <Button size="xs" variant="light" onClick={() => openEdit(brochure)}>
-                                      {t("common.edit")}
-                                    </Button>
-                                    <Button size="xs" color="red" variant="light" loading={deleteMutation.isPending} onClick={() => void remove(brochure)}>
-                                      {t("common.delete")}
-                                    </Button>
-                                  </>
-                                ) : null}
-                              </Group>
-                            </Table.Td>
-                          </Table.Tr>
-                          {expandedId === brochure.id ? (
-                            <Table.Tr>
-                              <Table.Td colSpan={6}>
-                                <VersionHistory brochure={brochure} canManage={canManage} onPreview={setPreviewVersion} />
-                              </Table.Td>
-                            </Table.Tr>
-                          ) : null}
-                        </Fragment>
-                      ))
-                    )}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            </Paper>
+            {brochuresQuery.isLoading ? (
+              <Group justify="center" py="xl">
+                <Loader size="sm" />
+              </Group>
+            ) : brochures.length === 0 ? (
+              <Text ta="center" c="dimmed" py="xl">
+                {t("brochure.empty")}
+              </Text>
+            ) : (
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                {brochures.map((brochure) => (
+                  <BrochureCard
+                    key={brochure.id}
+                    brochure={brochure}
+                    canManage={canManage}
+                    expanded={expandedId === brochure.id}
+                    onToggle={() => setExpandedId(expandedId === brochure.id ? null : brochure.id)}
+                    onPreview={setPreviewVersion}
+                    onUpload={() => setUploadingBrochure(brochure)}
+                    onEdit={() => openEdit(brochure)}
+                    onDelete={() => void remove(brochure)}
+                    deleting={deleteMutation.isPending}
+                  />
+                ))}
+              </SimpleGrid>
+            )}
 
             <TablePagination total={total} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
           </Stack>
