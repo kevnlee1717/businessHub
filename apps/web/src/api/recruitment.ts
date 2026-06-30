@@ -17,6 +17,8 @@ export const recruitmentKeys = {
   all: ["recruitment"] as const,
   dashboard: () => ["recruitment", "dashboard"] as const,
   industries: () => ["recruitment", "industries"] as const,
+  platforms: (params?: unknown) => (params === undefined ? ["recruitment", "platforms"] as const : ["recruitment", "platforms", params] as const),
+  promptTemplates: (params?: unknown) => (params === undefined ? ["recruitment", "prompt-templates"] as const : ["recruitment", "prompt-templates", params] as const),
   jobs: (params?: unknown) => ["recruitment", "jobs", params] as const,
   job: (id: string) => ["recruitment", "job", id] as const,
   postings: (params?: unknown) => ["recruitment", "postings", params] as const,
@@ -34,6 +36,25 @@ export type RecruitmentIndustry = {
   name_i18n?: { zh?: string | null; en?: string | null };
   sort_order: number;
   active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruitmentPlatform = {
+  id: string;
+  company_id: string;
+  name: string;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruitmentPromptTemplate = {
+  id: string;
+  company_id: string;
+  material_type: RecruitmentMaterialType;
+  base_prompt: string;
   created_at: string;
   updated_at: string;
 };
@@ -71,6 +92,7 @@ export type RecruitmentMaterial = {
   type: RecruitmentMaterialType;
   title: string;
   source_text?: string | null;
+  tune_prompt?: string | null;
   text_content?: string | null;
   document_id?: string | null;
   platforms?: string[] | null;
@@ -188,6 +210,34 @@ export type RecruitmentDashboard = {
   overdue: { count: number; candidates: RecruitmentCandidate[] };
 };
 
+export type RecruitmentMaterialBody = {
+  company_id?: string;
+  job_id?: string;
+  type?: RecruitmentMaterialType;
+  title?: string;
+  source_text?: string | null;
+  tune_prompt?: string | null;
+  text_content?: string | null;
+  document_id?: string | null;
+  platforms?: string[] | null;
+  active?: boolean;
+  ai_generated?: boolean;
+};
+
+export type RecruitmentCopyRequest = {
+  company_id?: string;
+  material_type?: RecruitmentMaterialType;
+  tune_prompt?: string | null;
+  job_title?: string | undefined;
+  salary_min?: number | null | undefined;
+  salary_max?: number | null | undefined;
+  salary_note?: string | null | undefined;
+  job_content?: string | null | undefined;
+  requirements?: string | null | undefined;
+  source_text?: unknown;
+  copy_type?: string;
+};
+
 function qs(params: Record<string, unknown>) {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -220,6 +270,15 @@ export const createRecruitmentIndustry = (body: unknown) =>
 export const updateRecruitmentIndustry = (id: string, body: unknown) =>
   api<{ industry: RecruitmentIndustry }>(`/recruitment/industries/${id}`, { method: "PATCH", body });
 
+export const listRecruitmentPlatforms = (params: Record<string, unknown> = {}) =>
+  api<{ platforms: RecruitmentPlatform[] }>(`/recruitment/platforms${qs(params)}`);
+export const createRecruitmentPlatform = (body: { company_id: string; name: string }) =>
+  api<{ platform: RecruitmentPlatform }>("/recruitment/platforms", { method: "POST", body });
+export const listRecruitmentPromptTemplates = (params: Record<string, unknown> = {}) =>
+  api<{ prompt_templates: RecruitmentPromptTemplate[] }>(`/recruitment/prompt-templates${qs(params)}`);
+export const updateRecruitmentPromptTemplate = (id: string, body: { base_prompt: string }) =>
+  api<{ prompt_template: RecruitmentPromptTemplate }>(`/recruitment/prompt-templates/${id}`, { method: "PATCH", body });
+
 export const listRecruitmentJobs = (params: Record<string, unknown> = {}) =>
   api<{ jobs: RecruitmentJob[] }>(`/recruitment/jobs${qs(params)}`);
 export const createRecruitmentJob = (body: unknown) =>
@@ -229,17 +288,17 @@ export const getRecruitmentJob = (id: string) =>
 export const updateRecruitmentJob = (id: string, body: unknown) =>
   api<{ job: RecruitmentJob }>(`/recruitment/jobs/${id}`, { method: "PATCH", body });
 
-export const createRecruitmentMaterial = (body: unknown | FormData) =>
+export const createRecruitmentMaterial = (body: RecruitmentMaterialBody | FormData) =>
   body instanceof FormData
     ? apiForm<{ material: RecruitmentMaterial }>("/recruitment/materials", body)
     : api<{ material: RecruitmentMaterial }>("/recruitment/materials", { method: "POST", body });
-export const updateRecruitmentMaterial = (id: string, body: unknown | FormData) =>
+export const updateRecruitmentMaterial = (id: string, body: RecruitmentMaterialBody | FormData) =>
   body instanceof FormData
     ? apiForm<{ material: RecruitmentMaterial }>(`/recruitment/materials/${id}`, body)
     : api<{ material: RecruitmentMaterial }>(`/recruitment/materials/${id}`, { method: "PATCH", body });
 export const deleteRecruitmentMaterial = (id: string) =>
   api<null>(`/recruitment/materials/${id}`, { method: "DELETE" });
-export const generateRecruitmentCopy = (body: unknown) =>
+export const generateRecruitmentCopy = (body: RecruitmentCopyRequest) =>
   api<{ draft: string; model: string }>("/recruitment/materials/ai-copy", { method: "POST", body });
 
 export const listRecruitmentPostings = (params: Record<string, unknown> = {}) =>

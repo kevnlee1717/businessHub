@@ -2206,6 +2206,7 @@
       "type": "类型",
       "textContent": "文案正文",
       "sourceText": "原文",
+      "tunePrompt": "微调提示词",
       "generatedCopy": "AI 文案",
       "platforms": "适用平台",
       "platform": "平台",
@@ -2286,6 +2287,7 @@
       "industries": "招聘行业",
       "addIndustry": "新增行业",
       "enable": "启用",
+      "promptTemplates": "素材提示词",
       "thresholds": "超时阈值",
       "overdueInviteDays": "邀约超时天数",
       "overdueFollowupDays": "跟进超时天数"

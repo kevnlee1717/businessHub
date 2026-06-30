@@ -2206,6 +2206,7 @@
       "type": "Type",
       "textContent": "Copy",
       "sourceText": "Source",
+      "tunePrompt": "Fine-tune prompt",
       "generatedCopy": "Generated copy",
       "platforms": "Platforms",
       "platform": "Platform",
@@ -2286,6 +2287,7 @@
       "industries": "Recruitment industries",
       "addIndustry": "Add industry",
       "enable": "Enable",
+      "promptTemplates": "Material prompts",
       "thresholds": "Overdue thresholds",
       "overdueInviteDays": "Invite overdue days",
       "overdueFollowupDays": "Followup overdue days"
@@ -2317,7 +2319,7 @@
       "urgent": "Urgent"
     },
     "materialType": {
-      "copy": "Copy",
+      "copy": "Text",
       "image": "Image",
       "flyer": "Flyer",
       "stand": "Stand"

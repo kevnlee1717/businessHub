@@ -54,6 +54,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import { BilingualInput } from "../../components/BilingualInput";
 import { CreatableCombobox, type Option } from "../../components/CreatableCombobox";
+import { RecruitmentPlatformSelect } from "../../components/RecruitmentPlatformSelect";
 import { TablePagination } from "../../components/TablePagination";
 import { fileUrl } from "../../api/dms";
 import { listCompanies, listEmployees } from "../../api/hr";
@@ -66,6 +67,7 @@ import {
   createRecruitmentInterview,
   createRecruitmentJob,
   createRecruitmentMaterial,
+  createRecruitmentPlatform,
   createRecruitmentPosting,
   deleteRecruitmentMaterial,
   generateRecruitmentCopy,
@@ -77,6 +79,8 @@ import {
   listRecruitmentCandidates,
   listRecruitmentIndustries,
   listRecruitmentJobs,
+  listRecruitmentPlatforms,
+  listRecruitmentPromptTemplates,
   listRecruitmentPostings,
   listRecruitmentSettings,
   recruitmentKeys,
@@ -86,6 +90,7 @@ import {
   updateRecruitmentInterview,
   updateRecruitmentJob,
   updateRecruitmentMaterial,
+  updateRecruitmentPromptTemplate,
   updateRecruitmentPosting,
   updateRecruitmentSettings,
   uploadRecruitmentPostingScreenshot,
@@ -94,6 +99,7 @@ import {
   type RecruitmentIndustry,
   type RecruitmentJob,
   type RecruitmentMaterial,
+  type RecruitmentMaterialBody,
   type RecruitmentPosting
 } from "../../api/recruitment";
 import { normalizeLang, pickLang, tField, type AppLang, type I18nValue } from "../../lib/i18nField";
@@ -553,13 +559,8 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   const form = useSimpleForm();
   const selectedJobId = String(form.values.job_id ?? "");
   const selectedPlatform = String(form.values.platform ?? "");
-  const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("platform-options"), queryFn: () => listRecruitmentPostings() });
   const materialsQuery = useQuery({ queryKey: recruitmentKeys.job(selectedJobId), queryFn: () => getRecruitmentJob(selectedJobId), enabled: Boolean(selectedJobId && selectedPlatform) });
   const [screenshotDocument, setScreenshotDocument] = useState(posting?.screenshot_document ?? null);
-  const platformOptions = useMemo(
-    () => Array.from(new Set((platformsQuery.data?.postings ?? []).map((row) => row.platform.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [platformsQuery.data?.postings]
-  );
   const copyMaterialOptions = useMemo(
     () =>
       (materialsQuery.data?.materials ?? [])
@@ -608,7 +609,7 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   const materialPlaceholder = materialDisabled ? "请先选岗位和平台" : undefined;
   return (
     <FieldModal opened={opened} onClose={onClose} title={posting ? t("recruitment.postings.edit") : t("recruitment.postings.add")} saving={mutation.isPending} onSubmit={submitPosting}>
-      <ErrorAlert error={mutation.error ?? platformsQuery.error ?? materialsQuery.error ?? screenshotMutation.error} />
+      <ErrorAlert error={mutation.error ?? materialsQuery.error ?? screenshotMutation.error} />
       <Group grow align="flex-start">
         <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(posting)} />
         <CreatableCombobox
@@ -625,7 +626,7 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
           }}
         />
       </Group>
-      <Group grow><Autocomplete label={t("recruitment.fields.platform")} data={platformOptions} value={String(form.values.platform ?? "")} onChange={(v) => form.set("platform", v)} /><TextInput type="date" label={t("recruitment.fields.publishedOn")} value={String(form.values.published_on ?? "")} onChange={(e) => form.set("published_on", e.currentTarget.value)} /></Group>
+      <Group grow><RecruitmentPlatformSelect companyId={(form.values.company_id as string | null) ?? null} value={(form.values.platform as string | null) ?? null} onChange={(v) => form.set("platform", v)} label={t("recruitment.fields.platform")} /><TextInput type="date" label={t("recruitment.fields.publishedOn")} value={String(form.values.published_on ?? "")} onChange={(e) => form.set("published_on", e.currentTarget.value)} /></Group>
       <Group grow><Select label={t("recruitment.fields.status")} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={String(form.values.status ?? "publishing")} onChange={(v) => form.set("status", v)} /><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><Select label={t("recruitment.fields.inviteClerk")} data={base.employeeOptions} value={(form.values.invite_clerk_id as string | null) ?? null} onChange={(v) => form.set("invite_clerk_id", v)} clearable searchable /></Group>
       <Group grow><Select label={t("recruitment.fields.copyMaterial")} data={copyMaterialOptions} value={(form.values.copy_material_id as string | null) ?? null} onChange={(v) => form.set("copy_material_id", v)} disabled={materialDisabled} placeholder={materialPlaceholder} clearable searchable /><Select label={t("recruitment.fields.imageMaterial")} data={imageMaterialOptions} value={(form.values.image_material_id as string | null) ?? null} onChange={(v) => form.set("image_material_id", v)} disabled={materialDisabled} placeholder={materialPlaceholder} clearable searchable /></Group>
       <TextInput label={t("recruitment.fields.shareUrl")} value={String(form.values.share_url ?? "")} onChange={(e) => form.set("share_url", e.currentTarget.value)} />
@@ -640,13 +641,14 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
   const { t, i18n } = useTranslation();
   const lang = normalizeLang(i18n.language);
   const queryClient = useQueryClient();
-  const form = useSimpleForm({ type: "copy", title: "", source_text: "", text_content: "", platforms: [], active: true, ai_generated: false });
+  const form = useSimpleForm({ type: "copy", title: "", source_text: "", tune_prompt: "", text_content: "", platforms: [], active: true, ai_generated: false });
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const platformsQuery = useQuery({ queryKey: recruitmentKeys.postings("material-platform-options"), queryFn: () => listRecruitmentPostings() });
+  const platformParams = useMemo(() => ({ company_id: job.company_id, active: "1" }), [job.company_id]);
+  const platformsQuery = useQuery({ queryKey: recruitmentKeys.platforms(platformParams), queryFn: () => listRecruitmentPlatforms(platformParams) });
   const platformOptions = useMemo(
-    () => Array.from(new Set((platformsQuery.data?.postings ?? []).map((row) => row.platform.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [platformsQuery.data?.postings]
+    () => Array.from(new Set((platformsQuery.data?.platforms ?? []).map((row) => row.name.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [platformsQuery.data?.platforms]
   );
   const materialType = String(form.values.type ?? "copy");
   const isCopy = materialType === "copy";
@@ -654,14 +656,18 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
   const mutation = useMutation({
     mutationFn: async () => {
       const platforms = ((form.values.platforms as string[] | undefined) ?? []).map((item) => item.trim()).filter(Boolean);
-      const body = {
-        type: form.values.type,
-        title: form.values.title,
-        source_text: emptyToNull(form.values.source_text),
-        text_content: emptyToNull(form.values.text_content),
+      const sourceText = emptyToNull(form.values.source_text) as string | null;
+      const tunePrompt = emptyToNull(form.values.tune_prompt) as string | null;
+      const textContent = emptyToNull(form.values.text_content) as string | null;
+      const body: RecruitmentMaterialBody = {
+        type: form.values.type as RecruitmentMaterialType,
+        title: String(form.values.title ?? ""),
+        source_text: sourceText,
+        tune_prompt: tunePrompt,
+        text_content: textContent,
         platforms: platforms.length > 0 ? platforms : null,
         active: Boolean(form.values.active),
-        ai_generated: form.values.ai_generated
+        ai_generated: Boolean(form.values.ai_generated)
       };
       if (file) {
         const data = new FormData();
@@ -672,6 +678,7 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
         data.set("type", String(form.values.type));
         data.set("title", String(form.values.title));
         if (form.values.source_text) data.set("source_text", String(form.values.source_text));
+        data.set("tune_prompt", String(form.values.tune_prompt ?? ""));
         if (form.values.text_content) data.set("text_content", String(form.values.text_content));
         data.set("platforms", JSON.stringify(platforms));
         data.set("active", String(Boolean(form.values.active)));
@@ -683,9 +690,21 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.job(job.id) }); setFile(null); onClose(); }
   });
   const aiMutation = useMutation({
-    mutationFn: () => generateRecruitmentCopy({ job_title: job.title, salary_min: job.salary_min, salary_max: job.salary_max, salary_note: job.salary_note, job_content: job.job_content, requirements: job.requirements, source_text: form.values.source_text, copy_type: "ad" }),
+    mutationFn: () => generateRecruitmentCopy({ company_id: job.company_id, material_type: form.values.type as RecruitmentMaterialType, tune_prompt: emptyToNull(form.values.tune_prompt) as string | null, job_title: job.title, salary_min: job.salary_min, salary_max: job.salary_max, salary_note: job.salary_note, job_content: job.job_content, requirements: job.requirements, source_text: form.values.source_text, copy_type: "ad" }),
     onSuccess: (data) => form.set("text_content", data.draft)
   });
+  const persistNewPlatforms = (value: string[]) => {
+    form.set("platforms", value);
+    const known = new Set(platformOptions.map((item) => item.trim().toLocaleLowerCase()));
+    value
+      .map((item) => item.trim())
+      .filter((item) => item && !known.has(item.toLocaleLowerCase()))
+      .forEach((name) => {
+        void createRecruitmentPlatform({ company_id: job.company_id, name })
+          .then(() => queryClient.invalidateQueries({ queryKey: recruitmentKeys.platforms() }))
+          .catch(() => undefined);
+      });
+  };
   useEffect(() => {
     if (!opened) return;
     setFile(null);
@@ -693,6 +712,7 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
       type: material?.type ?? "copy",
       title: material?.title ?? "",
       source_text: material?.source_text ?? "",
+      tune_prompt: material?.tune_prompt ?? "",
       text_content: material?.text_content ?? "",
       platforms: material?.platforms ?? [],
       active: material?.active ?? true,
@@ -720,11 +740,12 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
           <Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} disabled={Boolean(material)} />
           <TextInput label={t("recruitment.materials.name")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} />
         </Group>
-        <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={(value) => form.set("platforms", value)} />
+        <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={persistNewPlatforms} />
         <Checkbox label={t("recruitment.fields.active")} checked={Boolean(form.values.active)} onChange={(e) => form.set("active", e.currentTarget.checked)} />
         {isCopy ? (
           <>
             <Textarea label={t("recruitment.fields.sourceText")} minRows={6} value={String(form.values.source_text ?? "")} onChange={(e) => form.set("source_text", e.currentTarget.value)} />
+            <Textarea label={t("recruitment.fields.tunePrompt")} minRows={2} value={String(form.values.tune_prompt ?? "")} onChange={(e) => form.set("tune_prompt", e.currentTarget.value)} />
             <Group justify="flex-start">
               <Button variant="light" onClick={() => aiMutation.mutate()} loading={aiMutation.isPending}>{t("recruitment.materials.aiCopy")}</Button>
             </Group>
@@ -931,6 +952,13 @@ export function RecruitmentSettingsPageImpl() {
   const [nameZh, setNameZh] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const selectedCompanyId = companyId ?? base.companyOptions[0]?.value ?? null;
+  const promptParams = useMemo(() => ({ company_id: selectedCompanyId }), [selectedCompanyId]);
+  const promptTemplatesQuery = useQuery({
+    queryKey: recruitmentKeys.promptTemplates(promptParams),
+    queryFn: () => listRecruitmentPromptTemplates(promptParams),
+    enabled: Boolean(selectedCompanyId)
+  });
   const createIndustry = useMutation({
     mutationFn: async () => createRecruitmentIndustry(await industryBody(companyId ?? base.companyOptions[0]?.value, nameZh, nameEn)),
     onSuccess: async () => {
@@ -941,5 +969,47 @@ export function RecruitmentSettingsPageImpl() {
   });
   const updateIndustry = useMutation({ mutationFn: ({ id, active }: { id: string; active: boolean }) => updateRecruitmentIndustry(id, { active }), onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.industries() }) });
   const updateSettings = useMutation({ mutationFn: ({ id, body }: { id: string; body: Dict }) => updateRecruitmentSettings(id, body), onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.settings() }) });
-  return <Stack gap="md"><ErrorAlert error={industriesQuery.error ?? settingsQuery.error ?? createIndustry.error ?? updateIndustry.error ?? updateSettings.error} /><Card withBorder><Text fw={600} mb="md">{t("recruitment.settings.industries")}</Text><Stack gap="sm" mb="md"><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={companyId ?? base.companyOptions[0]?.value ?? null} onChange={setCompanyId} /><BilingualInput label={t("recruitment.fields.name")} valueZh={nameZh} valueEn={nameEn} onChangeZh={setNameZh} onChangeEn={setNameEn} /><Group justify="flex-end"><Button onClick={() => createIndustry.mutate()} loading={createIndustry.isPending} disabled={!firstText(nameZh, nameEn)}>{t("recruitment.settings.addIndustry")}</Button></Group></Stack><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.active")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(industriesQuery.data?.industries ?? []).map((row: RecruitmentIndustry) => <Table.Tr key={row.id}><Table.Td>{pickLang(row.name_i18n, lang) || row.name}</Table.Td><Table.Td>{row.active ? t("common.yes") : t("common.no")}</Table.Td><Table.Td><Button size="xs" variant="subtle" color={row.active ? "red" : "green"} onClick={() => updateIndustry.mutate({ id: row.id, active: !row.active })}>{row.active ? t("common.delete") : t("recruitment.settings.enable")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.settings.thresholds")}</Text><Stack>{(settingsQuery.data?.settings ?? []).map((row) => <Group key={row.id} align="flex-end"><Text w={160}>{optionLabel(base.companyOptions, row.company_id)}</Text><NumberInput label={t("recruitment.settings.overdueInviteDays")} min={1} defaultValue={row.overdue_invite_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_invite_days: Number(e.currentTarget.value) } })} /><NumberInput label={t("recruitment.settings.overdueFollowupDays")} min={1} defaultValue={row.overdue_followup_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_followup_days: Number(e.currentTarget.value) } })} /></Group>)}</Stack></Card></Stack>;
+  const updatePromptTemplate = useMutation({
+    mutationFn: ({ id, base_prompt }: { id: string; base_prompt: string }) => updateRecruitmentPromptTemplate(id, { base_prompt }),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.promptTemplates() })
+  });
+
+  return (
+    <Stack gap="md">
+      <ErrorAlert error={industriesQuery.error ?? settingsQuery.error ?? promptTemplatesQuery.error ?? createIndustry.error ?? updateIndustry.error ?? updateSettings.error ?? updatePromptTemplate.error} />
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.settings.industries")}</Text>
+        <Stack gap="sm" mb="md">
+          <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={selectedCompanyId} onChange={setCompanyId} />
+          <BilingualInput label={t("recruitment.fields.name")} valueZh={nameZh} valueEn={nameEn} onChangeZh={setNameZh} onChangeEn={setNameEn} />
+          <Group justify="flex-end">
+            <Button onClick={() => createIndustry.mutate()} loading={createIndustry.isPending} disabled={!firstText(nameZh, nameEn)}>{t("recruitment.settings.addIndustry")}</Button>
+          </Group>
+        </Stack>
+        <Table withTableBorder withColumnBorders highlightOnHover>
+          <Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.active")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
+          <Table.Tbody>{(industriesQuery.data?.industries ?? []).map((row: RecruitmentIndustry) => <Table.Tr key={row.id}><Table.Td>{pickLang(row.name_i18n, lang) || row.name}</Table.Td><Table.Td>{row.active ? t("common.yes") : t("common.no")}</Table.Td><Table.Td><Button size="xs" variant="subtle" color={row.active ? "red" : "green"} onClick={() => updateIndustry.mutate({ id: row.id, active: !row.active })}>{row.active ? t("common.delete") : t("recruitment.settings.enable")}</Button></Table.Td></Table.Tr>)}</Table.Tbody>
+        </Table>
+      </Card>
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.settings.promptTemplates")}</Text>
+        <Stack gap="md">
+          <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={selectedCompanyId} onChange={setCompanyId} />
+          {(promptTemplatesQuery.data?.prompt_templates ?? []).map((row) => (
+            <Textarea
+              key={row.id}
+              label={t(`recruitment.materialType.${row.material_type}`)}
+              defaultValue={row.base_prompt}
+              minRows={3}
+              onBlur={(event) => updatePromptTemplate.mutate({ id: row.id, base_prompt: event.currentTarget.value })}
+            />
+          ))}
+        </Stack>
+      </Card>
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.settings.thresholds")}</Text>
+        <Stack>{(settingsQuery.data?.settings ?? []).map((row) => <Group key={row.id} align="flex-end"><Text w={160}>{optionLabel(base.companyOptions, row.company_id)}</Text><NumberInput label={t("recruitment.settings.overdueInviteDays")} min={1} defaultValue={row.overdue_invite_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_invite_days: Number(e.currentTarget.value) } })} /><NumberInput label={t("recruitment.settings.overdueFollowupDays")} min={1} defaultValue={row.overdue_followup_days} onBlur={(e) => updateSettings.mutate({ id: row.id, body: { overdue_followup_days: Number(e.currentTarget.value) } })} /></Group>)}</Stack>
+      </Card>
+    </Stack>
+  );
 }
