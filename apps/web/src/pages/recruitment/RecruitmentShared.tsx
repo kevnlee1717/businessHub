@@ -22,7 +22,6 @@ import {
   Stack,
   Table,
   Tabs,
-  TagsInput,
   Text,
   TextInput,
   Textarea,
@@ -54,6 +53,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import { BilingualInput } from "../../components/BilingualInput";
 import { CreatableCombobox, type Option } from "../../components/CreatableCombobox";
+import { RecruitmentPlatformMultiSelect } from "../../components/RecruitmentPlatformMultiSelect";
 import { RecruitmentPlatformSelect } from "../../components/RecruitmentPlatformSelect";
 import { TablePagination } from "../../components/TablePagination";
 import { fileUrl } from "../../api/dms";
@@ -67,7 +67,6 @@ import {
   createRecruitmentInterview,
   createRecruitmentJob,
   createRecruitmentMaterial,
-  createRecruitmentPlatform,
   createRecruitmentPosting,
   deleteRecruitmentMaterial,
   generateRecruitmentCopy,
@@ -79,7 +78,6 @@ import {
   listRecruitmentCandidates,
   listRecruitmentIndustries,
   listRecruitmentJobs,
-  listRecruitmentPlatforms,
   listRecruitmentPromptTemplates,
   listRecruitmentPostings,
   listRecruitmentSettings,
@@ -644,12 +642,6 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
   const form = useSimpleForm({ type: "copy", title: "", source_text: "", tune_prompt: "", text_content: "", platforms: [], active: true, ai_generated: false });
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const platformParams = useMemo(() => ({ company_id: job.company_id, active: "1" }), [job.company_id]);
-  const platformsQuery = useQuery({ queryKey: recruitmentKeys.platforms(platformParams), queryFn: () => listRecruitmentPlatforms(platformParams) });
-  const platformOptions = useMemo(
-    () => Array.from(new Set((platformsQuery.data?.platforms ?? []).map((row) => row.name.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [platformsQuery.data?.platforms]
-  );
   const materialType = String(form.values.type ?? "copy");
   const isCopy = materialType === "copy";
   const existingImageUrl = material?.document?.storage_path ? fileUrl(material.document.storage_path) : null;
@@ -693,18 +685,6 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
     mutationFn: () => generateRecruitmentCopy({ company_id: job.company_id, material_type: form.values.type as RecruitmentMaterialType, tune_prompt: emptyToNull(form.values.tune_prompt) as string | null, job_title: job.title, salary_min: job.salary_min, salary_max: job.salary_max, salary_note: job.salary_note, job_content: job.job_content, requirements: job.requirements, source_text: form.values.source_text, copy_type: "ad" }),
     onSuccess: (data) => form.set("text_content", data.draft)
   });
-  const persistNewPlatforms = (value: string[]) => {
-    form.set("platforms", value);
-    const known = new Set(platformOptions.map((item) => item.trim().toLocaleLowerCase()));
-    value
-      .map((item) => item.trim())
-      .filter((item) => item && !known.has(item.toLocaleLowerCase()))
-      .forEach((name) => {
-        void createRecruitmentPlatform({ company_id: job.company_id, name })
-          .then(() => queryClient.invalidateQueries({ queryKey: recruitmentKeys.platforms() }))
-          .catch(() => undefined);
-      });
-  };
   useEffect(() => {
     if (!opened) return;
     setFile(null);
@@ -734,13 +714,13 @@ function MaterialModal({ opened, onClose, job, material }: { opened: boolean; on
   return (
     <Modal opened={opened} onClose={onClose} title={material ? t("recruitment.materials.editMaterial") : t("recruitment.materials.add")} size="xl" scrollAreaComponent={ScrollArea.Autosize}>
       <Stack gap="md">
-        <ErrorAlert error={mutation.error ?? aiMutation.error ?? platformsQuery.error} />
+        <ErrorAlert error={mutation.error ?? aiMutation.error} />
         <Text size="sm" c="dimmed">{tField(job, "title", lang)}</Text>
         <Group grow align="flex-start">
           <Select label={t("recruitment.fields.type")} data={recruitmentMaterialTypes.map((v) => ({ value: v, label: t(`recruitment.materialType.${v}`) }))} value={String(form.values.type ?? "copy")} onChange={(v) => form.set("type", v)} disabled={Boolean(material)} />
           <TextInput label={t("recruitment.materials.name")} value={String(form.values.title ?? "")} onChange={(e) => form.set("title", e.currentTarget.value)} />
         </Group>
-        <TagsInput label={t("recruitment.fields.platforms")} data={platformOptions} value={(form.values.platforms as string[]) ?? []} onChange={persistNewPlatforms} />
+        <RecruitmentPlatformMultiSelect companyId={job.company_id} value={(form.values.platforms as string[]) ?? []} onChange={(v) => form.set("platforms", v)} label={t("recruitment.fields.platforms")} />
         <Checkbox label={t("recruitment.fields.active")} checked={Boolean(form.values.active)} onChange={(e) => form.set("active", e.currentTarget.checked)} />
         {isCopy ? (
           <>
@@ -786,6 +766,7 @@ export function JobDetailPageImpl() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [postingOpen, setPostingOpen] = useState(false);
+  const [campaignOpen, setCampaignOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RecruitmentMaterial | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.job(id ?? ""), queryFn: () => getRecruitmentJob(id ?? ""), enabled: Boolean(id) });
@@ -796,7 +777,7 @@ export function JobDetailPageImpl() {
   if (!job) return <ErrorAlert error={query.error ?? new Error(t("common.not_available"))} />;
   return (
     <Stack gap="md">
-      <Group justify="space-between"><Button variant="subtle" onClick={() => navigate("/recruitment/jobs")}>{t("common.back")}</Button><Button onClick={() => setPostingOpen(true)}>{t("recruitment.postings.add")}</Button></Group>
+      <Group justify="space-between"><Button variant="subtle" onClick={() => navigate("/recruitment/jobs")}>{t("common.back")}</Button></Group>
       <SimpleGrid cols={{ base: 1, md: 3 }}>
         <Card withBorder><Text c="dimmed" size="sm">{t("recruitment.fields.headcount")}</Text><Text fw={700}>{job.headcount}</Text></Card>
         <Card withBorder><Text c="dimmed" size="sm">{t("recruitment.dashboard.offered")}</Text><Text fw={700}>{query.data?.summary.offered ?? 0}</Text></Card>
@@ -826,10 +807,11 @@ export function JobDetailPageImpl() {
           </Table.Tbody>
         </Table>
       </Card>
-      <Card withBorder><Text fw={600} mb="md">{t("recruitment.postings.title")}</Text><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(query.data?.postings ?? []).map((p) => <Table.Tr key={p.id}><Table.Td>{p.platform}</Table.Td><Table.Td><StatusBadge value={p.status} ns="postingStatus" /></Table.Td><Table.Td>{p.inquiry_count}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>
-      <Card withBorder><Text fw={600} mb="md">{t("recruitment.campaigns.title")}</Text><Group>{(query.data?.campaigns ?? []).map((c) => <Badge key={c.id} color="blue">{c.name}</Badge>)}</Group></Card>
+      <Card withBorder><Group justify="space-between" mb="md"><Text fw={600}>{t("recruitment.postings.title")}</Text><Button size="xs" onClick={() => setPostingOpen(true)}>{t("recruitment.postings.add")}</Button></Group><Table withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(query.data?.postings ?? []).map((p) => <Table.Tr key={p.id}><Table.Td>{p.platform}</Table.Td><Table.Td><StatusBadge value={p.status} ns="postingStatus" /></Table.Td><Table.Td>{p.inquiry_count}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>
+      <Card withBorder><Group justify="space-between" mb="md"><Text fw={600}>{t("recruitment.campaigns.title")}</Text><Button size="xs" onClick={() => setCampaignOpen(true)}>{t("recruitment.campaigns.add")}</Button></Group><Group>{(query.data?.campaigns ?? []).map((c) => <Badge key={c.id} color="blue">{c.name}</Badge>)}</Group></Card>
       <PostingFormModal opened={postingOpen} onClose={() => setPostingOpen(false)} jobId={job.id} />
       <MaterialModal opened={materialOpen} onClose={() => setMaterialOpen(false)} job={job} material={editingMaterial} />
+      <CampaignFormModal opened={campaignOpen} onClose={() => setCampaignOpen(false)} initialJobId={job.id} />
     </Stack>
   );
 }
@@ -846,7 +828,7 @@ export function PostingsPageImpl() {
   return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentPostingStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.postings.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.fields.publishedOn")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => <Table.Tr key={row.id}><Table.Td>{row.platform}</Table.Td><Table.Td>{optionLabel(base.jobOptions, row.job_id)}</Table.Td><Table.Td>{row.published_on}</Table.Td><Table.Td><StatusBadge value={row.status} ns="postingStatus" /></Table.Td><Table.Td>{row.inquiry_count}</Table.Td><Table.Td><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /><PostingFormModal opened={modalOpen} onClose={() => setModalOpen(false)} posting={editing} /></Stack>;
 }
 
-function CampaignFormModal({ opened, onClose, campaign }: { opened: boolean; onClose: () => void; campaign?: RecruitmentCampaign | null }) {
+function CampaignFormModal({ opened, onClose, campaign, initialJobId }: { opened: boolean; onClose: () => void; campaign?: RecruitmentCampaign | null; initialJobId?: string }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const base = useBaseOptions();
@@ -856,7 +838,7 @@ function CampaignFormModal({ opened, onClose, campaign }: { opened: boolean; onC
     [base.campaigns]
   );
   const mutation = useMutation({ mutationFn: (body: Dict) => campaign ? updateRecruitmentCampaign(campaign.id, body) : createRecruitmentCampaign(body), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }); onClose(); } });
-  useMemo(() => { if (opened) form.setValues({ company_id: campaign?.company_id ?? base.companyOptions[0]?.value ?? "", name: campaign?.name ?? "", type: campaign?.type ?? "roadshow", status: campaign?.status ?? "planned", location: campaign?.location ?? "", planned_date: campaign?.planned_date ?? toDateInput(new Date().toISOString()), planned_start: campaign?.planned_start ?? "09:00", planned_end: campaign?.planned_end ?? "18:00", actual_date: campaign?.actual_date ?? null, owner_id: campaign?.owner_id ?? "", notes: campaign?.notes ?? "", job_ids: [] }); }, [opened, campaign?.id, base.companyOptions.length]);
+  useMemo(() => { if (opened) form.setValues({ company_id: campaign?.company_id ?? base.companyOptions[0]?.value ?? "", name: campaign?.name ?? "", type: campaign?.type ?? "roadshow", status: campaign?.status ?? "planned", location: campaign?.location ?? "", planned_date: campaign?.planned_date ?? toDateInput(new Date().toISOString()), planned_start: campaign?.planned_start ?? "09:00", planned_end: campaign?.planned_end ?? "18:00", actual_date: campaign?.actual_date ?? null, owner_id: campaign?.owner_id ?? "", notes: campaign?.notes ?? "", job_ids: campaign ? [] : (initialJobId ? [initialJobId] : []) }); }, [opened, campaign?.id, base.companyOptions.length, initialJobId]);
   return <FieldModal opened={opened} onClose={onClose} title={campaign ? t("recruitment.campaigns.edit") : t("recruitment.campaigns.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, notes: emptyToNull(form.values.notes), actual_date: emptyToNull(form.values.actual_date) })}><ErrorAlert error={mutation.error} /><Group grow><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => form.set("company_id", v)} disabled={Boolean(campaign)} /><TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} /></Group><Group grow><Select label={t("recruitment.fields.type")} data={recruitmentCampaignTypes.map((v) => ({ value: v, label: t(`recruitment.campaignType.${v}`) }))} value={String(form.values.type ?? "roadshow")} onChange={(v) => form.set("type", v)} /><Select label={t("recruitment.fields.status")} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={String(form.values.status ?? "planned")} onChange={(v) => form.set("status", v)} /></Group><Autocomplete label={t("recruitment.fields.location")} data={locationOptions} value={String(form.values.location ?? "")} onChange={(v) => form.set("location", v)} /><Group grow><TextInput type="date" label={t("recruitment.fields.plannedDate")} value={String(form.values.planned_date ?? "")} onChange={(e) => form.set("planned_date", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedStart")} value={String(form.values.planned_start ?? "")} onChange={(e) => form.set("planned_start", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedEnd")} value={String(form.values.planned_end ?? "")} onChange={(e) => form.set("planned_end", e.currentTarget.value)} /></Group><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><MultiSelect label={t("recruitment.fields.jobs")} data={base.jobOptions} value={(form.values.job_ids as string[]) ?? []} onChange={(v) => form.set("job_ids", v)} searchable /><Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} /></FieldModal>;
 }
 
