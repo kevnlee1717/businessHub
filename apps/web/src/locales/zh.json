@@ -1265,10 +1265,15 @@
     "library": {
       "allFiles": "全部文件",
       "rootFolder": "(根目录)",
-      "subfolder": "子文件夹",
+      "subfolder": "类别",
       "subfolderPlaceholder": "如 EP、生意加盟(留空=放根目录)",
+      "category": "类别",
+      "categoryPlaceholder": "选择或输入新类别(留空=根目录)",
+      "month": "月份",
       "empty": "暂无文件",
       "upload": "上传",
+      "deleteDone": "完成",
+      "deleteConfirm": "确定删除该文件?",
       "file": "文件",
       "filePlaceholder": "选择文件",
       "fileRequired": "请选择文件"

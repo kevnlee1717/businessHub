@@ -15,6 +15,8 @@ export const documents = pgTable("documents", {
   subjectId: uuid("subject_id"),
   // 公司内部文件库的归属路径,如 "合同&发票/EP";业务文档为 null。
   folderPath: text("folder_path"),
+  // 文件库里可选的所属月份(YYYY-MM),目前用于工资 tab。
+  period: varchar("period", { length: 7 }),
   clientId: uuid("client_id"),
   categoryId: uuid("category_id").references(() => documentCategories.id, { onDelete: "set null" }),
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),

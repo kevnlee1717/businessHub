@@ -9,7 +9,6 @@ export const tabs = [
   { value: "contracts", path: "/documents/contracts", labelKey: "documents.tabs.contracts" },
   { value: "invoices", path: "/documents/invoices", labelKey: "documents.tabs.invoices" },
   { value: "certificates", path: "/documents/certificates", labelKey: "documents.tabs.certificates" },
-  { value: "fees", path: "/documents/fees", labelKey: "documents.tabs.fees" },
   { value: "categories", path: "/documents/categories", labelKey: "documents.tabs.categories" }
 ] as const;
 

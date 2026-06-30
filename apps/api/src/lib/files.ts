@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join, posix } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ export type SaveUploadOptions = {
   clientId?: string | null;
   categoryId?: string | null;
   folderPath?: string | null;
+  period?: string | null;
   uploadedBy?: string | null;
 };
 
@@ -58,9 +59,19 @@ export async function saveUpload(part: MultipartFile, options: SaveUploadOptions
       subjectId: options.subjectId ?? null,
       clientId: options.clientId ?? null,
       categoryId: options.categoryId ?? null,
-      folderPath: options.folderPath ?? null
+      folderPath: options.folderPath ?? null,
+      period: options.period ?? null
     })
     .returning();
 
   return document;
+}
+
+// 按 storage_path 删除物理文件(storage_path 形如 "uploads/2026/06/xxx.pdf")。
+export async function deleteUpload(storagePath: string): Promise<void> {
+  try {
+    await unlink(join(uploadRoot, "..", storagePath));
+  } catch {
+    // 文件可能已不在,忽略。
+  }
 }

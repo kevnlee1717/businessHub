@@ -19,6 +19,7 @@ export type DocumentMeta = {
   subject_type: string;
   subject_id?: string | null;
   folder_path?: string | null;
+  period?: string | null;
   client_id?: string | null;
   category_id?: string | null;
   tags: string[];
@@ -61,6 +62,7 @@ export type UploadDocumentInput = {
   client_id?: string | null | undefined;
   category_id?: string | null | undefined;
   folder_path?: string | null | undefined;
+  period?: string | null | undefined;
   tags?: string[];
 };
 
@@ -167,6 +169,10 @@ export function searchDocuments(
   return api<{ documents: DocumentMeta[] } & PaginationMeta>(`/documents${queryString(params)}`);
 }
 
+export function deleteDocument(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/documents/${id}`, { method: "DELETE" });
+}
+
 export async function uploadDocument(input: UploadDocumentInput): Promise<{ document: DocumentMeta }> {
   const formData = new FormData();
 
@@ -175,6 +181,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ docu
   appendIfPresent(formData, "client_id", input.client_id);
   appendIfPresent(formData, "category_id", input.category_id);
   appendIfPresent(formData, "folder_path", input.folder_path);
+  appendIfPresent(formData, "period", input.period);
   for (const tag of input.tags ?? []) {
     appendIfPresent(formData, "tags", tag);
   }

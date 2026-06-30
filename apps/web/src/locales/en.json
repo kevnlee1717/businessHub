@@ -1265,10 +1265,15 @@
     "library": {
       "allFiles": "All files",
       "rootFolder": "(root)",
-      "subfolder": "Subfolder",
+      "subfolder": "Category",
       "subfolderPlaceholder": "e.g. EP, Franchise (blank = root)",
+      "category": "Category",
+      "categoryPlaceholder": "Select or type a new category (blank = root)",
+      "month": "Month",
       "empty": "No files",
       "upload": "Upload",
+      "deleteDone": "Done",
+      "deleteConfirm": "Delete this file?",
       "file": "File",
       "filePlaceholder": "Choose file",
       "fileRequired": "Please choose a file"

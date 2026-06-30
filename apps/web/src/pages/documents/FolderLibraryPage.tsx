@@ -17,36 +17,37 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fileUrl, searchDocuments, uploadDocument, type DocumentMeta } from "../../api/dms";
+import { CreatableCombobox } from "../../components/CreatableCombobox";
+import { deleteDocument, fileUrl, searchDocuments, uploadDocument, type DocumentMeta } from "../../api/dms";
 import type { CompanyFileSection } from "./companyFileSections";
 
 const ALL = "__all__";
 const ROOT = "__root__";
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 function displayDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
-// folder_path 去掉 section 前缀后的相对路径,如 "合同&发票/EP/旧" → "EP/旧"。
+function formatPeriod(period?: string | null) {
+  if (!period) return "-";
+  const [year, month] = period.split("-");
+  const idx = Number(month) - 1;
+  return idx >= 0 && idx < 12 ? `${MONTHS[idx]} ${year}` : period;
+}
+
+// folder_path 去掉 section 前缀后的相对路径,如 "合同/EP/旧" → "EP/旧"。
 function relativePath(folderPath: string | null | undefined, prefix: string): string {
-  if (!folderPath) {
-    return "";
-  }
-  if (folderPath === prefix) {
-    return "";
-  }
-  if (folderPath.startsWith(`${prefix}/`)) {
-    return folderPath.slice(prefix.length + 1);
-  }
+  if (!folderPath) return "";
+  if (folderPath === prefix) return "";
+  if (folderPath.startsWith(`${prefix}/`)) return folderPath.slice(prefix.length + 1);
   return folderPath;
 }
 
 // 顶层子文件夹(相对路径第一段),用于左侧分组。空 → 根目录。
 function topSubfolder(folderPath: string | null | undefined, prefix: string): string {
   const rest = relativePath(folderPath, prefix);
-  if (rest === "") {
-    return ROOT;
-  }
+  if (rest === "") return ROOT;
   return rest.split("/")[0] ?? ROOT;
 }
 
@@ -54,24 +55,24 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedFolder, setSelectedFolder] = useState<string>(ALL);
+  const [deleteMode, setDeleteMode] = useState(false);
   const [uploadOpened, setUploadOpened] = useState(false);
-  const [uploadFolder, setUploadFolder] = useState("");
+  const [uploadFolder, setUploadFolder] = useState<string | null>(null);
+  const [uploadPeriod, setUploadPeriod] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const withMonth = Boolean(section.withMonth);
+  const cols = withMonth ? 5 : 4;
+
   const documentsQuery = useQuery({
     queryKey: ["documents", "company-library", section.folderPrefix],
-    queryFn: () =>
-      searchDocuments({
-        subject_type: "company",
-        folder_prefix: section.folderPrefix
-      }),
+    queryFn: () => searchDocuments({ subject_type: "company", folder_prefix: section.folderPrefix }),
     placeholderData: keepPreviousData
   });
 
   const documents = useMemo(() => documentsQuery.data?.documents ?? [], [documentsQuery.data]);
 
-  // 左侧子文件夹及计数。
   const folders = useMemo(() => {
     const counts = new Map<string, number>();
     for (const doc of documents) {
@@ -87,19 +88,24 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
       });
   }, [documents, section.folderPrefix]);
 
+  // 类别下拉选项(排除根目录占位)。
+  const categoryOptions = useMemo(
+    () => folders.filter((f) => f.key !== ROOT).map((f) => ({ value: f.key, label: f.key })),
+    [folders]
+  );
+
   const visibleDocuments = useMemo(() => {
-    if (selectedFolder === ALL) {
-      return documents;
-    }
+    if (selectedFolder === ALL) return documents;
     return documents.filter((doc) => topSubfolder(doc.folder_path, section.folderPrefix) === selectedFolder);
   }, [documents, selectedFolder, section.folderPrefix]);
 
   const uploadMutation = useMutation({
-    mutationFn: (input: { file: File; folder: string }) =>
+    mutationFn: (input: { file: File; folder: string; period: string | null }) =>
       uploadDocument({
         file: input.file,
         subject_type: "company",
-        folder_path: input.folder
+        folder_path: input.folder,
+        period: input.period
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["documents", "company-library", section.folderPrefix] });
@@ -107,10 +113,18 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteDocument(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["documents", "company-library", section.folderPrefix] });
+    }
+  });
+
   function openUpload() {
     setUploadError(null);
     setUploadFile(null);
-    setUploadFolder(selectedFolder !== ALL && selectedFolder !== ROOT ? selectedFolder : "");
+    setUploadPeriod("");
+    setUploadFolder(selectedFolder !== ALL && selectedFolder !== ROOT ? selectedFolder : null);
     setUploadOpened(true);
   }
 
@@ -118,7 +132,8 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
     setUploadOpened(false);
     setUploadError(null);
     setUploadFile(null);
-    setUploadFolder("");
+    setUploadFolder(null);
+    setUploadPeriod("");
   }
 
   async function submitUpload() {
@@ -127,10 +142,14 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
       return;
     }
     setUploadError(null);
-    const sub = uploadFolder.trim();
+    const sub = (uploadFolder ?? "").trim();
     const folder = sub ? `${section.folderPrefix}/${sub}` : section.folderPrefix;
     try {
-      await uploadMutation.mutateAsync({ file: uploadFile, folder });
+      await uploadMutation.mutateAsync({
+        file: uploadFile,
+        folder,
+        period: withMonth && uploadPeriod ? uploadPeriod : null
+      });
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -144,7 +163,16 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
     <Stack gap="md">
       <Group justify="space-between">
         <Title order={2}>{t(section.labelKey)}</Title>
-        <Button onClick={openUpload}>{t("documents.library.upload")}</Button>
+        <Group gap="xs">
+          <Button
+            variant={deleteMode ? "filled" : "default"}
+            color="red"
+            onClick={() => setDeleteMode((v) => !v)}
+          >
+            {deleteMode ? t("documents.library.deleteDone") : t("common.delete")}
+          </Button>
+          <Button onClick={openUpload}>{t("documents.library.upload")}</Button>
+        </Group>
       </Group>
 
       {documentsQuery.error ? (
@@ -181,6 +209,7 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
                 <Table.Tr>
                   <Table.Th>{t("document.fields.filename")}</Table.Th>
                   <Table.Th>{t("documents.library.subfolder")}</Table.Th>
+                  {withMonth ? <Table.Th>{t("documents.library.month")}</Table.Th> : null}
                   <Table.Th>{t("document.fields.uploadedAt")}</Table.Th>
                   <Table.Th>{t("common.actions")}</Table.Th>
                 </Table.Tr>
@@ -188,7 +217,7 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
               <Table.Tbody>
                 {documentsQuery.isLoading ? (
                   <Table.Tr>
-                    <Table.Td colSpan={4}>
+                    <Table.Td colSpan={cols}>
                       <Group justify="center" py="lg">
                         <Loader size="sm" />
                       </Group>
@@ -196,7 +225,7 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
                   </Table.Tr>
                 ) : visibleDocuments.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={4}>
+                    <Table.Td colSpan={cols}>
                       <Text ta="center" c="dimmed" py="lg">
                         {t("documents.library.empty")}
                       </Text>
@@ -207,18 +236,36 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
                     <Table.Tr key={doc.id}>
                       <Table.Td>{doc.filename}</Table.Td>
                       <Table.Td>{relativePath(doc.folder_path, section.folderPrefix) || "-"}</Table.Td>
+                      {withMonth ? <Table.Td>{formatPeriod(doc.period)}</Table.Td> : null}
                       <Table.Td>{displayDateTime(doc.uploaded_at)}</Table.Td>
                       <Table.Td>
-                        <Button
-                          component="a"
-                          href={fileUrl(doc.storage_path)}
-                          target="_blank"
-                          rel="noreferrer"
-                          size="xs"
-                          variant="light"
-                        >
-                          {t("common.preview")}
-                        </Button>
+                        <Group gap="xs">
+                          <Button
+                            component="a"
+                            href={fileUrl(doc.storage_path)}
+                            target="_blank"
+                            rel="noreferrer"
+                            size="xs"
+                            variant="light"
+                          >
+                            {t("common.preview")}
+                          </Button>
+                          {deleteMode ? (
+                            <Button
+                              size="xs"
+                              color="red"
+                              variant="subtle"
+                              loading={deleteMutation.isPending}
+                              onClick={() => {
+                                if (window.confirm(t("documents.library.deleteConfirm"))) {
+                                  deleteMutation.mutate(doc.id);
+                                }
+                              }}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          ) : null}
+                        </Group>
                       </Table.Td>
                     </Table.Tr>
                   ))
@@ -236,12 +283,22 @@ export function FolderLibraryPage({ section }: { section: CompanyFileSection }) 
               {uploadError}
             </Alert>
           ) : null}
-          <TextInput
-            label={t("documents.library.subfolder")}
-            placeholder={t("documents.library.subfolderPlaceholder")}
+          <CreatableCombobox
+            label={t("documents.library.category")}
+            placeholder={t("documents.library.categoryPlaceholder")}
+            options={categoryOptions}
             value={uploadFolder}
-            onChange={(event) => setUploadFolder(event.currentTarget.value)}
+            onChange={(value) => setUploadFolder(value)}
+            onCreate={async (name) => name}
           />
+          {withMonth ? (
+            <TextInput
+              type="month"
+              label={t("documents.library.month")}
+              value={uploadPeriod}
+              onChange={(event) => setUploadPeriod(event.currentTarget.value)}
+            />
+          ) : null}
           <FileInput
             label={t("documents.library.file")}
             placeholder={t("documents.library.filePlaceholder")}

@@ -5,7 +5,7 @@ import { and, count, desc, eq, gte, ilike, inArray, lte, sql, type SQL } from "d
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { saveUpload } from "../lib/files";
+import { deleteUpload, saveUpload } from "../lib/files";
 import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema } from "./hrUtils";
 
@@ -33,7 +33,11 @@ const uploadFieldsSchema = z.object({
   subject_id: z.string().uuid().optional(),
   client_id: z.string().uuid().optional(),
   category_id: z.string().uuid().optional(),
-  folder_path: z.string().trim().min(1).optional()
+  folder_path: z.string().trim().min(1).optional(),
+  period: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional()
 });
 
 function serializeDocument(row: typeof documents.$inferSelect) {
@@ -47,6 +51,7 @@ function serializeDocument(row: typeof documents.$inferSelect) {
     subject_type: row.subjectType,
     subject_id: row.subjectId,
     folder_path: row.folderPath,
+    period: row.period,
     client_id: row.clientId,
     category_id: row.categoryId,
     tags: row.tags,
@@ -174,7 +179,8 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         subject_id: stringField(fields.subject_id),
         client_id: stringField(fields.client_id),
         category_id: stringField(fields.category_id),
-        folder_path: stringField(fields.folder_path)
+        folder_path: stringField(fields.folder_path),
+        period: stringField(fields.period)
       });
 
       if (!parsedFields.success) {
@@ -188,6 +194,7 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         clientId: parsedFields.data.client_id ?? null,
         categoryId: parsedFields.data.category_id ?? null,
         folderPath: parsedFields.data.folder_path ?? null,
+        period: parsedFields.data.period ?? null,
         uploadedBy: request.user.id
       });
 
@@ -215,6 +222,16 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       .returning();
 
     return reply.code(201).send({ document: serializeDocument(document ?? uploadedDocument) });
+  });
+
+  app.delete("/documents/:id", { preHandler: requirePerm("document.manage") }, async (request) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [row] = await db.select().from(documents).where(eq(documents.id, id));
+    if (row) {
+      await db.delete(documents).where(eq(documents.id, id));
+      await deleteUpload(row.storagePath);
+    }
+    return { ok: true } as const;
   });
 
   app.get("/clients/:id/documents", { preHandler: requirePerm("document.view") }, async (request) => {
