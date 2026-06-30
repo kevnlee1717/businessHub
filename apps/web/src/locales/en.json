@@ -638,6 +638,16 @@
     "empty": "No cases yet",
     "notFound": "Case not found",
     "updateStatus": "Update status",
+    "nav": {
+      "title": "Case nav"
+    },
+    "section": {
+      "info": "Info",
+      "guarantor": "Guarantor",
+      "children": "Sub-cases",
+      "submissions": "Submissions",
+      "charges": "Charges"
+    },
     "filters": {
       "businessType": "Business type",
       "status": "Status",
