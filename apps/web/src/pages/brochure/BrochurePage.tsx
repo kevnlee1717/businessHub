@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Badge,
@@ -9,6 +10,7 @@ import {
   Divider,
   Group,
   Loader,
+  Menu,
   Paper,
   ScrollArea,
   SimpleGrid,
@@ -229,11 +231,57 @@ function BrochureCard({
   return (
     <Card withBorder shadow="sm" radius="md" padding="md">
       <Stack gap="xs">
-        <Group gap="sm" wrap="nowrap" align="flex-start">
-          <FileTypeIcon version={currentVersion} />
-          <Text fw={700} truncate title={brochure.name} style={{ flex: 1 }}>
-            {brochure.name}
-          </Text>
+        <Group justify="space-between" wrap="nowrap" align="flex-start">
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+            <FileTypeIcon version={currentVersion} />
+            {currentVersion ? (
+              <Anchor
+                component="button"
+                type="button"
+                onClick={() => onPreview(currentVersion)}
+                fw={700}
+                truncate
+                title={brochure.name}
+                style={{ minWidth: 0 }}
+              >
+                {brochure.name}
+              </Anchor>
+            ) : (
+              <Text fw={700} truncate title={brochure.name} style={{ minWidth: 0 }}>
+                {brochure.name}
+              </Text>
+            )}
+            {currentVersion ? <Badge color="blue">V{currentVersion.version_no}</Badge> : null}
+          </Group>
+
+          <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+              <ActionIcon variant="subtle" color="gray" aria-label={t("common.actions") ?? "操作"}>
+                ⋮
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              {currentVersion ? (
+                <Menu.Item onClick={() => onPreview(currentVersion)}>{t("common.preview")}</Menu.Item>
+              ) : null}
+              {currentVersion?.url ? (
+                <Menu.Item component="a" href={currentVersion.url} target="_blank" rel="noreferrer">
+                  {t("brochure.download")}
+                </Menu.Item>
+              ) : null}
+              <Menu.Item onClick={onToggle}>{t("brochure.history")}({versionCount ?? "..."})</Menu.Item>
+              {canManage ? (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item onClick={onUpload}>{t("brochure.uploadVersion")}</Menu.Item>
+                  <Menu.Item onClick={onEdit}>{t("common.edit")}</Menu.Item>
+                  <Menu.Item color="red" disabled={deleting} onClick={onDelete}>
+                    {t("common.delete")}
+                  </Menu.Item>
+                </>
+              ) : null}
+            </Menu.Dropdown>
+          </Menu>
         </Group>
 
         <Group gap="xs">
@@ -241,60 +289,26 @@ function BrochureCard({
           <Badge color="gray" variant="light">{brochure.industry_name ?? t("common.uncategorized")}</Badge>
         </Group>
 
-        <Divider my="xs" />
-
         {currentVersion ? (
           <Stack gap={3}>
-            <Group gap="xs" wrap="nowrap">
-              <Badge color="blue">V{currentVersion.version_no}</Badge>
-              <Anchor component="button" type="button" onClick={() => onPreview(currentVersion)} truncate title={currentVersion.filename} style={{ minWidth: 0 }}>
-                {currentVersion.filename}
-              </Anchor>
-            </Group>
+            <Text size="xs" c="dimmed" truncate title={currentVersion.filename}>
+              {currentVersion.filename}
+            </Text>
             <Text size="xs" c="dimmed">
               {formatBrochureDate(currentVersion.uploaded_at)}
+              {brochure.notes ? ` · ${t("brochure.fields.notes")}: ${brochure.notes}` : ""}
             </Text>
           </Stack>
         ) : (
-          <Text c="dimmed">-</Text>
+          <>
+            <Text c="dimmed">-</Text>
+            {brochure.notes ? (
+              <Text size="xs" c="dimmed">
+                {t("brochure.fields.notes")}: {brochure.notes}
+              </Text>
+            ) : null}
+          </>
         )}
-
-        <Text size="sm" {...(!brochure.notes ? { c: "dimmed" } : {})} lineClamp={2}>
-          {t("brochure.fields.notes")}: {brochure.notes || "-"}
-        </Text>
-
-        <Divider my="xs" />
-
-        <Group gap="xs" wrap="wrap">
-          {currentVersion ? (
-            <>
-              <Button size="xs" variant="light" onClick={() => onPreview(currentVersion)}>
-                {t("common.preview")}
-              </Button>
-              {currentVersion.url ? (
-                <Button size="xs" variant="subtle" component="a" href={currentVersion.url} target="_blank" rel="noreferrer">
-                  {t("brochure.download")}
-                </Button>
-              ) : null}
-            </>
-          ) : null}
-          {canManage ? (
-            <>
-              <Button size="xs" variant="light" onClick={onUpload}>
-                {t("brochure.uploadVersion")}
-              </Button>
-              <Button size="xs" variant="light" onClick={onEdit}>
-                {t("common.edit")}
-              </Button>
-              <Button size="xs" color="red" variant="light" loading={deleting} onClick={onDelete}>
-                {t("common.delete")}
-              </Button>
-            </>
-          ) : null}
-          <Button size="xs" variant="subtle" onClick={onToggle}>
-            {t("brochure.history")}({versionCount ?? "..."}) {expanded ? "▴" : "▾"}
-          </Button>
-        </Group>
 
         <Collapse in={expanded}>
           <Divider my="xs" />
