@@ -12,5 +12,6 @@ export const companyFileSections: CompanyFileSection[] = [
   { value: "salary", folderPrefix: "工资", labelKey: "documents.tabs.salary", withMonth: true },
   { value: "contracts", folderPrefix: "合同", labelKey: "documents.tabs.contracts" },
   { value: "invoices", folderPrefix: "发票", labelKey: "documents.tabs.invoices" },
-  { value: "certificates", folderPrefix: "证明&模板", labelKey: "documents.tabs.certificates" }
+  { value: "certificates", folderPrefix: "证明&模板", labelKey: "documents.tabs.certificates" },
+  { value: "bizfile", folderPrefix: "BizFile", labelKey: "documents.tabs.bizfile" }
 ];

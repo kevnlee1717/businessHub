@@ -1260,6 +1260,7 @@
       "invoices": "发票",
       "certificates": "证明&模板",
       "fees": "收费标准",
+      "bizfile": "BizFile",
       "categories": "分类"
     },
     "library": {
