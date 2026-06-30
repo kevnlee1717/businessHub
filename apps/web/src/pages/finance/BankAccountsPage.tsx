@@ -15,7 +15,13 @@ import {
   Textarea,
   Title
 } from "@mantine/core";
-import { currencies, type BankAccountCreateInput, type Currency } from "@bh/shared";
+import {
+  bankAccountTypes,
+  currencies,
+  type BankAccountCreateInput,
+  type BankAccountType,
+  type Currency
+} from "@bh/shared";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +38,7 @@ import { usePagination } from "../../hooks/usePagination";
 type AccountForm = {
   company_id: string | null;
   name: string;
+  type: BankAccountType | null;
   bank_name: string;
   account_no: string;
   currency: Currency;
@@ -43,6 +50,7 @@ type AccountForm = {
 const emptyForm: AccountForm = {
   company_id: null,
   name: "",
+  type: null,
   bank_name: "",
   account_no: "",
   currency: "SGD",
@@ -64,6 +72,7 @@ function toForm(account: BankAccount): AccountForm {
   return {
     company_id: account.company_id,
     name: account.name,
+    type: account.type ?? null,
     bank_name: account.bank_name ?? "",
     account_no: account.account_no ?? "",
     currency: account.currency,
@@ -105,6 +114,7 @@ export function BankAccountsPage() {
     label: companyLabel(company)
   }));
   const currencyOptions = currencies.map((currency) => ({ value: currency, label: currency }));
+  const typeOptions = bankAccountTypes.map((type) => ({ value: type, label: t(`bankAccountType.${type}`) }));
   const companyById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
 
   const saveMutation = useMutation({
@@ -152,6 +162,7 @@ export function BankAccountsPage() {
     saveMutation.mutate({
       company_id: form.company_id,
       name: form.name.trim(),
+      type: form.type,
       bank_name: toNullable(form.bank_name),
       account_no: toNullable(form.account_no),
       currency: form.currency,
@@ -192,6 +203,7 @@ export function BankAccountsPage() {
               <Table.Tr>
                 <Table.Th>{t("finance.fields.company")}</Table.Th>
                 <Table.Th>{t("finance.fields.accountName")}</Table.Th>
+                <Table.Th>{t("finance.fields.accountType")}</Table.Th>
                 <Table.Th>{t("finance.fields.bankName")}</Table.Th>
                 <Table.Th>{t("finance.fields.accountNo")}</Table.Th>
                 <Table.Th>{t("finance.fields.currency")}</Table.Th>
@@ -209,6 +221,7 @@ export function BankAccountsPage() {
                       {account.is_primary ? <Badge color="blue">{t("finance.bankAccounts.primary")}</Badge> : null}
                     </Group>
                   </Table.Td>
+                  <Table.Td>{account.type ? t(`bankAccountType.${account.type}`) : "-"}</Table.Td>
                   <Table.Td>{account.bank_name || "-"}</Table.Td>
                   <Table.Td>{account.account_no || "-"}</Table.Td>
                   <Table.Td>{account.currency}</Table.Td>
@@ -272,6 +285,13 @@ export function BankAccountsPage() {
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.currentTarget.value }))}
             required
+          />
+          <Select
+            label={t("finance.fields.accountType")}
+            data={typeOptions}
+            value={form.type}
+            onChange={(value) => setForm((current) => ({ ...current, type: value as BankAccountType | null }))}
+            clearable
           />
           <TextInput
             label={t("finance.fields.bankName")}

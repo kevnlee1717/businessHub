@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  bankAccountTypes,
   chargeKinds,
   chargeStatuses,
   currencies,
@@ -16,6 +17,7 @@ const numericField = z.union([z.string(), z.number()]);
 export const bankAccountCreateSchema = z.object({
   company_id: uuidField,
   name: z.string().trim().min(1),
+  type: z.enum(bankAccountTypes).nullable().optional(),
   bank_name: nullableOptionalText,
   account_no: nullableOptionalText,
   currency: z.enum(currencies).optional(),
@@ -27,6 +29,7 @@ export const bankAccountCreateSchema = z.object({
 export const bankAccountUpdateSchema = z.object({
   company_id: uuidField.optional(),
   name: z.string().trim().min(1).optional(),
+  type: z.enum(bankAccountTypes).nullable().optional(),
   bank_name: nullableOptionalText,
   account_no: nullableOptionalText,
   currency: z.enum(currencies).optional(),

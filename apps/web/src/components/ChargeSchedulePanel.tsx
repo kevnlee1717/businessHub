@@ -166,10 +166,17 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
     return { expected, collected, outstanding: expected - collected };
   }, [charges]);
 
-  const accountOptions = (accountsQuery.data?.bank_accounts ?? []).map((account) => ({
-    value: account.id,
-    label: account.name
-  }));
+  const accountOptions = (accountsQuery.data?.bank_accounts ?? []).map((account) => {
+    const parts = [account.name];
+    if (account.type) {
+      parts.push(t(`bankAccountType.${account.type}`));
+    }
+    parts.push(account.currency);
+    if (account.account_no) {
+      parts.push(account.account_no);
+    }
+    return { value: account.id, label: parts.join(" · ") };
+  });
   const currencyOptions = currencies.map((currency) => ({ value: currency, label: currency }));
 
   const collectMutation = useMutation({

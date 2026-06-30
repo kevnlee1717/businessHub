@@ -344,6 +344,13 @@
       "when": 1782820073181,
       "tag": "0048_client_nationality",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1782820074181,
+      "tag": "0049_bank_account_type",
+      "breakpoints": true
     }
   ]
 }

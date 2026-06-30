@@ -22,6 +22,7 @@ import {
   contractStatuses,
   contractSubjectTypes,
   contractVersionStatuses,
+  bankAccountTypes,
   currencies,
   dataScopes,
   diplomaAssignmentActions,
@@ -82,6 +83,7 @@ export const employmentTypeEnum = pgEnum("employment_type", employmentTypes);
 export const employeeStatusEnum = pgEnum("employee_status", employeeStatuses);
 export const payrollSchemeEnum = pgEnum("payroll_scheme", payrollSchemes);
 export const currencyEnum = pgEnum("currency", currencies);
+export const bankAccountTypeEnum = pgEnum("bank_account_type", bankAccountTypes);
 export const billingRefTypeEnum = pgEnum("billing_ref_type", billingRefTypes);
 export const billingStatusEnum = pgEnum("billing_status", billingStatuses);
 export const commissionTypeEnum = pgEnum("commission_type", commissionTypes);

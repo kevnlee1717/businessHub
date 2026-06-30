@@ -1447,6 +1447,12 @@
     "company": "Company",
     "client": "Client"
   },
+  "bankAccountType": {
+    "bank_card": "Bank card",
+    "sg_corporate": "Singapore corporate",
+    "alipay": "Alipay",
+    "wechat": "WeChat"
+  },
   "finance": {
     "tabs": {
       "billing": "Collections",
@@ -1462,6 +1468,7 @@
     "fields": {
       "company": "Company",
       "accountName": "Account name",
+      "accountType": "Account type",
       "bankName": "Bank",
       "accountNo": "Account no.",
       "currency": "Currency",

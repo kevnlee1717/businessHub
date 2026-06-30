@@ -1447,6 +1447,12 @@
     "company": "公司",
     "client": "客户"
   },
+  "bankAccountType": {
+    "bank_card": "银行卡",
+    "sg_corporate": "新加坡公户",
+    "alipay": "支付宝",
+    "wechat": "微信"
+  },
   "finance": {
     "tabs": {
       "billing": "收款",
@@ -1462,6 +1468,7 @@
     "fields": {
       "company": "公司",
       "accountName": "账户名称",
+      "accountType": "账户类型",
       "bankName": "开户行",
       "accountNo": "账号",
       "currency": "币种",

@@ -78,6 +78,7 @@ export async function registerBankAccountRoutes(app: FastifyInstance): Promise<v
         .values({
           companyId: body.company_id,
           name: body.name,
+          type: body.type,
           bankName: body.bank_name,
           accountNo: body.account_no,
           currency: body.currency,
@@ -121,6 +122,7 @@ export async function registerBankAccountRoutes(app: FastifyInstance): Promise<v
         .set({
           companyId: body.company_id,
           name: body.name,
+          type: body.type,
           bankName: body.bank_name,
           accountNo: body.account_no,
           currency: body.currency,

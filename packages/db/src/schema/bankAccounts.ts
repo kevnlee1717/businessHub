@@ -1,11 +1,12 @@
 import { boolean, date, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { companies } from "./companies";
-import { currencyEnum } from "./enums";
+import { bankAccountTypeEnum, currencyEnum } from "./enums";
 
 export const bankAccounts = pgTable("bank_accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  type: bankAccountTypeEnum("type"),
   bankName: text("bank_name"),
   accountNo: text("account_no"),
   currency: currencyEnum("currency").notNull().default("SGD"),

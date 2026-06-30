@@ -31,6 +31,9 @@ export type PayrollScheme = (typeof payrollSchemes)[number];
 export const currencies = ["SGD", "RMB"] as const;
 export type Currency = (typeof currencies)[number];
 
+export const bankAccountTypes = ["bank_card", "sg_corporate", "alipay", "wechat"] as const;
+export type BankAccountType = (typeof bankAccountTypes)[number];
+
 export const billingRefTypes = ["ep", "ica", "diploma", "english", "wsq"] as const;
 export type BillingRefType = (typeof billingRefTypes)[number];
 
