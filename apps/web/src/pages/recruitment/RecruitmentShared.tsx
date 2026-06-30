@@ -333,8 +333,8 @@ function CandidateQuickAddModal({
   const lang = normalizeLang(i18n.language);
   const base = useBaseOptions();
   const queryClient = useQueryClient();
-  const form = useSimpleForm({ name: "", phone: "", nationality: "", intended_job_id: "" });
-  const [photo, setPhoto] = useState<File | null>(null);
+  const form = useSimpleForm({ name: "", phone: "", nationality: "", ethnicity: "", age_band: "", experience_level: "", notes: "", intended_job_id: "" });
+  const [resume, setResume] = useState<File | null>(null);
   const jobOptions = base.jobs
     .filter((job) => job.company_id === prefill.company_id)
     .map((job) => ({ value: job.id, label: tField(job, "title", lang) }));
@@ -350,25 +350,29 @@ function CandidateQuickAddModal({
         name: form.values.name,
         phone: form.values.phone,
         nationality: form.values.nationality,
+        ethnicity: form.values.ethnicity,
+        age_band: form.values.age_band,
+        experience_level: form.values.experience_level,
+        notes: form.values.notes,
         status: "new"
       }).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") data.set(key, String(value));
       });
-      if (photo) data.set("photo", photo);
+      if (resume) data.set("resume", resume);
       return createRecruitmentCandidate(data);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all });
-      form.setValues({ name: "", phone: "", nationality: "", intended_job_id: "" });
-      setPhoto(null);
+      form.setValues({ name: "", phone: "", nationality: "", ethnicity: "", age_band: "", experience_level: "", notes: "", intended_job_id: "" });
+      setResume(null);
       onClose();
     }
   });
 
   useEffect(() => {
     if (!opened) return;
-    form.setValues({ name: "", phone: "", nationality: "", intended_job_id: prefill.intended_job_id ?? "" });
-    setPhoto(null);
+    form.setValues({ name: "", phone: "", nationality: "", ethnicity: "", age_band: "", experience_level: "", notes: "", intended_job_id: prefill.intended_job_id ?? "" });
+    setResume(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, prefill.company_id, prefill.source_posting_id, prefill.source_campaign_id, prefill.intended_job_id]);
 
@@ -378,10 +382,14 @@ function CandidateQuickAddModal({
         <ErrorAlert error={mutation.error} />
         <TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} />
         <TextInput label={t("recruitment.fields.phone")} value={String(form.values.phone ?? "")} onChange={(e) => form.set("phone", e.currentTarget.value)} />
-        <TextInput label={t("recruitment.fields.nationality")} value={String(form.values.nationality ?? "")} onChange={(e) => form.set("nationality", e.currentTarget.value)} />
+        <Select label={t("recruitment.fields.nationality")} data={["SG", "PR", "Malaysia", "China"]} value={String(form.values.nationality ?? "")} onChange={(v) => form.set("nationality", v ?? "")} clearable />
+        <Select label={t("recruitment.fields.ethnicity")} data={["chinese", "indian", "malay", "white"].map((v) => ({ value: v, label: t(`recruitment.ethnicity.${v}`) }))} value={String(form.values.ethnicity ?? "")} onChange={(v) => form.set("ethnicity", v ?? "")} clearable />
+        <Select label={t("recruitment.fields.ageBand")} data={["young", "middle", "old"].map((v) => ({ value: v, label: t(`recruitment.ageBand.${v}`) }))} value={String(form.values.age_band ?? "")} onChange={(v) => form.set("age_band", v ?? "")} clearable />
+        <Select label={t("recruitment.fields.experienceLevel")} data={["none", "experienced", "senior"].map((v) => ({ value: v, label: t(`recruitment.experienceLevel.${v}`) }))} value={String(form.values.experience_level ?? "")} onChange={(v) => form.set("experience_level", v ?? "")} clearable />
+        <Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} />
         <Select label={t("recruitment.fields.job")} data={jobOptions} value={String(form.values.intended_job_id ?? "")} onChange={(v) => form.set("intended_job_id", v ?? "")} clearable searchable />
-        <FileButton onChange={setPhoto} accept="image/*">
-          {(props) => <Button variant="light" {...props}>{photo ? photo.name : t("recruitment.capture.photo")}</Button>}
+        <FileButton onChange={setResume} accept="image/*,application/pdf">
+          {(props) => <Button variant="light" {...props}>{resume ? resume.name : t("recruitment.fields.uploadResume")}</Button>}
         </FileButton>
         <Group justify="flex-end">
           <Button variant="subtle" onClick={onClose}>{t("common.cancel")}</Button>

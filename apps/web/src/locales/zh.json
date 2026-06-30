@@ -2239,6 +2239,10 @@
       "campaign": "活动",
       "phone": "手机",
       "nationality": "国籍",
+      "ethnicity": "种族",
+      "ageBand": "年龄",
+      "experienceLevel": "经验",
+      "uploadResume": "上传简历/截图",
       "sourceType": "来源",
       "assignedClerk": "邀约文员",
       "talentPool": "人才库",
@@ -2281,6 +2285,22 @@
       "add": "添加候选人",
       "all": "全部",
       "overdue": "待跟进"
+    },
+    "ethnicity": {
+      "chinese": "华人",
+      "indian": "印度",
+      "malay": "马来",
+      "white": "白人"
+    },
+    "ageBand": {
+      "young": "年轻",
+      "middle": "中年",
+      "old": "年纪大"
+    },
+    "experienceLevel": {
+      "none": "无经验",
+      "experienced": "有经验",
+      "senior": "资深"
     },
     "followups": {
       "title": "跟进记录",

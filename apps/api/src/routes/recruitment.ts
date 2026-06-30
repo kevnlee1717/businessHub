@@ -433,6 +433,9 @@ function serializeCandidate(row: typeof recruitmentCandidates.$inferSelect) {
     name: row.name,
     phone: row.phone,
     nationality: row.nationality,
+    ethnicity: row.ethnicity,
+    age_band: row.ageBand,
+    experience_level: row.experienceLevel,
     photo_document_id: row.photoDocumentId,
     resume_document_id: row.resumeDocumentId,
     source_type: row.sourceType,
@@ -1314,6 +1317,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         name: body.name,
         phone: body.phone,
         nationality: body.nationality,
+        ethnicity: body.ethnicity,
+        ageBand: body.age_band,
+        experienceLevel: body.experience_level,
         photoDocumentId: body.photo_document_id,
         resumeDocumentId: body.resume_document_id,
         sourceType: body.source_type,
@@ -1364,6 +1370,9 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.name !== undefined) update.name = body.name;
     if (body.phone !== undefined) update.phone = body.phone;
     if (hasOwn(body, "nationality")) update.nationality = body.nationality;
+    if (hasOwn(body, "ethnicity")) update.ethnicity = body.ethnicity;
+    if (hasOwn(body, "age_band")) update.ageBand = body.age_band;
+    if (hasOwn(body, "experience_level")) update.experienceLevel = body.experience_level;
     if (hasOwn(body, "photo_document_id")) update.photoDocumentId = body.photo_document_id;
     if (hasOwn(body, "resume_document_id")) update.resumeDocumentId = body.resume_document_id;
     if (body.source_type !== undefined) update.sourceType = body.source_type;

@@ -2239,6 +2239,10 @@
       "campaign": "Campaign",
       "phone": "Phone",
       "nationality": "Nationality",
+      "ethnicity": "Ethnicity",
+      "ageBand": "Age",
+      "experienceLevel": "Experience",
+      "uploadResume": "Upload resume",
       "sourceType": "Source",
       "assignedClerk": "Assigned clerk",
       "talentPool": "Talent pool",
@@ -2281,6 +2285,22 @@
       "add": "Add candidate",
       "all": "All",
       "overdue": "Overdue"
+    },
+    "ethnicity": {
+      "chinese": "Chinese",
+      "indian": "Indian",
+      "malay": "Malay",
+      "white": "White"
+    },
+    "ageBand": {
+      "young": "Young",
+      "middle": "Middle-aged",
+      "old": "Older"
+    },
+    "experienceLevel": {
+      "none": "No experience",
+      "experienced": "Experienced",
+      "senior": "Senior"
     },
     "followups": {
       "title": "Followups",

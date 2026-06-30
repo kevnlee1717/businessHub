@@ -148,6 +148,9 @@ export type RecruitmentCandidate = {
   name: string;
   phone: string;
   nationality?: string | null;
+  ethnicity?: string | null;
+  age_band?: string | null;
+  experience_level?: string | null;
   photo_document_id?: string | null;
   resume_document_id?: string | null;
   source_type: RecruitmentSourceType;

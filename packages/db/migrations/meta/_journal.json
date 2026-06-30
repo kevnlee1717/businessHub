@@ -337,6 +337,13 @@
       "when": 1782820072181,
       "tag": "0047_documents_period",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1782820072182,
+      "tag": "0048_candidate_classification",
+      "breakpoints": true
     }
   ]
 }

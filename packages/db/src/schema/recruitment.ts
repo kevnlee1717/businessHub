@@ -179,6 +179,9 @@ export const recruitmentCandidates = pgTable("recruitment_candidates", {
   reusableLater: boolean("reusable_later").notNull().default(false),
   reusableNote: varchar("reusable_note", { length: 255 }),
   lastContactedAt: timestamp("last_contacted_at", { withTimezone: true }),
+  ethnicity: text("ethnicity"),
+  ageBand: text("age_band"),
+  experienceLevel: text("experience_level"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
