@@ -17,7 +17,18 @@ type ChangePasswordFormProps = {
   onSuccess?: () => void;
 };
 
+// 强制改密界面用户可能还没设置系统语言,这里同屏显示中英文双语。
+const RULE_EN: Record<string, string> = {
+  minLength: "At least 8 characters",
+  uppercase: "Contains an uppercase letter",
+  lowercase: "Contains a lowercase letter",
+  number: "Contains a number",
+  special: "Contains a special character (e.g. !@#$%)"
+};
+
 export function ChangePasswordForm({ forced = false, onSuccess }: ChangePasswordFormProps) {
+  // forced 态:中英双语;非强制(个人中心改密页):保持中文。
+  const bi = (zh: string, en: string) => (forced ? `${zh} / ${en}` : zh);
   const queryClient = useQueryClient();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -45,11 +56,11 @@ export function ChangePasswordForm({ forced = false, onSuccess }: ChangePassword
     },
     onError: (error) => {
       if (error instanceof ApiError && error.message === "invalid_current_password") {
-        setFormError("当前密码不正确");
+        setFormError(bi("当前密码不正确", "Current password is incorrect"));
         return;
       }
 
-      setFormError(error instanceof Error && error.message ? error.message : "修改失败，请重试");
+      setFormError(error instanceof Error && error.message ? error.message : bi("修改失败,请重试", "Update failed, please try again"));
     }
   });
 
@@ -82,7 +93,7 @@ export function ChangePasswordForm({ forced = false, onSuccess }: ChangePassword
 
         {!forced ? (
           <PasswordInput
-            label="当前密码"
+            label={bi("当前密码", "Current password")}
             value={currentPassword}
             onChange={(event) => setCurrentPassword(event.currentTarget.value)}
             required
@@ -90,7 +101,7 @@ export function ChangePasswordForm({ forced = false, onSuccess }: ChangePassword
         ) : null}
 
         <PasswordInput
-          label="新密码"
+          label={bi("新密码", "New password")}
           value={newPassword}
           onChange={(event) => setNewPassword(event.currentTarget.value)}
           required
@@ -105,23 +116,23 @@ export function ChangePasswordForm({ forced = false, onSuccess }: ChangePassword
                 </Text>
               </ThemeIcon>
               <Text size="sm" c={passed ? "green" : "red"}>
-                {rule.label}
+                {forced ? `${rule.label} / ${RULE_EN[rule.key] ?? ""}` : rule.label}
               </Text>
             </Group>
           ))}
         </Stack>
 
         <PasswordInput
-          label="确认新密码"
+          label={bi("确认新密码", "Confirm new password")}
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.currentTarget.value)}
-          error={showConfirmError ? "两次输入的密码不一致" : undefined}
+          error={showConfirmError ? bi("两次输入的密码不一致", "Passwords do not match") : undefined}
           required
         />
 
         <Group justify="flex-end">
           <Button type="submit" disabled={!canSubmit} loading={mutation.isPending}>
-            修改密码
+            {bi("修改密码", "Change password")}
           </Button>
         </Group>
       </Stack>
