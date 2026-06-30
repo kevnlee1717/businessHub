@@ -278,6 +278,40 @@ export async function uploadGuarantorIdCard(
   return data as { guarantor: Guarantor; document: UploadedDocument };
 }
 
+export function getGuarantor(id: string): Promise<{
+  guarantor: Guarantor & {
+    cases: {
+      id: string;
+      business_type: BusinessType;
+      client_id?: string | null;
+      parent_case_id?: string | null;
+      current_step?: number | null;
+      status: CaseStatus;
+      created_at: string;
+      updated_at: string;
+      latest_result?: "pending" | "approved" | "rejected" | null;
+      client_name?: string | null;
+    }[];
+  };
+}> {
+  return api<{
+    guarantor: Guarantor & {
+      cases: {
+        id: string;
+        business_type: BusinessType;
+        client_id?: string | null;
+        parent_case_id?: string | null;
+        current_step?: number | null;
+        status: CaseStatus;
+        created_at: string;
+        updated_at: string;
+        latest_result?: "pending" | "approved" | "rejected" | null;
+        client_name?: string | null;
+      }[];
+    };
+  }>(`/guarantors/${id}`);
+}
+
 export function listTemplates(
   business_type?: BusinessType,
   params: PaginationParams = {}
@@ -591,4 +625,16 @@ export function createFollowUp(stepId: string, content: string): Promise<{ follo
 
 export function getIcaStats(): Promise<IcaStats> {
   return api<IcaStats>("/cases/ica-stats");
+}
+
+export type GuarantorSummary = {
+  guarantorCount: number;
+  sponsoredTotal: number;
+  approved: number;
+  rejected: number;
+  successRate: number | null;
+};
+
+export function getGuarantorSummary(): Promise<{ summary: GuarantorSummary }> {
+  return api<{ summary: GuarantorSummary }>("/guarantors/stats");
 }
