@@ -1374,15 +1374,18 @@ function StepLegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-// 顶部固定的步骤导航卡:每步一个按钮(显示第几步),按健康度着色,点击切换下方显示的步骤卡片。
-function StepNav({
-  steps,
-  selectedStepId,
+// 顶部固定的案件导航卡:固定区(案件信息/担保人/提交周期/收款计划)+ 每步一个按钮,
+// 步骤按钮按健康度着色;点击切换下方显示的卡片。
+export type CaseNavItem = { key: string; label: string; tone?: StepTone };
+
+function SectionNav({
+  items,
+  selected,
   onSelect
 }: {
-  steps: CaseStep[];
-  selectedStepId: string | null;
-  onSelect: (id: string) => void;
+  items: CaseNavItem[];
+  selected: string;
+  onSelect: (key: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -1394,7 +1397,7 @@ function StepNav({
     >
       <Stack gap="sm">
         <Group justify="space-between">
-          <Title order={4}>{t("caseStep.title")}</Title>
+          <Title order={4}>{t("case.nav.title")}</Title>
           <Group gap="md">
             <StepLegendDot color="blue" label={t("caseStep.tone.progress")} />
             <StepLegendDot color="red" label={t("caseStep.tone.problem")} />
@@ -1403,18 +1406,17 @@ function StepNav({
           </Group>
         </Group>
         <Group gap="xs">
-          {steps.map((step, index) => {
-            const selected = step.id === selectedStepId;
+          {items.map((item) => {
+            const isSelected = item.key === selected;
             return (
               <Button
-                key={step.id}
+                key={item.key}
                 size="sm"
-                color={stepToneColor(stepTone(step))}
-                variant={selected ? "filled" : "light"}
-                onClick={() => onSelect(step.id)}
-                title={step.name}
+                color={item.tone ? stepToneColor(item.tone) : "blue"}
+                variant={isSelected ? "filled" : item.tone ? "light" : "default"}
+                onClick={() => onSelect(item.key)}
               >
-                {t("caseStep.stepNo", { n: index + 1 })}
+                {item.label}
               </Button>
             );
           })}
@@ -1434,7 +1436,7 @@ export function CaseDetailPage() {
   const [signedAtDraft, setSignedAtDraft] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [caseCharges, setCaseCharges] = useState<Charge[]>([]);
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [selectedPanel, setSelectedPanel] = useState<string>("info");
 
   const caseQuery = useQuery({
     queryKey: ["business", "case", id],
@@ -1474,9 +1476,36 @@ export function CaseDetailPage() {
     () => [...(caseQuery.data?.steps ?? [])].sort((a, b) => a.step_order - b.step_order),
     [caseQuery.data?.steps]
   );
+  const navItems = useMemo<CaseNavItem[]>(() => {
+    if (!caseItem) {
+      return [];
+    }
+    const isIca = caseItem.business_type === "ica";
+    const isEp = caseItem.business_type === "ep";
+    const items: CaseNavItem[] = [{ key: "info", label: t("case.section.info") }];
+    if (isIca) {
+      items.push({ key: "guarantor", label: t("case.section.guarantor") });
+    }
+    if (isEp) {
+      items.push({ key: "children", label: t("case.section.children") });
+    }
+    if (isEp || isIca) {
+      items.push({ key: "submissions", label: t("case.section.submissions") });
+      items.push({ key: "charges", label: t("case.section.charges") });
+    }
+    steps.forEach((step, index) => {
+      items.push({ key: step.id, label: t("caseStep.stepNo", { n: index + 1 }), tone: stepTone(step) });
+    });
+    return items;
+  }, [caseItem, steps, t]);
+
+  const effectiveSelected = navItems.some((item) => item.key === selectedPanel)
+    ? selectedPanel
+    : navItems[0]?.key ?? "info";
+
   const selectedStep = useMemo(
-    () => steps.find((step) => step.id === selectedStepId) ?? null,
-    [steps, selectedStepId]
+    () => steps.find((step) => step.id === effectiveSelected) ?? null,
+    [steps, effectiveSelected]
   );
   const clients = clientsQuery.data?.clients ?? [];
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
@@ -1564,31 +1593,22 @@ export function CaseDetailPage() {
         </Group>
       ) : caseItem ? (
         <>
-          {steps.length > 0 ? (
-            <StepNav steps={steps} selectedStepId={selectedStepId} onSelect={setSelectedStepId} />
+          <SectionNav items={navItems} selected={effectiveSelected} onSelect={setSelectedPanel} />
+
+          {selectedStep ? (
+            <StepCard
+              step={selectedStep}
+              caseId={caseItem.id}
+              stepCharges={chargesByStepId.get(selectedStep.id) ?? []}
+              employees={employees}
+              employeeById={employeeById}
+              canManageCases={canManageCases}
+              currentUserId={user?.id}
+              documentCategories={documentCategories}
+            />
           ) : null}
 
-          {steps.length > 0 ? (
-            selectedStep ? (
-              <StepCard
-                step={selectedStep}
-                caseId={caseItem.id}
-                stepCharges={chargesByStepId.get(selectedStep.id) ?? []}
-                employees={employees}
-                employeeById={employeeById}
-                canManageCases={canManageCases}
-                currentUserId={user?.id}
-                documentCategories={documentCategories}
-              />
-            ) : (
-              <Paper withBorder radius="md" p="lg">
-                <Text ta="center" c="dimmed">
-                  {t("caseStep.selectHint")}
-                </Text>
-              </Paper>
-            )
-          ) : null}
-
+          {effectiveSelected === "info" ? (
           <Paper withBorder radius="md" p="md">
             <Stack gap="md">
               {statusError ? (
@@ -1683,8 +1703,9 @@ export function CaseDetailPage() {
               </Group>
             </Stack>
           </Paper>
+          ) : null}
 
-          {caseItem.business_type === "ica" ? (
+          {effectiveSelected === "guarantor" && caseItem.business_type === "ica" ? (
             <GuarantorSection
               caseItem={caseItem}
               guarantor={guarantor}
@@ -1693,7 +1714,7 @@ export function CaseDetailPage() {
             />
           ) : null}
 
-          {caseItem.business_type === "ep" ? (
+          {effectiveSelected === "children" && caseItem.business_type === "ep" ? (
             <DpChildrenSection
               parentCaseId={caseItem.id}
               children={children}
@@ -1702,7 +1723,7 @@ export function CaseDetailPage() {
             />
           ) : null}
 
-          {caseItem.business_type === "ep" || caseItem.business_type === "ica" ? (
+          {effectiveSelected === "submissions" && (caseItem.business_type === "ep" || caseItem.business_type === "ica") ? (
             <SubmissionTimeline
               caseId={caseItem.id}
               submissions={submissions}
@@ -1710,8 +1731,11 @@ export function CaseDetailPage() {
             />
           ) : null}
 
+          {/* 收款计划:始终挂载(用于加载 charges 供步骤卡使用),未选中时隐藏 */}
           {caseItem.business_type === "ep" || caseItem.business_type === "ica" ? (
-            <ChargeSchedulePanel caseId={caseItem.id} onChargesLoaded={handleChargesLoaded} />
+            <div style={{ display: effectiveSelected === "charges" ? undefined : "none" }}>
+              <ChargeSchedulePanel caseId={caseItem.id} onChargesLoaded={handleChargesLoaded} />
+            </div>
           ) : null}
 
         </>

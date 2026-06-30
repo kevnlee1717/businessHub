@@ -638,6 +638,16 @@
     "empty": "暂无案件",
     "notFound": "未找到案件",
     "updateStatus": "更新状态",
+    "nav": {
+      "title": "案件导航"
+    },
+    "section": {
+      "info": "案件信息",
+      "guarantor": "担保人",
+      "children": "子案件",
+      "submissions": "提交周期",
+      "charges": "收款计划"
+    },
     "filters": {
       "businessType": "业务类型",
       "status": "状态",
