@@ -4,9 +4,12 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 export const tabs = [
   { value: "search", path: "/documents/search", labelKey: "documents.tabs.search" },
-  { value: "client-library", path: "/documents/client-library", labelKey: "documents.tabs.clientLibrary" },
-  { value: "company", path: "/documents/company", labelKey: "documents.tabs.company" },
+  { value: "rent", path: "/documents/rent", labelKey: "documents.tabs.rent" },
+  { value: "salary", path: "/documents/salary", labelKey: "documents.tabs.salary" },
   { value: "contracts", path: "/documents/contracts", labelKey: "documents.tabs.contracts" },
+  { value: "invoices", path: "/documents/invoices", labelKey: "documents.tabs.invoices" },
+  { value: "certificates", path: "/documents/certificates", labelKey: "documents.tabs.certificates" },
+  { value: "fees", path: "/documents/fees", labelKey: "documents.tabs.fees" },
   { value: "categories", path: "/documents/categories", labelKey: "documents.tabs.categories" }
 ] as const;
 

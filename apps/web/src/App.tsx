@@ -21,11 +21,10 @@ import { CaseDetailPage } from "./pages/business/CaseDetailPage";
 import { EpSection } from "./pages/business/EpSection";
 import { IcaSection } from "./pages/business/IcaSection";
 import { CategoriesPage } from "./pages/documents/CategoriesPage";
-import { ClientLibraryPage } from "./pages/documents/ClientLibraryPage";
-import { CompanyFilesPage } from "./pages/documents/CompanyFilesPage";
-import { ContractsPage } from "./pages/documents/ContractsPage";
+import { companyFileSections } from "./pages/documents/companyFileSections";
 import { DocumentSearchPage } from "./pages/documents/DocumentSearchPage";
 import { DocumentsLayout } from "./pages/documents/DocumentsLayout";
+import { FolderLibraryPage } from "./pages/documents/FolderLibraryPage";
 import { AcademyCollectionPage } from "./pages/education/AcademyCollectionPage";
 import { DiplomaSection } from "./pages/education/DiplomaSection";
 import { EducationLayout } from "./pages/education/EducationLayout";
@@ -124,9 +123,13 @@ export function App() {
           <Route path="documents" element={<DocumentsLayout />}>
             <Route index element={<Navigate to="search" replace />} />
             <Route path="search" element={<DocumentSearchPage />} />
-            <Route path="client-library" element={<ClientLibraryPage />} />
-            <Route path="company" element={<CompanyFilesPage />} />
-            <Route path="contracts" element={<ContractsPage />} />
+            {companyFileSections.map((section) => (
+              <Route
+                key={section.value}
+                path={section.value}
+                element={<FolderLibraryPage section={section} />}
+              />
+            ))}
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
           <Route path="brochure" element={<BrochurePage />} />

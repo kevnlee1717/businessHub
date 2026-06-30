@@ -12,6 +12,7 @@ export type SaveUploadOptions = {
   subjectId?: string | null;
   clientId?: string | null;
   categoryId?: string | null;
+  folderPath?: string | null;
   uploadedBy?: string | null;
 };
 
@@ -56,7 +57,8 @@ export async function saveUpload(part: MultipartFile, options: SaveUploadOptions
       subjectType: options.subjectType,
       subjectId: options.subjectId ?? null,
       clientId: options.clientId ?? null,
-      categoryId: options.categoryId ?? null
+      categoryId: options.categoryId ?? null,
+      folderPath: options.folderPath ?? null
     })
     .returning();
 

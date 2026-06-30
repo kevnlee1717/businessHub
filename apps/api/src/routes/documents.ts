@@ -20,6 +20,7 @@ const documentQuerySchema = z
     subject_type: z.string().trim().min(1).optional(),
     subject_id: z.string().uuid().optional(),
     category_id: z.string().uuid().optional(),
+    folder_prefix: z.string().trim().min(1).optional(),
     tag: z.string().trim().min(1).optional(),
     filename: z.string().trim().min(1).optional(),
     date_from: z.string().datetime().optional(),
@@ -31,7 +32,8 @@ const uploadFieldsSchema = z.object({
   subject_type: z.string().trim().min(1).optional(),
   subject_id: z.string().uuid().optional(),
   client_id: z.string().uuid().optional(),
-  category_id: z.string().uuid().optional()
+  category_id: z.string().uuid().optional(),
+  folder_path: z.string().trim().min(1).optional()
 });
 
 function serializeDocument(row: typeof documents.$inferSelect) {
@@ -44,6 +46,7 @@ function serializeDocument(row: typeof documents.$inferSelect) {
     uploaded_by: row.uploadedBy,
     subject_type: row.subjectType,
     subject_id: row.subjectId,
+    folder_path: row.folderPath,
     client_id: row.clientId,
     category_id: row.categoryId,
     tags: row.tags,
@@ -97,6 +100,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     }
     if (query.category_id) {
       filters.push(eq(documents.categoryId, query.category_id));
+    }
+    if (query.folder_prefix) {
+      // 公司文件库按 folder_path 前缀过滤;转义 LIKE 通配符,只做前缀匹配。
+      const escaped = query.folder_prefix.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+      filters.push(sql`${documents.folderPath} LIKE ${`${escaped}%`}`);
     }
     if (query.tag) {
       filters.push(sql`${documents.tags} @> ARRAY[${query.tag}]::text[]`);
@@ -165,7 +173,8 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         subject_type: stringField(fields.subject_type),
         subject_id: stringField(fields.subject_id),
         client_id: stringField(fields.client_id),
-        category_id: stringField(fields.category_id)
+        category_id: stringField(fields.category_id),
+        folder_path: stringField(fields.folder_path)
       });
 
       if (!parsedFields.success) {
@@ -178,6 +187,7 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         subjectId: parsedFields.data.subject_id ?? null,
         clientId: parsedFields.data.client_id ?? null,
         categoryId: parsedFields.data.category_id ?? null,
+        folderPath: parsedFields.data.folder_path ?? null,
         uploadedBy: request.user.id
       });
 

@@ -18,6 +18,7 @@ export type DocumentMeta = {
   uploaded_by?: string | null;
   subject_type: string;
   subject_id?: string | null;
+  folder_path?: string | null;
   client_id?: string | null;
   category_id?: string | null;
   tags: string[];
@@ -44,6 +45,7 @@ export type DocumentSearchParams = {
   subject_type?: string | null | undefined;
   subject_id?: string | null | undefined;
   category_id?: string | null | undefined;
+  folder_prefix?: string | null | undefined;
   tag?: string | null | undefined;
   filename?: string | null | undefined;
   date_from?: string | null | undefined;
@@ -58,6 +60,7 @@ export type UploadDocumentInput = {
   subject_id?: string | null | undefined;
   client_id?: string | null | undefined;
   category_id?: string | null | undefined;
+  folder_path?: string | null | undefined;
   tags?: string[];
 };
 
@@ -171,6 +174,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ docu
   appendIfPresent(formData, "subject_id", input.subject_id);
   appendIfPresent(formData, "client_id", input.client_id);
   appendIfPresent(formData, "category_id", input.category_id);
+  appendIfPresent(formData, "folder_path", input.folder_path);
   for (const tag of input.tags ?? []) {
     appendIfPresent(formData, "tags", tag);
   }

@@ -1254,10 +1254,24 @@
   "documents": {
     "tabs": {
       "search": "检索",
-      "clientLibrary": "客户资料库",
-      "company": "公司",
+      "rent": "租房&租金",
+      "salary": "工资",
       "contracts": "合同",
+      "invoices": "发票",
+      "certificates": "证明&模板",
+      "fees": "收费标准",
       "categories": "分类"
+    },
+    "library": {
+      "allFiles": "全部文件",
+      "rootFolder": "(根目录)",
+      "subfolder": "子文件夹",
+      "subfolderPlaceholder": "如 EP、生意加盟(留空=放根目录)",
+      "empty": "暂无文件",
+      "upload": "上传",
+      "file": "文件",
+      "filePlaceholder": "选择文件",
+      "fileRequired": "请选择文件"
     }
   },
   "document": {

@@ -309,6 +309,13 @@
       "when": 1782808534250,
       "tag": "0043_broken_whiplash",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1782815290751,
+      "tag": "0044_flippant_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }

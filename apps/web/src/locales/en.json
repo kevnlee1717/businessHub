@@ -1254,10 +1254,24 @@
   "documents": {
     "tabs": {
       "search": "Search",
-      "clientLibrary": "Client library",
-      "company": "Company",
+      "rent": "Rent",
+      "salary": "Salary",
       "contracts": "Contracts",
+      "invoices": "Invoices",
+      "certificates": "Certificates & Templates",
+      "fees": "Fee Standards",
       "categories": "Categories"
+    },
+    "library": {
+      "allFiles": "All files",
+      "rootFolder": "(root)",
+      "subfolder": "Subfolder",
+      "subfolderPlaceholder": "e.g. EP, Franchise (blank = root)",
+      "empty": "No files",
+      "upload": "Upload",
+      "file": "File",
+      "filePlaceholder": "Choose file",
+      "fileRequired": "Please choose a file"
     }
   },
   "document": {
