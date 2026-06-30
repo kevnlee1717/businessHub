@@ -21,6 +21,7 @@ export * from "./schemas/hr";
 export * from "./schemas/ledger";
 export * from "./schemas/permissions";
 export * from "./schemas/recruitment";
+export * from "./schemas/rent";
 export * from "./schemas/reports";
 export * from "./icaImport";
 export * from "./icaStats";

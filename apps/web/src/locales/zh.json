@@ -1274,6 +1274,45 @@
       "fileRequired": "请选择文件"
     }
   },
+  "rent": {
+    "months": "个月",
+    "location": {
+      "add": "新建地点",
+      "edit": "编辑地点",
+      "empty": "还没有地点,先「新建地点」",
+      "selectHint": "请选择左侧地点查看租约信息与文件。",
+      "nameRequired": "请填写地点名称",
+      "deleteConfirm": "确定删除该地点?其下所有文件一并删除。"
+    },
+    "kind": {
+      "payment": "月租付款"
+    },
+    "files": {
+      "empty": "该地点暂无文件",
+      "deleteConfirm": "确定删除该文件?"
+    },
+    "upload": {
+      "required": "请选择地点和文件",
+      "locationRequired": "请选择地点",
+      "fileRequired": "请选择文件"
+    },
+    "fields": {
+      "name": "地点名称",
+      "address": "地址",
+      "landlord": "房东名称",
+      "leaseStart": "起租时间",
+      "leaseMonths": "租约时长(月)",
+      "monthlyRent": "月租金",
+      "deposit": "押金",
+      "currency": "币种",
+      "note": "备注",
+      "location": "地点",
+      "kind": "类型",
+      "period": "所属月份",
+      "paidAt": "付款日期",
+      "periodOrTag": "月份 / 类型"
+    }
+  },
   "document": {
     "search": {
       "title": "文档检索",
