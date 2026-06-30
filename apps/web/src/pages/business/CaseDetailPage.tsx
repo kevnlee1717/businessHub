@@ -36,7 +36,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   createCase,
   createCaseStepDoc,
@@ -65,6 +65,7 @@ import {
 import { fileUrl, listDocumentCategories, type DocumentCategory } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { useSetTabTitle } from "../../layout/tabTitle";
 import { ChargeSchedulePanel } from "../../components/ChargeSchedulePanel";
 import { type Charge } from "../../api/charges";
 
@@ -1545,6 +1546,8 @@ export function CaseDetailPage() {
   const loadError =
     caseQuery.error ?? clientsQuery.error ?? employeesQuery.error ?? guarantorsQuery.error ?? documentCategoriesQuery.error;
   const canManageCases = can("case.manage");
+  const location = useLocation();
+  const setTabTitle = useSetTabTitle();
 
   useEffect(() => {
     if (caseItem) {
@@ -1552,6 +1555,17 @@ export function CaseDetailPage() {
       setSignedAtDraft(caseItem.signed_at ?? null);
     }
   }, [caseItem]);
+
+  // 顶部标签页显示 "EP / 客户名"(ICA 同理),替换默认的原始路由路径
+  useEffect(() => {
+    if (!caseItem) {
+      return;
+    }
+    const client = clientById.get(caseItem.client_id ?? "");
+    const typeLabel = t(`businessType.${caseItem.business_type}`);
+    const title = client?.name ? `${typeLabel} / ${client.name}` : typeLabel;
+    setTabTitle(location.pathname, title);
+  }, [caseItem, clientById, location.pathname, setTabTitle, t]);
 
   async function updateStatus() {
     if (!id || !statusDraft) {

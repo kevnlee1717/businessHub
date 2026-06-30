@@ -16,7 +16,7 @@ import {
 } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useDisclosure } from "@mantine/hooks";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -24,6 +24,7 @@ import { ChangePasswordForm } from "../components/ChangePasswordForm";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { getRecruitmentDashboard, recruitmentKeys } from "../api/recruitment";
 import { routeTitleEntries } from "./routeTitles";
+import { TabTitleContext } from "./tabTitle";
 import { TagsView, type VisitedView } from "./TagsView";
 
 type NavItem = {
@@ -203,6 +204,11 @@ export function AppShell() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  // 供具体页面(如案件详情)在拿到数据后回填对应标签的标题;标签不存在则忽略。
+  const setTabTitle = useCallback((path: string, title: string) => {
+    setViews((prev) => prev.map((v) => (v.path === path ? { ...v, title } : v)));
+  }, []);
 
   function closeTag(path: string) {
     setViews((prev) => {
@@ -411,7 +417,9 @@ export function AppShell() {
           />
           {/* element-admin .app-container:padding 20px,内容铺满 */}
           <Box p="lg">
-            <Outlet />
+            <TabTitleContext.Provider value={setTabTitle}>
+              <Outlet />
+            </TabTitleContext.Provider>
           </Box>
         </MantineAppShell.Main>
       </MantineAppShell>
