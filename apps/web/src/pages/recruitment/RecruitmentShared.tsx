@@ -1087,11 +1087,26 @@ export function CandidatesPageImpl({ talentPool = false }: { talentPool?: boolea
   const [status, setStatus] = useState<RecruitmentCandidateStatus | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [nationality, setNationality] = useState<string | null>(null);
+  const [ethnicity, setEthnicity] = useState<string | null>(null);
+  const [ageBand, setAgeBand] = useState<string | null>(null);
+  const [experienceLevel, setExperienceLevel] = useState<string | null>(null);
   const params = { status: status ?? undefined, overdue: tab === "overdue" ? "1" : undefined, in_talent_pool: talentPool ? "1" : undefined };
   const query = useQuery({ queryKey: recruitmentKeys.candidates(params), queryFn: () => listRecruitmentCandidates(params) });
   const rows = query.data?.candidates ?? [];
   const jobOptionsForCompany = (companyId ? base.jobs.filter((j) => j.company_id === companyId) : base.jobs).map((j) => ({ value: j.id, label: tField(j, "title", lang) }));
-  const filteredRows = rows.filter((row) => (!companyId || row.company_id === companyId) && (!jobId || row.intended_job_id === jobId));
+  const ethnicityOptions = ["chinese", "indian", "malay", "white"].map((v) => ({ value: v, label: t(`recruitment.ethnicity.${v}`) }));
+  const ageBandOptions = ["young", "middle", "old"].map((v) => ({ value: v, label: t(`recruitment.ageBand.${v}`) }));
+  const experienceLevelOptions = ["none", "experienced", "senior"].map((v) => ({ value: v, label: t(`recruitment.experienceLevel.${v}`) }));
+  const filteredRows = rows.filter(
+    (row) =>
+      (!companyId || row.company_id === companyId) &&
+      (!jobId || row.intended_job_id === jobId) &&
+      (!nationality || row.nationality === nationality) &&
+      (!ethnicity || row.ethnicity === ethnicity) &&
+      (!ageBand || row.age_band === ageBand) &&
+      (!experienceLevel || row.experience_level === experienceLevel)
+  );
   return (
     <Stack gap="md">
       <ErrorAlert error={query.error} />
@@ -1124,6 +1139,10 @@ export function CandidatesPageImpl({ talentPool = false }: { talentPool?: boolea
           onChange={(v) => setStatus(v as RecruitmentCandidateStatus | null)}
           clearable
         />
+        <Select label={t("recruitment.fields.nationality")} w={140} data={["SG", "PR", "Malaysia", "China"]} value={nationality} onChange={setNationality} clearable />
+        <Select label={t("recruitment.fields.ethnicity")} w={140} data={ethnicityOptions} value={ethnicity} onChange={setEthnicity} clearable />
+        <Select label={t("recruitment.fields.ageBand")} w={140} data={ageBandOptions} value={ageBand} onChange={setAgeBand} clearable />
+        <Select label={t("recruitment.fields.experienceLevel")} w={160} data={experienceLevelOptions} value={experienceLevel} onChange={setExperienceLevel} clearable />
       </Group>
       <CandidateTable rows={filteredRows} loading={query.isLoading} />
     </Stack>
@@ -1136,14 +1155,116 @@ export function CandidateDetailPageImpl() {
   const base = useBaseOptions();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: recruitmentKeys.candidate(id ?? ""), queryFn: () => getRecruitmentCandidate(id ?? ""), enabled: Boolean(id) });
+  const candidateForm = useSimpleForm();
   const followForm = useSimpleForm({ type: "call", note: "", by_employee_id: "" });
   const interviewForm = useSimpleForm({ scheduled_at: "", mode: "", interviewer_id: null, status: "scheduled", result: "pending" });
+  const candidate = query.data?.candidate;
+  const ethnicityOptions = ["chinese", "indian", "malay", "white"].map((v) => ({ value: v, label: t(`recruitment.ethnicity.${v}`) }));
+  const ageBandOptions = ["young", "middle", "old"].map((v) => ({ value: v, label: t(`recruitment.ageBand.${v}`) }));
+  const experienceLevelOptions = ["none", "experienced", "senior"].map((v) => ({ value: v, label: t(`recruitment.experienceLevel.${v}`) }));
+  useEffect(() => {
+    if (!candidate) return;
+    candidateForm.setValues({
+      nationality: candidate.nationality ?? "",
+      ethnicity: candidate.ethnicity ?? "",
+      age_band: candidate.age_band ?? "",
+      experience_level: candidate.experience_level ?? "",
+      status: candidate.status,
+      assigned_clerk_id: candidate.assigned_clerk_id ?? "",
+      in_talent_pool: candidate.in_talent_pool,
+      notes: candidate.notes ?? ""
+    });
+  }, [candidate?.id, candidate?.updated_at]);
+  const candidateMutation = useMutation({
+    mutationFn: () => {
+      if (!candidate) throw new Error("candidate_not_loaded");
+      return updateRecruitmentCandidate(candidate.id, {
+        nationality: emptyToNull(candidateForm.values.nationality),
+        ethnicity: emptyToNull(candidateForm.values.ethnicity),
+        age_band: emptyToNull(candidateForm.values.age_band),
+        experience_level: emptyToNull(candidateForm.values.experience_level),
+        status: candidateForm.values.status,
+        assigned_clerk_id: emptyToNull(candidateForm.values.assigned_clerk_id),
+        in_talent_pool: Boolean(candidateForm.values.in_talent_pool),
+        notes: emptyToNull(candidateForm.values.notes)
+      });
+    },
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.candidate(id ?? "") })
+  });
   const followMutation = useMutation({ mutationFn: () => createRecruitmentFollowup(id ?? "", followForm.values), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.candidate(id ?? "") }); followForm.setValues({ type: "call", note: "", by_employee_id: "" }); } });
   const interviewMutation = useMutation({ mutationFn: () => createRecruitmentInterview({ ...interviewForm.values, company_id: query.data?.candidate.company_id, candidate_id: id, scheduled_at: new Date(String(interviewForm.values.scheduled_at)).toISOString() }), onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.candidate(id ?? "") }) });
-  const candidate = query.data?.candidate;
   if (query.isLoading) return <Group justify="center"><Loader /></Group>;
   if (!candidate) return <ErrorAlert error={query.error} />;
-  return <Stack gap="md"><Card withBorder><Group justify="space-between"><Text fw={600}>{candidate.name}</Text><StatusBadge value={candidate.status} ns="candidateStatus" /></Group><SimpleGrid cols={{ base: 1, md: 3 }} mt="md"><Text>{t("recruitment.fields.phone")}: {candidate.phone}</Text><Text>{t("recruitment.fields.job")}: {optionLabel(base.jobOptions, candidate.intended_job_id)}</Text><Text>{t("recruitment.fields.lastContactedAt")}: {fmt(candidate.last_contacted_at)}</Text></SimpleGrid></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.followups.add")}</Text><Group align="flex-end"><Select label={t("recruitment.fields.type")} data={recruitmentFollowupTypes.map((v) => ({ value: v, label: t(`recruitment.followupType.${v}`) }))} value={String(followForm.values.type ?? "call")} onChange={(v) => followForm.set("type", v)} /><Select label={t("recruitment.fields.byEmployee")} data={base.employeeOptions} value={String(followForm.values.by_employee_id ?? "")} onChange={(v) => followForm.set("by_employee_id", v)} searchable /><TextInput label={t("recruitment.fields.note")} value={String(followForm.values.note ?? "")} onChange={(e) => followForm.set("note", e.currentTarget.value)} /><Button onClick={() => followMutation.mutate()} loading={followMutation.isPending}>{t("common.save")}</Button></Group></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.interviews.add")}</Text><Group align="flex-end"><TextInput type="datetime-local" label={t("recruitment.fields.scheduledAt")} value={String(interviewForm.values.scheduled_at ?? "")} onChange={(e) => interviewForm.set("scheduled_at", e.currentTarget.value)} /><TextInput label={t("recruitment.fields.mode")} value={String(interviewForm.values.mode ?? "")} onChange={(e) => interviewForm.set("mode", e.currentTarget.value)} /><Select label={t("recruitment.fields.interviewer")} data={base.employeeOptions} value={(interviewForm.values.interviewer_id as string | null) ?? null} onChange={(v) => interviewForm.set("interviewer_id", v)} clearable /><Button onClick={() => interviewMutation.mutate()} loading={interviewMutation.isPending}>{t("common.save")}</Button></Group></Card><SimpleGrid cols={{ base: 1, md: 2 }}><Card withBorder><Text fw={600} mb="md">{t("recruitment.followups.title")}</Text><Stack>{(query.data?.followups ?? []).map((row) => <Box key={row.id} p="sm" style={{ borderBottom: "1px solid var(--app-line)" }}><Group justify="space-between"><StatusBadge value={row.type} ns="followupType" /><Text size="xs" c="dimmed">{fmt(row.contacted_at)}</Text></Group><Text mt="xs">{row.note}</Text></Box>)}</Stack></Card><Card withBorder><Text fw={600} mb="md">{t("recruitment.interviews.title")}</Text><Stack>{(query.data?.interviews ?? []).map((row) => <Box key={row.id} p="sm" style={{ borderBottom: "1px solid var(--app-line)" }}><Group justify="space-between"><StatusBadge value={row.status} ns="interviewStatus" /><StatusBadge value={row.result} ns="interviewResult" /></Group><Text mt="xs">{fmt(row.scheduled_at)} / {row.mode}</Text></Box>)}</Stack></Card></SimpleGrid></Stack>;
+  return (
+    <Stack gap="md">
+      <Card withBorder>
+        <Group justify="space-between">
+          <Text fw={600}>{candidate.name}</Text>
+          <StatusBadge value={candidate.status} ns="candidateStatus" />
+        </Group>
+        <SimpleGrid cols={{ base: 1, md: 3 }} mt="md">
+          <Text>{t("recruitment.fields.phone")}: {candidate.phone}</Text>
+          <Text>{t("recruitment.fields.job")}: {optionLabel(base.jobOptions, candidate.intended_job_id)}</Text>
+          <Text>{t("recruitment.fields.lastContactedAt")}: {fmt(candidate.last_contacted_at)}</Text>
+        </SimpleGrid>
+      </Card>
+      <Card withBorder>
+        <Group justify="space-between" mb="md">
+          <Text fw={600}>{t("recruitment.candidates.info")}</Text>
+          <Button size="xs" onClick={() => candidateMutation.mutate()} loading={candidateMutation.isPending}>{t("common.save")}</Button>
+        </Group>
+        <ErrorAlert error={candidateMutation.error} />
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+          <Select label={t("recruitment.fields.nationality")} data={["SG", "PR", "Malaysia", "China"]} value={(candidateForm.values.nationality as string | null) || null} onChange={(v) => candidateForm.set("nationality", v ?? "")} clearable />
+          <Select label={t("recruitment.fields.ethnicity")} data={ethnicityOptions} value={(candidateForm.values.ethnicity as string | null) || null} onChange={(v) => candidateForm.set("ethnicity", v ?? "")} clearable />
+          <Select label={t("recruitment.fields.ageBand")} data={ageBandOptions} value={(candidateForm.values.age_band as string | null) || null} onChange={(v) => candidateForm.set("age_band", v ?? "")} clearable />
+          <Select label={t("recruitment.fields.experienceLevel")} data={experienceLevelOptions} value={(candidateForm.values.experience_level as string | null) || null} onChange={(v) => candidateForm.set("experience_level", v ?? "")} clearable />
+          <Select label={t("recruitment.fields.status")} data={recruitmentCandidateStatuses.map((v) => ({ value: v, label: t(`recruitment.candidateStatus.${v}`) }))} value={String(candidateForm.values.status ?? candidate.status)} onChange={(v) => v && candidateForm.set("status", v)} />
+          <Select label={t("recruitment.fields.assignedClerk")} data={base.employeeOptions} value={(candidateForm.values.assigned_clerk_id as string | null) || null} onChange={(v) => candidateForm.set("assigned_clerk_id", v ?? "")} clearable searchable />
+          <Group align="flex-end">
+            <Checkbox label={t("recruitment.fields.talentPool")} checked={Boolean(candidateForm.values.in_talent_pool)} onChange={(e) => candidateForm.set("in_talent_pool", e.currentTarget.checked)} />
+          </Group>
+          <Box>
+            <Text size="sm" fw={500} mb={4}>{t("recruitment.fields.uploadResume")}</Text>
+            {query.data?.resume_document ? (
+              <Anchor href={fileUrl(query.data.resume_document.storage_path)} target="_blank" rel="noreferrer">{t("common.view")}</Anchor>
+            ) : (
+              <Text size="sm" c="dimmed">{t("recruitment.candidates.noResume")}</Text>
+            )}
+          </Box>
+        </SimpleGrid>
+        <Textarea mt="md" label={t("recruitment.fields.notes")} value={String(candidateForm.values.notes ?? "")} onChange={(e) => candidateForm.set("notes", e.currentTarget.value)} />
+      </Card>
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.followups.add")}</Text>
+        <Group align="flex-end">
+          <Select label={t("recruitment.fields.type")} data={recruitmentFollowupTypes.map((v) => ({ value: v, label: t(`recruitment.followupType.${v}`) }))} value={String(followForm.values.type ?? "call")} onChange={(v) => followForm.set("type", v)} />
+          <Select label={t("recruitment.fields.byEmployee")} data={base.employeeOptions} value={String(followForm.values.by_employee_id ?? "")} onChange={(v) => followForm.set("by_employee_id", v)} searchable />
+          <TextInput label={t("recruitment.fields.note")} value={String(followForm.values.note ?? "")} onChange={(e) => followForm.set("note", e.currentTarget.value)} />
+          <Button onClick={() => followMutation.mutate()} loading={followMutation.isPending}>{t("common.save")}</Button>
+        </Group>
+      </Card>
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.interviews.add")}</Text>
+        <Group align="flex-end">
+          <TextInput type="datetime-local" label={t("recruitment.fields.scheduledAt")} value={String(interviewForm.values.scheduled_at ?? "")} onChange={(e) => interviewForm.set("scheduled_at", e.currentTarget.value)} />
+          <TextInput label={t("recruitment.fields.mode")} value={String(interviewForm.values.mode ?? "")} onChange={(e) => interviewForm.set("mode", e.currentTarget.value)} />
+          <Select label={t("recruitment.fields.interviewer")} data={base.employeeOptions} value={(interviewForm.values.interviewer_id as string | null) ?? null} onChange={(v) => interviewForm.set("interviewer_id", v)} clearable />
+          <Button onClick={() => interviewMutation.mutate()} loading={interviewMutation.isPending}>{t("common.save")}</Button>
+        </Group>
+      </Card>
+      <SimpleGrid cols={{ base: 1, md: 2 }}>
+        <Card withBorder>
+          <Text fw={600} mb="md">{t("recruitment.followups.title")}</Text>
+          <Stack>{(query.data?.followups ?? []).map((row) => <Box key={row.id} p="sm" style={{ borderBottom: "1px solid var(--app-line)" }}><Group justify="space-between"><StatusBadge value={row.type} ns="followupType" /><Text size="xs" c="dimmed">{fmt(row.contacted_at)}</Text></Group><Text mt="xs">{row.note}</Text></Box>)}</Stack>
+        </Card>
+        <Card withBorder>
+          <Text fw={600} mb="md">{t("recruitment.interviews.title")}</Text>
+          <Stack>{(query.data?.interviews ?? []).map((row) => <Box key={row.id} p="sm" style={{ borderBottom: "1px solid var(--app-line)" }}><Group justify="space-between"><StatusBadge value={row.status} ns="interviewStatus" /><StatusBadge value={row.result} ns="interviewResult" /></Group><Text mt="xs">{fmt(row.scheduled_at)} / {row.mode}</Text></Box>)}</Stack>
+        </Card>
+      </SimpleGrid>
+    </Stack>
+  );
 }
 
 export function QuickCapturePageImpl() {

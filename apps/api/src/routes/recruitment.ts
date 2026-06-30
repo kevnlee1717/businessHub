@@ -1348,13 +1348,23 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     const [candidate] = await db.select().from(recruitmentCandidates).where(eq(recruitmentCandidates.id, id)).limit(1);
     if (!candidate) return sendNotFound(reply);
     if (!(await assertCompanyAccess(request, reply, candidate.companyId))) return;
-    const [followups, interviews] = await Promise.all([
+    const [followups, interviews, resumeDocuments] = await Promise.all([
       db.select().from(recruitmentFollowups).where(eq(recruitmentFollowups.candidateId, id)).orderBy(desc(recruitmentFollowups.contactedAt)),
-      db.select().from(recruitmentInterviews).where(eq(recruitmentInterviews.candidateId, id)).orderBy(desc(recruitmentInterviews.scheduledAt))
+      db.select().from(recruitmentInterviews).where(eq(recruitmentInterviews.candidateId, id)).orderBy(desc(recruitmentInterviews.scheduledAt)),
+      candidate.resumeDocumentId ? db.select().from(documents).where(eq(documents.id, candidate.resumeDocumentId)).limit(1) : Promise.resolve([])
     ]);
+    const resumeDocument = resumeDocuments[0] ?? null;
     return {
       candidate: serializeCandidate(candidate),
       resource: serializeCandidate(candidate),
+      resume_document: resumeDocument
+        ? {
+            id: resumeDocument.id,
+            storage_path: resumeDocument.storagePath,
+            filename: resumeDocument.filename,
+            mime: resumeDocument.mime ?? null
+          }
+        : null,
       followups: followups.map(serializeFollowup),
       interviews: interviews.map(serializeInterview)
     };

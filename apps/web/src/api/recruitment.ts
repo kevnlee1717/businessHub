@@ -333,7 +333,7 @@ export const createRecruitmentCandidate = (body: unknown | FormData) =>
     ? apiForm<{ candidate: RecruitmentCandidate }>("/recruitment/candidates", body)
     : api<{ candidate: RecruitmentCandidate }>("/recruitment/candidates", { method: "POST", body });
 export const getRecruitmentCandidate = (id: string) =>
-  api<{ candidate: RecruitmentCandidate; followups: RecruitmentFollowup[]; interviews: RecruitmentInterview[] }>(`/recruitment/candidates/${id}`);
+  api<{ candidate: RecruitmentCandidate; resume_document?: { id: string; storage_path: string; filename: string; mime?: string | null } | null; followups: RecruitmentFollowup[]; interviews: RecruitmentInterview[] }>(`/recruitment/candidates/${id}`);
 export const updateRecruitmentCandidate = (id: string, body: unknown) =>
   api<{ candidate: RecruitmentCandidate }>(`/recruitment/candidates/${id}`, { method: "PATCH", body });
 export const createRecruitmentFollowup = (candidateId: string, body: unknown) =>

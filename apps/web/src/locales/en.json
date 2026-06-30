@@ -2292,9 +2292,11 @@
     },
     "candidates": {
       "title": "Candidates",
+      "info": "Candidate info",
       "add": "Add candidate",
       "all": "All",
-      "overdue": "Overdue"
+      "overdue": "Overdue",
+      "noResume": "No resume"
     },
     "ethnicity": {
       "chinese": "Chinese",

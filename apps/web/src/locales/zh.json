@@ -2292,9 +2292,11 @@
     },
     "candidates": {
       "title": "候选人",
+      "info": "候选人信息",
       "add": "添加候选人",
       "all": "全部",
-      "overdue": "待跟进"
+      "overdue": "待跟进",
+      "noResume": "无简历"
     },
     "ethnicity": {
       "chinese": "华人",
