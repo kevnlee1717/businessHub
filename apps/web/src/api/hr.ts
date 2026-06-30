@@ -34,6 +34,27 @@ import {
 } from "@bh/shared";
 import { api } from "./client";
 
+export type PaginationParams = {
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+type PaginationMeta = {
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+function appendPaginationParams(searchParams: URLSearchParams, params: PaginationParams) {
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+
+  if (params.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+}
+
 export type Employee = {
   id: string;
   name: string;
@@ -300,8 +321,11 @@ export type SiteVisit = {
   created_at: string;
 };
 
-export function listEmployees(): Promise<{ employees: Employee[] }> {
-  return api<{ employees: Employee[] }>("/employees");
+export function listEmployees(params: PaginationParams = {}): Promise<{ employees: Employee[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ employees: Employee[] } & PaginationMeta>(`/employees${query ? `?${query}` : ""}`);
 }
 
 export function createEmployee(body: EmployeeCreateInput): Promise<{ employee: Employee }> {
@@ -321,8 +345,11 @@ export function updateEmployee(
   });
 }
 
-export function listCompanies(): Promise<{ companies: Company[] }> {
-  return api<{ companies: Company[] }>("/companies");
+export function listCompanies(params: PaginationParams = {}): Promise<{ companies: Company[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ companies: Company[] } & PaginationMeta>(`/companies${query ? `?${query}` : ""}`);
 }
 
 export function createCompany(body: CompanyCreateInput): Promise<{ company: Company }> {
@@ -342,8 +369,11 @@ export function updateCompany(
   });
 }
 
-export function listIndustries(): Promise<{ industries: Industry[] }> {
-  return api<{ industries: Industry[] }>("/industries");
+export function listIndustries(params: PaginationParams = {}): Promise<{ industries: Industry[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ industries: Industry[] } & PaginationMeta>(`/industries${query ? `?${query}` : ""}`);
 }
 
 export function createIndustry(body: IndustryCreateInput): Promise<{ industry: Industry }> {
@@ -369,8 +399,11 @@ export function deleteIndustry(id: string): Promise<{ ok: true }> {
   });
 }
 
-export function listPositions(): Promise<{ positions: Position[] }> {
-  return api<{ positions: Position[] }>("/positions");
+export function listPositions(params: PaginationParams = {}): Promise<{ positions: Position[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ positions: Position[] } & PaginationMeta>(`/positions${query ? `?${query}` : ""}`);
 }
 
 export function createPosition(body: PositionCreateInput): Promise<{ position: Position }> {
@@ -390,8 +423,11 @@ export function updatePosition(
   });
 }
 
-export function listWorkShifts(): Promise<{ work_shifts: WorkShift[] }> {
-  return api<{ work_shifts: WorkShift[] }>("/work-shifts");
+export function listWorkShifts(params: PaginationParams = {}): Promise<{ work_shifts: WorkShift[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ work_shifts: WorkShift[] } & PaginationMeta>(`/work-shifts${query ? `?${query}` : ""}`);
 }
 
 export function createWorkShift(body: WorkShiftCreateInput): Promise<{ work_shift: WorkShift }> {
@@ -411,8 +447,11 @@ export function updateWorkShift(
   });
 }
 
-export function listClockPoints(): Promise<{ clockPoints: ClockPoint[] }> {
-  return api<{ clockPoints: ClockPoint[] }>("/clock-points");
+export function listClockPoints(params: PaginationParams = {}): Promise<{ clockPoints: ClockPoint[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ clockPoints: ClockPoint[] } & PaginationMeta>(`/clock-points${query ? `?${query}` : ""}`);
 }
 
 export function createClockPoint(body: ClockPointCreateInput): Promise<{ clockPoint: ClockPoint }> {
@@ -455,7 +494,9 @@ export function assignEmployeeClockPoints(
 export function listAttendance(params: {
   employee_id?: string | undefined;
   work_date?: string | undefined;
-}): Promise<{ records: AttendanceRecord[] }> {
+  page?: number | undefined;
+  page_size?: number | undefined;
+}): Promise<{ records: AttendanceRecord[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (params.employee_id) {
@@ -465,9 +506,10 @@ export function listAttendance(params: {
   if (params.work_date) {
     searchParams.set("work_date", params.work_date);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ records: AttendanceRecord[] }>(`/attendance${query ? `?${query}` : ""}`);
+  return api<{ records: AttendanceRecord[] } & PaginationMeta>(`/attendance${query ? `?${query}` : ""}`);
 }
 
 export function getEmployeeAttendanceDays(employeeId: string): Promise<{ days: AttendanceDay[] }> {
@@ -487,7 +529,9 @@ export function clockAttendance(body: AttendanceClockInput): Promise<{
 export function listPayslips(params: {
   period?: string | undefined;
   employee_id?: string | undefined;
-} = {}): Promise<{ payslips: Payslip[] }> {
+  page?: number | undefined;
+  page_size?: number | undefined;
+} = {}): Promise<{ payslips: Payslip[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (params.period) {
@@ -497,9 +541,10 @@ export function listPayslips(params: {
   if (params.employee_id) {
     searchParams.set("employee_id", params.employee_id);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ payslips: Payslip[] }>(`/payslips${query ? `?${query}` : ""}`);
+  return api<{ payslips: Payslip[] } & PaginationMeta>(`/payslips${query ? `?${query}` : ""}`);
 }
 
 export function generatePayslips(body: PayslipGenerateInput): Promise<{
@@ -522,7 +567,9 @@ export function listStatutory(params: {
   period?: string | undefined;
   type?: StatutoryType | undefined;
   employee_id?: string | undefined;
-} = {}): Promise<{ payments: StatutoryPayment[] }> {
+  page?: number | undefined;
+  page_size?: number | undefined;
+} = {}): Promise<{ payments: StatutoryPayment[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (params.period) {
@@ -536,9 +583,10 @@ export function listStatutory(params: {
   if (params.employee_id) {
     searchParams.set("employee_id", params.employee_id);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ payments: StatutoryPayment[] }>(`/statutory${query ? `?${query}` : ""}`);
+  return api<{ payments: StatutoryPayment[] } & PaginationMeta>(`/statutory${query ? `?${query}` : ""}`);
 }
 
 export function createStatutory(body: StatutoryPaymentInput): Promise<{ payment: StatutoryPayment }> {
@@ -548,8 +596,15 @@ export function createStatutory(body: StatutoryPaymentInput): Promise<{ payment:
   });
 }
 
-export function listCompensationTemplates(): Promise<{ templates: CompensationTemplate[] }> {
-  return api<{ templates: CompensationTemplate[] }>("/compensation/templates");
+export function listCompensationTemplates(
+  params: PaginationParams = {}
+): Promise<{ templates: CompensationTemplate[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+  const query = searchParams.toString();
+  return api<{ templates: CompensationTemplate[] } & PaginationMeta>(
+    `/compensation/templates${query ? `?${query}` : ""}`
+  );
 }
 
 export function createCompensationTemplate(
@@ -593,16 +648,18 @@ export function getResolvedCompensation(employeeId: string): Promise<ResolvedCom
 
 export function listKpiTargets(
   employeeId: string,
-  period?: string | undefined
-): Promise<{ targets: KpiTarget[] }> {
+  period?: string | undefined,
+  params: PaginationParams = {}
+): Promise<{ targets: KpiTarget[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (period) {
     searchParams.set("period", period);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ targets: KpiTarget[] }>(`/employees/${employeeId}/kpi${query ? `?${query}` : ""}`);
+  return api<{ targets: KpiTarget[] } & PaginationMeta>(`/employees/${employeeId}/kpi${query ? `?${query}` : ""}`);
 }
 
 export function putKpiTarget(
@@ -617,16 +674,18 @@ export function putKpiTarget(
 
 export function listPerformance(
   employeeId: string,
-  period?: string | undefined
-): Promise<{ scores: PerformanceScore[] }> {
+  period?: string | undefined,
+  params: PaginationParams = {}
+): Promise<{ scores: PerformanceScore[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (period) {
     searchParams.set("period", period);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ scores: PerformanceScore[] }>(
+  return api<{ scores: PerformanceScore[] } & PaginationMeta>(
     `/employees/${employeeId}/performance${query ? `?${query}` : ""}`
   );
 }
@@ -644,7 +703,9 @@ export function putPerformanceOverride(
 export function listSiteVisits(params: {
   employee_id?: string | undefined;
   status?: SiteVisitStatus | undefined;
-} = {}): Promise<{ siteVisits: SiteVisit[] }> {
+  page?: number | undefined;
+  page_size?: number | undefined;
+} = {}): Promise<{ siteVisits: SiteVisit[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (params.employee_id) {
@@ -654,9 +715,10 @@ export function listSiteVisits(params: {
   if (params.status) {
     searchParams.set("status", params.status);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ siteVisits: SiteVisit[] }>(`/site-visits${query ? `?${query}` : ""}`);
+  return api<{ siteVisits: SiteVisit[] } & PaginationMeta>(`/site-visits${query ? `?${query}` : ""}`);
 }
 
 export function overrideSiteVisit(

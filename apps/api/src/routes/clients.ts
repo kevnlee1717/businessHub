@@ -1,8 +1,10 @@
 import { clients, db } from "@bh/db";
 import { clientCreateSchema, clientUpdateSchema } from "@bh/shared";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 function serializeClient(client: typeof clients.$inferSelect) {
@@ -18,11 +20,34 @@ function serializeClient(client: typeof clients.$inferSelect) {
   };
 }
 
+const clientQuerySchema = z.object({}).merge(paginationQuery);
+
 export async function registerClientRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/clients", { preHandler: requirePerm("case.view") }, async () => {
-    const rows = await db.select().from(clients).orderBy(desc(clients.createdAt));
+  app.get("/clients", { preHandler: requirePerm("case.view") }, async (request) => {
+    const query = parseWithSchema(clientQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(clients)
+          .orderBy(desc(clients.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(clients).orderBy(desc(clients.createdAt));
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(clients);
+
+      return {
+        clients: rows.map(serializeClient),
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
+
     return { clients: rows.map(serializeClient) };
   });
 

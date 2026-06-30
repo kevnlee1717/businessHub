@@ -30,7 +30,7 @@ import {
   type EnglishLevelCreateInput,
   type EnglishLevelUpdateInput
 } from "@bh/shared";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -53,7 +53,9 @@ import {
 } from "../../api/education";
 import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
+import { TablePagination } from "../../components/TablePagination";
 import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
+import { usePagination } from "../../hooks/usePagination";
 import { displayStudentName, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type LevelFormValues = {
@@ -134,18 +136,37 @@ export function EnglishPage() {
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null);
   const canManageEducation = useCan("education.manage");
+  const {
+    page: levelsPage,
+    pageSize: levelsPageSize,
+    setPage: setLevelsPage,
+    setPageSize: setLevelsPageSize
+  } = usePagination();
+  const {
+    page: classesPage,
+    pageSize: classesPageSize,
+    setPage: setClassesPage,
+    setPageSize: setClassesPageSize
+  } = usePagination();
 
   const levelsQuery = useQuery({
-    queryKey: englishLevelsQueryKey,
-    queryFn: listEnglishLevels
+    queryKey: [...englishLevelsQueryKey, levelsPage, levelsPageSize],
+    queryFn: () => listEnglishLevels({ page: levelsPage, page_size: levelsPageSize }),
+    placeholderData: keepPreviousData
   });
   const classesQuery = useQuery({
-    queryKey: [...englishClassesQueryKey, levelFilter],
-    queryFn: () => listEnglishClasses(levelFilter ? { level_id: levelFilter } : {})
+    queryKey: [...englishClassesQueryKey, levelFilter, classesPage, classesPageSize],
+    queryFn: () =>
+      listEnglishClasses({
+        level_id: levelFilter ?? undefined,
+        page: classesPage,
+        page_size: classesPageSize
+      }),
+    placeholderData: keepPreviousData
   });
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,
-    queryFn: listStudents
+    queryFn: () => listStudents()
   });
   const enrollmentsQuery = useQuery({
     queryKey: [...englishEnrollmentsQueryKey, selectedClassId],
@@ -231,6 +252,8 @@ export function EnglishPage() {
 
   const levels = levelsQuery.data?.levels ?? [];
   const classes = classesQuery.data?.classes ?? [];
+  const totalLevels = levelsQuery.data?.total ?? levels.length;
+  const totalClasses = classesQuery.data?.total ?? classes.length;
   const students = studentsQuery.data?.students ?? [];
   const enrollments = enrollmentsQuery.data?.enrollments ?? [];
   const selectedClass = classes.find((englishClass) => englishClass.id === selectedClassId) ?? null;
@@ -416,6 +439,11 @@ export function EnglishPage() {
     }
   }
 
+  function updateLevelFilter(value: string | null) {
+    setLevelFilter(value);
+    setClassesPage(1);
+  }
+
   return (
     <Stack gap="md">
       <Title order={2}>{t("english.title")}</Title>
@@ -489,6 +517,13 @@ export function EnglishPage() {
                 </Table>
               </ScrollArea>
             </Paper>
+            <TablePagination
+              total={totalLevels}
+              page={levelsPage}
+              pageSize={levelsPageSize}
+              onPageChange={setLevelsPage}
+              onPageSizeChange={setLevelsPageSize}
+            />
           </Stack>
         </Tabs.Panel>
 
@@ -502,7 +537,7 @@ export function EnglishPage() {
                   placeholder={t("common.all")}
                   data={levelOptions}
                   value={levelFilter}
-                  onChange={setLevelFilter}
+                  onChange={updateLevelFilter}
                   clearable
                   searchable
                   w={260}
@@ -593,6 +628,13 @@ export function EnglishPage() {
                 </Table>
               </ScrollArea>
             </Paper>
+            <TablePagination
+              total={totalClasses}
+              page={classesPage}
+              pageSize={classesPageSize}
+              onPageChange={setClassesPage}
+              onPageSizeChange={setClassesPageSize}
+            />
 
             <Paper withBorder radius="md" p="md">
               <Stack gap="md">

@@ -1,14 +1,17 @@
 import { db, teachers } from "@bh/db";
 import { teacherCreateSchema, teacherUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
-const teacherQuerySchema = z.object({
-  active: z.enum(["true", "false"]).optional()
-});
+const teacherQuerySchema = z
+  .object({
+    active: z.enum(["true", "false"]).optional()
+  })
+  .merge(paginationQuery);
 
 function serializeTeacher(teacher: typeof teachers.$inferSelect) {
   return {
@@ -28,11 +31,31 @@ export async function registerTeacherRoutes(app: FastifyInstance): Promise<void>
   app.get("/teachers", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(teacherQuerySchema, request.query);
     const active = query.active === undefined ? undefined : query.active === "true";
-    const rows = active === undefined
-      ? await db.select().from(teachers).orderBy(teachers.name, teachers.createdAt)
-      : await db.select().from(teachers).where(eq(teachers.active, active)).orderBy(teachers.name, teachers.createdAt);
+    const pagination = getPagination(query);
+    const whereClause = active === undefined ? undefined : eq(teachers.active, active);
+    const baseQuery = db.select().from(teachers);
+    const rows = pagination.paginate
+      ? whereClause
+        ? await baseQuery.where(whereClause).orderBy(teachers.name, teachers.createdAt).limit(pagination.limit).offset(pagination.offset)
+        : await baseQuery.orderBy(teachers.name, teachers.createdAt).limit(pagination.limit).offset(pagination.offset)
+      : whereClause
+        ? await baseQuery.where(whereClause).orderBy(teachers.name, teachers.createdAt)
+        : await baseQuery.orderBy(teachers.name, teachers.createdAt);
 
-    return { teachers: rows.map(serializeTeacher) };
+    if (!pagination.paginate) {
+      return { teachers: rows.map(serializeTeacher) };
+    }
+
+    const [totalRow] = whereClause
+      ? await db.select({ count: count() }).from(teachers).where(whereClause)
+      : await db.select({ count: count() }).from(teachers);
+
+    return {
+      teachers: rows.map(serializeTeacher),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/teachers", { preHandler: requirePerm("education.manage") }, async (request, reply) => {

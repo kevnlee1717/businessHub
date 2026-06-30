@@ -125,8 +125,9 @@ export function listCaseCharges(caseId: string): Promise<{ charges: Charge[] }> 
   return api<{ charges: Charge[] }>(`/cases/${caseId}/charges`);
 }
 
-export function listCharges(params: ChargeListParams = {}): Promise<{ charges: Charge[]; totals: ChargeTotals }> {
-  return api<{ charges: Charge[]; totals: ChargeTotals }>(`/charges${queryString(params)}`);
+export async function listCharges(params: ChargeListParams = {}): Promise<{ charges: Charge[]; totals: ChargeTotals }> {
+  const response = await api<{ charges?: Charge[]; rows?: Charge[]; totals: ChargeTotals }>(`/charges${queryString(params)}`);
+  return { charges: response.charges ?? response.rows ?? [], totals: response.totals };
 }
 
 export function createCharge(body: ChargeCreateInput): Promise<{ charge: Charge }> {

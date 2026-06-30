@@ -19,7 +19,7 @@ import {
   Title
 } from "@mantine/core";
 import { commissionEntryStatuses, type CommissionEntryStatus } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listBusinesses } from "../../api/businessSchemes";
@@ -35,6 +35,8 @@ import {
 } from "../../api/externalCommission";
 import { listExternalParties } from "../../api/externalParties";
 import { listBankAccounts, uploadProofDocument } from "../../api/ledger";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type SettleForm = {
   amount: number | null;
@@ -64,7 +66,9 @@ function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
 }
 
-function businessLabel(business?: { code?: string | null; name: string; name_en?: string | null } | null) {
+function businessLabel(
+  business?: { code?: string | null | undefined; name: string; name_en?: string | null | undefined } | null
+) {
   if (!business) {
     return "-";
   }
@@ -176,10 +180,11 @@ export function ExternalCommissionPage() {
   const [amountEntry, setAmountEntry] = useState<ExternalCommissionEntry | null>(null);
   const [amountForm, setAmountForm] = useState<AmountForm>({ amount_sgd: null, note: "" });
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const payeesQuery = useQuery({
     queryKey: ["business-finance", "external-parties"],
-    queryFn: listExternalParties
+    queryFn: () => listExternalParties()
   });
   const businessesQuery = useQuery({
     queryKey: ["business-finance", "businesses"],
@@ -194,19 +199,23 @@ export function ExternalCommissionPage() {
     queryFn: getExternalCommissionSummary
   });
   const entriesQuery = useQuery({
-    queryKey: [...entriesQueryKey, payeeFilter, businessFilter, statusFilter],
+    queryKey: [...entriesQueryKey, payeeFilter, businessFilter, statusFilter, page, pageSize],
     queryFn: () =>
       listExternalCommissionEntries({
         payee_id: payeeFilter,
         business_id: businessFilter,
-        status: statusFilter
-      })
+        status: statusFilter,
+        page,
+        page_size: pageSize
+      }),
+    placeholderData: keepPreviousData
   });
 
   const payees = payeesQuery.data?.external_parties ?? [];
   const businesses = businessesQuery.data?.businesses ?? [];
   const accounts = accountsQuery.data?.bank_accounts ?? [];
   const entries = entriesQuery.data?.entries ?? [];
+  const totalEntries = entriesQuery.data?.total ?? entries.length;
   const summary = readSummary(summaryQuery.data);
   const loadError = payeesQuery.error ?? businessesQuery.error ?? accountsQuery.error ?? entriesQuery.error ?? summaryQuery.error;
 
@@ -367,7 +376,10 @@ export function ExternalCommissionPage() {
             label={t("externalCommission.fields.payee")}
             data={payeeOptions}
             value={payeeFilter}
-            onChange={setPayeeFilter}
+            onChange={(value) => {
+              setPayeeFilter(value);
+              setPage(1);
+            }}
             clearable
             searchable
           />
@@ -375,7 +387,10 @@ export function ExternalCommissionPage() {
             label={t("externalCommission.fields.business")}
             data={businessOptions}
             value={businessFilter}
-            onChange={setBusinessFilter}
+            onChange={(value) => {
+              setBusinessFilter(value);
+              setPage(1);
+            }}
             clearable
             searchable
           />
@@ -383,7 +398,10 @@ export function ExternalCommissionPage() {
             label={t("externalCommission.fields.status")}
             data={statusOptions}
             value={statusFilter}
-            onChange={(value) => setStatusFilter(value as CommissionEntryStatus | null)}
+            onChange={(value) => {
+              setStatusFilter(value as CommissionEntryStatus | null);
+              setPage(1);
+            }}
             clearable
           />
         </SimpleGrid>
@@ -463,6 +481,13 @@ export function ExternalCommissionPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+        <TablePagination
+          total={totalEntries}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Paper>
 
       <Modal opened={Boolean(settleEntry)} onClose={closeSettleModal} title={t("externalCommission.settle")} size="lg">

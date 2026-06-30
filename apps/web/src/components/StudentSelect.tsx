@@ -21,7 +21,7 @@ export function StudentSelect({ value, onChange, placeholder }: StudentSelectPro
   const [createName, setCreateName] = useState<string | null>(null);
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,
-    queryFn: listStudents
+    queryFn: () => listStudents()
   });
   const options = (studentsQuery.data?.students ?? []).map((student) => ({
     value: student.id,

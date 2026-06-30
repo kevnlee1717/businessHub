@@ -26,13 +26,15 @@ export type ExternalCommissionEntryRecord = {
 export type ExternalCommissionEntry = {
   entry: ExternalCommissionEntryRecord;
   payee?: Pick<ExternalParty, "id" | "name" | "name_en"> | null;
-  business?: Pick<Business, "id" | "code" | "name" | "name_en"> | null;
+  business?: (Pick<Business, "id" | "name" | "name_en"> & { code?: string | null | undefined }) | null;
 };
 
 export type ExternalCommissionEntryFilters = {
   payee_id?: string | null;
   business_id?: string | null;
   status?: ExternalCommissionEntryStatus | null;
+  page?: number | undefined;
+  page_size?: number | undefined;
 };
 
 export type ExternalCommissionSummary = {
@@ -58,11 +60,24 @@ export type ExternalCommissionUpdateInput = {
   note?: string | null;
 };
 
-function queryString(params: Record<string, string | null | undefined>) {
+type RawJoinedName = {
+  id: string | null;
+  code?: string | null;
+  name: string | null;
+  nameEn?: string | null;
+  name_en?: string | null;
+};
+
+type RawExternalCommissionEntry = ExternalCommissionEntryRecord & {
+  payee?: RawJoinedName | null;
+  business?: RawJoinedName | null;
+};
+
+function queryString(params: Record<string, string | number | null | undefined>) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    const trimmed = typeof value === "string" ? value.trim() : "";
+    const trimmed = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
     if (trimmed) {
       searchParams.set(key, trimmed);
     }
@@ -74,8 +89,52 @@ function queryString(params: Record<string, string | null | undefined>) {
 
 export function listExternalCommissionEntries(
   filters: ExternalCommissionEntryFilters = {}
-): Promise<{ entries: ExternalCommissionEntry[] }> {
-  return api<{ entries: ExternalCommissionEntry[] }>(`/external-commission/entries${queryString(filters)}`);
+): Promise<{
+  entries: ExternalCommissionEntry[];
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+}> {
+  return api<{
+    entries: (ExternalCommissionEntry | RawExternalCommissionEntry)[];
+    total?: number | undefined;
+    page?: number | undefined;
+    page_size?: number | undefined;
+  }>(`/external-commission/entries${queryString(filters)}`).then((response) => ({
+    ...response,
+    entries: response.entries.map((row): ExternalCommissionEntry => {
+      if ("entry" in row) {
+        return row;
+      }
+
+      return {
+        entry: row,
+        ...(row.payee !== undefined
+          ? {
+              payee: row.payee
+                ? {
+                    id: row.payee.id ?? "",
+                    name: row.payee.name ?? "",
+                    name_en: row.payee.name_en ?? row.payee.nameEn ?? null
+                  }
+                : null
+            }
+          : {}),
+        ...(row.business !== undefined
+          ? {
+              business: row.business
+                ? {
+                    id: row.business.id ?? "",
+                    ...(row.business.code !== undefined ? { code: row.business.code } : {}),
+                    name: row.business.name ?? "",
+                    name_en: row.business.name_en ?? row.business.nameEn ?? null
+                  }
+                : null
+            }
+          : {})
+      };
+    })
+  }));
 }
 
 export function getExternalCommissionSummary(): Promise<ExternalCommissionSummaryResponse> {

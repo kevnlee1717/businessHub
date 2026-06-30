@@ -1,18 +1,21 @@
 import { companyExpenseCreateSchema, companyExpenseTypes, companyExpenseUpdateSchema } from "@bh/shared";
 import { db, companyExpenses } from "@bh/db";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { bridgeCompanyExpenseToLedger } from "./ledgerUtils";
 
-const expenseQuerySchema = z.object({
-  company_id: z.string().uuid().optional(),
-  period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-  type: z.enum(companyExpenseTypes).optional()
-});
+const expenseQuerySchema = z
+  .object({
+    company_id: z.string().uuid().optional(),
+    period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    type: z.enum(companyExpenseTypes).optional()
+  })
+  .merge(paginationQuery);
 
 function serializeExpense(row: typeof companyExpenses.$inferSelect) {
   return {
@@ -52,13 +55,34 @@ export async function registerCompanyExpenseRoutes(app: FastifyInstance): Promis
       filters.push(eq(companyExpenses.type, query.type));
     }
 
-    const rows = await db
-      .select()
-      .from(companyExpenses)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(companyExpenses.createdAt));
+    const pagination = getPagination(query);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(companyExpenses)
+          .where(whereClause)
+          .orderBy(desc(companyExpenses.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(companyExpenses)
+          .where(whereClause)
+          .orderBy(desc(companyExpenses.createdAt));
 
-    return { expenses: rows.map(serializeExpense) };
+    if (!pagination.paginate) {
+      return { expenses: rows.map(serializeExpense) };
+    }
+
+    const [totalRow] = await db.select({ value: count() }).from(companyExpenses).where(whereClause);
+
+    return {
+      expenses: rows.map(serializeExpense),
+      total: totalRow?.value ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/company-expenses", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {

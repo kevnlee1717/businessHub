@@ -8,17 +8,20 @@ import {
   performanceScores
 } from "@bh/db";
 import { payslipGenerateSchema } from "@bh/shared";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import type { DbExecutor } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
-const payslipQuerySchema = z.object({
-  period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-  employee_id: z.string().uuid().optional()
-});
+const payslipQuerySchema = z
+  .object({
+    period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    employee_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 function num(value: string | number | null | undefined): number {
   return value === null || value === undefined ? 0 : Number(value);
@@ -132,18 +135,35 @@ export async function registerPayslipRoutes(app: FastifyInstance): Promise<void>
 
   app.get("/payslips", { preHandler: requirePerm("payroll.view") }, async (request) => {
     const query = parseWithSchema(payslipQuerySchema, request.query);
-    const filters = [];
+    const filters: SQL[] = [];
 
     if (query.period) filters.push(eq(payslips.period, query.period));
     if (query.employee_id) filters.push(eq(payslips.employeeId, query.employee_id));
 
-    const rows = await db
-      .select()
-      .from(payslips)
-      .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(payslips.period));
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(payslips)
+          .where(where)
+          .orderBy(desc(payslips.period))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(payslips).where(where).orderBy(desc(payslips.period));
 
-    return { payslips: rows };
+    if (!pagination.paginate) {
+      return { payslips: rows };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(payslips).where(where);
+
+    return {
+      payslips: rows,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post(

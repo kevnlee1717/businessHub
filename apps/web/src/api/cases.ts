@@ -164,8 +164,34 @@ export type FollowUp = {
   created_at: string;
 };
 
-export function listClients(): Promise<{ clients: Client[] }> {
-  return api<{ clients: Client[] }>("/clients");
+type PaginationParams = {
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+type PaginatedResponse = {
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+function paginationQuery(params: PaginationParams = {}) {
+  const searchParams = new URLSearchParams();
+
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+
+  if (params.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
+
+export function listClients(params: PaginationParams = {}): Promise<{ clients: Client[] } & PaginatedResponse> {
+  return api<{ clients: Client[] } & PaginatedResponse>(`/clients${paginationQuery(params)}`);
 }
 
 export function createClient(body: ClientCreateInput): Promise<{ client: Client }> {
@@ -182,8 +208,10 @@ export function updateClient(id: string, body: ClientUpdateInput): Promise<{ cli
   });
 }
 
-export function listGuarantors(): Promise<{ guarantors: Guarantor[] }> {
-  return api<{ guarantors: Guarantor[] }>("/guarantors");
+export function listGuarantors(
+  params: PaginationParams = {}
+): Promise<{ guarantors: Guarantor[] } & PaginatedResponse> {
+  return api<{ guarantors: Guarantor[] } & PaginatedResponse>(`/guarantors${paginationQuery(params)}`);
 }
 
 export function createGuarantor(body: GuarantorCreateInput): Promise<{ guarantor: Guarantor }> {
@@ -231,15 +259,28 @@ export async function uploadGuarantorIdCard(
   return data as { guarantor: Guarantor; document: UploadedDocument };
 }
 
-export function listTemplates(business_type?: BusinessType): Promise<{ templates: WorkflowTemplate[] }> {
+export function listTemplates(
+  business_type?: BusinessType,
+  params: PaginationParams = {}
+): Promise<{ templates: WorkflowTemplate[] } & PaginatedResponse> {
   const searchParams = new URLSearchParams();
 
   if (business_type) {
     searchParams.set("business_type", business_type);
   }
 
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+
+  if (params.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+
   const query = searchParams.toString();
-  return api<{ templates: WorkflowTemplate[] }>(`/workflow-templates${query ? `?${query}` : ""}`);
+  return api<{ templates: WorkflowTemplate[] } & PaginatedResponse>(
+    `/workflow-templates${query ? `?${query}` : ""}`
+  );
 }
 
 export function getTemplate(id: string): Promise<{ template: WorkflowTemplate; steps: TemplateStep[] }> {
@@ -296,7 +337,9 @@ export function listCases(params: {
   status?: CaseStatus | undefined;
   client_id?: string | undefined;
   parent_case_id?: string | undefined;
-} = {}): Promise<{ cases: Case[] }> {
+  page?: number | undefined;
+  page_size?: number | undefined;
+} = {}): Promise<{ cases: Case[]; total?: number; page?: number; page_size?: number }> {
   const searchParams = new URLSearchParams();
 
   if (params.business_type) {
@@ -315,8 +358,18 @@ export function listCases(params: {
     searchParams.set("parent_case_id", params.parent_case_id);
   }
 
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+
+  if (params.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+
   const query = searchParams.toString();
-  return api<{ cases: Case[] }>(`/cases${query ? `?${query}` : ""}`);
+  return api<{ cases: Case[]; total?: number; page?: number; page_size?: number }>(
+    `/cases${query ? `?${query}` : ""}`
+  );
 }
 
 export function getCase(id: string): Promise<{

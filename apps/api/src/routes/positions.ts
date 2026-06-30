@@ -1,9 +1,13 @@
 import { db, positions } from "@bh/db";
 import { positionCreateSchema, positionUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const positionQuerySchema = z.object({}).merge(paginationQuery);
 
 function serializePosition(position: typeof positions.$inferSelect) {
   return {
@@ -22,9 +26,30 @@ function serializePosition(position: typeof positions.$inferSelect) {
 export async function registerPositionRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/positions", async () => {
-    const rows = await db.select().from(positions).orderBy(positions.sortOrder, positions.createdAt);
-    return { positions: rows.map(serializePosition) };
+  app.get("/positions", async (request) => {
+    const query = parseWithSchema(positionQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(positions)
+          .orderBy(positions.sortOrder, positions.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(positions).orderBy(positions.sortOrder, positions.createdAt);
+
+    if (!pagination.paginate) {
+      return { positions: rows.map(serializePosition) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(positions);
+
+    return {
+      positions: rows.map(serializePosition),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/positions/:id", async (request, reply) => {

@@ -12,20 +12,23 @@ import {
   externalCommissionSettleSchema,
   externalCommissionUpdateSchema
 } from "@bh/shared";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { serializeLedgerEntry } from "./ledgerUtils";
 
-const externalCommissionEntriesQuerySchema = z.object({
-  payee_id: z.string().uuid().optional(),
-  business_id: z.string().uuid().optional(),
-  status: commissionEntryStatusSchema.optional()
-});
+const externalCommissionEntriesQuerySchema = z
+  .object({
+    payee_id: z.string().uuid().optional(),
+    business_id: z.string().uuid().optional(),
+    status: commissionEntryStatusSchema.optional()
+  })
+  .merge(paginationQuery);
 
 const externalCommissionSummaryQuerySchema = z.object({
   payee_id: z.string().uuid().optional()
@@ -82,33 +85,75 @@ export async function registerExternalCommissionRoutes(app: FastifyInstance): Pr
     if (query.business_id) filters.push(eq(externalCommissionEntries.businessId, query.business_id));
     if (query.status) filters.push(eq(externalCommissionEntries.status, query.status));
 
-    const rows = await db
-      .select({
-        entry: externalCommissionEntries,
-        payee: {
-          id: externalParties.id,
-          name: externalParties.name,
-          nameEn: externalParties.nameEn
-        },
-        business: {
-          id: businesses.id,
-          code: businesses.code,
-          name: businesses.name,
-          nameEn: businesses.nameEn
-        }
-      })
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select({
+            entry: externalCommissionEntries,
+            payee: {
+              id: externalParties.id,
+              name: externalParties.name,
+              nameEn: externalParties.nameEn
+            },
+            business: {
+              id: businesses.id,
+              code: businesses.code,
+              name: businesses.name,
+              nameEn: businesses.nameEn
+            }
+          })
+          .from(externalCommissionEntries)
+          .leftJoin(externalParties, eq(externalCommissionEntries.payeeId, externalParties.id))
+          .leftJoin(businesses, eq(externalCommissionEntries.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(externalCommissionEntries.period), desc(externalCommissionEntries.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select({
+            entry: externalCommissionEntries,
+            payee: {
+              id: externalParties.id,
+              name: externalParties.name,
+              nameEn: externalParties.nameEn
+            },
+            business: {
+              id: businesses.id,
+              code: businesses.code,
+              name: businesses.name,
+              nameEn: businesses.nameEn
+            }
+          })
+          .from(externalCommissionEntries)
+          .leftJoin(externalParties, eq(externalCommissionEntries.payeeId, externalParties.id))
+          .leftJoin(businesses, eq(externalCommissionEntries.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(externalCommissionEntries.period), desc(externalCommissionEntries.createdAt));
+
+    const entries = rows.map((row) => ({
+      ...serializeExternalCommissionEntry(row.entry),
+      payee: row.payee,
+      business: row.business
+    }));
+
+    if (!pagination.paginate) {
+      return {
+        entries
+      };
+    }
+
+    const [totalRow] = await db
+      .select({ total: count() })
       .from(externalCommissionEntries)
-      .leftJoin(externalParties, eq(externalCommissionEntries.payeeId, externalParties.id))
       .leftJoin(businesses, eq(externalCommissionEntries.businessId, businesses.id))
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(externalCommissionEntries.period), desc(externalCommissionEntries.createdAt));
+      .where(where);
 
     return {
-      entries: rows.map((row) => ({
-        ...serializeExternalCommissionEntry(row.entry),
-        payee: row.payee,
-        business: row.business
-      }))
+      entries,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
     };
   });
 

@@ -21,7 +21,7 @@ export function ClientSelect({ value, onChange, placeholder }: ClientSelectProps
   const [createName, setCreateName] = useState<string | null>(null);
   const clientsQuery = useQuery({
     queryKey: clientQueryKey,
-    queryFn: listClients
+    queryFn: () => listClients()
   });
   const options = (clientsQuery.data?.clients ?? []).map((client) => ({
     value: client.id,

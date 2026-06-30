@@ -23,7 +23,7 @@ import {
   type KpiTargetInput,
   type PerformanceOverrideInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,8 @@ import {
   type PerformanceScore
 } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type KpiTargetFormValues = {
   period?: string | undefined;
@@ -141,23 +143,45 @@ export function PerformancePage() {
   const [kpiFormError, setKpiFormError] = useState<string | null>(null);
   const [overrideFormError, setOverrideFormError] = useState<string | null>(null);
   const [editingScore, setEditingScore] = useState<PerformanceScore | null>(null);
+  const {
+    page: kpiPage,
+    pageSize: kpiPageSize,
+    setPage: setKpiPage,
+    setPageSize: setKpiPageSize
+  } = usePagination();
+  const {
+    page: scorePage,
+    pageSize: scorePageSize,
+    setPage: setScorePage,
+    setPageSize: setScorePageSize
+  } = usePagination();
 
   const canManagePerformance = can("employee.manage");
   const queryPeriod = period.trim() || undefined;
 
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const kpiQuery = useQuery({
-    queryKey: ["hr", "kpi-targets", selectedEmployeeId, queryPeriod],
-    queryFn: () => listKpiTargets(selectedEmployeeId ?? "", queryPeriod),
-    enabled: Boolean(selectedEmployeeId)
+    queryKey: ["hr", "kpi-targets", selectedEmployeeId, queryPeriod, kpiPage, kpiPageSize],
+    queryFn: () =>
+      listKpiTargets(selectedEmployeeId ?? "", queryPeriod, {
+        page: kpiPage,
+        page_size: kpiPageSize
+      }),
+    enabled: Boolean(selectedEmployeeId),
+    placeholderData: keepPreviousData
   });
   const performanceQuery = useQuery({
-    queryKey: ["hr", "performance", selectedEmployeeId, queryPeriod],
-    queryFn: () => listPerformance(selectedEmployeeId ?? "", queryPeriod),
-    enabled: Boolean(selectedEmployeeId)
+    queryKey: ["hr", "performance", selectedEmployeeId, queryPeriod, scorePage, scorePageSize],
+    queryFn: () =>
+      listPerformance(selectedEmployeeId ?? "", queryPeriod, {
+        page: scorePage,
+        page_size: scorePageSize
+      }),
+    enabled: Boolean(selectedEmployeeId),
+    placeholderData: keepPreviousData
   });
 
   const kpiForm = useForm<KpiTargetFormValues>({
@@ -193,6 +217,8 @@ export function PerformancePage() {
   }));
   const targets = kpiQuery.data?.targets ?? [];
   const scores = performanceQuery.data?.scores ?? [];
+  const totalTargets = kpiQuery.data?.total ?? targets.length;
+  const totalScores = performanceQuery.data?.total ?? scores.length;
   const kpiErrors = kpiForm.formState.errors;
   const overrideErrors = overrideForm.formState.errors;
 
@@ -292,7 +318,11 @@ export function PerformancePage() {
             label={t("performance.filters.employee")}
             data={employeeOptions}
             value={selectedEmployeeId}
-            onChange={setSelectedEmployeeId}
+            onChange={(value) => {
+              setSelectedEmployeeId(value);
+              setKpiPage(1);
+              setScorePage(1);
+            }}
             searchable
             clearable
           />
@@ -300,7 +330,11 @@ export function PerformancePage() {
             label={t("performance.filters.period")}
             placeholder="YYYY-MM"
             value={period}
-            onChange={(event) => setPeriod(event.currentTarget.value)}
+            onChange={(event) => {
+              setPeriod(event.currentTarget.value);
+              setKpiPage(1);
+              setScorePage(1);
+            }}
           />
         </Group>
       </Paper>
@@ -362,6 +396,13 @@ export function PerformancePage() {
                   </Table.Tbody>
                 </Table>
               </ScrollArea>
+              <TablePagination
+                total={totalTargets}
+                page={kpiPage}
+                pageSize={kpiPageSize}
+                onPageChange={setKpiPage}
+                onPageSizeChange={setKpiPageSize}
+              />
             </Stack>
           </Paper>
 
@@ -440,6 +481,13 @@ export function PerformancePage() {
                   ))}
                 </Stack>
               )}
+              <TablePagination
+                total={totalScores}
+                page={scorePage}
+                pageSize={scorePageSize}
+                onPageChange={setScorePage}
+                onPageSizeChange={setScorePageSize}
+              />
             </Stack>
           </Paper>
         </SimpleGrid>

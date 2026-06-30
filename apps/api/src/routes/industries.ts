@@ -1,9 +1,13 @@
 import { db, industries } from "@bh/db";
 import { industryCreateSchema, industryUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const industryQuerySchema = z.object({}).merge(paginationQuery);
 
 function serializeIndustry(industry: typeof industries.$inferSelect) {
   return {
@@ -18,9 +22,30 @@ function serializeIndustry(industry: typeof industries.$inferSelect) {
 export async function registerIndustryRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/industries", async () => {
-    const rows = await db.select().from(industries).orderBy(industries.name);
-    return { industries: rows.map(serializeIndustry) };
+  app.get("/industries", async (request) => {
+    const query = parseWithSchema(industryQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(industries)
+          .orderBy(industries.name)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(industries).orderBy(industries.name);
+
+    if (!pagination.paginate) {
+      return { industries: rows.map(serializeIndustry) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(industries);
+
+    return {
+      industries: rows.map(serializeIndustry),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/industries", { preHandler: requirePerm("company.manage") }, async (request, reply) => {

@@ -8,10 +8,11 @@ import {
   englishLevelCreateSchema,
   englishLevelUpdateSchema
 } from "@bh/shared";
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import {
   courseTeachersByCourseIds,
   courseTeachersForCourse,
@@ -70,22 +71,46 @@ function serializeAttendance(attendance: typeof englishAttendance.$inferSelect) 
   };
 }
 
-const englishClassQuerySchema = z.object({
-  level_id: z.string().uuid().optional(),
-  teacher_id: z.string().uuid().optional()
-});
+const englishClassQuerySchema = z
+  .object({
+    level_id: z.string().uuid().optional(),
+    teacher_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
-const englishEnrollmentQuerySchema = z.object({
-  class_id: z.string().uuid().optional(),
-  student_id: z.string().uuid().optional()
-});
+const englishEnrollmentQuerySchema = z
+  .object({
+    class_id: z.string().uuid().optional(),
+    student_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 export async function registerEnglishRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/english-levels", { preHandler: requirePerm("education.view") }, async () => {
-    const rows = await db.select().from(englishLevels).orderBy(englishLevels.level, englishLevels.name);
-    return { levels: rows.map(serializeLevel) };
+  app.get("/english-levels", { preHandler: requirePerm("education.view") }, async (request) => {
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(englishLevels)
+          .orderBy(englishLevels.level, englishLevels.name)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(englishLevels).orderBy(englishLevels.level, englishLevels.name);
+
+    if (!pagination.paginate) {
+      return { levels: rows.map(serializeLevel) };
+    }
+
+    const [totalRow] = await db.select({ count: count() }).from(englishLevels);
+    return {
+      levels: rows.map(serializeLevel),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/english-levels", { preHandler: requirePerm("education.manage") }, async (request, reply) => {
@@ -133,6 +158,7 @@ export async function registerEnglishRoutes(app: FastifyInstance): Promise<void>
   app.get("/english-classes", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(englishClassQuerySchema, request.query);
     const filters = [];
+    const pagination = getPagination(query);
 
     if (query.level_id) {
       filters.push(eq(englishClasses.levelId, query.level_id));
@@ -142,14 +168,29 @@ export async function registerEnglishRoutes(app: FastifyInstance): Promise<void>
       filters.push(eq(englishClasses.teacherId, query.teacher_id));
     }
 
-    const rows = await db
-      .select()
-      .from(englishClasses)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(englishClasses.createdAt);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(englishClasses)
+          .where(whereClause)
+          .orderBy(englishClasses.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(englishClasses).where(whereClause).orderBy(englishClasses.createdAt);
     const teachersByCourse = await courseTeachersByCourseIds(CLASS_COURSE_KIND, rows.map((row) => row.id));
 
-    return { classes: rows.map((row) => serializeClass(row, teachersByCourse.get(row.id) ?? [])) };
+    if (!pagination.paginate) {
+      return { classes: rows.map((row) => serializeClass(row, teachersByCourse.get(row.id) ?? [])) };
+    }
+
+    const [totalRow] = await db.select({ count: count() }).from(englishClasses).where(whereClause);
+    return {
+      classes: rows.map((row) => serializeClass(row, teachersByCourse.get(row.id) ?? [])),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/english-classes/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {
@@ -243,6 +284,7 @@ export async function registerEnglishRoutes(app: FastifyInstance): Promise<void>
   app.get("/english-enrollments", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(englishEnrollmentQuerySchema, request.query);
     const filters = [];
+    const pagination = getPagination(query);
 
     if (query.class_id) {
       filters.push(eq(englishEnrollments.classId, query.class_id));
@@ -252,13 +294,28 @@ export async function registerEnglishRoutes(app: FastifyInstance): Promise<void>
       filters.push(eq(englishEnrollments.studentId, query.student_id));
     }
 
-    const rows = await db
-      .select()
-      .from(englishEnrollments)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(englishEnrollments.createdAt);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(englishEnrollments)
+          .where(whereClause)
+          .orderBy(englishEnrollments.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(englishEnrollments).where(whereClause).orderBy(englishEnrollments.createdAt);
 
-    return { enrollments: rows.map(serializeEnrollment) };
+    if (!pagination.paginate) {
+      return { enrollments: rows.map(serializeEnrollment) };
+    }
+
+    const [totalRow] = await db.select({ count: count() }).from(englishEnrollments).where(whereClause);
+    return {
+      enrollments: rows.map(serializeEnrollment),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/english-enrollments", { preHandler: requirePerm("education.manage") }, async (request, reply) => {

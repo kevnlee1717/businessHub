@@ -21,13 +21,11 @@ import {
   type CaseCreateInput,
   type CaseStatus
 } from "@bh/shared";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
-import { ClientSelect } from "../../components/ClientSelect";
 import {
   createCase,
   listCases,
@@ -35,6 +33,10 @@ import {
   listTemplates,
   type Client
 } from "../../api/cases";
+import { useAuth } from "../../auth/AuthContext";
+import { ClientSelect } from "../../components/ClientSelect";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type CaseFormValues = {
   business_type?: BusinessType | undefined;
@@ -61,10 +63,6 @@ const emptyToUndefined = (value: unknown) => {
 
 function displayName(name: string, nameEn?: string | null) {
   return nameEn ? `${name} / ${nameEn}` : name;
-}
-
-function formatDateTime(value?: string | null) {
-  return value ? new Date(value).toLocaleString() : "-";
 }
 
 function statusColor(status: CaseStatus) {
@@ -99,20 +97,34 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
+  const useFrontendPagination = false;
 
   const casesQuery = useQuery({
-    queryKey: ["business", "cases", businessType, statusFilter, clientFilter],
+    queryKey: [
+      "business",
+      "cases",
+      businessType,
+      statusFilter,
+      clientFilter,
+      page,
+      pageSize,
+      useFrontendPagination
+    ],
     queryFn: () =>
       listCases({
         business_type: businessType,
         status: statusFilter ?? undefined,
-        client_id: clientFilter ?? undefined
-      })
+        client_id: clientFilter ?? undefined,
+        page: useFrontendPagination ? undefined : page,
+        page_size: useFrontendPagination ? undefined : pageSize
+      }),
+    placeholderData: keepPreviousData
   });
   const clientsQuery = useQuery({
     queryKey: ["business", "clients"],
-    queryFn: listClients
+    queryFn: () => listClients()
   });
   const templatesQuery = useQuery({
     queryKey: ["business", "workflow-templates", businessType],
@@ -133,6 +145,10 @@ export function CasesPage({ businessType }: CasesPageProps) {
   });
 
   const cases = casesQuery.data?.cases ?? [];
+  const visibleCases = useFrontendPagination
+    ? cases.slice((page - 1) * pageSize, page * pageSize)
+    : cases;
+  const totalCases = useFrontendPagination ? cases.length : (casesQuery.data?.total ?? cases.length);
   const clients = clientsQuery.data?.clients ?? [];
   const templates = templatesQuery.data?.templates ?? [];
   const clientById = useMemo(
@@ -172,6 +188,16 @@ export function CasesPage({ businessType }: CasesPageProps) {
     return client ? displayName(client.name, client.name_en) : t("common.not_available");
   }
 
+  function updateStatusFilter(value: string | null) {
+    setStatusFilter(value as CaseStatus | null);
+    setPage(1);
+  }
+
+  function updateClientFilter(value: string | null) {
+    setClientFilter(value);
+    setPage(1);
+  }
+
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
 
@@ -202,7 +228,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
           w={180}
           data={statusOptions}
           value={statusFilter}
-          onChange={(value) => setStatusFilter(value as CaseStatus | null)}
+          onChange={updateStatusFilter}
           clearable
         />
         <Select
@@ -210,7 +236,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
           w={220}
           data={clientOptions}
           value={clientFilter}
-          onChange={setClientFilter}
+          onChange={updateClientFilter}
           searchable
           clearable
         />
@@ -227,29 +253,28 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 <Table.Th>{t("case.fields.client")}</Table.Th>
                 <Table.Th>{t("case.fields.status")}</Table.Th>
                 <Table.Th>{t("case.fields.currentStep")}</Table.Th>
-                <Table.Th>{t("case.fields.createdAt")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={5}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
                   </Table.Td>
                 </Table.Tr>
-              ) : cases.length === 0 ? (
+              ) : visibleCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={5}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                cases.map((caseItem) => (
+                visibleCases.map((caseItem) => (
                   <Table.Tr
                     key={caseItem.id}
                     onClick={() => navigate(`/business/cases/${caseItem.id}`)}
@@ -263,7 +288,6 @@ export function CasesPage({ businessType }: CasesPageProps) {
                       </Badge>
                     </Table.Td>
                     <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
-                    <Table.Td>{formatDateTime(caseItem.created_at)}</Table.Td>
                     <Table.Td>
                       <Button
                         size="xs"
@@ -282,6 +306,13 @@ export function CasesPage({ businessType }: CasesPageProps) {
             </Table.Tbody>
         </Table>
       </ScrollArea>
+      <TablePagination
+        total={totalCases}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal opened={modalOpened} onClose={closeModal} title={t("case.add")} size="lg">
         <form onSubmit={onSubmit}>

@@ -2,10 +2,12 @@ import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { cases, db, documents, guarantors } from "@bh/db";
 import { guarantorCreateSchema, guarantorUpdateSchema } from "@bh/shared";
-import { desc, eq, sql } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 function serializeGuarantor(row: typeof guarantors.$inferSelect) {
@@ -72,17 +74,39 @@ async function sponsoredCount(guarantorId: string): Promise<number> {
   return row?.count ?? 0;
 }
 
+const guarantorQuerySchema = z.object({}).merge(paginationQuery);
+
 export async function registerGuarantorRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/guarantors", { preHandler: requirePerm("case.view") }, async () => {
-    const rows = await db.select().from(guarantors).orderBy(desc(guarantors.createdAt));
+  app.get("/guarantors", { preHandler: requirePerm("case.view") }, async (request) => {
+    const query = parseWithSchema(guarantorQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(guarantors)
+          .orderBy(desc(guarantors.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(guarantors).orderBy(desc(guarantors.createdAt));
     const serialized = await Promise.all(
       rows.map(async (row) => ({
         ...serializeGuarantor(row),
         sponsored_count: await sponsoredCount(row.id)
       }))
     );
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(guarantors);
+
+      return {
+        guarantors: serialized,
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
 
     return { guarantors: serialized };
   });

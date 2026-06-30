@@ -1,10 +1,14 @@
 import { clockPoints, db, employeeClockPoints } from "@bh/db";
 import { clockPointCreateSchema, clockPointUpdateSchema, employeeClockPointsAssignSchema } from "@bh/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const clockPointQuerySchema = z.object({}).merge(paginationQuery);
 
 function serializeClockPoint(clockPoint: typeof clockPoints.$inferSelect) {
   return {
@@ -34,9 +38,30 @@ async function listEmployeeClockPoints(employeeId: string) {
 export async function registerClockPointRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/clock-points", async () => {
-    const rows = await db.select().from(clockPoints).orderBy(desc(clockPoints.active), clockPoints.createdAt);
-    return { clockPoints: rows.map(serializeClockPoint) };
+  app.get("/clock-points", async (request) => {
+    const query = parseWithSchema(clockPointQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(clockPoints)
+          .orderBy(desc(clockPoints.active), clockPoints.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(clockPoints).orderBy(desc(clockPoints.active), clockPoints.createdAt);
+
+    if (!pagination.paginate) {
+      return { clockPoints: rows.map(serializeClockPoint) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(clockPoints);
+
+    return {
+      clockPoints: rows.map(serializeClockPoint),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/clock-points", { preHandler: requirePerm("attendance.manage") }, async (request, reply) => {

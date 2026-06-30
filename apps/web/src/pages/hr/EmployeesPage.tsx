@@ -1,5 +1,5 @@
 import { Alert, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,6 +9,8 @@ import {
   type Employee
 } from "../../api/hr";
 import { EmployeeFormModal } from "../../components/EmployeeFormModal";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 const employeeQueryKey = ["hr", "employees"] as const;
 const companyQueryKey = ["hr", "companies"] as const;
@@ -23,18 +25,20 @@ export function EmployeesPage() {
   const queryClient = useQueryClient();
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const employeesQuery = useQuery({
-    queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryKey: [...employeeQueryKey, page, pageSize],
+    queryFn: () => listEmployees({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const positionsQuery = useQuery({
     queryKey: positionQueryKey,
-    queryFn: listPositions
+    queryFn: () => listPositions()
   });
 
   const companies = companiesQuery.data?.companies ?? [];
@@ -62,6 +66,7 @@ export function EmployeesPage() {
   }
 
   const employees = employeesQuery.data?.employees ?? [];
+  const totalEmployees = employeesQuery.data?.total ?? employees.length;
   const isLoading =
     employeesQuery.isLoading ||
     companiesQuery.isLoading ||
@@ -139,6 +144,13 @@ export function EmployeesPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalEmployees}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <EmployeeFormModal
         opened={modalOpened}

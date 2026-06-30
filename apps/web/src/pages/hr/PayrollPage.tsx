@@ -23,7 +23,7 @@ import {
   type StatutoryPaymentInput,
   type StatutoryType
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -38,6 +38,8 @@ import {
   type Employee,
   type Payslip
 } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type StatutoryFormValues = {
   type?: StatutoryType | undefined;
@@ -99,18 +101,37 @@ export function PayrollPage() {
   const [modalOpened, setModalOpened] = useState(false);
   const [commissionDetail, setCommissionDetail] = useState<{ employeeId: string; period: string } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const {
+    page: payslipPage,
+    pageSize: payslipPageSize,
+    setPage: setPayslipPage,
+    setPageSize: setPayslipPageSize
+  } = usePagination();
+  const {
+    page: statutoryPage,
+    pageSize: statutoryPageSize,
+    setPage: setStatutoryPage,
+    setPageSize: setStatutoryPageSize
+  } = usePagination();
 
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const payslipsQuery = useQuery({
-    queryKey: [...payslipQueryKey, period.trim()],
-    queryFn: () => listPayslips({ period: period.trim() || undefined })
+    queryKey: [...payslipQueryKey, period.trim(), payslipPage, payslipPageSize],
+    queryFn: () =>
+      listPayslips({
+        period: period.trim() || undefined,
+        page: payslipPage,
+        page_size: payslipPageSize
+      }),
+    placeholderData: keepPreviousData
   });
   const statutoryQuery = useQuery({
-    queryKey: statutoryQueryKey,
-    queryFn: () => listStatutory()
+    queryKey: [...statutoryQueryKey, statutoryPage, statutoryPageSize],
+    queryFn: () => listStatutory({ page: statutoryPage, page_size: statutoryPageSize }),
+    placeholderData: keepPreviousData
   });
   const commissionSummaryQuery = useQuery({
     queryKey: ["finance", "commission-summary", commissionDetail?.employeeId, commissionDetail?.period],
@@ -148,6 +169,8 @@ export function PayrollPage() {
   const employees = employeesQuery.data?.employees ?? [];
   const payslips = payslipsQuery.data?.payslips ?? [];
   const payments = statutoryQuery.data?.payments ?? [];
+  const totalPayslips = payslipsQuery.data?.total ?? payslips.length;
+  const totalPayments = statutoryQuery.data?.total ?? payments.length;
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
   const employeeOptions = employees.map((employee) => ({
     value: employee.id,
@@ -218,7 +241,10 @@ export function PayrollPage() {
               label={t("payslip.fields.period")}
               placeholder="YYYY-MM"
               value={period}
-              onChange={(event) => setPeriod(event.currentTarget.value)}
+              onChange={(event) => {
+                setPeriod(event.currentTarget.value);
+                setPayslipPage(1);
+              }}
             />
             <Button onClick={() => void handleGenerate()} loading={generateMutation.isPending} disabled={!period.trim()}>
               {t("payslip.generate")}
@@ -314,6 +340,13 @@ export function PayrollPage() {
             </Table>
           </ScrollArea>
         </Paper>
+        <TablePagination
+          total={totalPayslips}
+          page={payslipPage}
+          pageSize={payslipPageSize}
+          onPageChange={setPayslipPage}
+          onPageSizeChange={setPayslipPageSize}
+        />
       </Stack>
 
       <Divider />
@@ -374,6 +407,13 @@ export function PayrollPage() {
             </Table>
           </ScrollArea>
         </Paper>
+        <TablePagination
+          total={totalPayments}
+          page={statutoryPage}
+          pageSize={statutoryPageSize}
+          onPageChange={setStatutoryPage}
+          onPageSizeChange={setStatutoryPageSize}
+        />
       </Stack>
 
       <Modal opened={modalOpened} onClose={closeModal} title={t("statutory.add")} size="lg">

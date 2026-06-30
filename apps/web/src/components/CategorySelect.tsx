@@ -43,7 +43,7 @@ export function CategorySelect({ value, onChange, placeholder }: CategorySelectP
 
   const categoriesQuery = useQuery({
     queryKey: categoryQueryKey,
-    queryFn: listDocumentCategories
+    queryFn: () => listDocumentCategories()
   });
 
   const createCategoryMutation = useMutation({

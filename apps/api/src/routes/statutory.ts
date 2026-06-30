@@ -1,16 +1,19 @@
 import { db, statutoryPayments } from "@bh/db";
 import { statutoryPaymentSchema, statutoryTypes } from "@bh/shared";
-import { and, desc, eq, type SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { parseWithSchema, toNumeric } from "./hrUtils";
 
-const statutoryQuerySchema = z.object({
-  period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-  type: z.enum(statutoryTypes).optional(),
-  employee_id: z.string().uuid().optional()
-});
+const statutoryQuerySchema = z
+  .object({
+    period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    type: z.enum(statutoryTypes).optional(),
+    employee_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 export async function registerStatutoryRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
@@ -23,13 +26,30 @@ export async function registerStatutoryRoutes(app: FastifyInstance): Promise<voi
     if (query.type) filters.push(eq(statutoryPayments.type, query.type));
     if (query.employee_id) filters.push(eq(statutoryPayments.employeeId, query.employee_id));
 
-    const payments = await db
-      .select()
-      .from(statutoryPayments)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(statutoryPayments.period));
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const payments = pagination.paginate
+      ? await db
+          .select()
+          .from(statutoryPayments)
+          .where(where)
+          .orderBy(desc(statutoryPayments.period))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(statutoryPayments).where(where).orderBy(desc(statutoryPayments.period));
 
-    return { payments };
+    if (!pagination.paginate) {
+      return { payments };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(statutoryPayments).where(where);
+
+    return {
+      payments,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/statutory", { preHandler: requirePerm("payroll.edit") }, async (request, reply) => {

@@ -15,12 +15,13 @@ import {
   diplomaEnrollmentUpdateSchema,
   diplomaPaymentUpdateSchema
 } from "@bh/shared";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, count, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type FastifyInstance } from "fastify";
 import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 function serializeDiploma(
@@ -109,9 +110,11 @@ function serializePayment(row: typeof diplomaPayments.$inferSelect) {
   };
 }
 
-const diplomaEnrollmentQuerySchema = z.object({
-  student_id: z.string().uuid().optional()
-});
+const diplomaEnrollmentQuerySchema = z
+  .object({
+    student_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 function getStartPeriod(enrollDate?: string) {
   const base = enrollDate ?? formatLocalDate(new Date());
@@ -177,32 +180,75 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
 
   app.get("/diploma-enrollments", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(diplomaEnrollmentQuerySchema, request.query);
+    const pagination = getPagination(query);
     const rows = query.student_id
-      ? await db
-          .select({
-            enrollment: diplomaEnrollments,
-            intake: {
-              id: diplomaIntakes.id,
-              label: diplomaIntakes.label
-            }
-          })
-          .from(diplomaEnrollments)
-          .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
-          .where(eq(diplomaEnrollments.studentId, query.student_id))
-          .orderBy(diplomaEnrollments.createdAt)
-      : await db
-          .select({
-            enrollment: diplomaEnrollments,
-            intake: {
-              id: diplomaIntakes.id,
-              label: diplomaIntakes.label
-            }
-          })
-          .from(diplomaEnrollments)
-          .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
-          .orderBy(diplomaEnrollments.createdAt);
+      ? pagination.paginate
+        ? await db
+            .select({
+              enrollment: diplomaEnrollments,
+              intake: {
+                id: diplomaIntakes.id,
+                label: diplomaIntakes.label
+              }
+            })
+            .from(diplomaEnrollments)
+            .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
+            .where(eq(diplomaEnrollments.studentId, query.student_id))
+            .orderBy(diplomaEnrollments.createdAt)
+            .limit(pagination.limit)
+            .offset(pagination.offset)
+        : await db
+            .select({
+              enrollment: diplomaEnrollments,
+              intake: {
+                id: diplomaIntakes.id,
+                label: diplomaIntakes.label
+              }
+            })
+            .from(diplomaEnrollments)
+            .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
+            .where(eq(diplomaEnrollments.studentId, query.student_id))
+            .orderBy(diplomaEnrollments.createdAt)
+      : pagination.paginate
+        ? await db
+            .select({
+              enrollment: diplomaEnrollments,
+              intake: {
+                id: diplomaIntakes.id,
+                label: diplomaIntakes.label
+              }
+            })
+            .from(diplomaEnrollments)
+            .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
+            .orderBy(diplomaEnrollments.createdAt)
+            .limit(pagination.limit)
+            .offset(pagination.offset)
+        : await db
+            .select({
+              enrollment: diplomaEnrollments,
+              intake: {
+                id: diplomaIntakes.id,
+                label: diplomaIntakes.label
+              }
+            })
+            .from(diplomaEnrollments)
+            .leftJoin(diplomaIntakes, eq(diplomaEnrollments.intakeId, diplomaIntakes.id))
+            .orderBy(diplomaEnrollments.createdAt);
 
-    return { enrollments: rows.map((row) => serializeDiploma(row.enrollment, row.intake)) };
+    if (!pagination.paginate) {
+      return { enrollments: rows.map((row) => serializeDiploma(row.enrollment, row.intake)) };
+    }
+
+    const [totalRow] = query.student_id
+      ? await db.select({ count: count() }).from(diplomaEnrollments).where(eq(diplomaEnrollments.studentId, query.student_id))
+      : await db.select({ count: count() }).from(diplomaEnrollments);
+
+    return {
+      enrollments: rows.map((row) => serializeDiploma(row.enrollment, row.intake)),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/diploma-enrollments/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {

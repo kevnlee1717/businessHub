@@ -15,8 +15,7 @@ import {
   Table,
   Text,
   Textarea,
-  TextInput,
-  Title
+  TextInput
 } from "@mantine/core";
 import {
   genders,
@@ -26,7 +25,7 @@ import {
   type GuarantorCreateInput,
   type GuarantorUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -39,6 +38,8 @@ import {
   uploadGuarantorIdCard,
   type Guarantor
 } from "../../api/cases";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type GuarantorFormValues = {
   name?: string | undefined;
@@ -143,11 +144,13 @@ export function GuarantorsPage() {
   const [editingGuarantor, setEditingGuarantor] = useState<Guarantor | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
 
   const guarantorsQuery = useQuery({
-    queryKey: guarantorQueryKey,
-    queryFn: listGuarantors
+    queryKey: [...guarantorQueryKey, page, pageSize],
+    queryFn: () => listGuarantors({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const form = useForm<GuarantorFormValues>({
@@ -179,6 +182,7 @@ export function GuarantorsPage() {
   });
 
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
+  const totalGuarantors = guarantorsQuery.data?.total ?? guarantors.length;
   const errors = form.formState.errors;
   const genderOptions = genders.map((gender) => ({
     value: gender,
@@ -318,6 +322,13 @@ export function GuarantorsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalGuarantors}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

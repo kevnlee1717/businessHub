@@ -2,6 +2,8 @@ import { Alert, Badge, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Tabl
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { getMyCommission, type MyCommissionStatus } from "../../api/myCommission";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 function displayName(name?: string | null, nameEn?: string | null) {
   if (!name && !nameEn) {
@@ -42,12 +44,15 @@ function statusColor(status: MyCommissionStatus) {
 
 export function MyCommissionPage() {
   const { t } = useTranslation();
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const commissionQuery = useQuery({
     queryKey: ["finance", "my-commission"],
-    queryFn: getMyCommission
+    queryFn: () => getMyCommission()
   });
 
   const entries = commissionQuery.data?.entries ?? [];
+  // Totals are derived from the full personal commission list, so pagination is applied after fetching.
+  const visibleEntries = entries.slice((page - 1) * pageSize, page * pageSize);
   const totals = entries.reduce(
     (acc, entry) => {
       const amount = Number(entry.amount_sgd);
@@ -105,7 +110,7 @@ export function MyCommissionPage() {
                     </Group>
                   </Table.Td>
                 </Table.Tr>
-              ) : entries.length === 0 ? (
+              ) : visibleEntries.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={5}>
                     <Text ta="center" c="dimmed" py="lg">
@@ -114,7 +119,7 @@ export function MyCommissionPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                entries.map((entry) => (
+                visibleEntries.map((entry) => (
                   <Table.Tr key={`${entry.billing_id}-${entry.period}-${entry.created_at}`}>
                     <Table.Td>
                       <Stack gap={2}>
@@ -138,6 +143,13 @@ export function MyCommissionPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+        <TablePagination
+          total={entries.length}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Paper>
     </Stack>
   );

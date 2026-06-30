@@ -20,7 +20,7 @@ import {
   type AttendanceClockInput,
   type AttendanceKind
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -31,6 +31,8 @@ import {
   listEmployees
 } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type AttendanceClockFormValues = {
   kind?: AttendanceKind | undefined;
@@ -89,12 +91,13 @@ export function AttendancePage() {
   const [workDate, setWorkDate] = useState("");
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const canManageAttendance = can("attendance.manage");
 
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const daysQuery = useQuery({
     queryKey: ["hr", "attendance-days", selectedEmployeeId],
@@ -102,13 +105,16 @@ export function AttendancePage() {
     enabled: Boolean(selectedEmployeeId)
   });
   const recordsQuery = useQuery({
-    queryKey: ["hr", "attendance-records", selectedEmployeeId, workDate],
+    queryKey: ["hr", "attendance-records", selectedEmployeeId, workDate, page, pageSize],
     queryFn: () =>
       listAttendance({
         employee_id: selectedEmployeeId ?? undefined,
-        work_date: workDate.trim() || undefined
+        work_date: workDate.trim() || undefined,
+        page,
+        page_size: pageSize
       }),
-    enabled: Boolean(selectedEmployeeId)
+    enabled: Boolean(selectedEmployeeId),
+    placeholderData: keepPreviousData
   });
 
   const form = useForm<AttendanceClockFormValues>({
@@ -136,6 +142,7 @@ export function AttendancePage() {
   }));
   const days = daysQuery.data?.days ?? [];
   const records = recordsQuery.data?.records ?? [];
+  const totalRecords = recordsQuery.data?.total ?? records.length;
   const errors = form.formState.errors;
 
   function openModal() {
@@ -191,7 +198,10 @@ export function AttendancePage() {
             label={t("attendance.filters.employee")}
             data={employeeOptions}
             value={selectedEmployeeId}
-            onChange={setSelectedEmployeeId}
+            onChange={(value) => {
+              setSelectedEmployeeId(value);
+              setPage(1);
+            }}
             searchable
             clearable
           />
@@ -199,7 +209,10 @@ export function AttendancePage() {
             label={t("attendance.filters.workDate")}
             placeholder="YYYY-MM-DD"
             value={workDate}
-            onChange={(event) => setWorkDate(event.currentTarget.value)}
+            onChange={(event) => {
+              setWorkDate(event.currentTarget.value);
+              setPage(1);
+            }}
           />
         </Group>
       </Paper>
@@ -320,6 +333,13 @@ export function AttendancePage() {
                 </Table>
               </ScrollArea>
             </Paper>
+            <TablePagination
+              total={totalRecords}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </Stack>
         </>
       ) : (

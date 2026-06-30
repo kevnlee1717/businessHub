@@ -34,7 +34,7 @@ import {
   type Currency,
   type PaymentCreateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -56,6 +56,8 @@ import {
 } from "../../api/finance";
 import { listExternalParties } from "../../api/externalParties";
 import { listEmployees } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type MoneyFormValue = number | null | undefined;
 
@@ -201,10 +203,12 @@ export function BillingPage() {
   const [paymentOpened, setPaymentOpened] = useState(false);
   const [paymentPaidAtLocal, setPaymentPaidAtLocal] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const billingsQuery = useQuery({
-    queryKey: [...billingListQueryKey, refTypeFilter, statusFilter],
-    queryFn: () => listBilling({ ref_type: refTypeFilter, status: statusFilter })
+    queryKey: [...billingListQueryKey, refTypeFilter, statusFilter, page, pageSize],
+    queryFn: () => listBilling({ ref_type: refTypeFilter, status: statusFilter, page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const billingDetailQuery = useQuery({
     queryKey: ["finance", "billing-detail", selectedBillingId],
@@ -213,7 +217,7 @@ export function BillingPage() {
   });
   const employeesQuery = useQuery({
     queryKey: ["hr", "employees"],
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const businessesQuery = useQuery({
     queryKey: ["business-finance", "businesses"],
@@ -221,11 +225,11 @@ export function BillingPage() {
   });
   const dealPartiesQuery = useQuery({
     queryKey: ["business-finance", "deal-parties"],
-    queryFn: listDealParties
+    queryFn: () => listDealParties()
   });
   const externalPartiesQuery = useQuery({
     queryKey: ["business-finance", "external-parties"],
-    queryFn: listExternalParties
+    queryFn: () => listExternalParties()
   });
 
   const createForm = useForm<BillingFormValues>({
@@ -270,6 +274,7 @@ export function BillingPage() {
   });
 
   const billings = billingsQuery.data?.billings ?? [];
+  const totalBillings = billingsQuery.data?.total ?? billings.length;
   const selectedDetail = billingDetailQuery.data;
   const selectedBilling = selectedDetail?.billing;
   const employees = employeesQuery.data?.employees ?? [];
@@ -427,7 +432,10 @@ export function BillingPage() {
             placeholder={t("common.all")}
             data={refTypeOptions}
             value={refTypeFilter}
-            onChange={setRefTypeFilter}
+            onChange={(value) => {
+              setRefTypeFilter(value);
+              setPage(1);
+            }}
             clearable
           />
           <Select
@@ -435,7 +443,10 @@ export function BillingPage() {
             placeholder={t("common.all")}
             data={statusOptions}
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(value) => {
+              setStatusFilter(value);
+              setPage(1);
+            }}
             clearable
           />
         </Group>
@@ -512,6 +523,13 @@ export function BillingPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+        <TablePagination
+          total={totalBillings}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Paper>
 
       {!selectedBillingId ? (

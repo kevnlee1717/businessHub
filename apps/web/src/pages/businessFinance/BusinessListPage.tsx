@@ -12,8 +12,7 @@ import {
   Stack,
   Table,
   Text,
-  TextInput,
-  Title
+  TextInput
 } from "@mantine/core";
 import {
   businessCreateSchema,
@@ -22,7 +21,7 @@ import {
   type BusinessStatus,
   type BusinessUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -34,6 +33,8 @@ import {
   type Business
 } from "../../api/businessSchemes";
 import { listCompanies, type Company } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type BusinessFormValues = {
   company_id?: string | undefined;
@@ -88,14 +89,16 @@ export function BusinessListPage() {
   const navigate = useNavigate();
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const businessesQuery = useQuery({
-    queryKey: businessQueryKey,
-    queryFn: () => listBusinesses()
+    queryKey: [...businessQueryKey, page, pageSize],
+    queryFn: () => listBusinesses({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
 
   const form = useForm<BusinessFormValues>({
@@ -118,6 +121,7 @@ export function BusinessListPage() {
   });
 
   const businesses = businessesQuery.data?.businesses ?? [];
+  const totalBusinesses = businessesQuery.data?.total ?? businesses.length;
   const companies = companiesQuery.data?.companies ?? [];
   const companyById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const companyOptions = companies.map((company) => ({
@@ -287,6 +291,13 @@ export function BusinessListPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalBusinesses}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal opened={modalOpened} onClose={closeModal} title={t("businessFinance.list.add")} size="lg">
         <form onSubmit={onSubmit}>

@@ -31,6 +31,8 @@ import {
   updateIndustry,
   type Industry
 } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type IndustryFormValues = {
   name?: string | undefined;
@@ -66,10 +68,11 @@ export function IndustriesPage() {
   const [editingIndustry, setEditingIndustry] = useState<Industry | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const industriesQuery = useQuery({
     queryKey: industryQueryKey,
-    queryFn: listIndustries
+    queryFn: () => listIndustries()
   });
 
   const form = useForm<IndustryFormValues>({
@@ -102,7 +105,9 @@ export function IndustriesPage() {
     }
   });
 
+  // 行业是基础下拉数据；保持全量请求，在前端切片分页。
   const industries = industriesQuery.data?.industries ?? [];
+  const visibleIndustries = industries.slice((page - 1) * pageSize, page * pageSize);
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
 
@@ -190,7 +195,7 @@ export function IndustriesPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                industries.map((industry) => (
+                visibleIndustries.map((industry) => (
                   <Table.Tr key={industry.id}>
                     <Table.Td>{displayName(industry.name, industry.name_en)}</Table.Td>
                     <Table.Td>{industry.active ? t("common.yes") : t("common.no")}</Table.Td>
@@ -217,6 +222,13 @@ export function IndustriesPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={industries.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

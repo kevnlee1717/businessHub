@@ -23,7 +23,7 @@ import {
   type ClockPointCreateInput,
   type ClockPointUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -39,6 +39,8 @@ import {
   type ClockPoint
 } from "../../api/hr";
 import { MapPicker } from "../../components/MapPicker";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type ClockPointFormValues = {
   name?: string | undefined;
@@ -91,18 +93,24 @@ export function ClockPointsPage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [assignedClockPointIds, setAssignedClockPointIds] = useState<string[]>([]);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const clockPointsQuery = useQuery({
-    queryKey: clockPointQueryKey,
-    queryFn: listClockPoints
+    queryKey: [...clockPointQueryKey, page, pageSize],
+    queryFn: () => listClockPoints({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
+  });
+  const allClockPointsQuery = useQuery({
+    queryKey: [...clockPointQueryKey, "all"],
+    queryFn: () => listClockPoints()
   });
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const employeeClockPointsQuery = useQuery({
     queryKey: ["hr", "employee-clock-points", selectedEmployeeId],
@@ -159,6 +167,8 @@ export function ClockPointsPage() {
   }, [employeeClockPointsQuery.data, selectedEmployeeId]);
 
   const clockPoints = clockPointsQuery.data?.clockPoints ?? [];
+  const allClockPoints = allClockPointsQuery.data?.clockPoints ?? [];
+  const totalClockPoints = clockPointsQuery.data?.total ?? clockPoints.length;
   const companies = companiesQuery.data?.companies ?? [];
   const employees = employeesQuery.data?.employees ?? [];
 
@@ -171,7 +181,7 @@ export function ClockPointsPage() {
     value: employee.id,
     label: displayName(employee.name, employee.name_en)
   }));
-  const activeClockPointOptions = clockPoints
+  const activeClockPointOptions = allClockPoints
     .filter((clockPoint) => clockPoint.active)
     .map((clockPoint) => ({
       value: clockPoint.id,
@@ -179,7 +189,7 @@ export function ClockPointsPage() {
     }));
   const selectedAssignedClockPoints = employeeClockPointsQuery.data?.clockPoints ?? [];
   const isLoading = clockPointsQuery.isLoading || companiesQuery.isLoading || employeesQuery.isLoading;
-  const loadError = clockPointsQuery.error ?? companiesQuery.error ?? employeesQuery.error;
+  const loadError = clockPointsQuery.error ?? allClockPointsQuery.error ?? companiesQuery.error ?? employeesQuery.error;
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
   const selectedLat = form.watch("lat");
@@ -327,6 +337,13 @@ export function ClockPointsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalClockPoints}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Stack gap="md">
         <Title order={3}>{t("clockPoint.assignment.title")}</Title>

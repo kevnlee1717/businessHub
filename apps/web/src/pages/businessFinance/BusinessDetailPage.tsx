@@ -245,7 +245,7 @@ export function BusinessDetailPage() {
   });
   const partiesQuery = useQuery({
     queryKey: partiesQueryKey,
-    queryFn: listDealParties
+    queryFn: () => listDealParties()
   });
 
   const versionForm = useForm<VersionFormValues>({
@@ -1044,7 +1044,7 @@ function MilestonesPanel({ versionId }: { versionId: string }) {
   });
   const collectionItemsQuery = useQuery({
     queryKey: ["collection-items"],
-    queryFn: getCollectionItems
+    queryFn: () => getCollectionItems()
   });
   const createMutation = useMutation({
     mutationFn: (body: SchemeMilestoneInput) => createSchemeMilestone(versionId, body),

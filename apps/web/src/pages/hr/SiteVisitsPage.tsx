@@ -21,7 +21,7 @@ import {
   type SiteVisitOverrideInput,
   type SiteVisitStatus
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -33,6 +33,8 @@ import {
   type SiteVisit
 } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type SiteVisitOverrideFormValues = {
   status?: SiteVisitStatus | undefined;
@@ -98,20 +100,24 @@ export function SiteVisitsPage() {
   const [selectedStatus, setSelectedStatus] = useState<SiteVisitStatus | null>(null);
   const [reviewingSiteVisit, setReviewingSiteVisit] = useState<SiteVisit | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const canOverride = can("attendance.manage");
 
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const siteVisitsQuery = useQuery({
-    queryKey: [...siteVisitsQueryKey, selectedEmployeeId, selectedStatus],
+    queryKey: [...siteVisitsQueryKey, selectedEmployeeId, selectedStatus, page, pageSize],
     queryFn: () =>
       listSiteVisits({
         employee_id: selectedEmployeeId ?? undefined,
-        status: selectedStatus ?? undefined
-      })
+        status: selectedStatus ?? undefined,
+        page,
+        page_size: pageSize
+      }),
+    placeholderData: keepPreviousData
   });
 
   const overrideForm = useForm<SiteVisitOverrideFormValues>({
@@ -129,6 +135,7 @@ export function SiteVisitsPage() {
 
   const employees = employeesQuery.data?.employees ?? [];
   const siteVisits = siteVisitsQuery.data?.siteVisits ?? [];
+  const totalSiteVisits = siteVisitsQuery.data?.total ?? siteVisits.length;
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
   const employeeOptions = employees.map((employee) => ({
     value: employee.id,
@@ -184,7 +191,10 @@ export function SiteVisitsPage() {
             label={t("siteVisit.filters.employee")}
             data={employeeOptions}
             value={selectedEmployeeId}
-            onChange={setSelectedEmployeeId}
+            onChange={(value) => {
+              setSelectedEmployeeId(value);
+              setPage(1);
+            }}
             searchable
             clearable
           />
@@ -192,7 +202,10 @@ export function SiteVisitsPage() {
             label={t("siteVisit.filters.status")}
             data={statusOptions}
             value={selectedStatus}
-            onChange={(value) => setSelectedStatus(value as SiteVisitStatus | null)}
+            onChange={(value) => {
+              setSelectedStatus(value as SiteVisitStatus | null);
+              setPage(1);
+            }}
             clearable
           />
         </Group>
@@ -258,6 +271,13 @@ export function SiteVisitsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalSiteVisits}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={Boolean(reviewingSiteVisit)}

@@ -12,7 +12,6 @@ import {
   Modal,
   MultiSelect,
   NumberInput,
-  Pagination,
   Select,
   SimpleGrid,
   Stack,
@@ -80,8 +79,8 @@ import {
 } from "./propertySurvey";
 import { ContactPicker } from "./ContactPicker";
 import { OrgSelect } from "./OrgSelect";
-
-const pageSize = 10;
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type Dict = Record<string, unknown>;
 type Option = { value: string; label: string };
@@ -164,19 +163,6 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
   );
 }
 
-function Pager({ total, page, setPage }: { total: number; page: number; setPage: (page: number) => void }) {
-  if (total <= pageSize) return null;
-  return (
-    <Group justify="flex-end" mt={30}>
-      <Pagination total={Math.ceil(total / pageSize)} value={page} onChange={setPage} />
-    </Group>
-  );
-}
-
-function slicePage<T>(rows: T[], page: number) {
-  return rows.slice((page - 1) * pageSize, page * pageSize);
-}
-
 function useSimpleForm(initial: Dict = {}) {
   const [values, setValues] = useState<Dict>(initial);
   const set = (key: string, value: unknown) => setValues((current) => ({ ...current, [key]: value }));
@@ -184,7 +170,7 @@ function useSimpleForm(initial: Dict = {}) {
 }
 
 function useBaseOptions() {
-  const employeesQuery = useQuery({ queryKey: ["hr", "employees"], queryFn: listEmployees });
+  const employeesQuery = useQuery({ queryKey: ["hr", "employees"], queryFn: () => listEmployees() });
   const orgsQuery = useQuery({ queryKey: franchiseKeys.orgs("all"), queryFn: () => listFranchiseOrgs() });
   const contactsQuery = useQuery({ queryKey: franchiseKeys.contacts("all"), queryFn: () => listFranchiseContacts() });
   return {
@@ -823,7 +809,7 @@ export function PropertiesPageImpl() {
   const navigate = useNavigate();
   const base = useBaseOptions();
   const [filters, setFilters] = useState({ q: "", priority: "", status: "", is_vending_site: "", owner_id: "" });
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [opened, setOpened] = useState(false);
   const params = { ...filters, is_vending_site: filters.is_vending_site };
   const query = useQuery({ queryKey: franchiseKeys.properties(qsKey(params)), queryFn: () => listFranchiseProperties(params) });
@@ -844,7 +830,7 @@ export function PropertiesPageImpl() {
       <Table withTableBorder withColumnBorders highlightOnHover>
         <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.name")}</Table.Th><Table.Th>{t("franchise.fields.propertyType")}</Table.Th><Table.Th>{t("franchise.fields.priority")}</Table.Th><Table.Th>{t("franchise.fields.status")}</Table.Th><Table.Th>{t("franchise.fields.owner")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
-          {query.isLoading ? <LoadingRow colSpan={6} /> : rows.length ? slicePage(rows, page).map((row) => (
+          {query.isLoading ? <LoadingRow colSpan={6} /> : rows.length ? rows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
             <Table.Tr key={row.id}>
               <Table.Td><Anchor onClick={() => navigate(`/franchise/tracking/properties/${row.id}`)}>{row.name}</Anchor>{row.is_vending_site ? <Badge ml="xs" color="green">{t("franchise.fields.isVendingSite")}</Badge> : null}</Table.Td>
               <Table.Td>{t(`franchise.propertyType.${row.property_type}`)}</Table.Td>
@@ -856,7 +842,7 @@ export function PropertiesPageImpl() {
           )) : <EmptyRow colSpan={6} />}
         </Table.Tbody>
       </Table>
-      <Pager total={rows.length} page={page} setPage={setPage} />
+      <TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <PropertyFormModal opened={opened} onClose={() => setOpened(false)} />
     </Box>
   );
@@ -908,7 +894,7 @@ export function FnbSitesPageImpl() {
   const navigate = useNavigate();
   const base = useBaseOptions();
   const [filters, setFilters] = useState({ q: "", priority: "", status: "", owner_id: "" });
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [opened, setOpened] = useState(false);
   const query = useQuery({ queryKey: franchiseKeys.fnbSites(qsKey(filters)), queryFn: () => listFranchiseFnbSites(filters) });
   const rows = query.data?.sites ?? [];
@@ -927,7 +913,7 @@ export function FnbSitesPageImpl() {
       <Table withTableBorder withColumnBorders highlightOnHover>
         <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.name")}</Table.Th><Table.Th>{t("franchise.fields.location")}</Table.Th><Table.Th>{t("franchise.fields.priority")}</Table.Th><Table.Th>{t("franchise.fields.status")}</Table.Th><Table.Th>{t("franchise.fields.owner")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
-          {query.isLoading ? <LoadingRow colSpan={6} /> : rows.length ? slicePage(rows, page).map((row) => (
+          {query.isLoading ? <LoadingRow colSpan={6} /> : rows.length ? rows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
             <Table.Tr key={row.id}>
               <Table.Td><Anchor onClick={() => navigate(`/franchise/tracking/fnb-sites/${row.id}`)}>{row.name}</Anchor></Table.Td>
               <Table.Td>{row.location ?? "-"}</Table.Td>
@@ -939,7 +925,7 @@ export function FnbSitesPageImpl() {
           )) : <EmptyRow colSpan={6} />}
         </Table.Tbody>
       </Table>
-      <Pager total={rows.length} page={page} setPage={setPage} />
+      <TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <FnbSiteFormModal opened={opened} onClose={() => setOpened(false)} />
     </Box>
   );
@@ -1074,7 +1060,7 @@ export function ContactsPageImpl() {
   const navigate = useNavigate();
   const base = useBaseOptions();
   const [filters, setFilters] = useState({ q: "", org_type: "", due_before: "" });
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [opened, setOpened] = useState(false);
   const params = { ...filters, due_before: filters.due_before ? toApiDateTime(filters.due_before) : "" };
   const query = useQuery({ queryKey: franchiseKeys.contacts(qsKey(params)), queryFn: () => listFranchiseContacts(params) });
@@ -1093,7 +1079,7 @@ export function ContactsPageImpl() {
       <Table withTableBorder withColumnBorders highlightOnHover>
         <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.name")}</Table.Th><Table.Th>{t("franchise.fields.role")}</Table.Th><Table.Th>{t("franchise.fields.phone")}</Table.Th><Table.Th>{t("franchise.fields.org")}</Table.Th><Table.Th>{t("franchise.fields.nextVisitAt")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
-          {query.isLoading ? <LoadingRow colSpan={6} /> : rows.length ? slicePage(rows, page).map((row) => (
+          {query.isLoading ? <LoadingRow colSpan={6} /> : rows.length ? rows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
             <Table.Tr key={row.id}>
               <Table.Td><Anchor onClick={() => navigate(`/franchise/tracking/contacts/${row.id}`)}>{row.name}</Anchor></Table.Td>
               <Table.Td>{row.role ?? "-"}</Table.Td><Table.Td>{row.phone ?? "-"}</Table.Td><Table.Td>{row.org?.name ?? optionLabel(base.orgOptions, row.org_id)}</Table.Td><Table.Td>{fmt(row.next_visit_at)}</Table.Td>
@@ -1102,7 +1088,7 @@ export function ContactsPageImpl() {
           )) : <EmptyRow colSpan={6} />}
         </Table.Tbody>
       </Table>
-      <Pager total={rows.length} page={page} setPage={setPage} />
+      <TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <ContactFormModal opened={opened} onClose={() => setOpened(false)} />
     </Box>
   );
@@ -1151,7 +1137,7 @@ export function VisitsPageImpl() {
   const { t } = useTranslation();
   const base = useBaseOptions();
   const [filters, setFilters] = useState({ from: "", to: "", employee_id: "", status: "", q: "", interest_level: "", site_status: "" });
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [planOpen, setPlanOpen] = useState(false);
   const [completeVisit, setCompleteVisit] = useState<FranchiseVisit | null>(null);
   const [viewVisit, setViewVisit] = useState<FranchiseVisit | null>(null);
@@ -1173,7 +1159,7 @@ export function VisitsPageImpl() {
       <Table withTableBorder withColumnBorders highlightOnHover>
         <Table.Thead><Table.Tr><Table.Th>{t("franchise.fields.visitTime")}</Table.Th><Table.Th>{t("franchise.fields.type")}</Table.Th><Table.Th>{t("franchise.fields.visitStatus")}</Table.Th><Table.Th>{t("franchise.fields.site")}</Table.Th><Table.Th>{t("franchise.fields.employee")}</Table.Th><Table.Th>{t("franchise.fields.contact")}</Table.Th><Table.Th>{t("franchise.fields.interestLevel")}</Table.Th><Table.Th>{t("franchise.fields.siteStatus")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
         <Table.Tbody>
-          {query.isLoading ? <LoadingRow colSpan={9} /> : visits.length ? slicePage(visits, page).map((row) => (
+          {query.isLoading ? <LoadingRow colSpan={9} /> : visits.length ? visits.slice((page - 1) * pageSize, page * pageSize).map((row) => (
             <Table.Tr key={row.id}>
               <Table.Td>{fmt(visitTime(row))}</Table.Td>
               <Table.Td>{t(`franchise.visitType.${row.type}`)}</Table.Td>
@@ -1188,7 +1174,7 @@ export function VisitsPageImpl() {
           )) : <EmptyRow colSpan={9} />}
         </Table.Tbody>
       </Table>
-      <Pager total={visits.length} page={page} setPage={setPage} />
+      <TablePagination total={visits.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <VisitPlanModal opened={planOpen} onClose={() => setPlanOpen(false)} />
       <CompleteVisitModal opened={Boolean(completeVisit)} onClose={() => setCompleteVisit(null)} visit={completeVisit} />
       <VisitDetailModal opened={Boolean(viewVisit)} onClose={() => setViewVisit(null)} visit={viewVisit} />

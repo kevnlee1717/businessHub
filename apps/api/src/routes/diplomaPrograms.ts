@@ -5,10 +5,11 @@ import {
   diplomaProgramCreateSchema,
   diplomaProgramUpdateSchema
 } from "@bh/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 function serializeDiplomaProgram(program: typeof diplomaPrograms.$inferSelect) {
@@ -44,9 +45,29 @@ const programIntakeParamsSchema = z.object({
 export async function registerDiplomaProgramRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/diploma-programs", { preHandler: requirePerm("education.view") }, async () => {
-    const programs = await db.select().from(diplomaPrograms).orderBy(diplomaPrograms.sortOrder, diplomaPrograms.name);
-    return { programs: programs.map(serializeDiplomaProgram) };
+  app.get("/diploma-programs", { preHandler: requirePerm("education.view") }, async (request) => {
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
+    const programs = pagination.paginate
+      ? await db
+          .select()
+          .from(diplomaPrograms)
+          .orderBy(diplomaPrograms.sortOrder, diplomaPrograms.name)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(diplomaPrograms).orderBy(diplomaPrograms.sortOrder, diplomaPrograms.name);
+
+    if (!pagination.paginate) {
+      return { programs: programs.map(serializeDiplomaProgram) };
+    }
+
+    const [totalRow] = await db.select({ count: count() }).from(diplomaPrograms);
+    return {
+      programs: programs.map(serializeDiplomaProgram),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/diploma-programs/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {

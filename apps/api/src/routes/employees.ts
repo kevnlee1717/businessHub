@@ -1,18 +1,21 @@
 import { db, employees, positions } from "@bh/db";
 import { employeeCreateSchema, employeeStatuses, employeeUpdateSchema, roles } from "@bh/shared";
 import bcrypt from "bcryptjs";
-import { and, eq, type SQL } from "drizzle-orm";
+import { and, count, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, isUniqueViolation, parseWithSchema, sendConflict, sendNotFound } from "./hrUtils";
 
-const employeeListQuerySchema = z.object({
-  status: z.enum(employeeStatuses).optional(),
-  role: z.enum(roles).optional(),
-  company_id: z.string().uuid().optional()
-});
+const employeeListQuerySchema = z
+  .object({
+    status: z.enum(employeeStatuses).optional(),
+    role: z.enum(roles).optional(),
+    company_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 function publicEmployee(employee: typeof employees.$inferSelect, positionName?: string | null) {
   return {
@@ -62,16 +65,36 @@ export async function registerEmployeeRoutes(app: FastifyInstance): Promise<void
       conditions.push(eq(employees.companyId, query.company_id));
     }
 
-    const baseQuery = db
-      .select({ employee: employees, positionName: positions.name })
-      .from(employees)
-      .leftJoin(positions, eq(employees.positionId, positions.id));
-    const rows =
-      conditions.length > 0
-        ? await baseQuery.where(and(...conditions)).orderBy(employees.createdAt)
-        : await baseQuery.orderBy(employees.createdAt);
+    const where = conditions.length > 0 ? and(...conditions) : sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select({ employee: employees, positionName: positions.name })
+          .from(employees)
+          .leftJoin(positions, eq(employees.positionId, positions.id))
+          .where(where)
+          .orderBy(employees.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select({ employee: employees, positionName: positions.name })
+          .from(employees)
+          .leftJoin(positions, eq(employees.positionId, positions.id))
+          .where(where)
+          .orderBy(employees.createdAt);
 
-    return { employees: rows.map((row) => publicEmployee(row.employee, row.positionName)) };
+    if (!pagination.paginate) {
+      return { employees: rows.map((row) => publicEmployee(row.employee, row.positionName)) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(employees).where(where);
+
+    return {
+      employees: rows.map((row) => publicEmployee(row.employee, row.positionName)),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/employees/:id", async (request, reply) => {

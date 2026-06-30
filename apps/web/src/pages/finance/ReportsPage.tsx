@@ -110,7 +110,7 @@ export function ReportsPage() {
   const [gstOpen, setGstOpen] = useState(true);
 
   const reportParams = { company_id: companyId, from, to };
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
+  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: () => listCompanies() });
   const pnlQuery = useQuery({
     queryKey: ["finance", "reports", "pnl", companyId, from, to],
     queryFn: () => getPnl(reportParams)

@@ -12,8 +12,7 @@ import {
   Stack,
   Table,
   Text,
-  TextInput,
-  Title
+  TextInput
 } from "@mantine/core";
 import {
   dealPartyCreateSchema,
@@ -21,7 +20,7 @@ import {
   type DealPartyCreateInput,
   type DealPartyUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -31,6 +30,8 @@ import {
   updateDealParty,
   type DealParty
 } from "../../api/businessSchemes";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type PartyFormValues = {
   code?: string | undefined;
@@ -60,10 +61,12 @@ export function DealPartiesPage() {
   const [modalOpened, setModalOpened] = useState(false);
   const [editingParty, setEditingParty] = useState<DealParty | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const partiesQuery = useQuery({
-    queryKey: partiesQueryKey,
-    queryFn: listDealParties
+    queryKey: [...partiesQueryKey, page, pageSize],
+    queryFn: () => listDealParties({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const form = useForm<PartyFormValues>({
@@ -87,6 +90,7 @@ export function DealPartiesPage() {
   });
 
   const parties = partiesQuery.data?.deal_parties ?? [];
+  const totalParties = partiesQuery.data?.total ?? parties.length;
 
   function openCreateModal() {
     setEditingParty(null);
@@ -194,6 +198,13 @@ export function DealPartiesPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalParties}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

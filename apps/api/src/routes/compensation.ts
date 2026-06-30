@@ -7,9 +7,11 @@ import {
   positions
 } from "@bh/db";
 import { compensationTemplateSchema, employeeCompensationSchema } from "@bh/shared";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import {
   idParamsSchema,
   isUniqueViolation,
@@ -20,6 +22,7 @@ import {
 } from "./hrUtils";
 
 const compensationTemplateUpdateSchema = compensationTemplateSchema.partial();
+const compensationTemplateQuerySchema = z.object({}).merge(paginationQuery);
 
 type CompensationSource = "employee" | "template" | "none";
 type ResolvedCompensationField = {
@@ -113,31 +116,53 @@ function employeeCompensationValues(input: EmployeeCompensationInput): Partial<t
 export async function registerCompensationRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/compensation/templates", async () => {
-    const templates = await db
-      .select({
-        id: compensationTemplates.id,
-        company_id: compensationTemplates.companyId,
-        company_name: companies.name,
-        position_id: compensationTemplates.positionId,
-        position_name: positions.name,
-        base_salary: compensationTemplates.baseSalary,
-        salary_currency: compensationTemplates.salaryCurrency,
-        attendance_bonus: compensationTemplates.attendanceBonus,
-        task_completion_bonus: compensationTemplates.taskCompletionBonus,
-        task_satisfaction_bonus: compensationTemplates.taskSatisfactionBonus,
-        kpi_bonus: compensationTemplates.kpiBonus,
-        default_commission_type: compensationTemplates.defaultCommissionType,
-        default_commission_value: compensationTemplates.defaultCommissionValue,
-        payday: compensationTemplates.payday,
-        created_at: compensationTemplates.createdAt,
-        updated_at: compensationTemplates.updatedAt
-      })
-      .from(compensationTemplates)
-      .leftJoin(companies, eq(compensationTemplates.companyId, companies.id))
-      .leftJoin(positions, eq(compensationTemplates.positionId, positions.id));
+  app.get("/compensation/templates", async (request) => {
+    const query = parseWithSchema(compensationTemplateQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const selectFields = {
+      id: compensationTemplates.id,
+      company_id: compensationTemplates.companyId,
+      company_name: companies.name,
+      position_id: compensationTemplates.positionId,
+      position_name: positions.name,
+      base_salary: compensationTemplates.baseSalary,
+      salary_currency: compensationTemplates.salaryCurrency,
+      attendance_bonus: compensationTemplates.attendanceBonus,
+      task_completion_bonus: compensationTemplates.taskCompletionBonus,
+      task_satisfaction_bonus: compensationTemplates.taskSatisfactionBonus,
+      kpi_bonus: compensationTemplates.kpiBonus,
+      default_commission_type: compensationTemplates.defaultCommissionType,
+      default_commission_value: compensationTemplates.defaultCommissionValue,
+      payday: compensationTemplates.payday,
+      created_at: compensationTemplates.createdAt,
+      updated_at: compensationTemplates.updatedAt
+    };
+    const templates = pagination.paginate
+      ? await db
+          .select(selectFields)
+          .from(compensationTemplates)
+          .leftJoin(companies, eq(compensationTemplates.companyId, companies.id))
+          .leftJoin(positions, eq(compensationTemplates.positionId, positions.id))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select(selectFields)
+          .from(compensationTemplates)
+          .leftJoin(companies, eq(compensationTemplates.companyId, companies.id))
+          .leftJoin(positions, eq(compensationTemplates.positionId, positions.id));
 
-    return { templates };
+    if (!pagination.paginate) {
+      return { templates };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(compensationTemplates);
+
+    return {
+      templates,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post(

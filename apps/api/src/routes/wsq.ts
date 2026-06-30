@@ -1,8 +1,9 @@
 import { db, wsqCourses, wsqEnrollments } from "@bh/db";
 import { wsqCourseCreateSchema, wsqCourseUpdateSchema, wsqEnrollmentCreateSchema } from "@bh/shared";
-import { eq, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import {
   courseTeachersByCourseIds,
   courseTeachersForCourse,
@@ -79,25 +80,39 @@ async function enrollmentCountForCourse(courseId: string): Promise<number> {
 export async function registerWsqRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/wsq-courses", { preHandler: requirePerm("education.view") }, async () => {
+  app.get("/wsq-courses", { preHandler: requirePerm("education.view") }, async (request) => {
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
     const [courses, counts] = await Promise.all([
-      db.select().from(wsqCourses).orderBy(wsqCourses.createdAt),
+      pagination.paginate
+        ? db.select().from(wsqCourses).orderBy(wsqCourses.createdAt).limit(pagination.limit).offset(pagination.offset)
+        : db.select().from(wsqCourses).orderBy(wsqCourses.createdAt),
       enrollmentCountsByCourse()
     ]);
     const teachersByCourse = await courseTeachersByCourseIds(COURSE_KIND, courses.map((course) => course.id));
 
+    const serializedCourses = courses.map((course) => {
+      const enrollmentCount = counts.get(course.id) ?? 0;
+      return serializeWsqCourse(
+        course,
+        {
+          enrollmentCount,
+          canOpen: enrollmentCount >= (course.minStudents ?? 0)
+        },
+        teachersByCourse.get(course.id) ?? []
+      );
+    });
+
+    if (!pagination.paginate) {
+      return { courses: serializedCourses };
+    }
+
+    const [totalRow] = await db.select({ count: count() }).from(wsqCourses);
     return {
-      courses: courses.map((course) => {
-        const enrollmentCount = counts.get(course.id) ?? 0;
-        return serializeWsqCourse(
-          course,
-          {
-            enrollmentCount,
-            canOpen: enrollmentCount >= (course.minStudents ?? 0)
-          },
-          teachersByCourse.get(course.id) ?? []
-        );
-      })
+      courses: serializedCourses,
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
     };
   });
 

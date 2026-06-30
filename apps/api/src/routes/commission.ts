@@ -4,20 +4,23 @@ import {
   commissionEntryStatusSchema,
   commissionEntryUpdateSchema
 } from "@bh/shared";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { generateCommissionEntries } from "./commissionUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
-const commissionEntriesQuerySchema = z.object({
-  sales_id: z.string().uuid().optional(),
-  period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-  business_id: z.string().uuid().optional(),
-  status: commissionEntryStatusSchema.optional()
-});
+const commissionEntriesQuerySchema = z
+  .object({
+    sales_id: z.string().uuid().optional(),
+    period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    business_id: z.string().uuid().optional(),
+    status: commissionEntryStatusSchema.optional()
+  })
+  .merge(paginationQuery);
 
 const recomputeSchema = z
   .object({
@@ -71,26 +74,50 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
     if (query.status) filters.push(eq(commissionEntries.status, query.status));
 
     const where = filters.length > 0 ? and(...filters) : sql`true`;
-    const rows = await db
-      .select({
-        entry: commissionEntries,
-        sales: {
-          id: employees.id,
-          name: employees.name,
-          nameEn: employees.nameEn
-        },
-        business: {
-          id: businesses.id,
-          code: businesses.code,
-          name: businesses.name,
-          nameEn: businesses.nameEn
-        }
-      })
-      .from(commissionEntries)
-      .leftJoin(employees, eq(commissionEntries.salesId, employees.id))
-      .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
-      .where(where)
-      .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt));
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select({
+            entry: commissionEntries,
+            sales: {
+              id: employees.id,
+              name: employees.name,
+              nameEn: employees.nameEn
+            },
+            business: {
+              id: businesses.id,
+              code: businesses.code,
+              name: businesses.name,
+              nameEn: businesses.nameEn
+            }
+          })
+          .from(commissionEntries)
+          .leftJoin(employees, eq(commissionEntries.salesId, employees.id))
+          .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select({
+            entry: commissionEntries,
+            sales: {
+              id: employees.id,
+              name: employees.name,
+              nameEn: employees.nameEn
+            },
+            business: {
+              id: businesses.id,
+              code: businesses.code,
+              name: businesses.name,
+              nameEn: businesses.nameEn
+            }
+          })
+          .from(commissionEntries)
+          .leftJoin(employees, eq(commissionEntries.salesId, employees.id))
+          .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt));
 
     const totals = await db
       .select({
@@ -102,7 +129,7 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
       .where(where)
       .groupBy(commissionEntries.status);
 
-    return {
+    const response = {
       entries: rows.map((row) => ({
         ...serializeCommissionEntry(row.entry),
         sales: row.sales,
@@ -113,29 +140,70 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
         return acc;
       }, {})
     };
+
+    if (!pagination.paginate) {
+      return response;
+    }
+
+    const [totalRow] = await db
+      .select({ total: count() })
+      .from(commissionEntries)
+      .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+      .where(where);
+
+    return {
+      ...response,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/commission/mine", { preHandler: requirePerm("commission.view_own") }, async (request) => {
-    const rows = await db
-      .select({
-        entry: commissionEntries,
-        billing: {
-          id: billing.id
-        },
-        business: {
-          id: businesses.id,
-          code: businesses.code,
-          name: businesses.name,
-          nameEn: businesses.nameEn
-        }
-      })
-      .from(commissionEntries)
-      .leftJoin(billing, eq(commissionEntries.billingId, billing.id))
-      .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
-      .where(eq(commissionEntries.salesId, request.user.id))
-      .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt));
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
+    const where = eq(commissionEntries.salesId, request.user.id);
+    const rows = pagination.paginate
+      ? await db
+          .select({
+            entry: commissionEntries,
+            billing: {
+              id: billing.id
+            },
+            business: {
+              id: businesses.id,
+              code: businesses.code,
+              name: businesses.name,
+              nameEn: businesses.nameEn
+            }
+          })
+          .from(commissionEntries)
+          .leftJoin(billing, eq(commissionEntries.billingId, billing.id))
+          .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select({
+            entry: commissionEntries,
+            billing: {
+              id: billing.id
+            },
+            business: {
+              id: businesses.id,
+              code: businesses.code,
+              name: businesses.name,
+              nameEn: businesses.nameEn
+            }
+          })
+          .from(commissionEntries)
+          .leftJoin(billing, eq(commissionEntries.billingId, billing.id))
+          .leftJoin(businesses, eq(commissionEntries.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(commissionEntries.period), desc(commissionEntries.createdAt));
 
-    return {
+    const response = {
       entries: rows.map((row) => ({
         billing_id: row.entry.billingId,
         business: row.business,
@@ -148,6 +216,19 @@ export async function registerCommissionRoutes(app: FastifyInstance): Promise<vo
         recurrence: row.entry.recurrence,
         created_at: row.entry.createdAt
       }))
+    };
+
+    if (!pagination.paginate) {
+      return response;
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(commissionEntries).where(where);
+
+    return {
+      ...response,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
     };
   });
 

@@ -36,7 +36,7 @@ import {
   type WorkflowTemplateCreateInput,
   type WorkflowTemplateUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -55,6 +55,8 @@ import {
   type WorkflowTemplate
 } from "../../api/cases";
 import { listDocumentCategories } from "../../api/dms";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type TemplateFormValues = {
   business_type?: BusinessType | undefined;
@@ -147,11 +149,13 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   const [stepFormError, setStepFormError] = useState<string | null>(null);
   const [requiredDocs, setRequiredDocs] = useState<RequiredDocItemInput[]>([]);
   const [stepCollections, setStepCollections] = useState<StepCollectionFormValue[]>([]);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
 
   const templatesQuery = useQuery({
-    queryKey: [...templateQueryKey, businessType ?? businessTypeFilter],
-    queryFn: () => listTemplates(businessType ?? businessTypeFilter ?? undefined)
+    queryKey: [...templateQueryKey, businessType ?? businessTypeFilter, page, pageSize],
+    queryFn: () => listTemplates(businessType ?? businessTypeFilter ?? undefined, { page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const selectedTemplateQuery = useQuery({
     queryKey: [...templateQueryKey, selectedTemplateId],
@@ -160,11 +164,11 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   });
   const documentCategoriesQuery = useQuery({
     queryKey: ["documents", "categories"],
-    queryFn: listDocumentCategories
+    queryFn: () => listDocumentCategories()
   });
   const collectionItemsQuery = useQuery({
     queryKey: ["collection-items"],
-    queryFn: getCollectionItems
+    queryFn: () => getCollectionItems()
   });
 
   const templateForm = useForm<TemplateFormValues>({
@@ -221,6 +225,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
   });
 
   const templates = templatesQuery.data?.templates ?? [];
+  const totalTemplates = templatesQuery.data?.total ?? templates.length;
   const selectedTemplate = selectedTemplateQuery.data?.template;
   const steps = selectedTemplateQuery.data?.steps ?? [];
   const templateErrors = templateForm.formState.errors;
@@ -370,6 +375,11 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
     await deleteStepMutation.mutateAsync(step.id);
   }
 
+  function updateBusinessTypeFilter(value: string | null) {
+    setBusinessTypeFilter(value as BusinessType | null);
+    setPage(1);
+  }
+
   const onTemplateSubmit = templateForm.handleSubmit(async (values) => {
     setTemplateFormError(null);
 
@@ -421,7 +431,7 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
               label={t("template.filters.businessType")}
               data={businessTypeOptions}
               value={businessTypeFilter}
-              onChange={(value) => setBusinessTypeFilter(value as BusinessType | null)}
+              onChange={updateBusinessTypeFilter}
               clearable
               w={220}
             />
@@ -498,6 +508,13 @@ export function TemplatesPage({ businessType }: TemplatesPageProps = {}) {
               </Table.Tbody>
             </Table>
           </ScrollArea>
+          <TablePagination
+            total={totalTemplates}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </Paper>
 
         <Paper withBorder radius="md" p="md">

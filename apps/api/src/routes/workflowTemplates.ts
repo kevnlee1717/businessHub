@@ -5,8 +5,9 @@ import {
   workflowTemplateCreateSchema,
   workflowTemplateUpdateSchema
 } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { requirePerm } from "../auth/jwt";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
@@ -78,19 +79,41 @@ function normalizeCollections(
 }
 
 const workflowTemplateQuerySchema = workflowTemplateCreateSchema.pick({ business_type: true }).partial();
+const workflowTemplateListQuerySchema = workflowTemplateQuerySchema.merge(paginationQuery);
 
 export async function registerWorkflowTemplateRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/workflow-templates", { preHandler: requirePerm("case.view") }, async (request) => {
-    const query = parseWithSchema(workflowTemplateQuerySchema, request.query);
-    const rows = query.business_type
+    const query = parseWithSchema(workflowTemplateListQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const whereClause = query.business_type
+      ? eq(workflowTemplates.businessType, query.business_type)
+      : sql`true`;
+    const rows = pagination.paginate
       ? await db
           .select()
           .from(workflowTemplates)
-          .where(eq(workflowTemplates.businessType, query.business_type))
+          .where(whereClause)
           .orderBy(workflowTemplates.businessType, workflowTemplates.name)
-      : await db.select().from(workflowTemplates).orderBy(workflowTemplates.businessType, workflowTemplates.name);
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(workflowTemplates)
+          .where(whereClause)
+          .orderBy(workflowTemplates.businessType, workflowTemplates.name);
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(workflowTemplates).where(whereClause);
+
+      return {
+        templates: rows.map(serializeTemplate),
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
 
     return { templates: rows.map(serializeTemplate) };
   });

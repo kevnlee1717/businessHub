@@ -35,6 +35,8 @@ import {
   updateCollectionItem,
   type CollectionItem
 } from "../../api/collectionItems";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type CollectionItemFormValues = {
   code?: string | undefined;
@@ -76,10 +78,11 @@ export function CollectionItemsPage() {
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const itemsQuery = useQuery({
     queryKey: collectionItemsQueryKey,
-    queryFn: getCollectionItems
+    queryFn: () => getCollectionItems()
   });
 
   const form = useForm<CollectionItemFormValues>({
@@ -105,7 +108,9 @@ export function CollectionItemsPage() {
     }
   });
 
+  // 收款项目是方案/账单表单复用的基础数据；保持全量请求，在前端切片分页。
   const items = itemsQuery.data?.collection_items ?? [];
+  const visibleItems = items.slice((page - 1) * pageSize, page * pageSize);
   const recurrenceOptions = schemeLineRecurrences.map((recurrence) => ({
     value: recurrence,
     label: t(`schemeLineRecurrence.${recurrence}`)
@@ -201,7 +206,7 @@ export function CollectionItemsPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                items.map((item) => (
+                visibleItems.map((item) => (
                   <Table.Tr key={item.id}>
                     <Table.Td>
                       <Stack gap={2}>
@@ -239,6 +244,13 @@ export function CollectionItemsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={items.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

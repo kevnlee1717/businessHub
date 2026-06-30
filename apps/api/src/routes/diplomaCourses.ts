@@ -1,9 +1,10 @@
 import { db, diplomaCourses, diplomaEnrollments, diplomaIntakes, diplomaPrograms } from "@bh/db";
 import { diplomaCourseCreateSchema, diplomaCourseUpdateSchema } from "@bh/shared";
-import { and, eq, ne } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import {
   courseTeachersByCourseIds,
   courseTeachersForCourse,
@@ -57,26 +58,57 @@ function serializeDiplomaEnrollment(
   };
 }
 
-const diplomaCourseQuerySchema = z.object({
-  program_id: z.string().uuid().optional()
-});
+const diplomaCourseQuerySchema = z
+  .object({
+    program_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 export async function registerDiplomaCourseRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/diploma-courses", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(diplomaCourseQuerySchema, request.query);
+    const pagination = getPagination(query);
     const courses = query.program_id
-      ? await db
-          .select()
-          .from(diplomaCourses)
-          .where(eq(diplomaCourses.programId, query.program_id))
-          .orderBy(diplomaCourses.createdAt)
-      : await db.select().from(diplomaCourses).orderBy(diplomaCourses.createdAt);
+      ? pagination.paginate
+        ? await db
+            .select()
+            .from(diplomaCourses)
+            .where(eq(diplomaCourses.programId, query.program_id))
+            .orderBy(diplomaCourses.createdAt)
+            .limit(pagination.limit)
+            .offset(pagination.offset)
+        : await db
+            .select()
+            .from(diplomaCourses)
+            .where(eq(diplomaCourses.programId, query.program_id))
+            .orderBy(diplomaCourses.createdAt)
+      : pagination.paginate
+        ? await db
+            .select()
+            .from(diplomaCourses)
+            .orderBy(diplomaCourses.createdAt)
+            .limit(pagination.limit)
+            .offset(pagination.offset)
+        : await db.select().from(diplomaCourses).orderBy(diplomaCourses.createdAt);
     const teachersByCourse = await courseTeachersByCourseIds(COURSE_KIND, courses.map((course) => course.id));
 
+    if (!pagination.paginate) {
+      return {
+        courses: courses.map((course) => serializeDiplomaCourse(course, teachersByCourse.get(course.id) ?? []))
+      };
+    }
+
+    const [totalRow] = query.program_id
+      ? await db.select({ count: count() }).from(diplomaCourses).where(eq(diplomaCourses.programId, query.program_id))
+      : await db.select({ count: count() }).from(diplomaCourses);
+
     return {
-      courses: courses.map((course) => serializeDiplomaCourse(course, teachersByCourse.get(course.id) ?? []))
+      courses: courses.map((course) => serializeDiplomaCourse(course, teachersByCourse.get(course.id) ?? [])),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
     };
   });
 

@@ -23,7 +23,7 @@ import {
   currencies,
   type CompanyExpenseCreateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -37,6 +37,8 @@ import {
   searchDocuments,
   type CompanyExpense
 } from "../../api/dms";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type ExpenseFormValues = {
   company_id?: string | undefined;
@@ -75,10 +77,22 @@ export function CompanyFilesPage() {
   const [modalOpened, setModalOpened] = useState(false);
   const [paidAtLocal, setPaidAtLocal] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const {
+    page: expensePage,
+    pageSize: expensePageSize,
+    setPage: setExpensePage,
+    setPageSize: setExpensePageSize
+  } = usePagination();
+  const {
+    page: filePage,
+    pageSize: filePageSize,
+    setPage: setFilePage,
+    setPageSize: setFilePageSize
+  } = usePagination();
 
   const companiesQuery = useQuery({
     queryKey: ["hr", "companies"],
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const summaryQuery = useQuery({
     queryKey: ["documents", "company-expense-summary", selectedCompanyId],
@@ -86,14 +100,27 @@ export function CompanyFilesPage() {
     enabled: Boolean(selectedCompanyId)
   });
   const expensesQuery = useQuery({
-    queryKey: ["documents", "company-expenses", selectedCompanyId],
-    queryFn: () => listCompanyExpenses({ company_id: selectedCompanyId }),
-    enabled: Boolean(selectedCompanyId)
+    queryKey: ["documents", "company-expenses", selectedCompanyId, expensePage, expensePageSize],
+    queryFn: () =>
+      listCompanyExpenses({
+        company_id: selectedCompanyId,
+        page: expensePage,
+        page_size: expensePageSize
+      }),
+    enabled: Boolean(selectedCompanyId),
+    placeholderData: keepPreviousData
   });
   const documentsQuery = useQuery({
-    queryKey: ["documents", "company-files", selectedCompanyId],
-    queryFn: () => searchDocuments({ subject_type: "company", subject_id: selectedCompanyId }),
-    enabled: Boolean(selectedCompanyId)
+    queryKey: ["documents", "company-files", selectedCompanyId, filePage, filePageSize],
+    queryFn: () =>
+      searchDocuments({
+        subject_type: "company",
+        subject_id: selectedCompanyId,
+        page: filePage,
+        page_size: filePageSize
+      }),
+    enabled: Boolean(selectedCompanyId),
+    placeholderData: keepPreviousData
   });
 
   const form = useForm<ExpenseFormValues>({
@@ -124,6 +151,8 @@ export function CompanyFilesPage() {
   const companies = companiesQuery.data?.companies ?? [];
   const expenses = expensesQuery.data?.expenses ?? [];
   const documents = documentsQuery.data?.documents ?? [];
+  const totalExpenses = expensesQuery.data?.total ?? expenses.length;
+  const totalDocuments = documentsQuery.data?.total ?? documents.length;
   const summary = summaryQuery.data;
   const errors = form.formState.errors;
 
@@ -136,6 +165,12 @@ export function CompanyFilesPage() {
     label: t(`companyExpenseType.${type}`)
   }));
   const currencyOptions = currencies.map((currency) => ({ value: currency, label: currency }));
+
+  function updateSelectedCompany(value: string | null) {
+    setSelectedCompanyId(value);
+    setExpensePage(1);
+    setFilePage(1);
+  }
 
   function openModal() {
     if (!selectedCompanyId) {
@@ -192,7 +227,7 @@ export function CompanyFilesPage() {
           placeholder={t("companyFiles.selectCompany")}
           data={companyOptions}
           value={selectedCompanyId}
-          onChange={setSelectedCompanyId}
+          onChange={updateSelectedCompany}
           searchable
           clearable
         />
@@ -307,6 +342,13 @@ export function CompanyFilesPage() {
                   </Table.Tbody>
                 </Table>
               </ScrollArea>
+              <TablePagination
+                total={totalExpenses}
+                page={expensePage}
+                pageSize={expensePageSize}
+                onPageChange={setExpensePage}
+                onPageSizeChange={setExpensePageSize}
+              />
             </Stack>
           </Paper>
 
@@ -364,6 +406,13 @@ export function CompanyFilesPage() {
                   </Table.Tbody>
                 </Table>
               </ScrollArea>
+              <TablePagination
+                total={totalDocuments}
+                page={filePage}
+                pageSize={filePageSize}
+                onPageChange={setFilePage}
+                onPageSizeChange={setFilePageSize}
+              />
             </Stack>
           </Paper>
         </>

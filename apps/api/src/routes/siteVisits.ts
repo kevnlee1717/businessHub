@@ -2,17 +2,19 @@ import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { db, siteVisits } from "@bh/db";
 import { siteVisitOverrideSchema, siteVisitQuerySchema } from "@bh/shared";
-import { and, desc, eq, type SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const siteVisitClientSchema = z.object({
   client_id: z.string().uuid()
 });
+const paginatedSiteVisitQuerySchema = siteVisitQuerySchema.merge(paginationQuery);
 
 function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6371000;
@@ -162,7 +164,7 @@ export async function registerSiteVisitRoutes(app: FastifyInstance): Promise<voi
   });
 
   app.get("/site-visits", async (request) => {
-    const query = parseWithSchema(siteVisitQuerySchema, request.query);
+    const query = parseWithSchema(paginatedSiteVisitQuerySchema, request.query);
     const filters: SQL[] = [];
     const canManage = await ctxCan(request, "attendance.manage");
 
@@ -178,13 +180,30 @@ export async function registerSiteVisitRoutes(app: FastifyInstance): Promise<voi
       filters.push(eq(siteVisits.status, query.status));
     }
 
-    const rows = await db
-      .select()
-      .from(siteVisits)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(siteVisits.createdAt));
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(siteVisits)
+          .where(where)
+          .orderBy(desc(siteVisits.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(siteVisits).where(where).orderBy(desc(siteVisits.createdAt));
 
-    return { siteVisits: rows.map(serializeSiteVisit) };
+    if (!pagination.paginate) {
+      return { siteVisits: rows.map(serializeSiteVisit) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(siteVisits).where(where);
+
+    return {
+      siteVisits: rows.map(serializeSiteVisit),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/site-visits/:id", async (request, reply) => {

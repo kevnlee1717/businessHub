@@ -105,10 +105,26 @@ export type DealEconomics = {
   };
 };
 
-function queryString(params: Record<string, string | null | undefined>) {
+type PaginationParams = {
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+type PaginatedResponse = {
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+function queryString(params: [string, string | number | null | undefined][]) {
   const searchParams = new URLSearchParams();
 
-  Object.entries(params).forEach(([key, value]) => {
+  params.forEach(([key, value]) => {
+    if (typeof value === "number") {
+      searchParams.set(key, String(value));
+      return;
+    }
+
     const trimmed = typeof value === "string" ? value.trim() : "";
     if (trimmed) {
       searchParams.set(key, trimmed);
@@ -119,8 +135,16 @@ function queryString(params: Record<string, string | null | undefined>) {
   return query ? `?${query}` : "";
 }
 
-export function listBusinesses(params: { company_id?: string | null } = {}): Promise<{ businesses: Business[] }> {
-  return api<{ businesses: Business[] }>(`/businesses${queryString(params)}`);
+export function listBusinesses(
+  params: { company_id?: string | null } & PaginationParams = {}
+): Promise<{ businesses: Business[] } & PaginatedResponse> {
+  return api<{ businesses: Business[] } & PaginatedResponse>(
+    `/businesses${queryString([
+      ["company_id", params.company_id],
+      ["page", params.page],
+      ["page_size", params.page_size]
+    ])}`
+  );
 }
 
 export function getBusiness(id: string): Promise<{ business: Business }> {
@@ -202,8 +226,15 @@ export function previewSchemeVersion(id: string, body: DealInputsInput): Promise
   });
 }
 
-export function listDealParties(): Promise<{ deal_parties: DealParty[] }> {
-  return api<{ deal_parties: DealParty[] }>("/deal-parties");
+export function listDealParties(
+  params: PaginationParams = {}
+): Promise<{ deal_parties: DealParty[] } & PaginatedResponse> {
+  return api<{ deal_parties: DealParty[] } & PaginatedResponse>(
+    `/deal-parties${queryString([
+      ["page", params.page],
+      ["page_size", params.page_size]
+    ])}`
+  );
 }
 
 export function createDealParty(body: DealPartyCreateInput): Promise<{ deal_party: DealParty }> {

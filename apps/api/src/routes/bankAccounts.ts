@@ -1,16 +1,19 @@
 import { bankAccounts, db } from "@bh/db";
 import { bankAccountCreateSchema, bankAccountUpdateSchema } from "@bh/shared";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { serializeBankAccount } from "./ledgerUtils";
 
-const bankAccountQuerySchema = z.object({
-  company_id: z.string().uuid().optional()
-});
+const bankAccountQuerySchema = z
+  .object({
+    company_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 export async function registerBankAccountRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
@@ -29,13 +32,34 @@ export async function registerBankAccountRoutes(app: FastifyInstance): Promise<v
       filters.push(eq(bankAccounts.companyId, query.company_id));
     }
 
-    const rows = await db
-      .select()
-      .from(bankAccounts)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(bankAccounts.isPrimary), bankAccounts.createdAt);
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(bankAccounts)
+          .where(where)
+          .orderBy(desc(bankAccounts.isPrimary), bankAccounts.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(bankAccounts)
+          .where(where)
+          .orderBy(desc(bankAccounts.isPrimary), bankAccounts.createdAt);
 
-    return { bank_accounts: rows.map(serializeBankAccount) };
+    if (!pagination.paginate) {
+      return { bank_accounts: rows.map(serializeBankAccount) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(bankAccounts).where(where);
+
+    return {
+      bank_accounts: rows.map(serializeBankAccount),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/bank-accounts", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {

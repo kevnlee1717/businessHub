@@ -26,6 +26,8 @@ import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { createWorkShift, listWorkShifts, updateWorkShift, type WorkShift } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type WorkShiftFormValues = {
   name?: string | undefined;
@@ -76,10 +78,11 @@ export function WorkShiftsPage() {
   const [editingWorkShift, setEditingWorkShift] = useState<WorkShift | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const workShiftsQuery = useQuery({
     queryKey: workShiftQueryKey,
-    queryFn: listWorkShifts
+    queryFn: () => listWorkShifts()
   });
 
   const form = useForm<WorkShiftFormValues>({
@@ -105,7 +108,9 @@ export function WorkShiftsPage() {
     }
   });
 
+  // 班次是公司/员工表单复用的基础数据；保持全量请求，在前端切片分页。
   const workShifts = workShiftsQuery.data?.work_shifts ?? [];
+  const visibleWorkShifts = workShifts.slice((page - 1) * pageSize, page * pageSize);
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
 
@@ -188,7 +193,7 @@ export function WorkShiftsPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                workShifts.map((workShift) => (
+                visibleWorkShifts.map((workShift) => (
                   <Table.Tr key={workShift.id}>
                     <Table.Td>{workShift.name}</Table.Td>
                     <Table.Td>{minToTime(workShift.start_min)}</Table.Td>
@@ -207,6 +212,13 @@ export function WorkShiftsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={workShifts.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

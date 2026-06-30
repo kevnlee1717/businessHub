@@ -1,8 +1,9 @@
 import { db, students } from "@bh/db";
 import { studentCreateSchema, studentUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 function serializeStudent(student: typeof students.$inferSelect) {
@@ -21,9 +22,24 @@ function serializeStudent(student: typeof students.$inferSelect) {
 export async function registerStudentRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/students", { preHandler: requirePerm("education.view") }, async () => {
-    const rows = await db.select().from(students).orderBy(students.name);
-    return { students: rows.map(serializeStudent) };
+  app.get("/students", { preHandler: requirePerm("education.view") }, async (request) => {
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db.select().from(students).orderBy(students.name).limit(pagination.limit).offset(pagination.offset)
+      : await db.select().from(students).orderBy(students.name);
+
+    if (!pagination.paginate) {
+      return { students: rows.map(serializeStudent) };
+    }
+
+    const [totalRow] = await db.select({ count: count() }).from(students);
+    return {
+      students: rows.map(serializeStudent),
+      total: Number(totalRow?.count ?? 0),
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/students/:id", { preHandler: requirePerm("education.view") }, async (request, reply) => {

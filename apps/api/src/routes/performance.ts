@@ -1,14 +1,17 @@
 import { db, employees, performanceScores } from "@bh/db";
 import { performanceOverrideSchema } from "@bh/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
-const performanceQuerySchema = z.object({
-  period: z.string().regex(/^\d{4}-\d{2}$/).optional()
-});
+const performanceQuerySchema = z
+  .object({
+    period: z.string().regex(/^\d{4}-\d{2}$/).optional()
+  })
+  .merge(paginationQuery);
 
 // 最终取值:override ?? auto(spec §3.3)
 function effective(row: typeof performanceScores.$inferSelect) {
@@ -32,13 +35,30 @@ export async function registerPerformanceRoutes(app: FastifyInstance): Promise<v
       filters.push(eq(performanceScores.period, query.period));
     }
 
-    const rows = await db
-      .select()
-      .from(performanceScores)
-      .where(and(...filters))
-      .orderBy(desc(performanceScores.period));
+    const where = and(...filters);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(performanceScores)
+          .where(where)
+          .orderBy(desc(performanceScores.period))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(performanceScores).where(where).orderBy(desc(performanceScores.period));
 
-    return { scores: rows.map((row) => ({ ...row, effective: effective(row) })) };
+    if (!pagination.paginate) {
+      return { scores: rows.map((row) => ({ ...row, effective: effective(row) })) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(performanceScores).where(where);
+
+    return {
+      scores: rows.map((row) => ({ ...row, effective: effective(row) })),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.put(

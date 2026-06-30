@@ -92,15 +92,15 @@ export function PermissionsPage() {
 
   const employeesQuery = useQuery({
     queryKey: employeesQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const companiesQuery = useQuery({
     queryKey: companiesQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const positionsQuery = useQuery({
     queryKey: positionsQueryKey,
-    queryFn: listPositions
+    queryFn: () => listPositions()
   });
   const permissionsQuery = useQuery({
     queryKey: [...permissionsQueryKey, selectedEmployeeId],

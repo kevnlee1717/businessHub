@@ -32,6 +32,8 @@ import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { createPosition, listPositions, updatePosition, type Position } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type PositionFormValues = {
   name?: string | undefined;
@@ -87,10 +89,11 @@ export function PositionsPage() {
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const positionsQuery = useQuery({
     queryKey: positionQueryKey,
-    queryFn: listPositions
+    queryFn: () => listPositions()
   });
 
   const form = useForm<PositionFormValues>({
@@ -116,7 +119,9 @@ export function PositionsPage() {
     }
   });
 
+  // 岗位是权限/员工表单复用的基础数据；保持全量请求，在前端切片分页。
   const positions = positionsQuery.data?.positions ?? [];
+  const visiblePositions = positions.slice((page - 1) * pageSize, page * pageSize);
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const errors = form.formState.errors;
   const selectedPermissions = form.watch("permissions") ?? [];
@@ -211,7 +216,7 @@ export function PositionsPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                positions.map((position) => (
+                visiblePositions.map((position) => (
                   <Table.Tr key={position.id}>
                     <Table.Td>
                       <Group gap="xs">
@@ -243,6 +248,13 @@ export function PositionsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={positions.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

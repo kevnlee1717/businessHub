@@ -103,11 +103,11 @@ export function EmployeeFormModal({
 
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const workShiftsQuery = useQuery({
     queryKey: workShiftQueryKey,
-    queryFn: listWorkShifts
+    queryFn: () => listWorkShifts()
   });
 
   const form = useForm<EmployeeFormValues>({

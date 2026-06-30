@@ -34,6 +34,8 @@ import {
   uploadProofDocument,
   type LedgerEntry
 } from "../../api/ledger";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type LedgerForm = {
   direction: LedgerDirection;
@@ -130,8 +132,9 @@ export function LedgerPage() {
   const [proofModalEntry, setProofModalEntry] = useState<LedgerEntry | null>(null);
   const [form, setForm] = useState<LedgerForm>(defaultForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
+  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: () => listCompanies() });
   const accountsQuery = useQuery({
     queryKey: ["finance", "bank-accounts", companyId],
     queryFn: () => listBankAccounts({ company_id: companyId }),
@@ -171,7 +174,9 @@ export function LedgerPage() {
     () => new Set((proofMissingQuery.data?.rows ?? []).map((row) => row.id)),
     [proofMissingQuery.data?.rows]
   );
+  // Totals and proof-missing filtering depend on the full filtered ledger, so paginate only after local filtering.
   const rows = (ledgerQuery.data?.rows ?? []).filter((row) => !missingOnly || proofMissingIds.has(row.id));
+  const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     if (!companyId && companies[0]) {
@@ -274,12 +279,24 @@ export function LedgerPage() {
 
       <Paper withBorder p="md">
         <SimpleGrid cols={{ base: 1, md: 4 }}>
-          <Select label={t("finance.fields.company")} data={companyOptions} value={companyId} onChange={setCompanyId} searchable />
+          <Select
+            label={t("finance.fields.company")}
+            data={companyOptions}
+            value={companyId}
+            onChange={(value) => {
+              setCompanyId(value);
+              setPage(1);
+            }}
+            searchable
+          />
           <Select
             label={t("finance.fields.bankAccount")}
             data={accountOptions}
             value={bankAccountId}
-            onChange={setBankAccountId}
+            onChange={(value) => {
+              setBankAccountId(value);
+              setPage(1);
+            }}
             clearable
             searchable
           />
@@ -287,13 +304,19 @@ export function LedgerPage() {
             label={t("finance.fields.direction")}
             data={filterDirectionOptions}
             value={direction ?? "all"}
-            onChange={(value) => setDirection(value === "all" ? null : value)}
+            onChange={(value) => {
+              setDirection(value === "all" ? null : value);
+              setPage(1);
+            }}
           />
           <Select
             label={t("finance.fields.expenseCategory")}
             data={categoryOptions}
             value={categoryId}
-            onChange={setCategoryId}
+            onChange={(value) => {
+              setCategoryId(value);
+              setPage(1);
+            }}
             clearable
             searchable
           />
@@ -301,13 +324,39 @@ export function LedgerPage() {
             label={t("finance.fields.business")}
             data={businessOptions}
             value={businessId}
-            onChange={setBusinessId}
+            onChange={(value) => {
+              setBusinessId(value);
+              setPage(1);
+            }}
             clearable
             searchable
           />
-          <TextInput label={t("finance.fields.from")} type="date" value={from} onChange={(event) => setFrom(event.currentTarget.value)} />
-          <TextInput label={t("finance.fields.to")} type="date" value={to} onChange={(event) => setTo(event.currentTarget.value)} />
-          <Button variant={missingOnly ? "filled" : "light"} mt={24} onClick={() => setMissingOnly((value) => !value)}>
+          <TextInput
+            label={t("finance.fields.from")}
+            type="date"
+            value={from}
+            onChange={(event) => {
+              setFrom(event.currentTarget.value);
+              setPage(1);
+            }}
+          />
+          <TextInput
+            label={t("finance.fields.to")}
+            type="date"
+            value={to}
+            onChange={(event) => {
+              setTo(event.currentTarget.value);
+              setPage(1);
+            }}
+          />
+          <Button
+            variant={missingOnly ? "filled" : "light"}
+            mt={24}
+            onClick={() => {
+              setMissingOnly((value) => !value);
+              setPage(1);
+            }}
+          >
             {t("finance.ledger.missingOnly")}
           </Button>
         </SimpleGrid>
@@ -344,7 +393,7 @@ export function LedgerPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {rows.map((row) => (
+              {visibleRows.map((row) => (
                 <Table.Tr key={row.id}>
                   <Table.Td>{displayDate(row.occurred_at)}</Table.Td>
                   <Table.Td>
@@ -378,7 +427,7 @@ export function LedgerPage() {
                   </Table.Td>
                 </Table.Tr>
               ))}
-              {rows.length === 0 ? (
+              {visibleRows.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={8}>
                     <Text c="dimmed" ta="center" py="lg">{t("finance.ledger.empty")}</Text>
@@ -388,6 +437,13 @@ export function LedgerPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+        <TablePagination
+          total={rows.length}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Paper>
 
       <Modal opened={opened} onClose={closeCreateModal} title={t("finance.ledger.add")} size="lg">

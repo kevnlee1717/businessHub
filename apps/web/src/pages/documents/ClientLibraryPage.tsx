@@ -11,11 +11,13 @@ import {
   Text,
   Title
 } from "@mantine/core";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listClients } from "../../api/cases";
 import { fileUrl, getClientDocuments, listDocumentCategories } from "../../api/dms";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 function displayDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
@@ -24,29 +26,37 @@ function displayDateTime(value?: string | null) {
 export function ClientLibraryPage() {
   const { t } = useTranslation();
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const clientsQuery = useQuery({
     queryKey: ["business", "clients"],
-    queryFn: listClients
+    queryFn: () => listClients()
   });
   const categoriesQuery = useQuery({
     queryKey: ["documents", "categories"],
-    queryFn: listDocumentCategories
+    queryFn: () => listDocumentCategories()
   });
   const documentsQuery = useQuery({
-    queryKey: ["documents", "client-library", selectedClientId],
-    queryFn: () => getClientDocuments(selectedClientId ?? ""),
-    enabled: Boolean(selectedClientId)
+    queryKey: ["documents", "client-library", selectedClientId, page, pageSize],
+    queryFn: () => getClientDocuments(selectedClientId ?? "", { page, page_size: pageSize }),
+    enabled: Boolean(selectedClientId),
+    placeholderData: keepPreviousData
   });
 
   const clients = clientsQuery.data?.clients ?? [];
   const categories = categoriesQuery.data?.categories ?? [];
   const groups = documentsQuery.data?.groups ?? [];
+  const totalDocuments = documentsQuery.data?.total ?? groups.reduce((total, group) => total + group.documents.length, 0);
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
   const clientOptions = clients.map((client) => ({
     value: client.id,
     label: client.name_en ? `${client.name} / ${client.name_en}` : client.name
   }));
+
+  function updateSelectedClient(value: string | null) {
+    setSelectedClientId(value);
+    setPage(1);
+  }
 
   return (
     <Stack gap="md">
@@ -57,7 +67,7 @@ export function ClientLibraryPage() {
           placeholder={t("document.clientLibrary.selectClient")}
           data={clientOptions}
           value={selectedClientId}
-          onChange={setSelectedClientId}
+          onChange={updateSelectedClient}
           searchable
           clearable
         />
@@ -130,6 +140,15 @@ export function ClientLibraryPage() {
           </Paper>
         ))
       )}
+      {selectedClientId ? (
+        <TablePagination
+          total={totalDocuments}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      ) : null}
     </Stack>
   );
 }

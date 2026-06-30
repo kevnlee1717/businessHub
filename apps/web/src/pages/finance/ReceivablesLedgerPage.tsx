@@ -27,6 +27,8 @@ import { ApiError } from "../../api/client";
 import { collectChargeWithProofs, listCharges, type Charge, type ChargeStatus } from "../../api/charges";
 import { listCompanies } from "../../api/hr";
 import { listBankAccounts } from "../../api/ledger";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type CollectForm = {
   paid_amount: number | null;
@@ -117,8 +119,9 @@ export function ReceivablesLedgerPage() {
   const [collectCharge, setCollectCharge] = useState<Charge | null>(null);
   const [form, setForm] = useState<CollectForm>(defaultForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
+  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: () => listCompanies() });
   const businessesQuery = useQuery({
     queryKey: ["businesses", companyId],
     queryFn: () => listBusinesses({ company_id: companyId }),
@@ -145,6 +148,8 @@ export function ReceivablesLedgerPage() {
   const companies = companiesQuery.data?.companies ?? [];
   const businesses = businessesQuery.data?.businesses ?? [];
   const charges = chargesQuery.data?.charges ?? [];
+  // Totals come from the full filtered receivables ledger, so paginate only after fetching.
+  const visibleCharges = charges.slice((page - 1) * pageSize, page * pageSize);
   const totals = chargesQuery.data?.totals;
 
   useEffect(() => {
@@ -227,12 +232,24 @@ export function ReceivablesLedgerPage() {
 
       <Paper withBorder p="md">
         <SimpleGrid cols={{ base: 1, md: 5 }}>
-          <Select label={t("finance.fields.company")} data={companyOptions} value={companyId} onChange={setCompanyId} searchable />
+          <Select
+            label={t("finance.fields.company")}
+            data={companyOptions}
+            value={companyId}
+            onChange={(value) => {
+              setCompanyId(value);
+              setPage(1);
+            }}
+            searchable
+          />
           <Select
             label={t("finance.fields.business")}
             data={businessOptions}
             value={businessId}
-            onChange={setBusinessId}
+            onChange={(value) => {
+              setBusinessId(value);
+              setPage(1);
+            }}
             clearable
             searchable
           />
@@ -240,18 +257,27 @@ export function ReceivablesLedgerPage() {
             label={t("finance.fields.status")}
             data={statusOptions}
             value={status ?? "all"}
-            onChange={(value) => setStatus(value === "all" ? null : value)}
+            onChange={(value) => {
+              setStatus(value === "all" ? null : value);
+              setPage(1);
+            }}
           />
           <TextInput
             label={t("chargeSchedule.fields.period")}
             placeholder="2026-06"
             value={period}
-            onChange={(event) => setPeriod(event.currentTarget.value)}
+            onChange={(event) => {
+              setPeriod(event.currentTarget.value);
+              setPage(1);
+            }}
           />
           <Checkbox
             label={t("receivablesLedger.overdueOnly")}
             checked={overdue}
-            onChange={(event) => setOverdue(event.currentTarget.checked)}
+            onChange={(event) => {
+              setOverdue(event.currentTarget.checked);
+              setPage(1);
+            }}
             mt={30}
           />
         </SimpleGrid>
@@ -288,7 +314,7 @@ export function ReceivablesLedgerPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {charges.map((charge) => {
+              {visibleCharges.map((charge) => {
                 const overdueRow = isOverdue(charge);
                 return (
                   <Table.Tr key={charge.id} {...(overdueRow ? { bg: "red.0" } : {})}>
@@ -322,7 +348,7 @@ export function ReceivablesLedgerPage() {
                   </Table.Tr>
                 );
               })}
-              {charges.length === 0 ? (
+              {visibleCharges.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={8}>
                     <Text c="dimmed" ta="center" py="lg">
@@ -334,6 +360,13 @@ export function ReceivablesLedgerPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+        <TablePagination
+          total={charges.length}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Paper>
 
       <Modal opened={Boolean(collectCharge)} onClose={closeCollectModal} title={t("chargeSchedule.collect")} size="lg">

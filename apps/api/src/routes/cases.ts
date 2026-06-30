@@ -24,13 +24,14 @@ import {
   stepReviewMessageSchema,
   stepReviewRequestSchema
 } from "@bh/shared";
-import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getTranslations, saveTranslation, type TranslationValue } from "../lib/translationStore";
 import { ctxCan, getVisibleCaseIds, loadAuthContext } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { refreshBillingCharges } from "./billing";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
@@ -174,12 +175,14 @@ function serializeDocument(row: typeof documents.$inferSelect) {
   };
 }
 
-const caseQuerySchema = z.object({
-  business_type: z.enum(businessTypes).optional(),
-  status: z.enum(caseStatuses).optional(),
-  client_id: z.string().uuid().optional(),
-  parent_case_id: z.string().uuid().optional()
-});
+const caseQuerySchema = z
+  .object({
+    business_type: z.enum(businessTypes).optional(),
+    status: z.enum(caseStatuses).optional(),
+    client_id: z.string().uuid().optional(),
+    parent_case_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 function hasOwn(input: object, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(input, field);
@@ -250,11 +253,28 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       filters.push(inArray(cases.id, visibleCaseIds.length ? visibleCaseIds : ["00000000-0000-0000-0000-000000000000"]));
     }
 
-    const rows = await db
-      .select()
-      .from(cases)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(cases.createdAt));
+    const pagination = getPagination(query);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(cases)
+          .where(whereClause)
+          .orderBy(desc(cases.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(cases).where(whereClause).orderBy(desc(cases.createdAt));
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(cases).where(whereClause);
+
+      return {
+        cases: rows.map(serializeCase),
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
 
     return { cases: rows.map(serializeCase) };
   });

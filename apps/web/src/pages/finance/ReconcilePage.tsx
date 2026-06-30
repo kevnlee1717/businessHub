@@ -90,7 +90,7 @@ export function ReconcilePage() {
   const [statementText, setStatementText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
 
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
+  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: () => listCompanies() });
   const accountsQuery = useQuery({
     queryKey: ["finance", "bank-accounts", companyId],
     queryFn: () => listBankAccounts({ company_id: companyId }),

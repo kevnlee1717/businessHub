@@ -1,23 +1,26 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { db, documents } from "@bh/db";
-import { and, desc, eq, gte, ilike, lte, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema } from "./hrUtils";
 
-const documentQuerySchema = z.object({
-  client_id: z.string().uuid().optional(),
-  subject_type: z.string().trim().min(1).optional(),
-  subject_id: z.string().uuid().optional(),
-  category_id: z.string().uuid().optional(),
-  tag: z.string().trim().min(1).optional(),
-  filename: z.string().trim().min(1).optional(),
-  date_from: z.string().datetime().optional(),
-  date_to: z.string().datetime().optional()
-});
+const documentQuerySchema = z
+  .object({
+    client_id: z.string().uuid().optional(),
+    subject_type: z.string().trim().min(1).optional(),
+    subject_id: z.string().uuid().optional(),
+    category_id: z.string().uuid().optional(),
+    tag: z.string().trim().min(1).optional(),
+    filename: z.string().trim().min(1).optional(),
+    date_from: z.string().datetime().optional(),
+    date_to: z.string().datetime().optional()
+  })
+  .merge(paginationQuery);
 
 const uploadFieldsSchema = z.object({
   subject_type: z.string().trim().min(1).optional(),
@@ -99,13 +102,34 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       filters.push(lte(documents.uploadedAt, new Date(query.date_to)));
     }
 
-    const rows = await db
-      .select()
-      .from(documents)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(documents.uploadedAt));
+    const pagination = getPagination(query);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(documents)
+          .where(whereClause)
+          .orderBy(desc(documents.uploadedAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(documents)
+          .where(whereClause)
+          .orderBy(desc(documents.uploadedAt));
 
-    return { documents: rows.map(serializeDocument) };
+    if (!pagination.paginate) {
+      return { documents: rows.map(serializeDocument) };
+    }
+
+    const [totalRow] = await db.select({ value: count() }).from(documents).where(whereClause);
+
+    return {
+      documents: rows.map(serializeDocument),
+      total: totalRow?.value ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/documents", { preHandler: requirePerm("document.manage") }, async (request, reply) => {
@@ -176,11 +200,22 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
 
   app.get("/clients/:id/documents", { preHandler: requirePerm("document.view") }, async (request) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    const rows = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.clientId, id))
-      .orderBy(desc(documents.uploadedAt));
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
+    const whereClause = eq(documents.clientId, id);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(documents)
+          .where(whereClause)
+          .orderBy(desc(documents.uploadedAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(documents)
+          .where(whereClause)
+          .orderBy(desc(documents.uploadedAt));
     const groupsByCategory = new Map<string | null, (typeof documents.$inferSelect)[]>();
 
     for (const document of rows) {
@@ -189,11 +224,22 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       groupsByCategory.set(document.categoryId, group);
     }
 
+    const groups = Array.from(groupsByCategory.entries()).map(([categoryId, groupDocuments]) => ({
+      category_id: categoryId,
+      documents: groupDocuments.map(serializeDocument)
+    }));
+
+    if (!pagination.paginate) {
+      return { groups };
+    }
+
+    const [totalRow] = await db.select({ value: count() }).from(documents).where(whereClause);
+
     return {
-      groups: Array.from(groupsByCategory.entries()).map(([categoryId, groupDocuments]) => ({
-        category_id: categoryId,
-        documents: groupDocuments.map(serializeDocument)
-      }))
+      groups,
+      total: totalRow?.value ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
     };
   });
 }

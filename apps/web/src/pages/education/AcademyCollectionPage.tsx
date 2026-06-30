@@ -16,10 +16,12 @@ import {
   TextInput,
   Title
 } from "@mantine/core";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCan } from "../../auth/permissions";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 import {
   getAcademyCollection,
   getAcademyHealth,
@@ -208,16 +210,30 @@ export function AcademyCollectionPage() {
   const { t } = useTranslation();
   const [period, setPeriod] = useState(currentPeriod());
   const canManageEducation = useCan("education.manage");
+  const {
+    page: overduePage,
+    pageSize: overduePageSize,
+    setPage: setOverduePage,
+    setPageSize: setOverduePageSize
+  } = usePagination();
+  const {
+    page: collectionPage,
+    pageSize: collectionPageSize,
+    setPage: setCollectionPage,
+    setPageSize: setCollectionPageSize
+  } = usePagination();
 
   const trendPeriods = useMemo(() => Array.from({ length: 6 }, (_, index) => shiftPeriod(period, index - 5)), [period]);
 
   const collectionQuery = useQuery({
-    queryKey: [...academyQueryKey, "collection", period],
-    queryFn: () => getAcademyCollection(period)
+    queryKey: [...academyQueryKey, "collection", period, collectionPage, collectionPageSize],
+    queryFn: () => getAcademyCollection(period, { page: collectionPage, page_size: collectionPageSize }),
+    placeholderData: keepPreviousData
   });
   const overdueQuery = useQuery({
-    queryKey: [...academyQueryKey, "overdue", period],
-    queryFn: () => getAcademyOverdue(period)
+    queryKey: [...academyQueryKey, "overdue", period, overduePage, overduePageSize],
+    queryFn: () => getAcademyOverdue(period, { page: overduePage, page_size: overduePageSize }),
+    placeholderData: keepPreviousData
   });
   const healthQuery = useQuery({
     queryKey: [...academyQueryKey, "health", period],
@@ -225,7 +241,7 @@ export function AcademyCollectionPage() {
   });
   const trendQueries = useQueries({
     queries: trendPeriods.map((trendPeriod) => ({
-      queryKey: [...academyQueryKey, "collection", trendPeriod],
+      queryKey: [...academyQueryKey, "collection-trend", trendPeriod],
       queryFn: () => getAcademyCollection(trendPeriod)
     }))
   });
@@ -239,6 +255,12 @@ export function AcademyCollectionPage() {
   const breakevenStudents = health?.breakeven_students ?? 0;
   const gap = health?.gap ?? 0;
 
+  function updatePeriod(value: string) {
+    setPeriod(value || currentPeriod());
+    setOverduePage(1);
+    setCollectionPage(1);
+  }
+
   return (
     <Stack>
       <Group justify="space-between" align="flex-end">
@@ -246,7 +268,7 @@ export function AcademyCollectionPage() {
           type="month"
           label={t("academyCollection.fields.month")}
           value={period}
-          onChange={(event) => setPeriod(event.currentTarget.value || currentPeriod())}
+          onChange={(event) => updatePeriod(event.currentTarget.value)}
         />
       </Group>
 
@@ -399,7 +421,16 @@ export function AcademyCollectionPage() {
               {overdueQuery.isLoading ? (
                 <Loader size="sm" />
               ) : (
-                <OverdueTable rows={overdueQuery.data?.rows ?? []} canManage={canManageEducation} />
+                <>
+                  <OverdueTable rows={overdueQuery.data?.rows ?? []} canManage={canManageEducation} />
+                  <TablePagination
+                    total={overdueQuery.data?.total ?? overdueQuery.data?.rows.length ?? 0}
+                    page={overduePage}
+                    pageSize={overduePageSize}
+                    onPageChange={setOverduePage}
+                    onPageSizeChange={setOverduePageSize}
+                  />
+                </>
               )}
             </Stack>
           </Tabs.Panel>
@@ -410,7 +441,16 @@ export function AcademyCollectionPage() {
               {collectionQuery.isLoading ? (
                 <Loader size="sm" />
               ) : (
-                <CollectionRowsTable rows={collectionQuery.data?.rows ?? []} canManage={canManageEducation} />
+                <>
+                  <CollectionRowsTable rows={collectionQuery.data?.rows ?? []} canManage={canManageEducation} />
+                  <TablePagination
+                    total={collectionQuery.data?.total ?? collectionQuery.data?.rows.length ?? 0}
+                    page={collectionPage}
+                    pageSize={collectionPageSize}
+                    onPageChange={setCollectionPage}
+                    onPageSizeChange={setCollectionPageSize}
+                  />
+                </>
               )}
             </Stack>
           </Tabs.Panel>

@@ -1,14 +1,17 @@
 import { db, employees, kpiTargets } from "@bh/db";
 import { kpiTargetSchema } from "@bh/shared";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
-const kpiQuerySchema = z.object({
-  period: z.string().regex(/^\d{4}-\d{2}$/).optional()
-});
+const kpiQuerySchema = z
+  .object({
+    period: z.string().regex(/^\d{4}-\d{2}$/).optional()
+  })
+  .merge(paginationQuery);
 
 function achievementPct(target: number, actual: number | undefined): string | null {
   if (actual === undefined || target === 0) {
@@ -30,12 +33,29 @@ export async function registerKpiRoutes(app: FastifyInstance): Promise<void> {
       filters.push(eq(kpiTargets.period, query.period));
     }
 
-    const targets = await db
-      .select()
-      .from(kpiTargets)
-      .where(and(...filters));
+    const where = and(...filters);
+    const pagination = getPagination(query);
+    const targets = pagination.paginate
+      ? await db
+          .select()
+          .from(kpiTargets)
+          .where(where)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(kpiTargets).where(where);
 
-    return { targets };
+    if (!pagination.paginate) {
+      return { targets };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(kpiTargets).where(where);
+
+    return {
+      targets,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.put(

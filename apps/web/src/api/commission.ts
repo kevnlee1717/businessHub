@@ -48,6 +48,8 @@ export type CommissionEntryListParams = {
   period?: string | null;
   business_id?: string | null;
   status?: CommissionEntryStatus | null;
+  page?: number | undefined;
+  page_size?: number | undefined;
 };
 
 export type CommissionTotals = Partial<Record<CommissionEntryStatus, string>>;
@@ -56,11 +58,11 @@ export type CommissionEntryAmountOverrideInput = {
   amount_override?: number | null;
 };
 
-function queryString(params: Record<string, string | null | undefined>) {
+function queryString(params: Record<string, string | number | null | undefined>) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    const trimmed = typeof value === "string" ? value.trim() : "";
+    const trimmed = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
     if (trimmed) {
       searchParams.set(key, trimmed);
     }
@@ -105,8 +107,14 @@ export function deleteSalesAssignment(id: string): Promise<{ ok: true }> {
 
 export function listCommissionEntries(
   params: CommissionEntryListParams = {}
-): Promise<{ entries: CommissionEntry[]; totals: CommissionTotals }> {
-  return api<{ entries: CommissionEntry[]; totals: CommissionTotals }>(`/commission/entries${queryString(params)}`);
+): Promise<{
+  entries: CommissionEntry[];
+  totals: CommissionTotals;
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+}> {
+  return api(`/commission/entries${queryString(params)}`);
 }
 
 export function recomputeCommission(body: {

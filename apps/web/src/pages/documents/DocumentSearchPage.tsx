@@ -16,7 +16,7 @@ import {
   TextInput,
   Title
 } from "@mantine/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listClients } from "../../api/cases";
@@ -27,6 +27,8 @@ import {
   uploadDocument,
   type DocumentSearchParams
 } from "../../api/dms";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type SearchForm = {
   client_id: string | null;
@@ -86,18 +88,20 @@ export function DocumentSearchPage() {
   const [uploadCategoryId, setUploadCategoryId] = useState<string | null>(null);
   const [uploadTags, setUploadTags] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const clientsQuery = useQuery({
     queryKey: ["business", "clients"],
-    queryFn: listClients
+    queryFn: () => listClients()
   });
   const categoriesQuery = useQuery({
     queryKey: ["documents", "categories"],
-    queryFn: listDocumentCategories
+    queryFn: () => listDocumentCategories()
   });
   const documentsQuery = useQuery({
-    queryKey: [...documentsQueryKey, submittedParams],
-    queryFn: () => searchDocuments(submittedParams)
+    queryKey: [...documentsQueryKey, submittedParams, page, pageSize],
+    queryFn: () => searchDocuments({ ...submittedParams, page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const uploadMutation = useMutation({
     mutationFn: uploadDocument,
@@ -110,6 +114,7 @@ export function DocumentSearchPage() {
   const clients = clientsQuery.data?.clients ?? [];
   const categories = categoriesQuery.data?.categories ?? [];
   const documents = documentsQuery.data?.documents ?? [];
+  const totalDocuments = documentsQuery.data?.total ?? documents.length;
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
   const clientOptions = clients.map((client) => ({
     value: client.id,
@@ -123,6 +128,7 @@ export function DocumentSearchPage() {
     }));
 
   function runSearch() {
+    setPage(1);
     setSubmittedParams({
       client_id: filters.client_id,
       category_id: filters.category_id,
@@ -298,6 +304,13 @@ export function DocumentSearchPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalDocuments}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal opened={uploadOpened} onClose={closeUploadModal} title={t("document.upload.title")} size="lg">
         <Stack gap="md">

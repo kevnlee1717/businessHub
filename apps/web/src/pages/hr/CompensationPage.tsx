@@ -53,6 +53,8 @@ import {
   type ResolvedCompensationField
 } from "../../api/hr";
 import { PositionSelect } from "../../components/PositionSelect";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type MoneyFormValue = number | null | undefined;
 
@@ -148,22 +150,23 @@ export function CompensationPage() {
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [employeeError, setEmployeeError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const templatesQuery = useQuery({
     queryKey: templateQueryKey,
-    queryFn: listCompensationTemplates
+    queryFn: () => listCompensationTemplates()
   });
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const positionsQuery = useQuery({
     queryKey: positionQueryKey,
-    queryFn: listPositions
+    queryFn: () => listPositions()
   });
   const employeesQuery = useQuery({
     queryKey: employeeQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const employeeCompensationQuery = useQuery({
     queryKey: ["hr", "employee-compensation", selectedEmployeeId],
@@ -218,7 +221,9 @@ export function CompensationPage() {
     employeeForm.reset(getEmployeeDefaultValues(employeeCompensationQuery.data?.compensation ?? null));
   }, [employeeCompensationQuery.data, employeeForm, selectedEmployeeId]);
 
+  // 薪酬模板会被员工薪酬解析和表单选项复用；请求全量后在前端切片分页。
   const templates = templatesQuery.data?.templates ?? [];
+  const visibleTemplates = templates.slice((page - 1) * pageSize, page * pageSize);
   const companies = companiesQuery.data?.companies ?? [];
   const positions = positionsQuery.data?.positions ?? [];
   const employees = employeesQuery.data?.employees ?? [];
@@ -368,7 +373,7 @@ export function CompensationPage() {
                     </Table.Td>
                   </Table.Tr>
                 ) : (
-                  templates.map((template) => (
+                  visibleTemplates.map((template) => (
                     <Table.Tr key={template.id}>
                       <Table.Td>
                         {template.company_name ??
@@ -398,6 +403,13 @@ export function CompensationPage() {
             </Table>
           </ScrollArea>
         </Paper>
+        <TablePagination
+          total={templates.length}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Stack>
 
       <Stack gap="md">

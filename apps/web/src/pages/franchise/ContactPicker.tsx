@@ -1,7 +1,9 @@
 import { Button, Group, Modal, SegmentedControl, Select, Stack, Table, Text, TextInput } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 import { franchiseKeys, listFranchiseContacts, listFranchiseOrgs, type FranchiseContact } from "../../api/franchise";
 
 type ContactPickerProps = {
@@ -22,6 +24,7 @@ export function ContactPicker({ label, value, onChange, excludeId }: ContactPick
   const [mode, setMode] = useState<"search" | "org">("search");
   const [q, setQ] = useState("");
   const [orgId, setOrgId] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const selectedQuery = useQuery({
     queryKey: franchiseKeys.contacts("picker-selected"),
     queryFn: () => listFranchiseContacts()
@@ -37,7 +40,12 @@ export function ContactPicker({ label, value, onChange, excludeId }: ContactPick
     () => (contactsQuery.data?.contacts ?? []).filter((contact) => contact.id !== excludeId),
     [contactsQuery.data?.contacts, excludeId]
   );
+  const visibleContacts = contacts.slice((page - 1) * pageSize, page * pageSize);
   const orgOptions = (orgsQuery.data?.orgs ?? []).map((org) => ({ value: org.id, label: org.name }));
+
+  useEffect(() => {
+    setPage(1);
+  }, [mode, q, orgId, setPage]);
 
   return (
     <Stack gap={6}>
@@ -86,7 +94,7 @@ export function ContactPicker({ label, value, onChange, excludeId }: ContactPick
             </Table.Thead>
             <Table.Tbody>
               {contacts.length ? (
-                contacts.map((contact) => (
+                visibleContacts.map((contact) => (
                   <Table.Tr
                     key={contact.id}
                     onClick={() => {
@@ -111,6 +119,7 @@ export function ContactPicker({ label, value, onChange, excludeId }: ContactPick
               )}
             </Table.Tbody>
           </Table>
+          <TablePagination total={contacts.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </Stack>
       </Modal>
     </Stack>

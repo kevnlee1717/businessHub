@@ -22,13 +22,15 @@ import {
   type TeacherCreateInput,
   type TeacherUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { createTeacher, deleteTeacher, listTeachers, updateTeacher, type Teacher } from "../../api/teachers";
 import { useCan } from "../../auth/permissions";
+import { TablePagination } from "../../components/TablePagination";
 import { teachersQueryKey } from "../../components/TeacherMultiSelect";
+import { usePagination } from "../../hooks/usePagination";
 
 type TeacherFormValues = {
   name?: string | undefined;
@@ -67,10 +69,12 @@ export function TeachersPage() {
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const teachersQuery = useQuery({
-    queryKey: teachersQueryKey,
-    queryFn: () => listTeachers()
+    queryKey: [...teachersQueryKey, page, pageSize],
+    queryFn: () => listTeachers(false, { page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const form = useForm<TeacherFormValues>({
@@ -102,6 +106,7 @@ export function TeachersPage() {
   });
 
   const teachers = teachersQuery.data?.teachers ?? [];
+  const totalTeachers = teachersQuery.data?.total ?? teachers.length;
   const errors = form.formState.errors;
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -241,6 +246,13 @@ export function TeachersPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalTeachers}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal opened={modalOpened} onClose={closeModal} title={editingTeacher ? t("teachers.edit") : t("teachers.add")} size="lg">
         <form onSubmit={onSubmit}>

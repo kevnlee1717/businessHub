@@ -26,6 +26,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useCan } from "../auth/permissions";
+import { TablePagination } from "../components/TablePagination";
+import { usePagination } from "../hooks/usePagination";
 import { listBusinesses } from "../api/businessSchemes";
 import {
   createRecurringCost,
@@ -148,6 +150,12 @@ export function DashboardPage() {
   });
   const [costForms, setCostForms] = useState<Record<string, CostForm>>({});
   const [accountForms, setAccountForms] = useState<Record<string, AccountForm>>({});
+  const {
+    page: receivablesPage,
+    pageSize: receivablesPageSize,
+    setPage: setReceivablesPage,
+    setPageSize: setReceivablesPageSize
+  } = usePagination(10);
 
   const overviewQuery = useQuery({
     queryKey: [...dashboardQueryKey, "overview", period],
@@ -188,6 +196,8 @@ export function DashboardPage() {
   const businesses = businessesQuery.data?.businesses ?? [];
   const recurringCosts = recurringCostsQuery.data?.recurring_costs ?? [];
   const accounts = accountsQuery.data?.bank_accounts ?? [];
+  const receivableRows = receivablesQuery.data?.rows ?? [];
+  const visibleReceivableRows = receivableRows.slice((receivablesPage - 1) * receivablesPageSize, receivablesPage * receivablesPageSize);
   const currencyOptions = currencies.map((currency) => ({ value: currency, label: currency }));
   const businessOptions = businesses.map((business) => ({
     value: business.id,
@@ -208,6 +218,10 @@ export function DashboardPage() {
   useEffect(() => {
     setAccountForms(Object.fromEntries(accounts.map((account) => [account.id, accountToForm(account)])));
   }, [accounts]);
+
+  useEffect(() => {
+    setReceivablesPage(1);
+  }, [selectedCompanyId, setReceivablesPage]);
 
   const whatIfItems = useMemo(
     () =>
@@ -735,7 +749,7 @@ export function DashboardPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {(receivablesQuery.data?.rows ?? []).map((row) => (
+                  {visibleReceivableRows.map((row) => (
                     <Table.Tr key={`${row.source}-${row.student_or_client}-${row.period_or_ref}`}>
                       <Table.Td>{row.source}</Table.Td>
                       <Table.Td>{row.student_or_client}</Table.Td>
@@ -748,7 +762,7 @@ export function DashboardPage() {
                       </Table.Td>
                     </Table.Tr>
                   ))}
-                  {(receivablesQuery.data?.rows ?? []).length === 0 ? (
+                  {receivableRows.length === 0 ? (
                     <Table.Tr>
                       <Table.Td colSpan={5}>
                         <Text c="dimmed" ta="center">
@@ -760,6 +774,13 @@ export function DashboardPage() {
                 </Table.Tbody>
               </Table>
             </ScrollArea>
+            <TablePagination
+              total={receivableRows.length}
+              page={receivablesPage}
+              pageSize={receivablesPageSize}
+              onPageChange={setReceivablesPage}
+              onPageSizeChange={setReceivablesPageSize}
+            />
           </Stack>
         </Paper>
       </SimpleGrid>

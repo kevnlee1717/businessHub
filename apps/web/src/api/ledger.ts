@@ -81,6 +81,11 @@ export type LedgerListParams = {
   to?: string | null;
 };
 
+export type PaginationParams = {
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
 export type BankStatementLine = {
   id: string;
   bank_account_id: string;
@@ -118,11 +123,11 @@ export type ReconcileResult = {
   };
 };
 
-function queryString(params: Record<string, string | null | undefined>) {
+function queryString(params: Record<string, string | number | null | undefined>) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    const trimmed = typeof value === "string" ? value.trim() : "";
+    const trimmed = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
     if (trimmed) {
       searchParams.set(key, trimmed);
     }
@@ -132,8 +137,13 @@ function queryString(params: Record<string, string | null | undefined>) {
   return query ? `?${query}` : "";
 }
 
-export function listBankAccounts(params: { company_id?: string | null } = {}): Promise<{ bank_accounts: BankAccount[] }> {
-  return api<{ bank_accounts: BankAccount[] }>(`/bank-accounts${queryString(params)}`);
+export function listBankAccounts(params: ({ company_id?: string | null } & PaginationParams) = {}): Promise<{
+  bank_accounts: BankAccount[];
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+}> {
+  return api(`/bank-accounts${queryString(params)}`);
 }
 
 export function createBankAccount(body: BankAccountCreateInput): Promise<{ bank_account: BankAccount }> {

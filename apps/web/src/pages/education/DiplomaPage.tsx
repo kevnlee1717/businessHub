@@ -38,7 +38,7 @@ import {
   type DiplomaProgramCreateInput,
   type DiplomaProgramUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -77,7 +77,9 @@ import { listEmployees, type Employee } from "../../api/hr";
 import { useCan } from "../../auth/permissions";
 import { CreatableCombobox } from "../../components/CreatableCombobox";
 import { StudentSelect } from "../../components/StudentSelect";
+import { TablePagination } from "../../components/TablePagination";
 import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
+import { usePagination } from "../../hooks/usePagination";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
@@ -583,32 +585,64 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   const showCourses = section === "courses" || section === "all";
   const showEnrollments = section === "enrollments" || section === "all";
   const enrollmentCourseId = section === "enrollments" ? null : selectedCourseId;
+  const {
+    page: programsPage,
+    pageSize: programsPageSize,
+    setPage: setProgramsPage,
+    setPageSize: setProgramsPageSize
+  } = usePagination();
+  const {
+    page: coursesPage,
+    pageSize: coursesPageSize,
+    setPage: setCoursesPage,
+    setPageSize: setCoursesPageSize
+  } = usePagination();
+  const {
+    page: enrollmentsPage,
+    pageSize: enrollmentsPageSize,
+    setPage: setEnrollmentsPage,
+    setPageSize: setEnrollmentsPageSize
+  } = usePagination();
 
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,
-    queryFn: listStudents,
+    queryFn: () => listStudents(),
     enabled: showEnrollments
   });
 
   const employeesQuery = useQuery({
     queryKey: employeesQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
 
   const coursesQuery = useQuery({
-    queryKey: [...diplomaCoursesQueryKey, courseProgramFilter],
-    queryFn: () => listDiplomaCourses(courseProgramFilter)
+    queryKey: [...diplomaCoursesQueryKey, courseProgramFilter, coursesPage, coursesPageSize],
+    queryFn: () => listDiplomaCourses(courseProgramFilter, { page: coursesPage, page_size: coursesPageSize }),
+    placeholderData: keepPreviousData
   });
 
   const programsQuery = useQuery({
     queryKey: diplomaProgramsQueryKey,
-    queryFn: listDiplomaPrograms
+    queryFn: () => listDiplomaPrograms()
+  });
+
+  const programsListQuery = useQuery({
+    queryKey: [...diplomaProgramsQueryKey, "table", programsPage, programsPageSize],
+    queryFn: () => listDiplomaPrograms({ page: programsPage, page_size: programsPageSize }),
+    enabled: showPrograms,
+    placeholderData: keepPreviousData
   });
 
   const enrollmentsQuery = useQuery({
-    queryKey: [...diplomaQueryKey, studentFilter],
-    queryFn: () => listDiplomaEnrollments(studentFilter ?? undefined),
-    enabled: showEnrollments && !enrollmentCourseId
+    queryKey: [...diplomaQueryKey, studentFilter, enrollmentsPage, enrollmentsPageSize],
+    queryFn: () =>
+      listDiplomaEnrollments({
+        student_id: studentFilter ?? undefined,
+        page: enrollmentsPage,
+        page_size: enrollmentsPageSize
+      }),
+    enabled: showEnrollments && !enrollmentCourseId,
+    placeholderData: keepPreviousData
   });
 
   const courseEnrollmentsQuery = useQuery({
@@ -828,12 +862,20 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
 
   const courses = coursesQuery.data?.courses ?? [];
   const programs = programsQuery.data?.programs ?? [];
+  const programRows = programsListQuery.data?.programs ?? [];
   const students = studentsQuery.data?.students ?? [];
   const employees = employeesQuery.data?.employees ?? [];
   const courseEnrollments = courseEnrollmentsQuery.data?.enrollments ?? [];
+  const filteredCourseEnrollments = filterEnrollmentsByStudent(courseEnrollments, studentFilter);
+  // Course enrollment panels need the full child list so student filtering stays local; paginate after filtering.
   const enrollments = enrollmentCourseId
-    ? filterEnrollmentsByStudent(courseEnrollments, studentFilter)
+    ? filteredCourseEnrollments.slice((enrollmentsPage - 1) * enrollmentsPageSize, enrollmentsPage * enrollmentsPageSize)
     : (enrollmentsQuery.data?.enrollments ?? []);
+  const totalPrograms = programsListQuery.data?.total ?? programRows.length;
+  const totalCourses = coursesQuery.data?.total ?? courses.length;
+  const totalEnrollments = enrollmentCourseId
+    ? filteredCourseEnrollments.length
+    : (enrollmentsQuery.data?.total ?? enrollments.length);
   const selectedCourse = courses.find((course) => course.id === enrollmentCourseId) ?? null;
   const studentOptions = students.map((student) => ({
     value: student.id,
@@ -893,6 +935,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     (showEnrollments ? studentsQuery.error : null) ??
     employeesQuery.error ??
     programsQuery.error ??
+    programsListQuery.error ??
     coursesQuery.error ??
     (showEnrollments ? (enrollmentsQuery.error ?? courseEnrollmentsQuery.error) : null);
 
@@ -1196,6 +1239,21 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     return result.intake.id;
   }
 
+  function updateCourseProgramFilter(value: string | null) {
+    setCourseProgramFilter(value);
+    setCoursesPage(1);
+  }
+
+  function updateStudentFilter(value: string | null) {
+    setStudentFilter(value);
+    setEnrollmentsPage(1);
+  }
+
+  function showAllEnrollments() {
+    setSelectedCourseId(null);
+    setEnrollmentsPage(1);
+  }
+
   const ContentLayout = section === "all" ? SimpleGrid : Stack;
   const contentLayoutProps =
     section === "all"
@@ -1235,7 +1293,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {programsQuery.isLoading ? (
+                  {programsListQuery.isLoading ? (
                     <Table.Tr>
                       <Table.Td colSpan={canManageEducation ? 5 : 4}>
                         <Group justify="center" py="lg">
@@ -1243,7 +1301,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                         </Group>
                       </Table.Td>
                     </Table.Tr>
-                  ) : programs.length === 0 ? (
+                  ) : programRows.length === 0 ? (
                     <Table.Tr>
                       <Table.Td colSpan={canManageEducation ? 5 : 4}>
                         <Text ta="center" c="dimmed" py="lg">
@@ -1252,7 +1310,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                       </Table.Td>
                     </Table.Tr>
                   ) : (
-                    programs.map((program) => (
+                    programRows.map((program) => (
                       <Table.Tr key={program.id}>
                         <Table.Td>{program.name}</Table.Td>
                         <Table.Td>{program.name_en ?? t("common.not_available")}</Table.Td>
@@ -1298,6 +1356,13 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 </Table.Tbody>
               </Table>
             </ScrollArea>
+            <TablePagination
+              total={totalPrograms}
+              page={programsPage}
+              pageSize={programsPageSize}
+              onPageChange={setProgramsPage}
+              onPageSizeChange={setProgramsPageSize}
+            />
           </Paper>
         ) : null}
 
@@ -1311,7 +1376,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 placeholder={t("common.all")}
                 data={programFilterOptions}
                 value={courseProgramFilter}
-                onChange={setCourseProgramFilter}
+                onChange={updateCourseProgramFilter}
                 clearable
                 searchable
                 w={240}
@@ -1350,7 +1415,10 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   courses.map((course) => (
                     <Table.Tr
                       key={course.id}
-                      onClick={() => setSelectedCourseId(course.id)}
+                      onClick={() => {
+                        setSelectedCourseId(course.id);
+                        setEnrollmentsPage(1);
+                      }}
                       style={{
                         cursor: "pointer",
                         backgroundColor:
@@ -1414,6 +1482,13 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
               </Table.Tbody>
             </Table>
           </ScrollArea>
+          <TablePagination
+            total={totalCourses}
+            page={coursesPage}
+            pageSize={coursesPageSize}
+            onPageChange={setCoursesPage}
+            onPageSizeChange={setCoursesPageSize}
+          />
           </Stack>
           </Paper>
         ) : null}
@@ -1427,7 +1502,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   {selectedCourse ? displayName(selectedCourse) : t("diploma.enrollment.title")}
                 </Title>
                 {selectedCourse ? (
-                  <Button size="xs" variant="subtle" onClick={() => setSelectedCourseId(null)}>
+                  <Button size="xs" variant="subtle" onClick={showAllEnrollments}>
                     {t("common.all")}
                   </Button>
                 ) : null}
@@ -1436,7 +1511,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   placeholder={t("common.all")}
                   data={studentOptions}
                   value={studentFilter}
-                  onChange={setStudentFilter}
+                  onChange={updateStudentFilter}
                   clearable
                   searchable
                   w={240}
@@ -1518,6 +1593,13 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 </Table.Tbody>
               </Table>
             </ScrollArea>
+            <TablePagination
+              total={totalEnrollments}
+              page={enrollmentsPage}
+              pageSize={enrollmentsPageSize}
+              onPageChange={setEnrollmentsPage}
+              onPageSizeChange={setEnrollmentsPageSize}
+            />
           </Stack>
           </Paper>
         ) : null}

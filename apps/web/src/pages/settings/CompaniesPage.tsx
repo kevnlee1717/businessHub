@@ -53,6 +53,8 @@ import {
 import { translateText } from "../../api/translate";
 import { CreatableCombobox } from "../../components/CreatableCombobox";
 import { MapPicker } from "../../components/MapPicker";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type CompanyFormValues = {
   name?: string | undefined;
@@ -160,23 +162,24 @@ export function CompaniesPage() {
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [pointsLoadedForCompanyId, setPointsLoadedForCompanyId] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const companiesQuery = useQuery({
     queryKey: companyQueryKey,
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
 
   const industriesQuery = useQuery({
     queryKey: industryQueryKey,
-    queryFn: listIndustries
+    queryFn: () => listIndustries()
   });
   const workShiftsQuery = useQuery({
     queryKey: workShiftQueryKey,
-    queryFn: listWorkShifts
+    queryFn: () => listWorkShifts()
   });
   const clockPointsQuery = useQuery({
     queryKey: companyClockPointQueryKey(editingCompany?.id),
-    queryFn: listClockPoints,
+    queryFn: () => listClockPoints(),
     enabled: modalOpened && Boolean(editingCompany?.id)
   });
 
@@ -207,7 +210,9 @@ export function CompaniesPage() {
     mutationFn: deleteClockPoint
   });
 
+  // 公司是员工/业务表单复用的基础数据；保持全量请求，在前端切片分页。
   const companies = companiesQuery.data?.companies ?? [];
+  const visibleCompanies = companies.slice((page - 1) * pageSize, page * pageSize);
   const industries = industriesQuery.data?.industries ?? [];
   const workShifts = workShiftsQuery.data?.work_shifts ?? [];
   const loadedClockPoints =
@@ -411,7 +416,7 @@ export function CompaniesPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                companies.map((company) => (
+                visibleCompanies.map((company) => (
                   <Table.Tr key={company.id}>
                     <Table.Td>{displayName(company.name, company.name_en)}</Table.Td>
                     <Table.Td>{company.uen ?? t("common.not_available")}</Table.Td>
@@ -445,6 +450,13 @@ export function CompaniesPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={companies.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

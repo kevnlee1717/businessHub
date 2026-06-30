@@ -1,10 +1,12 @@
-import { Alert, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Text } from "@mantine/core";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listClients, type Client } from "../../api/cases";
 import { useAuth } from "../../auth/AuthContext";
 import { ClientFormModal } from "../../components/ClientFormModal";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 const clientQueryKey = ["business", "clients"] as const;
 
@@ -18,14 +20,17 @@ export function ClientsPage() {
   const queryClient = useQueryClient();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
 
   const clientsQuery = useQuery({
-    queryKey: clientQueryKey,
-    queryFn: listClients
+    queryKey: [...clientQueryKey, page, pageSize],
+    queryFn: () => listClients({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const clients = clientsQuery.data?.clients ?? [];
+  const totalClients = clientsQuery.data?.total ?? clients.length;
 
   function openCreateModal() {
     setEditingClient(null);
@@ -104,6 +109,13 @@ export function ClientsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalClients}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <ClientFormModal
         opened={modalOpened}

@@ -15,7 +15,6 @@ import {
   Modal,
   MultiSelect,
   NumberInput,
-  Pagination,
   Progress,
   ScrollArea,
   Select,
@@ -55,6 +54,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import { BilingualInput } from "../../components/BilingualInput";
 import { CreatableCombobox, type Option } from "../../components/CreatableCombobox";
+import { TablePagination } from "../../components/TablePagination";
 import { fileUrl } from "../../api/dms";
 import { listCompanies, listEmployees } from "../../api/hr";
 import { translateText } from "../../api/translate";
@@ -97,8 +97,7 @@ import {
   type RecruitmentPosting
 } from "../../api/recruitment";
 import { normalizeLang, pickLang, tField, type AppLang, type I18nValue } from "../../lib/i18nField";
-
-const pageSize = 10;
+import { usePagination } from "../../hooks/usePagination";
 
 type Dict = Record<string, unknown>;
 type EmploymentType = "full_time" | "part_time";
@@ -245,24 +244,11 @@ function LoadingRow({ colSpan }: { colSpan: number }) {
   );
 }
 
-function Pager({ total, page, setPage }: { total: number; page: number; setPage: (page: number) => void }) {
-  if (total <= pageSize) return null;
-  return (
-    <Group justify="flex-end" mt={30}>
-      <Pagination total={Math.ceil(total / pageSize)} value={page} onChange={setPage} />
-    </Group>
-  );
-}
-
-function slicePage<T>(rows: T[], page: number) {
-  return rows.slice((page - 1) * pageSize, page * pageSize);
-}
-
 function useBaseOptions() {
   const { i18n } = useTranslation();
   const lang = normalizeLang(i18n.language);
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
-  const employeesQuery = useQuery({ queryKey: ["hr", "employees"], queryFn: listEmployees });
+  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: () => listCompanies() });
+  const employeesQuery = useQuery({ queryKey: ["hr", "employees"], queryFn: () => listEmployees() });
   const industriesQuery = useQuery({ queryKey: recruitmentKeys.industries(), queryFn: () => listRecruitmentIndustries({ active: "1" }) });
   const jobsQuery = useQuery({ queryKey: recruitmentKeys.jobs("all"), queryFn: () => listRecruitmentJobs() });
   const campaignsQuery = useQuery({ queryKey: recruitmentKeys.campaigns("all"), queryFn: () => listRecruitmentCampaigns() });
@@ -515,7 +501,7 @@ export function JobsPageImpl() {
   const lang = normalizeLang(i18n.language);
   const navigate = useNavigate();
   const base = useBaseOptions();
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentJobStatus | null>(null);
   const [priority, setPriority] = useState<RecruitmentJobPriority | null>(null);
   const [industryId, setIndustryId] = useState<string | null>(null);
@@ -540,7 +526,7 @@ export function JobsPageImpl() {
         <Table miw={1040} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
           <Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.title")}</Table.Th><Table.Th>{t("recruitment.fields.industry")}</Table.Th><Table.Th>{t("recruitment.fields.headcount")}</Table.Th><Table.Th>{t("recruitment.fields.salary")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.priority")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
           <Table.Tbody>
-            {query.isLoading ? <LoadingRow colSpan={7} /> : rows.length === 0 ? <EmptyRow colSpan={7} /> : slicePage(rows, page).map((row) => (
+            {query.isLoading ? <LoadingRow colSpan={7} /> : rows.length === 0 ? <EmptyRow colSpan={7} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
               <Table.Tr key={row.id}>
                 <Table.Td><Anchor onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{tField(row, "title", lang)}</Anchor></Table.Td>
                 <Table.Td>{optionLabel(base.industryOptions, row.industry_id)}</Table.Td>
@@ -554,7 +540,7 @@ export function JobsPageImpl() {
           </Table.Tbody>
         </Table>
       </ScrollArea>
-      <Pager total={rows.length} page={page} setPage={setPage} />
+      <TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <JobFormModal opened={modalOpened} onClose={() => setModalOpened(false)} job={editing} />
     </Stack>
   );
@@ -830,13 +816,13 @@ export function JobDetailPageImpl() {
 export function PostingsPageImpl() {
   const { t } = useTranslation();
   const base = useBaseOptions();
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentPostingStatus | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecruitmentPosting | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.postings(status), queryFn: () => listRecruitmentPostings({ status: status ?? undefined }) });
   const rows = query.data?.postings ?? [];
-  return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentPostingStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.postings.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.fields.publishedOn")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : slicePage(rows, page).map((row) => <Table.Tr key={row.id}><Table.Td>{row.platform}</Table.Td><Table.Td>{optionLabel(base.jobOptions, row.job_id)}</Table.Td><Table.Td>{row.published_on}</Table.Td><Table.Td><StatusBadge value={row.status} ns="postingStatus" /></Table.Td><Table.Td>{row.inquiry_count}</Table.Td><Table.Td><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><Pager total={rows.length} page={page} setPage={setPage} /><PostingFormModal opened={modalOpen} onClose={() => setModalOpen(false)} posting={editing} /></Stack>;
+  return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentPostingStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.postings.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.fields.publishedOn")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => <Table.Tr key={row.id}><Table.Td>{row.platform}</Table.Td><Table.Td>{optionLabel(base.jobOptions, row.job_id)}</Table.Td><Table.Td>{row.published_on}</Table.Td><Table.Td><StatusBadge value={row.status} ns="postingStatus" /></Table.Td><Table.Td>{row.inquiry_count}</Table.Td><Table.Td><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /><PostingFormModal opened={modalOpen} onClose={() => setModalOpen(false)} posting={editing} /></Stack>;
 }
 
 function CampaignFormModal({ opened, onClose, campaign }: { opened: boolean; onClose: () => void; campaign?: RecruitmentCampaign | null }) {
@@ -856,13 +842,13 @@ function CampaignFormModal({ opened, onClose, campaign }: { opened: boolean; onC
 export function CampaignsPageImpl() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentCampaignStatus | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecruitmentCampaign | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.campaigns(status), queryFn: () => listRecruitmentCampaigns({ status: status ?? undefined }) });
   const rows = query.data?.campaigns ?? [];
-  return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentCampaignStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.campaigns.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.type")}</Table.Th><Table.Th>{t("recruitment.fields.location")}</Table.Th><Table.Th>{t("recruitment.fields.plannedDate")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : slicePage(rows, page).map((row) => <Table.Tr key={row.id}><Table.Td><Anchor onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{row.name}</Anchor></Table.Td><Table.Td><StatusBadge value={row.type} ns="campaignType" /></Table.Td><Table.Td>{row.location}</Table.Td><Table.Td>{row.planned_date} {row.planned_start}-{row.planned_end}</Table.Td><Table.Td><StatusBadge value={row.status} ns="campaignStatus" /></Table.Td><Table.Td><Group gap="xs"><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{t("common.view")}</Button><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Group></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><Pager total={rows.length} page={page} setPage={setPage} /><CampaignFormModal opened={modalOpen} onClose={() => setModalOpen(false)} campaign={editing} /></Stack>;
+  return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentCampaignStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.campaigns.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.type")}</Table.Th><Table.Th>{t("recruitment.fields.location")}</Table.Th><Table.Th>{t("recruitment.fields.plannedDate")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => <Table.Tr key={row.id}><Table.Td><Anchor onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{row.name}</Anchor></Table.Td><Table.Td><StatusBadge value={row.type} ns="campaignType" /></Table.Td><Table.Td>{row.location}</Table.Td><Table.Td>{row.planned_date} {row.planned_start}-{row.planned_end}</Table.Td><Table.Td><StatusBadge value={row.status} ns="campaignStatus" /></Table.Td><Table.Td><Group gap="xs"><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{t("common.view")}</Button><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Group></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /><CampaignFormModal opened={modalOpen} onClose={() => setModalOpen(false)} campaign={editing} /></Stack>;
 }
 
 export function CampaignDetailPageImpl() {
@@ -882,8 +868,9 @@ function CandidateTable({ rows, loading }: { rows: RecruitmentCandidate[]; loadi
   const navigate = useNavigate();
   const base = useBaseOptions();
   const queryClient = useQueryClient();
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const mutation = useMutation({ mutationFn: ({ id, body }: { id: string; body: Dict }) => updateRecruitmentCandidate(id, body), onSuccess: async () => queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }) });
-  return <ScrollArea><Table miw={1100} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.phone")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.fields.sourceType")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.assignedClerk")}</Table.Th><Table.Th>{t("recruitment.fields.talentPool")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{loading ? <LoadingRow colSpan={8} /> : rows.length === 0 ? <EmptyRow colSpan={8} /> : rows.map((row) => <Table.Tr key={row.id}><Table.Td><Anchor onClick={() => navigate(`/recruitment/candidates/${row.id}`)}>{row.name}</Anchor></Table.Td><Table.Td>{row.phone}</Table.Td><Table.Td>{optionLabel(base.jobOptions, row.intended_job_id)}</Table.Td><Table.Td><StatusBadge value={row.source_type} ns="sourceType" /></Table.Td><Table.Td><Select size="xs" w={170} data={recruitmentCandidateStatuses.map((v) => ({ value: v, label: t(`recruitment.candidateStatus.${v}`) }))} value={row.status} onChange={(v) => v && mutation.mutate({ id: row.id, body: { status: v } })} /></Table.Td><Table.Td><Select size="xs" w={150} data={base.employeeOptions} value={row.assigned_clerk_id ?? null} onChange={(v) => mutation.mutate({ id: row.id, body: { assigned_clerk_id: v } })} clearable searchable /></Table.Td><Table.Td><Checkbox checked={row.in_talent_pool} onChange={(e) => mutation.mutate({ id: row.id, body: { in_talent_pool: e.currentTarget.checked } })} /></Table.Td><Table.Td><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/candidates/${row.id}`)}>{t("common.view")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea>;
+  return <Stack gap="md"><ScrollArea><Table miw={1100} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.phone")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.fields.sourceType")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.assignedClerk")}</Table.Th><Table.Th>{t("recruitment.fields.talentPool")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{loading ? <LoadingRow colSpan={8} /> : rows.length === 0 ? <EmptyRow colSpan={8} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => <Table.Tr key={row.id}><Table.Td><Anchor onClick={() => navigate(`/recruitment/candidates/${row.id}`)}>{row.name}</Anchor></Table.Td><Table.Td>{row.phone}</Table.Td><Table.Td>{optionLabel(base.jobOptions, row.intended_job_id)}</Table.Td><Table.Td><StatusBadge value={row.source_type} ns="sourceType" /></Table.Td><Table.Td><Select size="xs" w={170} data={recruitmentCandidateStatuses.map((v) => ({ value: v, label: t(`recruitment.candidateStatus.${v}`) }))} value={row.status} onChange={(v) => v && mutation.mutate({ id: row.id, body: { status: v } })} /></Table.Td><Table.Td><Select size="xs" w={150} data={base.employeeOptions} value={row.assigned_clerk_id ?? null} onChange={(v) => mutation.mutate({ id: row.id, body: { assigned_clerk_id: v } })} clearable searchable /></Table.Td><Table.Td><Checkbox checked={row.in_talent_pool} onChange={(e) => mutation.mutate({ id: row.id, body: { in_talent_pool: e.currentTarget.checked } })} /></Table.Td><Table.Td><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/candidates/${row.id}`)}>{t("common.view")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /></Stack>;
 }
 
 export function CandidatesPageImpl({ talentPool = false }: { talentPool?: boolean }) {

@@ -9,17 +9,20 @@ import {
   workShifts
 } from "@bh/db";
 import { attendanceClockSchema, type AttendanceDayStatus } from "@bh/shared";
-import { and, desc, eq, type SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 import { z } from "zod";
 
-const attendanceQuerySchema = z.object({
-  employee_id: z.string().uuid().optional(),
-  work_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
-});
+const attendanceQuerySchema = z
+  .object({
+    employee_id: z.string().uuid().optional(),
+    work_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+  })
+  .merge(paginationQuery);
 
 function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6371000;
@@ -236,13 +239,34 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
       filters.push(eq(attendanceRecords.workDate, query.work_date));
     }
 
-    const records = await db
-      .select()
-      .from(attendanceRecords)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(attendanceRecords.clockedAt));
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const records = pagination.paginate
+      ? await db
+          .select()
+          .from(attendanceRecords)
+          .where(where)
+          .orderBy(desc(attendanceRecords.clockedAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(attendanceRecords)
+          .where(where)
+          .orderBy(desc(attendanceRecords.clockedAt));
 
-    return { records };
+    if (!pagination.paginate) {
+      return { records };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(attendanceRecords).where(where);
+
+    return {
+      records,
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   // 某员工某天的汇总

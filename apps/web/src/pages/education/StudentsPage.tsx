@@ -1,10 +1,12 @@
 import { Alert, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listStudents, type Student } from "../../api/education";
 import { useCan } from "../../auth/permissions";
 import { StudentFormModal } from "../../components/StudentFormModal";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 export const studentsQueryKey = ["education", "students"] as const;
 
@@ -38,13 +40,16 @@ export function StudentsPage() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const canManageEducation = useCan("education.manage");
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const studentsQuery = useQuery({
-    queryKey: studentsQueryKey,
-    queryFn: listStudents
+    queryKey: [...studentsQueryKey, page, pageSize],
+    queryFn: () => listStudents({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const students = studentsQuery.data?.students ?? [];
+  const totalStudents = studentsQuery.data?.total ?? students.length;
 
   function openCreateModal() {
     setEditingStudent(null);
@@ -124,6 +129,13 @@ export function StudentsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalStudents}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <StudentFormModal
         opened={modalOpened}

@@ -1,10 +1,14 @@
 import { companies, db } from "@bh/db";
 import { companyCreateSchema, companyUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const companyQuerySchema = z.object({}).merge(paginationQuery);
 
 function serializeCompany(company: typeof companies.$inferSelect) {
   return {
@@ -24,13 +28,33 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
   app.addHook("preHandler", app.authenticate);
 
   app.get("/companies", async (request) => {
+    const query = parseWithSchema(companyQuerySchema, request.query);
     const companyIds = await getAccessibleCompanyIds(request);
     const filter = companyFilter(companyIds, companies.id);
-    const rows = filter
-      ? await db.select().from(companies).where(filter).orderBy(companies.createdAt)
-      : await db.select().from(companies).orderBy(companies.createdAt);
+    const where = filter ?? sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(companies)
+          .where(where)
+          .orderBy(companies.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(companies).where(where).orderBy(companies.createdAt);
 
-    return { companies: rows.map(serializeCompany) };
+    if (!pagination.paginate) {
+      return { companies: rows.map(serializeCompany) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(companies).where(where);
+
+    return {
+      companies: rows.map(serializeCompany),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/companies/:id", async (request, reply) => {

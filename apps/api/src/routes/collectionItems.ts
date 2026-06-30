@@ -1,9 +1,13 @@
 import { collectionItems, db } from "@bh/db";
 import { collectionItemCreateSchema, collectionItemUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const collectionItemQuerySchema = z.object({}).merge(paginationQuery);
 
 function serializeCollectionItem(row: typeof collectionItems.$inferSelect) {
   return {
@@ -22,13 +26,30 @@ function serializeCollectionItem(row: typeof collectionItems.$inferSelect) {
 export async function registerCollectionItemRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/collection-items", { preHandler: requirePerm("finance.view") }, async () => {
-    const rows = await db
-      .select()
-      .from(collectionItems)
-      .orderBy(collectionItems.sortOrder, collectionItems.code);
+  app.get("/collection-items", { preHandler: requirePerm("finance.view") }, async (request) => {
+    const query = parseWithSchema(collectionItemQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(collectionItems)
+          .orderBy(collectionItems.sortOrder, collectionItems.code)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(collectionItems).orderBy(collectionItems.sortOrder, collectionItems.code);
 
-    return { collection_items: rows.map(serializeCollectionItem) };
+    if (!pagination.paginate) {
+      return { collection_items: rows.map(serializeCollectionItem) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(collectionItems);
+
+    return {
+      collection_items: rows.map(serializeCollectionItem),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/collection-items", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {

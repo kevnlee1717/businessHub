@@ -21,7 +21,7 @@ export function TeacherSelect({ value, onChange, placeholder }: TeacherSelectPro
   const [createName, setCreateName] = useState<string | null>(null);
   const employeesQuery = useQuery({
     queryKey: employeesQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const options = (employeesQuery.data?.employees ?? []).map((employee) => ({
     value: employee.id,

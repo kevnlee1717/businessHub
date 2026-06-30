@@ -20,22 +20,25 @@ import {
   billingUpdateSchema,
   paymentCreateSchema
 } from "@bh/shared";
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { generateCommissionEntries } from "./commissionUtils";
 import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
 import { refreshBillingDealLineAmounts, serializeDealEconomics, toEngineLines } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 import { bridgePaymentToLedger } from "./ledgerUtils";
 
-const billingQuerySchema = z.object({
-  ref_type: z.enum(billingRefTypes).optional(),
-  ref_id: z.string().uuid().optional(),
-  status: z.enum(billingStatuses).optional()
-});
+const billingQuerySchema = z
+  .object({
+    ref_type: z.enum(billingRefTypes).optional(),
+    ref_id: z.string().uuid().optional(),
+    status: z.enum(billingStatuses).optional()
+  })
+  .merge(paginationQuery);
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbExecutor = typeof db | DbTransaction;
@@ -341,14 +344,40 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       filters.push(eq(billing.status, query.status));
     }
 
-    const rows = await db
-      .select({ billing })
+    const where = filters.length > 0 ? and(...filters) : sql`true`;
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select({ billing })
+          .from(billing)
+          .leftJoin(businesses, eq(billing.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(billing.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select({ billing })
+          .from(billing)
+          .leftJoin(businesses, eq(billing.businessId, businesses.id))
+          .where(where)
+          .orderBy(desc(billing.createdAt));
+
+    if (!pagination.paginate) {
+      return { billings: rows.map((row) => serializeBilling(row.billing)) };
+    }
+
+    const [totalRow] = await db
+      .select({ total: count() })
       .from(billing)
       .leftJoin(businesses, eq(billing.businessId, businesses.id))
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(billing.createdAt));
+      .where(where);
 
-    return { billings: rows.map((row) => serializeBilling(row.billing)) };
+    return {
+      billings: rows.map((row) => serializeBilling(row.billing)),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/billing/:id", { preHandler: requirePerm("finance.view") }, async (request, reply) => {

@@ -12,10 +12,9 @@ import {
   Table,
   Text,
   TextInput,
-  Textarea,
-  Title
+  Textarea
 } from "@mantine/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listDealParties } from "../../api/businessSchemes";
@@ -29,6 +28,8 @@ import {
   type ExternalPartyInput,
   type ExternalPartyUpdateInput
 } from "../../api/externalParties";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type PartyFormValues = {
   party_id: string | null;
@@ -76,17 +77,20 @@ export function ExternalPartiesPage() {
   const [form, setForm] = useState<PartyFormValues>(() => defaults());
   const [formError, setFormError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const externalPartiesQuery = useQuery({
-    queryKey: externalPartiesQueryKey,
-    queryFn: listExternalParties
+    queryKey: [...externalPartiesQueryKey, page, pageSize],
+    queryFn: () => listExternalParties({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const dealPartiesQuery = useQuery({
     queryKey: dealPartiesQueryKey,
-    queryFn: listDealParties
+    queryFn: () => listDealParties()
   });
 
   const parties = externalPartiesQuery.data?.external_parties ?? [];
+  const totalParties = externalPartiesQuery.data?.total ?? parties.length;
   const dealParties = dealPartiesQuery.data?.deal_parties ?? [];
   const dealPartyById = useMemo(() => new Map(dealParties.map((party) => [party.id, party])), [dealParties]);
   const dealPartyOptions = dealParties.map((party) => ({
@@ -288,6 +292,13 @@ export function ExternalPartiesPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalParties}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

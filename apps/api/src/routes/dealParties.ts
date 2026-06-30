@@ -1,8 +1,10 @@
 import { db, dealParties } from "@bh/db";
 import { dealPartyCreateSchema, dealPartyUpdateSchema } from "@bh/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 function serializeDealParty(row: typeof dealParties.$inferSelect) {
@@ -17,11 +19,34 @@ function serializeDealParty(row: typeof dealParties.$inferSelect) {
   };
 }
 
+const dealPartyQuerySchema = z.object({}).merge(paginationQuery);
+
 export async function registerDealPartyRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/deal-parties", { preHandler: requirePerm("finance.view") }, async () => {
-    const rows = await db.select().from(dealParties).orderBy(dealParties.createdAt);
+  app.get("/deal-parties", { preHandler: requirePerm("finance.view") }, async (request) => {
+    const query = parseWithSchema(dealPartyQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(dealParties)
+          .orderBy(dealParties.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(dealParties).orderBy(dealParties.createdAt);
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(dealParties);
+
+      return {
+        deal_parties: rows.map(serializeDealParty),
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
+
     return { deal_parties: rows.map(serializeDealParty) };
   });
 

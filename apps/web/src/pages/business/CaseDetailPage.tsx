@@ -1348,19 +1348,19 @@ export function CaseDetailPage() {
   });
   const clientsQuery = useQuery({
     queryKey: ["business", "clients"],
-    queryFn: listClients
+    queryFn: () => listClients()
   });
   const guarantorsQuery = useQuery({
     queryKey: ["business", "guarantors"],
-    queryFn: listGuarantors
+    queryFn: () => listGuarantors()
   });
   const employeesQuery = useQuery({
     queryKey: ["hr", "employees"],
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const documentCategoriesQuery = useQuery({
     queryKey: ["documents", "categories"],
-    queryFn: listDocumentCategories
+    queryFn: () => listDocumentCategories()
   });
   const updateCaseMutation = useMutation({
     mutationFn: ({ caseId, status }: { caseId: string; status: CaseStatus }) =>

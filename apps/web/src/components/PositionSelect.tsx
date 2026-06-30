@@ -18,7 +18,7 @@ export function PositionSelect({ value, onChange, placeholder }: PositionSelectP
   const queryClient = useQueryClient();
   const positionsQuery = useQuery({
     queryKey: positionQueryKey,
-    queryFn: listPositions
+    queryFn: () => listPositions()
   });
   const createPositionMutation = useMutation({
     mutationFn: createPosition,

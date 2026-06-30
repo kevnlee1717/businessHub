@@ -48,6 +48,8 @@ export type DocumentSearchParams = {
   filename?: string | null | undefined;
   date_from?: string | null | undefined;
   date_to?: string | null | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
 };
 
 export type UploadDocumentInput = {
@@ -105,11 +107,21 @@ export type CompanyExpenseListParams = {
   company_id?: string | null | undefined;
   period?: string | null | undefined;
   type?: string | null | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
 };
 
 export type ContractListParams = {
   subject_type?: string | null | undefined;
   subject_id?: string | null | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+export type PaginationMeta = {
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
 };
 
 export type UploadContractVersionInput = {
@@ -126,10 +138,15 @@ function appendIfPresent(formData: FormData, key: string, value?: string | null)
   }
 }
 
-function queryString(params: Record<string, string | null | undefined>) {
+function queryString(params: object) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
+    if (typeof value === "number") {
+      searchParams.set(key, String(value));
+      return;
+    }
+
     const trimmed = typeof value === "string" ? value.trim() : "";
 
     if (trimmed) {
@@ -141,8 +158,10 @@ function queryString(params: Record<string, string | null | undefined>) {
   return query ? `?${query}` : "";
 }
 
-export function searchDocuments(params: DocumentSearchParams = {}): Promise<{ documents: DocumentMeta[] }> {
-  return api<{ documents: DocumentMeta[] }>(`/documents${queryString(params)}`);
+export function searchDocuments(
+  params: DocumentSearchParams = {}
+): Promise<{ documents: DocumentMeta[] } & PaginationMeta> {
+  return api<{ documents: DocumentMeta[] } & PaginationMeta>(`/documents${queryString(params)}`);
 }
 
 export async function uploadDocument(input: UploadDocumentInput): Promise<{ document: DocumentMeta }> {
@@ -175,12 +194,21 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ docu
   return data as { document: DocumentMeta };
 }
 
-export function getClientDocuments(clientId: string): Promise<{ groups: DocumentGroup[] }> {
-  return api<{ groups: DocumentGroup[] }>(`/clients/${clientId}/documents`);
+export function getClientDocuments(
+  clientId: string,
+  params: { page?: number | undefined; page_size?: number | undefined } = {}
+): Promise<{ groups: DocumentGroup[] } & PaginationMeta> {
+  return api<{ groups: DocumentGroup[] } & PaginationMeta>(
+    `/clients/${clientId}/documents${queryString(params)}`
+  );
 }
 
-export function listDocumentCategories(): Promise<{ categories: DocumentCategory[] }> {
-  return api<{ categories: DocumentCategory[] }>("/document-categories");
+export function listDocumentCategories(
+  params: { page?: number | undefined; page_size?: number | undefined } = {}
+): Promise<{ categories: DocumentCategory[] } & PaginationMeta> {
+  return api<{ categories: DocumentCategory[] } & PaginationMeta>(
+    `/document-categories${queryString(params)}`
+  );
 }
 
 export function createDocumentCategory(
@@ -204,8 +232,8 @@ export function updateDocumentCategory(
 
 export function listCompanyExpenses(
   params: CompanyExpenseListParams = {}
-): Promise<{ expenses: CompanyExpense[] }> {
-  return api<{ expenses: CompanyExpense[] }>(`/company-expenses${queryString(params)}`);
+): Promise<{ expenses: CompanyExpense[] } & PaginationMeta> {
+  return api<{ expenses: CompanyExpense[] } & PaginationMeta>(`/company-expenses${queryString(params)}`);
 }
 
 export function createCompanyExpense(
@@ -237,8 +265,8 @@ export function getExpenseSummary(companyId: string): Promise<ExpenseSummary> {
   return api<ExpenseSummary>(`/companies/${companyId}/expenses/summary`);
 }
 
-export function listContracts(params: ContractListParams = {}): Promise<{ contracts: Contract[] }> {
-  return api<{ contracts: Contract[] }>(`/contracts${queryString(params)}`);
+export function listContracts(params: ContractListParams = {}): Promise<{ contracts: Contract[] } & PaginationMeta> {
+  return api<{ contracts: Contract[] } & PaginationMeta>(`/contracts${queryString(params)}`);
 }
 
 export function getContract(id: string): Promise<{ contract: Contract; versions: ContractVersion[] }> {

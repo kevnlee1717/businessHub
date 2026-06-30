@@ -16,7 +16,7 @@ import {
   Title
 } from "@mantine/core";
 import { currencies, type BankAccountCreateInput, type Currency } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -26,6 +26,8 @@ import {
   type BankAccount
 } from "../../api/ledger";
 import { listCompanies } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type AccountForm = {
   company_id: string | null;
@@ -79,15 +81,18 @@ export function BankAccountsPage() {
   const [editing, setEditing] = useState<BankAccount | null>(null);
   const [form, setForm] = useState<AccountForm>(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
-  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: listCompanies });
+  const companiesQuery = useQuery({ queryKey: ["hr", "companies"], queryFn: () => listCompanies() });
   const accountsQuery = useQuery({
-    queryKey: ["finance", "bank-accounts", companyId],
-    queryFn: () => listBankAccounts({ company_id: companyId })
+    queryKey: ["finance", "bank-accounts", companyId, page, pageSize],
+    queryFn: () => listBankAccounts({ company_id: companyId, page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const companies = companiesQuery.data?.companies ?? [];
   const accounts = accountsQuery.data?.bank_accounts ?? [];
+  const totalAccounts = accountsQuery.data?.total ?? accounts.length;
 
   useEffect(() => {
     if (!companyId && companies[0]) {
@@ -172,7 +177,10 @@ export function BankAccountsPage() {
           label={t("finance.fields.company")}
           data={companyOptions}
           value={companyId}
-          onChange={setCompanyId}
+          onChange={(value) => {
+            setCompanyId(value);
+            setPage(1);
+          }}
           searchable
         />
       </Paper>
@@ -239,6 +247,13 @@ export function BankAccountsPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+        <TablePagination
+          total={totalAccounts}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Paper>
 
       <Modal opened={opened} onClose={closeModal} title={editing ? t("finance.bankAccounts.edit") : t("finance.bankAccounts.add")}>

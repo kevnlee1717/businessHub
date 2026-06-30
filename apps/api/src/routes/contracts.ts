@@ -8,17 +8,20 @@ import {
   contractVersionUpdateSchema
 } from "@bh/shared";
 import { db, contracts, contractVersions, documents } from "@bh/db";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
-const contractQuerySchema = z.object({
-  subject_type: z.enum(contractSubjectTypes).optional(),
-  subject_id: z.string().uuid().optional()
-});
+const contractQuerySchema = z
+  .object({
+    subject_type: z.enum(contractSubjectTypes).optional(),
+    subject_id: z.string().uuid().optional()
+  })
+  .merge(paginationQuery);
 
 const uploadFieldsSchema = z.object({
   note: z.string().trim().min(1).optional(),
@@ -98,13 +101,34 @@ export async function registerContractRoutes(app: FastifyInstance): Promise<void
       filters.push(eq(contracts.subjectId, query.subject_id));
     }
 
-    const rows = await db
-      .select()
-      .from(contracts)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(desc(contracts.createdAt));
+    const pagination = getPagination(query);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(contracts)
+          .where(whereClause)
+          .orderBy(desc(contracts.createdAt))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(contracts)
+          .where(whereClause)
+          .orderBy(desc(contracts.createdAt));
 
-    return { contracts: rows.map(serializeContract) };
+    if (!pagination.paginate) {
+      return { contracts: rows.map(serializeContract) };
+    }
+
+    const [totalRow] = await db.select({ value: count() }).from(contracts).where(whereClause);
+
+    return {
+      contracts: rows.map(serializeContract),
+      total: totalRow?.value ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/contracts/:id", { preHandler: requirePerm("document.view") }, async (request, reply) => {

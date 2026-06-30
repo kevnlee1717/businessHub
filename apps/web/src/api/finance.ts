@@ -58,13 +58,15 @@ export type BillingListParams = {
   ref_type?: string | null | undefined;
   ref_id?: string | null | undefined;
   status?: string | null | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
 };
 
-function queryString(params: Record<string, string | null | undefined>) {
+function queryString(params: Record<string, string | number | null | undefined>) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    const trimmed = typeof value === "string" ? value.trim() : "";
+    const trimmed = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
 
     if (trimmed) {
       searchParams.set(key, trimmed);
@@ -75,8 +77,13 @@ function queryString(params: Record<string, string | null | undefined>) {
   return query ? `?${query}` : "";
 }
 
-export function listBilling(params: BillingListParams = {}): Promise<{ billings: Billing[] }> {
-  return api<{ billings: Billing[] }>(`/billing${queryString(params)}`);
+export function listBilling(params: BillingListParams = {}): Promise<{
+  billings: Billing[];
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+}> {
+  return api(`/billing${queryString(params)}`);
 }
 
 export function getBilling(id: string): Promise<BillingDetail> {

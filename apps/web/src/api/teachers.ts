@@ -1,5 +1,6 @@
 import { type TeacherCreateInput, type TeacherUpdateInput } from "@bh/shared";
 import { api } from "./client";
+import { type PaginationMeta, type PaginationParams } from "./education";
 
 export type Teacher = {
   id: string;
@@ -11,8 +12,23 @@ export type Teacher = {
   created_at: string;
 };
 
-export function listTeachers(activeOnly?: boolean): Promise<{ teachers: Teacher[] }> {
-  return api<{ teachers: Teacher[] }>(`/teachers${activeOnly ? "?active=true" : ""}`);
+export function listTeachers(
+  activeOnly?: boolean,
+  params: PaginationParams = {}
+): Promise<{ teachers: Teacher[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  if (activeOnly) {
+    searchParams.set("active", "true");
+  }
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+  if (params.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+
+  const query = searchParams.toString();
+  return api<{ teachers: Teacher[] } & PaginationMeta>(`/teachers${query ? `?${query}` : ""}`);
 }
 
 export function createTeacher(body: TeacherCreateInput): Promise<{ teacher: Teacher }> {

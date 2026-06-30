@@ -1,15 +1,16 @@
 import { businesses, db, schemeVersions } from "@bh/db";
 import { businessCreateSchema, businessUpdateSchema } from "@bh/shared";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const businessQuerySchema = z.object({
   company_id: z.string().uuid().optional()
-});
+}).merge(paginationQuery);
 
 function serializeVersionBrief(row: typeof schemeVersions.$inferSelect | null | undefined) {
   if (!row) {
@@ -60,15 +61,44 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       filters.push(eq(businesses.companyId, query.company_id));
     }
 
-    const rows = await db
-      .select({
-        business: businesses,
-        defaultVersion: schemeVersions
-      })
-      .from(businesses)
-      .leftJoin(schemeVersions, eq(businesses.defaultVersionId, schemeVersions.id))
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(businesses.sortOrder, businesses.createdAt);
+    const pagination = getPagination(query);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select({
+            business: businesses,
+            defaultVersion: schemeVersions
+          })
+          .from(businesses)
+          .leftJoin(schemeVersions, eq(businesses.defaultVersionId, schemeVersions.id))
+          .where(whereClause)
+          .orderBy(businesses.sortOrder, businesses.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select({
+            business: businesses,
+            defaultVersion: schemeVersions
+          })
+          .from(businesses)
+          .leftJoin(schemeVersions, eq(businesses.defaultVersionId, schemeVersions.id))
+          .where(whereClause)
+          .orderBy(businesses.sortOrder, businesses.createdAt);
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(businesses).where(whereClause);
+
+      return {
+        businesses: rows.map((row) => ({
+          ...serializeBusiness(row.business),
+          default_version: serializeVersionBrief(row.defaultVersion),
+          profit_rate: row.defaultVersion?.profitRate ?? null
+        })),
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
 
     return {
       businesses: rows.map((row) => ({

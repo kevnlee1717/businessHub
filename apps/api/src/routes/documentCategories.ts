@@ -1,8 +1,9 @@
 import { db, documentCategories } from "@bh/db";
 import { documentCategoryCreateSchema, documentCategoryUpdateSchema } from "@bh/shared";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 function serializeCategory(row: typeof documentCategories.$inferSelect) {
@@ -20,13 +21,33 @@ function serializeCategory(row: typeof documentCategories.$inferSelect) {
 export async function registerDocumentCategoryRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/document-categories", { preHandler: requirePerm("document.view") }, async () => {
-    const rows = await db
-      .select()
-      .from(documentCategories)
-      .orderBy(desc(documentCategories.active), asc(documentCategories.name));
+  app.get("/document-categories", { preHandler: requirePerm("document.view") }, async (request) => {
+    const query = parseWithSchema(paginationQuery, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(documentCategories)
+          .orderBy(desc(documentCategories.active), asc(documentCategories.name))
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(documentCategories)
+          .orderBy(desc(documentCategories.active), asc(documentCategories.name));
 
-    return { categories: rows.map(serializeCategory) };
+    if (!pagination.paginate) {
+      return { categories: rows.map(serializeCategory) };
+    }
+
+    const [totalRow] = await db.select({ value: count() }).from(documentCategories);
+
+    return {
+      categories: rows.map(serializeCategory),
+      total: totalRow?.value ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.post("/document-categories", { preHandler: requirePerm("document.manage") }, async (request, reply) => {

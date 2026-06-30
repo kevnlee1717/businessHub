@@ -1,9 +1,13 @@
 import { db, workShifts } from "@bh/db";
 import { workShiftCreateSchema, workShiftUpdateSchema } from "@bh/shared";
-import { eq, ne } from "drizzle-orm";
+import { count, eq, ne } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const workShiftQuerySchema = z.object({}).merge(paginationQuery);
 
 function serializeWorkShift(shift: typeof workShifts.$inferSelect) {
   return {
@@ -20,9 +24,30 @@ function serializeWorkShift(shift: typeof workShifts.$inferSelect) {
 export async function registerWorkShiftRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/work-shifts", async () => {
-    const rows = await db.select().from(workShifts).orderBy(workShifts.createdAt);
-    return { work_shifts: rows.map(serializeWorkShift) };
+  app.get("/work-shifts", async (request) => {
+    const query = parseWithSchema(workShiftQuerySchema, request.query);
+    const pagination = getPagination(query);
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(workShifts)
+          .orderBy(workShifts.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db.select().from(workShifts).orderBy(workShifts.createdAt);
+
+    if (!pagination.paginate) {
+      return { work_shifts: rows.map(serializeWorkShift) };
+    }
+
+    const [totalRow] = await db.select({ total: count() }).from(workShifts);
+
+    return {
+      work_shifts: rows.map(serializeWorkShift),
+      total: totalRow?.total ?? 0,
+      page: pagination.page,
+      page_size: pagination.pageSize
+    };
   });
 
   app.get("/work-shifts/:id", async (request, reply) => {

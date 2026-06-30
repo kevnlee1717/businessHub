@@ -12,15 +12,14 @@ import {
   Stack,
   Table,
   Text,
-  TextInput,
-  Title
+  TextInput
 } from "@mantine/core";
 import {
   documentCategoryCreateSchema,
   type DocumentCategoryCreateInput,
   type DocumentCategoryUpdateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -30,6 +29,8 @@ import {
   updateDocumentCategory,
   type DocumentCategory
 } from "../../api/dms";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type CategoryFormValues = {
   name?: string | undefined;
@@ -61,10 +62,12 @@ export function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<DocumentCategory | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const categoriesQuery = useQuery({
-    queryKey: categoriesQueryKey,
-    queryFn: listDocumentCategories
+    queryKey: [...categoriesQueryKey, page, pageSize],
+    queryFn: () => listDocumentCategories({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(documentCategoryCreateSchema) as Resolver<CategoryFormValues>,
@@ -87,6 +90,7 @@ export function CategoriesPage() {
   });
 
   const categories = categoriesQuery.data?.categories ?? [];
+  const totalCategories = categoriesQuery.data?.total ?? categories.length;
   const errors = form.formState.errors;
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -202,6 +206,13 @@ export function CategoriesPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalCategories}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Modal
         opened={modalOpened}

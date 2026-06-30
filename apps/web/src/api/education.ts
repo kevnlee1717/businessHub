@@ -26,6 +26,27 @@ import {
 } from "@bh/shared";
 import { api } from "./client";
 
+export type PaginationParams = {
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+export type PaginationMeta = {
+  total?: number | undefined;
+  page?: number | undefined;
+  page_size?: number | undefined;
+};
+
+function appendPaginationParams(searchParams: URLSearchParams, params?: PaginationParams) {
+  if (params?.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+
+  if (params?.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+}
+
 export type Student = {
   id: string;
   name: string;
@@ -169,7 +190,7 @@ export type AcademyCollection = {
   period: string;
   summary: AcademyCollectionSummary;
   rows: AcademyCollectionRow[];
-};
+} & PaginationMeta;
 
 export type AcademyOverdueRow = {
   payment_id: string;
@@ -186,7 +207,7 @@ export type AcademyOverdue = {
   as_of_period: string;
   total_outstanding: number | string;
   rows: AcademyOverdueRow[];
-};
+} & PaginationMeta;
 
 export type AcademyHealth = {
   period: string;
@@ -291,17 +312,21 @@ export type EnglishAttendanceSummary = {
 };
 
 export type EnglishClassListParams = {
-  level_id?: string;
-  teacher_id?: string;
-};
+  level_id?: string | undefined;
+  teacher_id?: string | undefined;
+} & PaginationParams;
 
 export type EnglishEnrollmentListParams = {
-  class_id?: string;
-  student_id?: string;
-};
+  class_id?: string | undefined;
+  student_id?: string | undefined;
+} & PaginationParams;
 
-export function listStudents(): Promise<{ students: Student[] }> {
-  return api<{ students: Student[] }>("/students");
+export function listStudents(params: PaginationParams = {}): Promise<{ students: Student[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+
+  const query = searchParams.toString();
+  return api<{ students: Student[] } & PaginationMeta>(`/students${query ? `?${query}` : ""}`);
 }
 
 export function createStudent(body: StudentCreateInput): Promise<{ student: Student }> {
@@ -318,15 +343,22 @@ export function updateStudent(id: string, body: StudentUpdateInput): Promise<{ s
   });
 }
 
-export function listDiplomaEnrollments(student_id?: string): Promise<{ enrollments: DiplomaEnrollment[] }> {
+export type DiplomaEnrollmentListParams = PaginationParams & {
+  student_id?: string | undefined;
+};
+
+export function listDiplomaEnrollments(
+  params: DiplomaEnrollmentListParams = {}
+): Promise<{ enrollments: DiplomaEnrollment[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
-  if (student_id) {
-    searchParams.set("student_id", student_id);
+  if (params.student_id) {
+    searchParams.set("student_id", params.student_id);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ enrollments: DiplomaEnrollment[] }>(`/diploma-enrollments${query ? `?${query}` : ""}`);
+  return api<{ enrollments: DiplomaEnrollment[] } & PaginationMeta>(`/diploma-enrollments${query ? `?${query}` : ""}`);
 }
 
 export function createDiplomaEnrollment(
@@ -401,21 +433,23 @@ export function updateDiplomaPayment(
   });
 }
 
-export function getAcademyCollection(period?: string): Promise<AcademyCollection> {
+export function getAcademyCollection(period?: string, params: PaginationParams = {}): Promise<AcademyCollection> {
   const searchParams = new URLSearchParams();
   if (period) {
     searchParams.set("period", period);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
   return api<AcademyCollection>(`/academy/collection${query ? `?${query}` : ""}`);
 }
 
-export function getAcademyOverdue(asOf?: string): Promise<AcademyOverdue> {
+export function getAcademyOverdue(asOf?: string, params: PaginationParams = {}): Promise<AcademyOverdue> {
   const searchParams = new URLSearchParams();
   if (asOf) {
     searchParams.set("as_of", asOf);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
   return api<AcademyOverdue>(`/academy/overdue${query ? `?${query}` : ""}`);
@@ -458,8 +492,14 @@ export function uploadDiplomaMedia(enrollmentId: string, files: File[]): Promise
   return multipartApi<{ enrollment: DiplomaEnrollment }>(`/diploma-enrollments/${enrollmentId}/media`, formData);
 }
 
-export function listDiplomaPrograms(): Promise<{ programs: DiplomaProgram[] }> {
-  return api<{ programs: DiplomaProgram[] }>("/diploma-programs");
+export function listDiplomaPrograms(
+  params: PaginationParams = {}
+): Promise<{ programs: DiplomaProgram[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+
+  const query = searchParams.toString();
+  return api<{ programs: DiplomaProgram[] } & PaginationMeta>(`/diploma-programs${query ? `?${query}` : ""}`);
 }
 
 export function createDiplomaProgram(body: DiplomaProgramCreateInput): Promise<{ program: DiplomaProgram }> {
@@ -485,14 +525,18 @@ export function deleteDiplomaProgram(id: string): Promise<{ ok: true }> {
   });
 }
 
-export function listDiplomaCourses(programId?: string | null): Promise<{ courses: DiplomaCourse[] }> {
+export function listDiplomaCourses(
+  programId?: string | null,
+  params: PaginationParams = {}
+): Promise<{ courses: DiplomaCourse[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
   if (programId) {
     searchParams.set("program_id", programId);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ courses: DiplomaCourse[] }>(`/diploma-courses${query ? `?${query}` : ""}`);
+  return api<{ courses: DiplomaCourse[] } & PaginationMeta>(`/diploma-courses${query ? `?${query}` : ""}`);
 }
 
 export function createDiplomaCourse(body: DiplomaCourseCreateInput): Promise<{ course: DiplomaCourse }> {
@@ -553,8 +597,12 @@ export function listDiplomaCourseEnrollments(courseId: string): Promise<{ enroll
   return api<{ enrollments: DiplomaEnrollment[] }>(`/diploma-courses/${courseId}/enrollments`);
 }
 
-export function listWsqCourses(): Promise<{ courses: WsqCourse[] }> {
-  return api<{ courses: WsqCourse[] }>("/wsq-courses");
+export function listWsqCourses(params: PaginationParams = {}): Promise<{ courses: WsqCourse[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+
+  const query = searchParams.toString();
+  return api<{ courses: WsqCourse[] } & PaginationMeta>(`/wsq-courses${query ? `?${query}` : ""}`);
 }
 
 export function createWsqCourse(body: WsqCourseCreateInput): Promise<{ course: WsqCourse }> {
@@ -588,8 +636,12 @@ export function deleteWsqEnrollment(id: string): Promise<{ ok: true }> {
   });
 }
 
-export function listEnglishLevels(): Promise<{ levels: EnglishLevel[] }> {
-  return api<{ levels: EnglishLevel[] }>("/english-levels");
+export function listEnglishLevels(params: PaginationParams = {}): Promise<{ levels: EnglishLevel[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  appendPaginationParams(searchParams, params);
+
+  const query = searchParams.toString();
+  return api<{ levels: EnglishLevel[] } & PaginationMeta>(`/english-levels${query ? `?${query}` : ""}`);
 }
 
 export function createEnglishLevel(body: EnglishLevelCreateInput): Promise<{ level: EnglishLevel }> {
@@ -611,7 +663,7 @@ export function updateEnglishLevel(
 
 export function listEnglishClasses(
   params: EnglishClassListParams = {}
-): Promise<{ classes: EnglishClass[] }> {
+): Promise<{ classes: EnglishClass[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (params.level_id) {
@@ -621,9 +673,10 @@ export function listEnglishClasses(
   if (params.teacher_id) {
     searchParams.set("teacher_id", params.teacher_id);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ classes: EnglishClass[] }>(`/english-classes${query ? `?${query}` : ""}`);
+  return api<{ classes: EnglishClass[] } & PaginationMeta>(`/english-classes${query ? `?${query}` : ""}`);
 }
 
 export function createEnglishClass(body: EnglishClassCreateInput): Promise<{ class: EnglishClass }> {
@@ -649,7 +702,7 @@ export function listClassEnrollments(classId: string): Promise<{ enrollments: En
 
 export function listEnglishEnrollments(
   params: EnglishEnrollmentListParams = {}
-): Promise<{ enrollments: EnglishEnrollment[] }> {
+): Promise<{ enrollments: EnglishEnrollment[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
 
   if (params.class_id) {
@@ -659,9 +712,10 @@ export function listEnglishEnrollments(
   if (params.student_id) {
     searchParams.set("student_id", params.student_id);
   }
+  appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
-  return api<{ enrollments: EnglishEnrollment[] }>(`/english-enrollments${query ? `?${query}` : ""}`);
+  return api<{ enrollments: EnglishEnrollment[] } & PaginationMeta>(`/english-enrollments${query ? `?${query}` : ""}`);
 }
 
 export function createEnglishEnrollment(

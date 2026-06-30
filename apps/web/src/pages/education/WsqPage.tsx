@@ -26,7 +26,7 @@ import {
   type WsqCourseUpdateInput,
   type WsqEnrollmentCreateInput
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -42,7 +42,9 @@ import {
 } from "../../api/education";
 import { useCan } from "../../auth/permissions";
 import { StudentSelect } from "../../components/StudentSelect";
+import { TablePagination } from "../../components/TablePagination";
 import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
+import { usePagination } from "../../hooks/usePagination";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
 type CourseFormValues = {
@@ -107,15 +109,17 @@ export function WsqPage() {
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [enrollmentFormError, setEnrollmentFormError] = useState<string | null>(null);
   const canManageEducation = useCan("education.manage");
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const studentsQuery = useQuery({
     queryKey: studentsQueryKey,
-    queryFn: listStudents
+    queryFn: () => listStudents()
   });
 
   const coursesQuery = useQuery({
-    queryKey: wsqCoursesQueryKey,
-    queryFn: listWsqCourses
+    queryKey: [...wsqCoursesQueryKey, page, pageSize],
+    queryFn: () => listWsqCourses({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData
   });
 
   const enrollmentsQuery = useQuery({
@@ -179,6 +183,7 @@ export function WsqPage() {
   });
 
   const courses = coursesQuery.data?.courses ?? [];
+  const totalCourses = coursesQuery.data?.total ?? courses.length;
   const students = studentsQuery.data?.students ?? [];
   const enrollments = enrollmentsQuery.data?.enrollments ?? [];
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
@@ -376,6 +381,13 @@ export function WsqPage() {
               </Table.Tbody>
             </Table>
           </ScrollArea>
+          <TablePagination
+            total={totalCourses}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </Paper>
 
         <Paper withBorder radius="md" p="md">

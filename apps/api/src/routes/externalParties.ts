@@ -1,15 +1,16 @@
 import { randomBytes } from "node:crypto";
 import { db, externalParties } from "@bh/db";
 import { externalPartyCreateSchema, externalPartyUpdateSchema } from "@bh/shared";
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const externalPartiesQuerySchema = z.object({
   party_id: z.string().uuid().optional()
-});
+}).merge(paginationQuery);
 
 function statementToken() {
   return randomBytes(24).toString("hex");
@@ -40,11 +41,32 @@ export async function registerExternalPartyRoutes(app: FastifyInstance): Promise
       filters.push(eq(externalParties.partyId, query.party_id));
     }
 
-    const rows = await db
-      .select()
-      .from(externalParties)
-      .where(filters.length > 0 ? and(...filters) : sql`true`)
-      .orderBy(externalParties.createdAt);
+    const pagination = getPagination(query);
+    const whereClause = filters.length > 0 ? and(...filters) : sql`true`;
+    const rows = pagination.paginate
+      ? await db
+          .select()
+          .from(externalParties)
+          .where(whereClause)
+          .orderBy(externalParties.createdAt)
+          .limit(pagination.limit)
+          .offset(pagination.offset)
+      : await db
+          .select()
+          .from(externalParties)
+          .where(whereClause)
+          .orderBy(externalParties.createdAt);
+
+    if (pagination.paginate) {
+      const [totalRow] = await db.select({ total: count() }).from(externalParties).where(whereClause);
+
+      return {
+        external_parties: rows.map(serializeExternalParty),
+        total: Number(totalRow?.total ?? 0),
+        page: pagination.page,
+        page_size: pagination.pageSize
+      };
+    }
 
     return { external_parties: rows.map(serializeExternalParty) };
   });

@@ -3,17 +3,22 @@ import { and, asc, eq, ilike, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import { getPagination, paginationQuery } from "../lib/pagination";
 import { parseWithSchema } from "./hrUtils";
 
 const periodSchema = z.string().regex(/^\d{4}-\d{2}$/);
 
-const collectionQuerySchema = z.object({
-  period: periodSchema.optional()
-});
+const collectionQuerySchema = z
+  .object({
+    period: periodSchema.optional()
+  })
+  .merge(paginationQuery);
 
-const overdueQuerySchema = z.object({
-  as_of: periodSchema.optional()
-});
+const overdueQuerySchema = z
+  .object({
+    as_of: periodSchema.optional()
+  })
+  .merge(paginationQuery);
 
 const healthQuerySchema = z.object({
   period: periodSchema.optional()
@@ -46,6 +51,7 @@ export async function registerAcademyFinanceRoutes(app: FastifyInstance): Promis
   app.get("/academy/collection", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(collectionQuerySchema, request.query);
     const period = query.period ?? currentSgtPeriod();
+    const pagination = getPagination(query);
 
     const rows = await db
       .select({
@@ -68,6 +74,20 @@ export async function registerAcademyFinanceRoutes(app: FastifyInstance): Promis
     const expectedTotal = rows.reduce((sum, row) => sum + moneyNumber(row.amount), 0);
     const collectedTotal = rows.filter((row) => row.paid).reduce((sum, row) => sum + moneyNumber(row.amount), 0);
     const paidCount = rows.filter((row) => row.paid).length;
+    const serializedRows = rows.map((row) => ({
+      payment_id: row.paymentId,
+      enrollment_id: row.enrollmentId,
+      student_id: row.studentId,
+      student_name: row.studentName,
+      program: row.program,
+      amount: money(row.amount),
+      paid: row.paid,
+      paid_at: row.paidAt,
+      period: row.period
+    }));
+    const pageRows = pagination.paginate
+      ? serializedRows.slice(pagination.offset, pagination.offset + pagination.limit)
+      : serializedRows;
 
     return {
       period,
@@ -80,23 +100,21 @@ export async function registerAcademyFinanceRoutes(app: FastifyInstance): Promis
         paid_count: paidCount,
         unpaid_count: rows.length - paidCount
       },
-      rows: rows.map((row) => ({
-        payment_id: row.paymentId,
-        enrollment_id: row.enrollmentId,
-        student_id: row.studentId,
-        student_name: row.studentName,
-        program: row.program,
-        amount: money(row.amount),
-        paid: row.paid,
-        paid_at: row.paidAt,
-        period: row.period
-      }))
+      rows: pageRows,
+      ...(pagination.paginate
+        ? {
+            total: serializedRows.length,
+            page: pagination.page,
+            page_size: pagination.pageSize
+          }
+        : {})
     };
   });
 
   app.get("/academy/overdue", { preHandler: requirePerm("education.view") }, async (request) => {
     const query = parseWithSchema(overdueQuerySchema, request.query);
     const asOfPeriod = query.as_of ?? currentSgtPeriod();
+    const pagination = getPagination(query);
 
     const rows = await db
       .select({
@@ -129,11 +147,21 @@ export async function registerAcademyFinanceRoutes(app: FastifyInstance): Promis
       }))
       .sort((left, right) => right.overdue_months - left.overdue_months || Number(left.graduated) - Number(right.graduated))
       .map(({ graduated, ...row }) => row);
+    const pageRows = pagination.paginate
+      ? serializedRows.slice(pagination.offset, pagination.offset + pagination.limit)
+      : serializedRows;
 
     return {
       as_of_period: asOfPeriod,
       total_outstanding: money(rows.reduce((sum, row) => sum + moneyNumber(row.amount), 0)),
-      rows: serializedRows
+      rows: pageRows,
+      ...(pagination.paginate
+        ? {
+            total: serializedRows.length,
+            page: pagination.page,
+            page_size: pagination.pageSize
+          }
+        : {})
     };
   });
 

@@ -1,9 +1,12 @@
 import { Alert, Badge, Box, Button, Container, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { getStatement, type StatementStatus } from "../api/statement";
+import { TablePagination } from "../components/TablePagination";
+import { usePagination } from "../hooks/usePagination";
 
 function displayName(name?: string | null, nameEn?: string | null) {
   if (!name && !nameEn) {
@@ -72,6 +75,11 @@ export function StatementPage() {
     queryFn: () => getStatement(token),
     retry: false
   });
+  const { page, pageSize, setPage, setPageSize } = usePagination(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [token, setPage]);
 
   if (statementQuery.isLoading) {
     return (
@@ -108,6 +116,8 @@ export function StatementPage() {
   if (!statement) {
     return null;
   }
+
+  const visibleEntries = statement.entries.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <Box className="app-section" data-section="finance">
@@ -158,7 +168,7 @@ export function StatementPage() {
                       </Table.Td>
                     </Table.Tr>
                   ) : (
-                    statement.entries.map((entry, index) => {
+                    visibleEntries.map((entry, index) => {
                       const status = settlementStatus(entry);
 
                       return (
@@ -183,6 +193,7 @@ export function StatementPage() {
                 </Table.Tbody>
               </Table>
             </ScrollArea>
+            <TablePagination total={statement.entries.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
           </Paper>
         </Stack>
       </Container>

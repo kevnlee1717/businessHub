@@ -27,7 +27,7 @@ import {
   type ContractSubjectType,
   type ContractVersionStatus
 } from "@bh/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -41,6 +41,8 @@ import {
   type Contract,
   type ContractVersion
 } from "../../api/dms";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type ContractFormValues = {
   subject_type?: string | undefined;
@@ -85,10 +87,17 @@ export function ContractsPage() {
   const [uploadNote, setUploadNote] = useState("");
   const [uploadStatus, setUploadStatus] = useState<string | null>("draft");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const contractsQuery = useQuery({
-    queryKey: ["documents", "contracts", subjectTypeFilter],
-    queryFn: () => listContracts({ subject_type: subjectTypeFilter })
+    queryKey: ["documents", "contracts", subjectTypeFilter, page, pageSize],
+    queryFn: () =>
+      listContracts({
+        subject_type: subjectTypeFilter,
+        page,
+        page_size: pageSize
+      }),
+    placeholderData: keepPreviousData
   });
   const detailQuery = useQuery({
     queryKey: ["documents", "contract", selectedContractId],
@@ -144,6 +153,7 @@ export function ContractsPage() {
   });
 
   const contracts = contractsQuery.data?.contracts ?? [];
+  const totalContracts = contractsQuery.data?.total ?? contracts.length;
   const detail = detailQuery.data;
   const selectedContract = detail?.contract;
   const versions = detail?.versions ?? [];
@@ -172,6 +182,11 @@ export function ContractsPage() {
     setModalOpened(false);
     setFormError(null);
     form.reset(getContractDefaults());
+  }
+
+  function updateSubjectTypeFilter(value: string | null) {
+    setSubjectTypeFilter(value);
+    setPage(1);
   }
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -246,7 +261,7 @@ export function ContractsPage() {
           placeholder={t("common.all")}
           data={subjectTypeOptions}
           value={subjectTypeFilter}
-          onChange={setSubjectTypeFilter}
+          onChange={updateSubjectTypeFilter}
           clearable
         />
       </Paper>
@@ -311,6 +326,13 @@ export function ContractsPage() {
           </Table>
         </ScrollArea>
       </Paper>
+      <TablePagination
+        total={totalContracts}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {selectedContractId ? (
         <Paper withBorder radius="md" p="md">

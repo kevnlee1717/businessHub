@@ -26,7 +26,7 @@ import {
   type CommissionRecurrence,
   type CommissionType
 } from "@bh/shared";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listBusinesses, type Business } from "../../api/businessSchemes";
@@ -49,6 +49,8 @@ import {
   type Company,
   type Employee
 } from "../../api/hr";
+import { TablePagination } from "../../components/TablePagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type AssignmentDraft = {
   commission_type: CommissionType | null;
@@ -165,14 +167,15 @@ export function SalesCommissionPage() {
   const [manualOpened, setManualOpened] = useState(false);
   const [manualDraft, setManualDraft] = useState<ManualEntryDraft>(() => getManualEntryDefaults(null, ""));
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
 
   const employeesQuery = useQuery({
     queryKey: salesQueryKey,
-    queryFn: listEmployees
+    queryFn: () => listEmployees()
   });
   const companiesQuery = useQuery({
     queryKey: ["hr", "companies"],
-    queryFn: listCompanies
+    queryFn: () => listCompanies()
   });
   const businessesQuery = useQuery({
     queryKey: ["business-finance", "businesses"],
@@ -189,15 +192,20 @@ export function SalesCommissionPage() {
       entrySalesFilter,
       periodFilter.trim(),
       entryBusinessFilter,
-      entryStatusFilter
+      entryStatusFilter,
+      page,
+      pageSize
     ],
     queryFn: () =>
       listCommissionEntries({
         sales_id: entrySalesFilter,
         period: periodFilter.trim() || null,
         business_id: entryBusinessFilter,
-        status: entryStatusFilter
-      })
+        status: entryStatusFilter,
+        page,
+        page_size: pageSize
+      }),
+    placeholderData: keepPreviousData
   });
 
   const employees = employeesQuery.data?.employees ?? [];
@@ -208,6 +216,7 @@ export function SalesCommissionPage() {
   const assignments = assignmentsQuery.data?.assignments ?? [];
   const entries = entriesQuery.data?.entries ?? [];
   const totals = entriesQuery.data?.totals ?? {};
+  const totalEntries = entriesQuery.data?.total ?? entries.length;
   const companyById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const businessById = useMemo(() => new Map(businesses.map((business) => [business.id, business])), [businesses]);
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
@@ -573,7 +582,10 @@ export function SalesCommissionPage() {
                     label={t("commission.fields.sales")}
                     data={salesOptions}
                     value={entrySalesFilter}
-                    onChange={setEntrySalesFilter}
+                    onChange={(value) => {
+                      setEntrySalesFilter(value);
+                      setPage(1);
+                    }}
                     searchable
                     clearable
                   />
@@ -581,13 +593,19 @@ export function SalesCommissionPage() {
                     label={t("commission.fields.period")}
                     placeholder="YYYY-MM"
                     value={periodFilter}
-                    onChange={(event) => setPeriodFilter(event.currentTarget.value)}
+                    onChange={(event) => {
+                      setPeriodFilter(event.currentTarget.value);
+                      setPage(1);
+                    }}
                   />
                   <Select
                     label={t("commission.fields.business")}
                     data={businessOptions}
                     value={entryBusinessFilter}
-                    onChange={setEntryBusinessFilter}
+                    onChange={(value) => {
+                      setEntryBusinessFilter(value);
+                      setPage(1);
+                    }}
                     searchable
                     clearable
                   />
@@ -595,7 +613,10 @@ export function SalesCommissionPage() {
                     label={t("commission.fields.status")}
                     data={statusOptions}
                     value={entryStatusFilter}
-                    onChange={(value) => setEntryStatusFilter(value as CommissionEntryStatus | null)}
+                    onChange={(value) => {
+                      setEntryStatusFilter(value as CommissionEntryStatus | null);
+                      setPage(1);
+                    }}
                     clearable
                   />
                 </Group>
@@ -688,6 +709,13 @@ export function SalesCommissionPage() {
                   </Table.Tbody>
                 </Table>
               </ScrollArea>
+              <TablePagination
+                total={totalEntries}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
             </Paper>
           </Stack>
         </Tabs.Panel>
