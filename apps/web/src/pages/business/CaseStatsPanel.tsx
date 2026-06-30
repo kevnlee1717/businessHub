@@ -44,6 +44,23 @@ export function CaseStatsPanel() {
   });
 
   const loadError = availableYearsQuery.error ?? yearlyStatsQueries.find((query) => query.error)?.error;
+  const monthsByYear = new Map<number, { month: number; count: number }[]>();
+  availableYears.forEach((year, index) => {
+    monthsByYear.set(year, yearlyStatsQueries[index]?.data?.months ?? []);
+  });
+  const yearsAsc = [...availableYears].sort((a, b) => a - b);
+  const flatTrend = yearsAsc.flatMap((year) => {
+    const months = monthsByYear.get(year) ?? [];
+    return Array.from({ length: 12 }, (_value, monthIndex) => {
+      const month = monthIndex + 1;
+      const item = months.find((entry) => entry.month === month);
+      return { label: `${year}/${String(month).padStart(2, "0")}`, count: item?.count ?? 0 };
+    });
+  });
+  const firstIdx = flatTrend.findIndex((point) => point.count > 0);
+  const lastIdx = flatTrend.reduce((acc, point, index) => (point.count > 0 ? index : acc), -1);
+  const trendData = firstIdx === -1 ? [] : flatTrend.slice(firstIdx, lastIdx + 1);
+  const trendTotal = flatTrend.reduce((sum, point) => sum + point.count, 0);
 
   return (
     <Paper p="md">
@@ -112,36 +129,23 @@ export function CaseStatsPanel() {
           </Stack>
         ) : null}
 
-        {availableYears.map((year, index) => {
-          const stats = yearlyStatsQueries[index]?.data;
-          const chartData = Array.from({ length: 12 }, (_value, monthIndex) => {
-            const month = monthIndex + 1;
-            const item = stats?.months.find((entry) => entry.month === month);
-
-            return {
-              month: t("case.stats.month", { month }),
-              count: item?.count ?? 0
-            };
-          });
-
-          return (
-            <Stack key={year} gap="xs">
-              <Title order={4}>{t("case.stats.total", { year, count: stats?.total ?? 0 })}</Title>
-              <BarChart
-                h={320}
-                data={chartData}
-                dataKey="month"
-                series={[{ name: "count", label: t("case.stats.count"), color: "teal.6" }]}
-                tickLine="y"
-                gridAxis="xy"
-                withLegend={false}
-                withBarValueLabel
-                valueLabelProps={{ position: "top" }}
-                barChartProps={{ margin: { top: 24 } }}
-              />
-            </Stack>
-          );
-        })}
+        {trendData.length > 0 ? (
+          <Stack gap="xs">
+            <Title order={4}>{t("icaStats.trendTitle", { count: trendTotal })}</Title>
+            <BarChart
+              h={340}
+              data={trendData}
+              dataKey="label"
+              series={[{ name: "count", label: t("icaStats.newCases"), color: "teal.6" }]}
+              tickLine="y"
+              gridAxis="xy"
+              withLegend={false}
+              withBarValueLabel
+              valueLabelProps={{ position: "top" }}
+              barChartProps={{ margin: { top: 24 } }}
+            />
+          </Stack>
+        ) : null}
       </Stack>
     </Paper>
   );
