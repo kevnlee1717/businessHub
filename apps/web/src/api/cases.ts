@@ -1,4 +1,5 @@
 import {
+  type IcaStats,
   type BusinessType,
   type CaseCreateInput,
   type CaseSubmissionCreateInput,
@@ -558,4 +559,8 @@ export function createFollowUp(stepId: string, content: string): Promise<{ follo
     method: "POST",
     body
   });
+}
+
+export function getIcaStats(): Promise<IcaStats> {
+  return api<IcaStats>("/cases/ica-stats");
 }

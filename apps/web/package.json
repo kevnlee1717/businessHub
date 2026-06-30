@@ -12,8 +12,10 @@
   "dependencies": {
     "@bh/shared": "workspace:*",
     "@hookform/resolvers": "^3.10.0",
+    "@mantine/charts": "^7.17.0",
     "@mantine/core": "^7.17.0",
     "@mantine/hooks": "^7.17.0",
+    "recharts": "^2.13.0",
     "@tanstack/react-query": "^5.0.0",
     "i18next": "^23.0.0",
     "leaflet": "^1.9.4",

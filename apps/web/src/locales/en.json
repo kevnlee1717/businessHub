@@ -242,7 +242,8 @@
       "cases": "Cases",
       "clients": "Clients",
       "templates": "Workflow templates",
-      "guarantors": "Guarantors"
+      "guarantors": "Guarantors",
+      "stats": "Stats"
     }
   },
   "teachers": {
@@ -2228,5 +2229,15 @@
       "pass": "Pass",
       "fail": "Fail"
     }
+  },
+  "icaStats": {
+    "title": "ICA Statistics",
+    "totalClients": "Total Clients",
+    "approved": "Approved",
+    "rejected": "Rejected (Pending Resubmission)",
+    "pending": "Submitted (Awaiting Result)",
+    "chartTitle": "{{year}}  Total {{count}}",
+    "month": "M{{month}}",
+    "newCases": "New Cases"
   }
 }
