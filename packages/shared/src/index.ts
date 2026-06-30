@@ -8,6 +8,7 @@ export * from "./finance/splitCommissionByMilestones";
 export * from "./permissions";
 export * from "./reapply";
 export * from "./schemas/auth";
+export * from "./schemas/brochures";
 export * from "./schemas/cases";
 export * from "./schemas/collectionItems";
 export * from "./schemas/commission";

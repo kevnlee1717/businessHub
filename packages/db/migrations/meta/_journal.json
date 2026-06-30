@@ -302,6 +302,13 @@
       "when": 1782798365804,
       "tag": "0042_majestic_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1782808534250,
+      "tag": "0043_broken_whiplash",
+      "breakpoints": true
     }
   ]
 }

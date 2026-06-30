@@ -29,6 +29,8 @@ export const permissions = [
   "education.view",
   "franchise.manage",
   "franchise.view",
+  "brochure.manage",
+  "brochure.view",
   "recruitment.manage",
   "recruitment.view",
   "recruitment.candidate.manage"
@@ -69,6 +71,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "education.view",
     "franchise.manage",
     "franchise.view",
+    "brochure.manage",
+    "brochure.view",
     "recruitment.manage",
     "recruitment.view",
     "recruitment.candidate.manage"
@@ -114,7 +118,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "task.view",
     "commission.view_own",
     "franchise.manage",
-    "franchise.view"
+    "franchise.view",
+    "brochure.manage",
+    "brochure.view"
   ],
   teacher: [
     "payslip.view_own",
@@ -261,6 +267,14 @@ export const permissionCatalog: {
     permissions: [
       { key: "franchise.manage", label: "管理加盟业务" },
       { key: "franchise.view", label: "查看加盟业务" }
+    ]
+  },
+  {
+    key: "brochure",
+    label: "宣传册",
+    permissions: [
+      { key: "brochure.manage", label: "管理宣传册" },
+      { key: "brochure.view", label: "查看宣传册" }
     ]
   }
 ];

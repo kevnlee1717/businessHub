@@ -4,6 +4,7 @@ import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AccountPasswordPage } from "./pages/account/AccountPasswordPage";
 import { AccountProfilePage } from "./pages/account/AccountProfilePage";
+import { BrochurePage } from "./pages/brochure/BrochurePage";
 import { ContactDetailPage } from "./pages/franchise/ContactDetailPage";
 import { ContactsPage } from "./pages/franchise/ContactsPage";
 import { FnbSiteDetailPage } from "./pages/franchise/FnbSiteDetailPage";
@@ -128,6 +129,7 @@ export function App() {
             <Route path="contracts" element={<ContractsPage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
+          <Route path="brochure" element={<BrochurePage />} />
           <Route path="finance" element={<FinanceLayout />}>
             <Route index element={<Navigate to="billing" replace />} />
             <Route path="billing" element={<BillingPage />} />

@@ -68,6 +68,7 @@ const navItems: NavItem[] = [
     ]
   },
   { to: "/documents", key: "nav.documents", perm: "document.view" },
+  { to: "/brochure", key: "nav.brochure", perm: "brochure.view" },
   { to: "/recruitment", key: "nav.recruitment", perm: "recruitment.view" },
   {
     key: "nav.finance",
