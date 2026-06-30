@@ -680,10 +680,13 @@
     "fields": {
       "name": "Name",
       "nameEn": "English name",
+      "nationality": "Nationality",
       "phone": "Phone",
       "email": "Email",
       "note": "Note"
-    }
+    },
+    "nameEnHint": "Leave blank to auto-generate pinyin from a Chinese name",
+    "nationalityPlaceholder": "e.g. China / Singapore / Malaysia"
   },
   "guarantor": {
     "title": "Guarantor Library",

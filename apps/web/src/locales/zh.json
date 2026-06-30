@@ -680,10 +680,13 @@
     "fields": {
       "name": "姓名",
       "nameEn": "英文名",
+      "nationality": "国籍",
       "phone": "电话",
       "email": "邮箱",
       "note": "备注"
-    }
+    },
+    "nameEnHint": "留空时,中文名将自动生成拼音",
+    "nationalityPlaceholder": "如:中国 / 新加坡 / 马来西亚"
   },
   "guarantor": {
     "title": "担保人库",

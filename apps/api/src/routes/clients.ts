@@ -2,16 +2,33 @@ import { clients, db } from "@bh/db";
 import { clientCreateSchema, clientUpdateSchema } from "@bh/shared";
 import { count, desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
+import { pinyin } from "pinyin-pro";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+
+const CJK_RE = /[一-鿿]/;
+
+// 中文名客户自动生成拼音英文名:有英文名则用英文名;否则若 name 含中文,转拼音(首字母大写、空格分隔)
+function resolveNameEn(name: string | undefined, nameEn: string | undefined): string | undefined {
+  if (nameEn) {
+    return nameEn;
+  }
+  if (name && CJK_RE.test(name)) {
+    return pinyin(name, { toneType: "none", type: "array" })
+      .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+      .join(" ");
+  }
+  return nameEn;
+}
 
 function serializeClient(client: typeof clients.$inferSelect) {
   return {
     id: client.id,
     name: client.name,
     name_en: client.nameEn,
+    nationality: client.nationality,
     phone: client.phone,
     email: client.email,
     note: client.note,
@@ -68,7 +85,8 @@ export async function registerClientRoutes(app: FastifyInstance): Promise<void> 
       .insert(clients)
       .values({
         name: body.name,
-        nameEn: body.name_en,
+        nameEn: resolveNameEn(body.name, body.name_en),
+        nationality: body.nationality,
         phone: body.phone,
         email: body.email,
         note: body.note
@@ -89,7 +107,8 @@ export async function registerClientRoutes(app: FastifyInstance): Promise<void> 
       .update(clients)
       .set({
         name: body.name,
-        nameEn: body.name_en,
+        nameEn: resolveNameEn(body.name, body.name_en),
+        nationality: body.nationality,
         phone: body.phone,
         email: body.email,
         note: body.note,
