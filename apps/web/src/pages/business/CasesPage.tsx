@@ -117,7 +117,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const { t } = useTranslation();
   const { can } = useAuth();
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<CaseStatus | null>(null);
+  const [statusFilter, setStatusFilter] = useState<CaseStatus | "active" | null>("active");
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [onlyReapply, setOnlyReapply] = useState(false);
   const [signedAtOrder, setSignedAtOrder] = useState<"asc" | "desc" | null>(null);
@@ -143,7 +143,8 @@ export function CasesPage({ businessType }: CasesPageProps) {
     queryFn: () =>
       listCases({
         business_type: businessType,
-        status: statusFilter ?? undefined,
+        status: statusFilter && statusFilter !== "active" ? statusFilter : undefined,
+        status_in: statusFilter === "active" ? "open,in_progress" : undefined,
         client_id: clientFilter ?? undefined,
         order_by: signedAtOrder ? "signed_at" : undefined,
         order: signedAtOrder ?? undefined,
@@ -205,10 +206,13 @@ export function CasesPage({ businessType }: CasesPageProps) {
     [clients]
   );
   const errors = form.formState.errors;
-  const statusOptions = caseStatuses.map((status) => ({
-    value: status,
-    label: t(`caseStatus.${status}`)
-  }));
+  const statusOptions = [
+    { value: "active", label: "在办" },
+    ...caseStatuses.map((status) => ({
+      value: status,
+      label: t(`caseStatus.${status}`)
+    }))
+  ];
   const clientOptions = clients.map((client) => ({
     value: client.id,
     label: displayName(client.name, client.name_en)
@@ -238,7 +242,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   }
 
   function updateStatusFilter(value: string | null) {
-    setStatusFilter(value as CaseStatus | null);
+    setStatusFilter(value as CaseStatus | "active" | null);
     setPage(1);
   }
 
@@ -330,7 +334,6 @@ export function CasesPage({ businessType }: CasesPageProps) {
         <Table miw={1040} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>{t("case.fields.businessType")}</Table.Th>
                 <Table.Th>{t("case.fields.client")}</Table.Th>
                 <Table.Th>{t("case.fields.status")}</Table.Th>
                 {businessType === "ica" && <Table.Th>首次申请</Table.Th>}
@@ -350,7 +353,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 9 : 6}>
+                  <Table.Td colSpan={businessType === "ica" ? 8 : 5}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -358,7 +361,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Tr>
               ) : visibleCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 9 : 6}>
+                  <Table.Td colSpan={businessType === "ica" ? 8 : 5}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
@@ -371,7 +374,6 @@ export function CasesPage({ businessType }: CasesPageProps) {
                     onClick={() => navigate(`/business/cases/${caseItem.id}`)}
                     style={{ cursor: "pointer" }}
                   >
-                    <Table.Td>{t(`businessType.${caseItem.business_type}`)}</Table.Td>
                     <Table.Td>{clientName(clientById.get(caseItem.client_id ?? ""))}</Table.Td>
                     <Table.Td>
                       <Badge color={statusColor(caseItem.status)} variant="light">

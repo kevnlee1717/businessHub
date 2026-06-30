@@ -25,6 +25,7 @@ import {
   stepReviewRequestSchema,
   computeIcaStats,
   computeCaseResultCounts,
+  type CaseStatus,
   type IcaStatsCaseInput
 } from "@bh/shared";
 import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
@@ -183,6 +184,7 @@ const caseQuerySchema = z
   .object({
     business_type: z.enum(businessTypes).optional(),
     status: z.enum(caseStatuses).optional(),
+    status_in: z.string().optional(),
     client_id: z.string().uuid().optional(),
     parent_case_id: z.string().uuid().optional(),
     order_by: z.enum(["signed_at", "created_at"]).optional().default("created_at"),
@@ -304,6 +306,14 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     }
     if (query.status) {
       filters.push(eq(cases.status, query.status));
+    } else if (query.status_in) {
+      const statuses = query.status_in
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value): value is CaseStatus => (caseStatuses as readonly string[]).includes(value));
+      if (statuses.length > 0) {
+        filters.push(inArray(cases.status, statuses));
+      }
     }
     if (query.client_id) {
       filters.push(eq(cases.clientId, query.client_id));

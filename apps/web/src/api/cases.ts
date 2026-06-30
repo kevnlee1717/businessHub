@@ -392,6 +392,7 @@ export function deleteTemplateStep(stepId: string): Promise<{ ok: true }> {
 export function listCases(params: {
   business_type?: BusinessType | undefined;
   status?: CaseStatus | undefined;
+  status_in?: string | undefined;
   client_id?: string | undefined;
   parent_case_id?: string | undefined;
   order_by?: CaseOrderBy | undefined;
@@ -407,6 +408,10 @@ export function listCases(params: {
 
   if (params.status) {
     searchParams.set("status", params.status);
+  }
+
+  if (params.status_in) {
+    searchParams.set("status_in", params.status_in);
   }
 
   if (params.client_id) {
