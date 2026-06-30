@@ -1,13 +1,18 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { db, documents } from "@bh/db";
-import { and, count, desc, eq, gte, ilike, lte, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, lte, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { saveUpload } from "../lib/files";
 import { getPagination, paginationQuery } from "../lib/pagination";
 import { idParamsSchema, parseWithSchema } from "./hrUtils";
+
+// 「文档」模块（检索页 / 客户资料库）只展示公司内部资料。
+// EP/ICA/毕业证等业务文档存在同一张 documents 表但有各自的 subject_type，
+// 通过白名单把它们挡在文档模块之外（数据不删，业务页仍走各自接口查看）。
+export const INTERNAL_DOCUMENT_SUBJECT_TYPES = ["general", "company"] as const;
 
 const documentQuerySchema = z
   .object({
@@ -82,6 +87,10 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     }
     if (query.subject_type) {
       filters.push(eq(documents.subjectType, query.subject_type));
+    } else {
+      // 检索页从不指定 subject_type → 收敛到公司内部资料；
+      // 毕业证/公司tab 等会显式带 subject_type，走上面的分支原样放行。
+      filters.push(inArray(documents.subjectType, [...INTERNAL_DOCUMENT_SUBJECT_TYPES]));
     }
     if (query.subject_id) {
       filters.push(eq(documents.subjectId, query.subject_id));
@@ -202,7 +211,10 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const query = parseWithSchema(paginationQuery, request.query);
     const pagination = getPagination(query);
-    const whereClause = eq(documents.clientId, id);
+    const whereClause = and(
+      eq(documents.clientId, id),
+      inArray(documents.subjectType, [...INTERNAL_DOCUMENT_SUBJECT_TYPES])
+    );
     const rows = pagination.paginate
       ? await db
           .select()
