@@ -24,6 +24,8 @@ export type User = {
   name: string;
   name_en: string | null;
   email: string;
+  phone: string | null;
+  avatar: string | null;
   role?: Role | null;
   must_change_password: boolean;
 };
@@ -114,4 +116,38 @@ export async function changePassword(input: { current_password?: string; new_pas
     method: "POST",
     body: input
   });
+}
+
+export async function updateProfile(input: {
+  name: string;
+  name_en?: string | null;
+  email: string;
+  phone?: string | null;
+}): Promise<{ user: User }> {
+  return api<{ user: User }>("/auth/me", { method: "PATCH", body: input });
+}
+
+export async function uploadAvatar(file: File): Promise<{ user: User }> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${baseUrl}/auth/avatar`, {
+    method: "POST",
+    body: form,
+    credentials: "include"
+  });
+  const data = await parseResponse(response);
+
+  if (response.status === 401) {
+    throw new UnauthorizedError();
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof (data as any).error === "string"
+        ? (data as any).error
+        : response.statusText;
+    throw new ApiError(message, response.status);
+  }
+
+  return data as { user: User };
 }

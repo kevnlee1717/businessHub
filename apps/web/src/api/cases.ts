@@ -75,6 +75,9 @@ export type Case = {
   guarantor_contact?: string | null;
   created_at: string;
   updated_at: string;
+  latest_result?: "pending" | "approved" | "rejected" | null;
+  latest_rejected_at?: string | null;
+  latest_submission_at?: string | null;
 };
 
 export type Guarantor = {
@@ -86,6 +89,7 @@ export type Guarantor = {
   id_card_document_id?: string | null;
   note?: string | null;
   sponsored_count: number;
+  stats?: { total: number; approved: number; rejected: number; successRate: number | null; firstAt: string | null; lastAt: string | null };
   created_at: string;
   updated_at: string;
 };

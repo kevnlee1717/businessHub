@@ -3,6 +3,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppShell } from "./layout/AppShell";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AccountPasswordPage } from "./pages/account/AccountPasswordPage";
+import { AccountProfilePage } from "./pages/account/AccountProfilePage";
 import { ContactDetailPage } from "./pages/franchise/ContactDetailPage";
 import { ContactsPage } from "./pages/franchise/ContactsPage";
 import { FnbSiteDetailPage } from "./pages/franchise/FnbSiteDetailPage";
@@ -157,6 +158,7 @@ export function App() {
           <Route path="business-finance/external-parties" element={<ExternalPartiesPage />} />
           <Route path="business-finance/:id" element={<BusinessDetailPage />} />
           <Route path="account/password" element={<AccountPasswordPage />} />
+          <Route path="account/profile" element={<AccountProfilePage />} />
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="companies" replace />} />
             <Route path="companies" element={<CompaniesPage />} />

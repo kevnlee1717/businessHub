@@ -184,6 +184,37 @@ const caseQuerySchema = z
   })
   .merge(paginationQuery);
 
+async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
+  const caseIds = rows.map((row) => row.id);
+  const subs = caseIds.length
+    ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, caseIds))
+    : [];
+  const byCase = new Map<string, typeof subs>();
+
+  for (const submission of subs) {
+    const submissions = byCase.get(submission.caseId) ?? [];
+    submissions.push(submission);
+    byCase.set(submission.caseId, submissions);
+  }
+
+  return rows.map((row) => {
+    const submissions = (byCase.get(row.id) ?? []).sort(
+      (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
+    );
+    const latest = submissions[0] ?? null;
+
+    return {
+      ...serializeCase(row),
+      latest_result: latest?.result ?? null,
+      latest_rejected_at:
+        latest && latest.result === "rejected"
+          ? (latest.rejectedAt?.toISOString() ?? null)
+          : null,
+      latest_submission_at: latest?.createdAt.toISOString() ?? null
+    };
+  });
+}
+
 function hasOwn(input: object, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(input, field);
 }
@@ -264,19 +295,20 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           .limit(pagination.limit)
           .offset(pagination.offset)
       : await db.select().from(cases).where(whereClause).orderBy(desc(cases.createdAt));
+    const serialized = await serializeCasesWithLatest(rows);
 
     if (pagination.paginate) {
       const [totalRow] = await db.select({ total: count() }).from(cases).where(whereClause);
 
       return {
-        cases: rows.map(serializeCase),
+        cases: serialized,
         total: Number(totalRow?.total ?? 0),
         page: pagination.page,
         page_size: pagination.pageSize
       };
     }
 
-    return { cases: rows.map(serializeCase) };
+    return { cases: serialized };
   });
 
   app.get("/cases/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {

@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Button,
+  Checkbox,
   Group,
   Input,
   Loader,
@@ -17,6 +18,7 @@ import {
 import {
   caseCreateSchema,
   caseStatuses,
+  computeReapplyStatus,
   type BusinessType,
   type CaseCreateInput,
   type CaseStatus
@@ -31,6 +33,7 @@ import {
   listCases,
   listClients,
   listTemplates,
+  type Case,
   type Client
 } from "../../api/cases";
 import { useAuth } from "../../auth/AuthContext";
@@ -78,6 +81,21 @@ function statusColor(status: CaseStatus) {
   }
 }
 
+function ReapplyBadge({ caseItem }: { caseItem: Case }) {
+  const status = computeReapplyStatus(
+    caseItem.latest_result
+      ? [{ result: caseItem.latest_result, rejectedAt: caseItem.latest_rejected_at ?? null, createdAt: caseItem.latest_submission_at ?? caseItem.created_at }]
+      : [],
+    new Date()
+  );
+  if (status.state === "approved") return <Badge color="green" variant="light">已通过</Badge>;
+  if (status.state === "pending") return <Badge color="blue" variant="light">等待结果</Badge>;
+  if (status.state === "rejected_no_date") return <Badge color="gray" variant="light">拒绝日期待补</Badge>;
+  if (status.state === "eligible") return <Badge color="green" variant="light">✅ 可再申请</Badge>;
+  const d = status.daysRemaining ?? 0;
+  return <Badge color={d <= 14 ? "red" : d <= 30 ? "yellow" : "gray"} variant="light">还差 {d} 天可再申请</Badge>;
+}
+
 function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
   return {
     business_type: businessType,
@@ -95,11 +113,12 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<CaseStatus | null>(null);
   const [clientFilter, setClientFilter] = useState<string | null>(null);
+  const [onlyReapply, setOnlyReapply] = useState(false);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
-  const useFrontendPagination = false;
+  const useFrontendPagination = businessType === "ica" && onlyReapply;
 
   const casesQuery = useQuery({
     queryKey: [
@@ -108,6 +127,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
       businessType,
       statusFilter,
       clientFilter,
+      onlyReapply,
       page,
       pageSize,
       useFrontendPagination
@@ -144,11 +164,30 @@ export function CasesPage({ businessType }: CasesPageProps) {
     }
   });
 
-  const cases = casesQuery.data?.cases ?? [];
+  const filteredCases = (casesQuery.data?.cases ?? []).filter((caseItem) => {
+    if (!useFrontendPagination) {
+      return true;
+    }
+
+    const status = computeReapplyStatus(
+      caseItem.latest_result
+        ? [
+            {
+              result: caseItem.latest_result,
+              rejectedAt: caseItem.latest_rejected_at ?? null,
+              createdAt: caseItem.latest_submission_at ?? caseItem.created_at
+            }
+          ]
+        : [],
+      new Date()
+    );
+
+    return status.state === "eligible" || status.state === "waiting";
+  });
   const visibleCases = useFrontendPagination
-    ? cases.slice((page - 1) * pageSize, page * pageSize)
-    : cases;
-  const totalCases = useFrontendPagination ? cases.length : (casesQuery.data?.total ?? cases.length);
+    ? filteredCases.slice((page - 1) * pageSize, page * pageSize)
+    : filteredCases;
+  const totalCases = useFrontendPagination ? filteredCases.length : (casesQuery.data?.total ?? filteredCases.length);
   const clients = clientsQuery.data?.clients ?? [];
   const templates = templatesQuery.data?.templates ?? [];
   const clientById = useMemo(
@@ -198,6 +237,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
     setPage(1);
   }
 
+  function updateOnlyReapply(checked: boolean) {
+    setOnlyReapply(checked);
+    setPage(1);
+  }
+
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
 
@@ -240,6 +284,14 @@ export function CasesPage({ businessType }: CasesPageProps) {
           searchable
           clearable
         />
+        {businessType === "ica" && (
+          <Checkbox
+            label="待再申请"
+            checked={onlyReapply}
+            onChange={(event) => updateOnlyReapply(event.currentTarget.checked)}
+            style={{ alignSelf: "flex-end", paddingBottom: 6 }}
+          />
+        )}
         {canManageCases ? (
           <Button onClick={openCreateModal}>{t("case.add")}</Button>
         ) : null}
@@ -252,6 +304,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 <Table.Th>{t("case.fields.businessType")}</Table.Th>
                 <Table.Th>{t("case.fields.client")}</Table.Th>
                 <Table.Th>{t("case.fields.status")}</Table.Th>
+                {businessType === "ica" && <Table.Th>再申请</Table.Th>}
                 <Table.Th>{t("case.fields.currentStep")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
@@ -259,7 +312,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={businessType === "ica" ? 6 : 5}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -267,7 +320,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Tr>
               ) : visibleCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={businessType === "ica" ? 6 : 5}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
@@ -287,6 +340,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
                         {t(`caseStatus.${caseItem.status}`)}
                       </Badge>
                     </Table.Td>
+                    {businessType === "ica" && (
+                      <Table.Td>
+                        <ReapplyBadge caseItem={caseItem} />
+                      </Table.Td>
+                    )}
                     <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
                     <Table.Td>
                       <Button

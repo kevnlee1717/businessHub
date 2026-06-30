@@ -1,11 +1,12 @@
 import { companies, db, employees } from "@bh/db";
-import { changePasswordSchema, loginSchema } from "@bh/shared";
+import { changePasswordSchema, loginSchema, updateProfileSchema } from "@bh/shared";
 import bcrypt from "bcryptjs";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { loadAuthContext } from "../auth/context";
 import { env } from "../env";
+import { saveUpload } from "../lib/files";
 
 const authCookieName = "bh_token";
 
@@ -15,6 +16,8 @@ function publicEmployee(employee: typeof employees.$inferSelect) {
     name: employee.name,
     name_en: employee.nameEn,
     email: employee.email,
+    phone: employee.phone,
+    avatar: employee.avatarPath ? `/${employee.avatarPath}` : null,
     role: employee.role,
     must_change_password: employee.mustChangePassword
   };
@@ -148,5 +151,71 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       dataScope: ctx.dataScope,
       companies: companyRows
     };
+  });
+
+  app.patch("/auth/me", { preHandler: app.authenticate }, async (request, reply) => {
+    const parsed = updateProfileSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw new ZodError(parsed.error.issues);
+    }
+
+    const [dup] = await db
+      .select({ id: employees.id })
+      .from(employees)
+      .where(and(eq(employees.email, parsed.data.email), ne(employees.id, request.user.id)))
+      .limit(1);
+
+    if (dup) {
+      return reply.code(409).send({ error: "email_taken" });
+    }
+
+    const nameEn = parsed.data.name_en?.trim() ? parsed.data.name_en.trim() : null;
+    const phone = parsed.data.phone?.trim() ? parsed.data.phone.trim() : null;
+    const [updated] = await db
+      .update(employees)
+      .set({ name: parsed.data.name, nameEn, email: parsed.data.email, phone, updatedAt: new Date() })
+      .where(eq(employees.id, request.user.id))
+      .returning();
+
+    if (!updated) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+
+    return { user: publicEmployee(updated) };
+  });
+
+  app.post("/auth/avatar", { preHandler: app.authenticate }, async (request, reply) => {
+    const data = await request.file();
+
+    if (!data) {
+      return reply.code(400).send({ error: "no_file" });
+    }
+
+    if (!data.mimetype.startsWith("image/")) {
+      return reply.code(400).send({ error: "invalid_file_type" });
+    }
+
+    const document = await saveUpload(data, {
+      subjectType: "employee_avatar",
+      subjectId: request.user.id,
+      uploadedBy: request.user.id
+    });
+
+    if (!document) {
+      return reply.code(500).send({ error: "upload_failed" });
+    }
+
+    const [updated] = await db
+      .update(employees)
+      .set({ avatarPath: document.storagePath, updatedAt: new Date() })
+      .where(eq(employees.id, request.user.id))
+      .returning();
+
+    if (!updated) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+
+    return { user: publicEmployee(updated) };
   });
 }

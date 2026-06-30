@@ -1,8 +1,8 @@
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { cases, db, documents, guarantors } from "@bh/db";
-import { guarantorCreateSchema, guarantorUpdateSchema } from "@bh/shared";
-import { count, desc, eq, sql } from "drizzle-orm";
+import { caseSubmissions, cases, db, documents, guarantors } from "@bh/db";
+import { computeGuarantorStats, guarantorCreateSchema, guarantorUpdateSchema } from "@bh/shared";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -65,15 +65,6 @@ async function discardFile(file: NodeJS.ReadableStream): Promise<void> {
   );
 }
 
-async function sponsoredCount(guarantorId: string): Promise<number> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(cases)
-    .where(eq(cases.guarantorId, guarantorId));
-
-  return row?.count ?? 0;
-}
-
 const guarantorQuerySchema = z.object({}).merge(paginationQuery);
 
 export async function registerGuarantorRoutes(app: FastifyInstance): Promise<void> {
@@ -90,25 +81,41 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
           .limit(pagination.limit)
           .offset(pagination.offset)
       : await db.select().from(guarantors).orderBy(desc(guarantors.createdAt));
-    const serialized = await Promise.all(
-      rows.map(async (row) => ({
-        ...serializeGuarantor(row),
-        sponsored_count: await sponsoredCount(row.id)
-      }))
+    const result = await Promise.all(
+      rows.map(async (row) => {
+        const caseRows = await db.select().from(cases).where(eq(cases.guarantorId, row.id));
+        const ids = caseRows.map((c) => c.id);
+        const subs = ids.length
+          ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, ids))
+          : [];
+        const stats = computeGuarantorStats(
+          caseRows.map((c) => {
+            const list = subs
+              .filter((s) => s.caseId === c.id)
+              .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            return {
+              caseId: c.id,
+              createdAt: c.createdAt.toISOString(),
+              latestResult: list[0]?.result ?? null
+            };
+          })
+        );
+        return { ...serializeGuarantor(row), sponsored_count: stats.total, stats };
+      })
     );
 
     if (pagination.paginate) {
       const [totalRow] = await db.select({ total: count() }).from(guarantors);
 
       return {
-        guarantors: serialized,
+        guarantors: result,
         total: Number(totalRow?.total ?? 0),
         page: pagination.page,
         page_size: pagination.pageSize
       };
     }
 
-    return { guarantors: serialized };
+    return { guarantors: result };
   });
 
   app.get("/guarantors/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {

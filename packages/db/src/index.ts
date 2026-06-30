@@ -18,3 +18,5 @@ export const pool = new pg.Pool({
 export const db = drizzle(pool, { schema });
 
 export * from "./schema/index";
+export { icaTemplateSteps } from "./seeds/icaTemplateSteps";
+export type { IcaTemplateStep } from "./seeds/icaTemplateSteps";
