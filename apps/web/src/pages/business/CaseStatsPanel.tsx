@@ -1,5 +1,5 @@
 import { BarChart } from "@mantine/charts";
-import { Alert, Group, Paper, Select, Stack, Text, Title } from "@mantine/core";
+import { Alert, Group, Paper, Select, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import { type BusinessType } from "@bh/shared";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -25,6 +25,11 @@ export function CaseStatsPanel() {
   const availableYears = useMemo(
     () => [...(availableYearsQuery.data?.available_years ?? [])].sort((a, b) => b - a),
     [availableYearsQuery.data?.available_years]
+  );
+  const summary = availableYearsQuery.data?.summary;
+  const summaryYearTotals = useMemo(
+    () => [...(summary?.year_totals ?? [])].sort((a, b) => b.year - a.year),
+    [summary?.year_totals]
   );
 
   const yearlyStatsQueries = useQueries({
@@ -69,6 +74,42 @@ export function CaseStatsPanel() {
 
         {availableYears.length === 0 && !availableYearsQuery.isLoading ? (
           <Text c="dimmed">{t("case.empty")}</Text>
+        ) : null}
+
+        {summary ? (
+          <Stack gap="xs">
+            <Text fw={600}>{t("case.stats.summary_title")}</Text>
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }}>
+              {summaryYearTotals.map(({ year, count }) => (
+                <Paper key={year} withBorder p="md" radius="md">
+                  <Stack gap={4}>
+                    <Text fw={700} size="xl" c="dark">
+                      {count}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      {t("case.stats.summary_year_total", { year })}
+                    </Text>
+                  </Stack>
+                </Paper>
+              ))}
+              {[
+                { key: "approved", count: summary.result_counts.approved, label: t("case.stats.summary_approved"), color: "teal.6" },
+                { key: "pending", count: summary.result_counts.pending, label: t("case.stats.summary_pending"), color: "blue.6" },
+                { key: "rejected", count: summary.result_counts.rejected, label: t("case.stats.summary_rejected"), color: "red.6" }
+              ].map((item) => (
+                <Paper key={item.key} withBorder p="md" radius="md">
+                  <Stack gap={4}>
+                    <Text fw={700} size="xl" c={item.color}>
+                      {item.count}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      {item.label}
+                    </Text>
+                  </Stack>
+                </Paper>
+              ))}
+            </SimpleGrid>
+          </Stack>
         ) : null}
 
         {availableYears.map((year, index) => {

@@ -625,7 +625,12 @@
       "businessType": "Business type",
       "month": "{{month}}",
       "count": "Cases",
-      "total": "{{year}} total: {{count}}"
+      "total": "{{year}} total: {{count}}",
+      "summary_title": "Summary",
+      "summary_year_total": "{{year}} processed",
+      "summary_approved": "Approved",
+      "summary_pending": "In progress",
+      "summary_rejected": "Rejected"
     }
   },
   "client": {

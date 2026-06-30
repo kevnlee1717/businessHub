@@ -625,7 +625,12 @@
       "businessType": "业务类型",
       "month": "{{month}}月",
       "count": "案件数",
-      "total": "{{year}} 年合计：{{count}}"
+      "total": "{{year}} 年合计：{{count}}",
+      "summary_title": "办理汇总",
+      "summary_year_total": "{{year}} 年办理",
+      "summary_approved": "申请完成",
+      "summary_pending": "申请中",
+      "summary_rejected": "申请失败"
     }
   },
   "client": {

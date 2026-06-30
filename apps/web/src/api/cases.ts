@@ -93,6 +93,10 @@ export type CaseStats = {
   months: { month: number; count: number }[];
   total: number;
   available_years: number[];
+  summary: {
+    year_totals: { year: number; count: number }[];
+    result_counts: { approved: number; pending: number; rejected: number };
+  };
 };
 
 export type Guarantor = {
