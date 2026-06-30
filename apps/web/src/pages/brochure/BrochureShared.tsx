@@ -1,6 +1,7 @@
 import {
   Alert,
   Badge,
+  Box,
   Button,
   Checkbox,
   FileButton,
@@ -12,6 +13,7 @@ import {
   Select,
   Stack,
   Table,
+  Tabs,
   Text,
   TextInput,
   Textarea
@@ -61,6 +63,16 @@ function fileKind(file?: Pick<BrochureVersion, "mime" | "filename" | "url"> | nu
   const filename = file?.filename?.toLowerCase() ?? "";
   if (mime === "application/pdf" || filename.endsWith(".pdf")) return "pdf";
   if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(filename)) return "image";
+  if (
+    [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/csv"
+    ].includes(mime) ||
+    /\.(xlsx|xls|csv)$/.test(filename)
+  ) {
+    return "spreadsheet";
+  }
   return "other";
 }
 
@@ -75,6 +87,128 @@ function ErrorAlert({ error }: { error: unknown }) {
 
 export function formatBrochureDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
+}
+
+function SpreadsheetPreview({ url, filename }: { url: string; filename: string }) {
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [htmlBySheet, setHtmlBySheet] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSpreadsheet() {
+      setLoading(true);
+      setError(null);
+      setSheetNames([]);
+      setActiveSheet(null);
+      setHtmlBySheet({});
+
+      try {
+        const response = await fetch(url, { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(response.statusText || "Failed to load spreadsheet");
+        }
+
+        const data = await response.arrayBuffer();
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.read(data, { type: "array" });
+        const names: string[] = workbook.SheetNames;
+        const html: Record<string, string> = {};
+
+        for (const name of names) {
+          const worksheet = workbook.Sheets[name];
+          html[name] = worksheet ? XLSX.utils.sheet_to_html(worksheet) : "";
+        }
+
+        if (!cancelled) {
+          setSheetNames(names);
+          setActiveSheet(names[0] ?? null);
+          setHtmlBySheet(html);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to preview spreadsheet");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadSpreadsheet();
+
+    return () => {
+      cancelled = true;
+      setSheetNames([]);
+      setActiveSheet(null);
+      setHtmlBySheet({});
+      setError(null);
+      setLoading(false);
+    };
+  }, [url, filename]);
+
+  if (loading) {
+    return (
+      <Group justify="center" py="xl">
+        <Loader size="sm" />
+      </Group>
+    );
+  }
+
+  if (error) {
+    return <Text c="red">{error}</Text>;
+  }
+
+  if (sheetNames.length === 0) {
+    return <Text c="dimmed">No sheets found.</Text>;
+  }
+
+  const table = activeSheet ? htmlBySheet[activeSheet] : "";
+  const tableNode = (
+    <ScrollArea style={{ maxHeight: "76vh" }}>
+      <style>
+        {`
+          .brochure-spreadsheet-preview table {
+            border-collapse: collapse;
+            min-width: 100%;
+            font-size: 13px;
+          }
+          .brochure-spreadsheet-preview th,
+          .brochure-spreadsheet-preview td {
+            border: 1px solid #dcdfe6;
+            padding: 6px 8px;
+            white-space: nowrap;
+          }
+          .brochure-spreadsheet-preview th {
+            background: #f5f7fa;
+            font-weight: 600;
+          }
+        `}
+      </style>
+      <div className="brochure-spreadsheet-preview" dangerouslySetInnerHTML={{ __html: table ?? "" }} />
+    </ScrollArea>
+  );
+
+  if (sheetNames.length <= 1) {
+    return tableNode;
+  }
+
+  return (
+    <Tabs value={activeSheet} onChange={setActiveSheet}>
+      <Tabs.List>
+        {sheetNames.map((name) => (
+          <Tabs.Tab key={name} value={name}>
+            {name}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+      <Box mt="sm">{tableNode}</Box>
+    </Tabs>
+  );
 }
 
 export function FilePreviewModal({
@@ -96,6 +230,8 @@ export function FilePreviewModal({
           <iframe src={version.url} title={version.filename} style={{ width: "100%", height: "76vh", border: 0 }} />
         ) : kind === "image" ? (
           <img src={version.url} alt={version.filename} style={{ maxWidth: "100%", maxHeight: "76vh", display: "block", margin: "0 auto" }} />
+        ) : kind === "spreadsheet" ? (
+          <SpreadsheetPreview url={version.url} filename={version.filename} />
         ) : (
           <Stack gap="sm">
             <Text c="dimmed">{t("brochure.previewUnsupported")}</Text>
