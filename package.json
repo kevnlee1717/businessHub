@@ -15,6 +15,7 @@
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter @bh/db generate",
     "db:migrate": "pnpm --filter @bh/db migrate",
+    "db:mark-default-pw": "pnpm --filter @bh/db mark-default-pw",
     "db:seed": "pnpm --filter @bh/db seed"
   },
   "devDependencies": {

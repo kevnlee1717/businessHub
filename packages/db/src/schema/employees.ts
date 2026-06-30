@@ -24,6 +24,7 @@ export const employees = pgTable("employees", {
   nameEn: varchar("name_en", { length: 255 }),
   email: varchar("email", { length: 320 }).notNull().unique(),
   phone: varchar("phone", { length: 64 }),
+  avatarPath: varchar("avatar_path", { length: 500 }),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: roleEnum("role"),
   companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),

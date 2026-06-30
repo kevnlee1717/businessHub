@@ -1,10 +1,12 @@
 import {
   AppShell as MantineAppShell,
+  Avatar,
   Badge,
   Box,
   Burger,
   Button,
   Group,
+  Indicator,
   Menu,
   Modal,
   NavLink,
@@ -332,20 +334,18 @@ export function AppShell() {
             </Group>
             <Group gap="sm" wrap="nowrap">
               <LanguageToggle />
-              <Menu position="bottom-end" shadow="md" width={160}>
+              <Menu position="bottom-end" shadow="md" width={180}>
                 <Menu.Target>
                   <UnstyledButton>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm" c="var(--app-muted)" truncate maw={180}>
-                        {user?.name ?? user?.email}
-                      </Text>
-                      <Text size="xs" c="var(--app-muted)">
-                        ▾
-                      </Text>
-                    </Group>
+                    <Indicator color="red" size={10} offset={4} disabled={!user?.must_change_password} withBorder>
+                      <Avatar src={user?.avatar ?? null} radius="xl" size={32} color="blue">
+                        {(user?.name ?? user?.email ?? "?").slice(0, 1).toUpperCase()}
+                      </Avatar>
+                    </Indicator>
                   </UnstyledButton>
                 </Menu.Target>
                 <Menu.Dropdown>
+                  <Menu.Item onClick={() => navigate("/account/profile")}>个人资料</Menu.Item>
                   <Menu.Item onClick={() => navigate("/account/password")}>修改密码</Menu.Item>
                   <Menu.Item onClick={handleLogout}>{t("auth.logout")}</Menu.Item>
                 </Menu.Dropdown>

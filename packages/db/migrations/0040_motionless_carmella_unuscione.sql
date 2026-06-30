@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "avatar_path" varchar(500);

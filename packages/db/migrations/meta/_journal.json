@@ -281,6 +281,13 @@
       "when": 1782744734461,
       "tag": "0039_kind_thunderbolt_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1782781722302,
+      "tag": "0040_motionless_carmella_unuscione",
+      "breakpoints": true
     }
   ]
 }
