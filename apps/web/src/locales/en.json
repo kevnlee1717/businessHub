@@ -669,6 +669,13 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "successRate": "Success Rate"
+    },
+    "detail": {
+      "casesTitle": "{{count}} sponsored case(s)",
+      "client": "Client",
+      "status": "Status",
+      "result": "Result",
+      "noResult": "No result"
     }
   },
   "gender": {
@@ -794,9 +801,14 @@
   },
   "caseStatus": {
     "open": "Open",
-    "in_progress": "In progress",
+    "in_progress": "In Progress",
     "completed": "Completed",
     "cancelled": "Cancelled"
+  },
+  "caseResult": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected"
   },
   "caseStep": {
     "title": "Case steps",

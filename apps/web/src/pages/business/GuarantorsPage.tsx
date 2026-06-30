@@ -42,6 +42,7 @@ import {
 } from "../../api/cases";
 import { TablePagination } from "../../components/TablePagination";
 import { usePagination } from "../../hooks/usePagination";
+import { GuarantorDetailDrawer } from "./GuarantorDetailDrawer";
 
 type GuarantorFormValues = {
   name?: string | undefined;
@@ -159,6 +160,7 @@ export function GuarantorsPage() {
   const [editingGuarantor, setEditingGuarantor] = useState<Guarantor | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
 
@@ -327,7 +329,16 @@ export function GuarantorsPage() {
               ) : (
                 guarantors.map((guarantor) => (
                   <Table.Tr key={guarantor.id}>
-                    <Table.Td>{guarantor.name}</Table.Td>
+                    <Table.Td>
+                      <Text
+                        component="button"
+                        type="button"
+                        onClick={() => setDetailId(guarantor.id)}
+                        style={{ cursor: "pointer", background: "none", border: "none", padding: 0, color: "var(--mantine-color-blue-6)" }}
+                      >
+                        {guarantor.name}
+                      </Text>
+                    </Table.Td>
                     <Table.Td>{guarantor.nric ?? t("common.not_available")}</Table.Td>
                     <Table.Td>{guarantor.gender ? t(`gender.${guarantor.gender}`) : t("common.not_available")}</Table.Td>
                     <Table.Td>{guarantor.age ?? t("common.not_available")}</Table.Td>
@@ -379,6 +390,8 @@ export function GuarantorsPage() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
+
+      <GuarantorDetailDrawer guarantorId={detailId} onClose={() => setDetailId(null)} />
 
       <Modal
         opened={modalOpened}
