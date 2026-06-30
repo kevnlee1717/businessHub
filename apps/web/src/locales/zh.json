@@ -242,7 +242,8 @@
       "cases": "案件",
       "clients": "客户",
       "templates": "流程模板",
-      "guarantors": "担保人"
+      "guarantors": "担保人",
+      "stats": "统计"
     }
   },
   "teachers": {
@@ -2056,7 +2057,7 @@
       "nationalities": "国籍标签",
       "status": "状态",
       "priority": "紧急度",
-      "active": "在用",
+      "active": "启用",
       "inactive": "停用",
       "owner": "负责人",
       "inviteClerk": "邀约人",
@@ -2093,8 +2094,7 @@
       "scheduledAt": "面试时间",
       "mode": "方式",
       "interviewer": "面试官",
-      "date": "日期",
-      "active": "启用"
+      "date": "日期"
     },
     "jobs": {
       "add": "新建岗位",
@@ -2227,5 +2227,15 @@
       "pass": "通过",
       "fail": "不通过"
     }
+  },
+  "icaStats": {
+    "title": "ICA 统计",
+    "totalClients": "总客户数",
+    "approved": "已批准",
+    "rejected": "被拒等待重提",
+    "pending": "提交中等结果",
+    "chartTitle": "{year}年  共{count}个",
+    "month": "{month}月",
+    "newCases": "新建案件"
   }
 }

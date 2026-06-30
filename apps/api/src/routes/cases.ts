@@ -22,7 +22,9 @@ import {
   caseStepUpdateSchema,
   followUpCreateSchema,
   stepReviewMessageSchema,
-  stepReviewRequestSchema
+  stepReviewRequestSchema,
+  computeIcaStats,
+  type IcaStatsCaseInput
 } from "@bh/shared";
 import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
@@ -309,6 +311,44 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return { cases: serialized };
+  });
+
+  app.get("/cases/ica-stats", { preHandler: requirePerm("case.view") }, async () => {
+    // 查所有 ICA 案件
+    const icaCases = await db
+      .select()
+      .from(cases)
+      .where(eq(cases.businessType, "ica"));
+
+    const caseIds = icaCases.map((c) => c.id);
+
+    // 批量查这些案件的所有 submissions（避免 N+1）
+    const submissions =
+      caseIds.length > 0
+        ? await db
+            .select()
+            .from(caseSubmissions)
+            .where(inArray(caseSubmissions.caseId, caseIds))
+        : [];
+
+    // 按 caseId 分组
+    const submissionsByCaseId = new Map<string, typeof submissions>();
+    for (const sub of submissions) {
+      const list = submissionsByCaseId.get(sub.caseId) ?? [];
+      list.push(sub);
+      submissionsByCaseId.set(sub.caseId, list);
+    }
+
+    const input: IcaStatsCaseInput[] = icaCases.map((c) => ({
+      caseId: c.id,
+      submissions: (submissionsByCaseId.get(c.id) ?? []).map((s) => ({
+        result: s.result as "pending" | "approved" | "rejected",
+        submittedAt: s.submittedAt ? s.submittedAt.toISOString() : s.createdAt.toISOString(),
+        createdAt: s.createdAt.toISOString()
+      }))
+    }));
+
+    return computeIcaStats(input);
   });
 
   app.get("/cases/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {

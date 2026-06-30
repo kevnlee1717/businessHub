@@ -21,3 +21,4 @@ export * from "./schemas/permissions";
 export * from "./schemas/recruitment";
 export * from "./schemas/reports";
 export * from "./icaImport";
+export * from "./icaStats";
