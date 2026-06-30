@@ -80,6 +80,8 @@ export type Case = {
   latest_result?: "pending" | "approved" | "rejected" | null;
   latest_rejected_at?: string | null;
   latest_submission_at?: string | null;
+  first_submission_at?: string | null;
+  last_submission_at?: string | null;
 };
 
 export type CaseOrderBy = "signed_at" | "created_at";

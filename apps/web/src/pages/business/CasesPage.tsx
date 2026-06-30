@@ -333,6 +333,8 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 <Table.Th>{t("case.fields.businessType")}</Table.Th>
                 <Table.Th>{t("case.fields.client")}</Table.Th>
                 <Table.Th>{t("case.fields.status")}</Table.Th>
+                {businessType === "ica" && <Table.Th>首次申请</Table.Th>}
+                {businessType === "ica" && <Table.Th>最近申请</Table.Th>}
                 {businessType === "ica" && <Table.Th>再申请</Table.Th>}
                 <Table.Th>{t("case.fields.currentStep")}</Table.Th>
                 <Table.Th
@@ -348,7 +350,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 7 : 6}>
+                  <Table.Td colSpan={businessType === "ica" ? 9 : 6}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -356,7 +358,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Tr>
               ) : visibleCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 7 : 6}>
+                  <Table.Td colSpan={businessType === "ica" ? 9 : 6}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
@@ -376,6 +378,16 @@ export function CasesPage({ businessType }: CasesPageProps) {
                         {t(`caseStatus.${caseItem.status}`)}
                       </Badge>
                     </Table.Td>
+                    {businessType === "ica" && (
+                      <Table.Td>
+                        {caseItem.first_submission_at ? caseItem.first_submission_at.slice(0, 7) : "—"}
+                      </Table.Td>
+                    )}
+                    {businessType === "ica" && (
+                      <Table.Td>
+                        {caseItem.last_submission_at ? caseItem.last_submission_at.slice(0, 7) : "—"}
+                      </Table.Td>
+                    )}
                     {businessType === "ica" && (
                       <Table.Td>
                         <ReapplyBadge caseItem={caseItem} />

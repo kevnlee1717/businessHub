@@ -219,6 +219,16 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
       (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
     );
     const latest = submissions[0] ?? null;
+    const submittedTimes = submissions
+      .map((submission) => submission.submittedAt ?? submission.createdAt)
+      .filter((value): value is Date => value instanceof Date)
+      .map((value) => value.getTime());
+    const firstSubmissionAt = submittedTimes.length
+      ? new Date(Math.min(...submittedTimes)).toISOString()
+      : null;
+    const lastSubmissionAt = submittedTimes.length
+      ? new Date(Math.max(...submittedTimes)).toISOString()
+      : null;
 
     return {
       ...serializeCase(row),
@@ -227,7 +237,9 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
         latest && latest.result === "rejected"
           ? (latest.rejectedAt?.toISOString() ?? null)
           : null,
-      latest_submission_at: latest?.createdAt.toISOString() ?? null
+      latest_submission_at: latest?.createdAt.toISOString() ?? null,
+      first_submission_at: firstSubmissionAt,
+      last_submission_at: lastSubmissionAt
     };
   });
 }
