@@ -1393,7 +1393,13 @@ function SectionNav({
       withBorder
       radius="md"
       p="md"
-      style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: "var(--mantine-color-body)" }}
+      style={{
+        position: "sticky",
+        // 贴在固定 header(高 56)正下方,避免滚动时钻到 header 底下被遮挡。
+        top: "var(--app-shell-header-height, 56px)",
+        zIndex: 10,
+        backgroundColor: "var(--mantine-color-body)"
+      }}
     >
       <Stack gap="sm">
         <Group justify="space-between">
