@@ -280,7 +280,7 @@ export function AppShell() {
       <Modal
         opened={Boolean(user?.must_change_password)}
         onClose={() => undefined}
-        title="首次登录，请先修改密码"
+        title="首次登录，请先修改密码 / First login: please change your password"
         withCloseButton={false}
         closeOnClickOutside={false}
         closeOnEscape={false}
@@ -289,11 +289,13 @@ export function AppShell() {
         <Stack gap="md">
           <Text size="sm" c="var(--app-muted)">
             为了账号安全，首次登录需修改初始密码后才能使用系统。
+            <br />
+            For your account security, please change the initial password before using the system.
           </Text>
           <ChangePasswordForm forced />
           <Group justify="flex-end">
             <Button variant="subtle" color="gray" size="xs" onClick={handleLogout}>
-              退出登录
+              退出登录 / Log out
             </Button>
           </Group>
         </Stack>
