@@ -25,7 +25,7 @@ import {
 } from "@bh/shared";
 import { type MultipartFile } from "@fastify/multipart";
 import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
-import { type FastifyInstance, type FastifyRequest } from "fastify";
+import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { getPagination } from "../lib/pagination";
@@ -34,6 +34,7 @@ import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const uploadRoot = join(__dirname, "../../../..", "uploads");
 const storageDirectory = "brochure";
+const BROCHURE_MAX_UPLOAD = 300 * 1024 * 1024;
 
 const versionParamsSchema = z.object({
   id: z.string().uuid(),
@@ -44,6 +45,12 @@ type BrochureDictionaryRow = typeof brochureIndustries.$inferSelect | typeof bro
 type BrochureRow = typeof brochures.$inferSelect;
 type BrochureVersionRow = typeof brochureVersions.$inferSelect;
 type MultipartFields = Record<string, string>;
+type UploadedFile = {
+  filename: string;
+  storagePath: string;
+  mime: string;
+  size: number;
+};
 
 function serializeDictionary(row: BrochureDictionaryRow) {
   return {
@@ -138,7 +145,12 @@ async function saveFile(part: MultipartFile) {
     }
   });
 
-  await pipeline(part.file, counter, createWriteStream(absolutePath));
+  try {
+    await pipeline(part.file, counter, createWriteStream(absolutePath));
+  } catch (error) {
+    await unlinkStoragePath(storagePath);
+    throw error;
+  }
 
   return {
     filename: part.filename,
@@ -163,32 +175,46 @@ function fieldValue(value: unknown): string {
   return String(value);
 }
 
+function isFileTooLargeError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "FST_REQ_FILE_TOO_LARGE"
+  );
+}
+
+function sendBrochureFileTooLarge(reply: FastifyReply) {
+  return reply.code(413).send({
+    error: "file_too_large",
+    message: "文件超过 300MB 上限,请压缩后再传"
+  });
+}
+
 async function readMultipartWithFirstFile(request: FastifyRequest) {
   const fields: MultipartFields = {};
-  let file:
-    | {
-        filename: string;
-        storagePath: string;
-        mime: string;
-        size: number;
+  let file: UploadedFile | null = null;
+
+  try {
+    for await (const part of request.parts({ limits: { fileSize: BROCHURE_MAX_UPLOAD } })) {
+      if (part.type === "field") {
+        const value = fieldValue(part.value);
+        if (value !== "") {
+          fields[part.fieldname] = value;
+        }
+        continue;
       }
-    | null = null;
 
-  for await (const part of request.parts()) {
-    if (part.type === "field") {
-      const value = fieldValue(part.value);
-      if (value !== "") {
-        fields[part.fieldname] = value;
+      if (file) {
+        await discardFile(part);
+        continue;
       }
-      continue;
-    }
 
-    if (file) {
-      await discardFile(part);
-      continue;
+      file = await saveFile(part);
     }
-
-    file = await saveFile(part);
+  } catch (error) {
+    await unlinkStoragePath(file?.storagePath);
+    throw error;
   }
 
   return { fields, file };
@@ -306,10 +332,15 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
   });
 
   app.post("/brochures", { preHandler: requirePerm("brochure.manage") }, async (request, reply) => {
-    const { fields, file } = await readMultipartWithFirstFile(request);
-    if (!file) return reply.code(400).send({ error: "file_required" });
+    let file: UploadedFile | null = null;
 
     try {
+      const multipart = await readMultipartWithFirstFile(request);
+      file = multipart.file;
+      if (!file) return reply.code(400).send({ error: "file_required" });
+
+      const uploadedFile = file;
+      const fields = multipart.fields;
       const body = parseWithSchema(brochureCreateSchema, fields);
       const result = await db.transaction(async (tx) => {
         const [brochure] = await tx
@@ -332,10 +363,10 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
           .values({
             brochureId: brochure.id,
             versionNo: 1,
-            filename: file.filename,
-            storagePath: file.storagePath,
-            mime: file.mime,
-            size: file.size,
+            filename: uploadedFile.filename,
+            storagePath: uploadedFile.storagePath,
+            mime: uploadedFile.mime,
+            size: uploadedFile.size,
             uploadedBy: request.user.id
           })
           .returning();
@@ -358,7 +389,10 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
         }
       });
     } catch (error) {
-      await unlinkStoragePath(file.storagePath);
+      await unlinkStoragePath(file?.storagePath);
+      if (isFileTooLargeError(error)) {
+        return sendBrochureFileTooLarge(reply);
+      }
       throw error;
     }
   });
@@ -405,10 +439,15 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
 
   app.post("/brochures/:id/versions", { preHandler: requirePerm("brochure.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
-    const { fields, file } = await readMultipartWithFirstFile(request);
-    if (!file) return reply.code(400).send({ error: "file_required" });
+    let file: UploadedFile | null = null;
 
     try {
+      const multipart = await readMultipartWithFirstFile(request);
+      file = multipart.file;
+      if (!file) return reply.code(400).send({ error: "file_required" });
+
+      const uploadedFile = file;
+      const fields = multipart.fields;
       const body = parseWithSchema(brochureVersionUploadSchema, fields);
       const result = await db.transaction(async (tx) => {
         const [brochure] = await tx.select().from(brochures).where(eq(brochures.id, id)).limit(1);
@@ -425,10 +464,10 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
             brochureId: id,
             versionNo: next?.versionNo ?? 1,
             note: body.note,
-            filename: file.filename,
-            storagePath: file.storagePath,
-            mime: file.mime,
-            size: file.size,
+            filename: uploadedFile.filename,
+            storagePath: uploadedFile.storagePath,
+            mime: uploadedFile.mime,
+            size: uploadedFile.size,
             uploadedBy: request.user.id
           })
           .returning();
@@ -448,7 +487,10 @@ export async function registerBrochureRoutes(app: FastifyInstance): Promise<void
 
       return reply.code(201).send({ version: serializeVersion(result) });
     } catch (error) {
-      await unlinkStoragePath(file.storagePath);
+      await unlinkStoragePath(file?.storagePath);
+      if (isFileTooLargeError(error)) {
+        return sendBrochureFileTooLarge(reply);
+      }
       throw error;
     }
   });
