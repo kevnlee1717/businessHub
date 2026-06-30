@@ -92,7 +92,7 @@ export function parseCaseFolderName(folder: string): ParsedCase {
   const appealIdMatch = s.match(/ISC(\d{4}A[ME]\d{6})/i);
   let appealId: string | null = null;
   if (appealIdMatch) {
-    appealId = "ISC" + appealIdMatch[1].toUpperCase();
+    appealId = "ISC" + appealIdMatch[1]!.toUpperCase();
     // 移除匹配到的 ID（及可能包裹它的括号）
     s = s.replace(/\((?:ISC)?ISC\d{4}A[ME]\d{6}\)/gi, " ");
     s = s.replace(/(?:ISC)?ISC\d{4}A[ME]\d{6}/gi, " ");
@@ -105,8 +105,8 @@ export function parseCaseFolderName(folder: string): ParsedCase {
   const roundMatch = s.match(/(\d)(?:st|nd|rd|th)\s*APPEAL/i);
   let round: number | null = null;
   if (roundMatch) {
-    round = parseInt(roundMatch[1], 10);
-    s = s.replace(roundMatch[0], " ");
+    round = parseInt(roundMatch[1]!, 10);
+    s = s.replace(roundMatch[0]!, " ");
   }
   // 移除 RE APPEAL / REAPPEAL (无编号的再申请标记)
   s = s.replace(/\bRE[\s-]*APPEAL\b/gi, " ");
@@ -145,14 +145,14 @@ export function parseCaseFolderName(folder: string): ParsedCase {
   if (parts.length === 0) {
     name = s;
   } else if (parts.length === 1) {
-    name = parts[0];
+    name = parts[0]!;
   } else {
-    const lastPart = parts[parts.length - 1];
+    const lastPart = parts[parts.length - 1]!;
     if (looksLikeOwnerCode(lastPart)) {
       owner = lastPart.toUpperCase();
-      name = parts[0];
+      name = parts[0]!;
     } else {
-      name = parts[0];
+      name = parts[0]!;
     }
   }
 
