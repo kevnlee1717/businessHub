@@ -444,6 +444,19 @@ export function CasesPage({ businessType }: CasesPageProps) {
               />
             </Group>
             <Controller
+              name="signed_at"
+              control={form.control}
+              render={({ field }) => (
+                <TextInput
+                  type="date"
+                  label={t("case.fields.signedAt")}
+                  value={field.value ?? ""}
+                  onChange={(event) => field.onChange(event.currentTarget.value || null)}
+                  error={errors.signed_at?.message}
+                />
+              )}
+            />
+            <Controller
               name="template_id"
               control={form.control}
               render={({ field }) => (
@@ -455,19 +468,6 @@ export function CasesPage({ businessType }: CasesPageProps) {
                   error={errors.template_id?.message}
                   searchable
                   clearable
-                />
-              )}
-            />
-            <Controller
-              name="signed_at"
-              control={form.control}
-              render={({ field }) => (
-                <TextInput
-                  type="date"
-                  label={t("case.fields.signedAt")}
-                  value={field.value ?? ""}
-                  onChange={(event) => field.onChange(event.currentTarget.value || null)}
-                  error={errors.signed_at?.message}
                 />
               )}
             />

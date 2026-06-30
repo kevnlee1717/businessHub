@@ -609,6 +609,7 @@
       "currentStep": "Current step",
       "signedAt": "Signed date",
       "parentCase": "Parent case",
+      "signedAt": "Signed Date",
       "createdAt": "Created at",
       "guarantor": "Guarantor",
       "guarantorName": "Guarantor name",
@@ -617,6 +618,14 @@
     },
     "errors": {
       "guarantorRequired": "ICA cases require a guarantor name."
+    },
+    "stats": {
+      "title": "Case Statistics",
+      "year": "Year",
+      "businessType": "Business type",
+      "month": "{{month}}",
+      "count": "Cases",
+      "total": "{{year}} total: {{count}}"
     }
   },
   "client": {

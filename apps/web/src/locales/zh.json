@@ -609,6 +609,7 @@
       "currentStep": "当前步骤",
       "signedAt": "签约日期",
       "parentCase": "父案件",
+      "signedAt": "签约日期",
       "createdAt": "创建时间",
       "guarantor": "担保人",
       "guarantorName": "担保人姓名",
@@ -617,6 +618,14 @@
     },
     "errors": {
       "guarantorRequired": "ICA 案件必须填写担保人姓名。"
+    },
+    "stats": {
+      "title": "案件统计",
+      "year": "年份",
+      "businessType": "业务类型",
+      "month": "{{month}}月",
+      "count": "案件数",
+      "total": "{{year}} 年合计：{{count}}"
     }
   },
   "client": {
