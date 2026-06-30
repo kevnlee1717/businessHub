@@ -284,21 +284,8 @@
       "cases": "案件",
       "clients": "客户",
       "templates": "流程模板",
-      "pricelist": "价格表",
       "guarantors": "担保人",
       "stats": "统计"
-    },
-    "pricelist": {
-      "slots": {
-        "price_list": "价格表",
-        "unit_price": "单价表",
-        "faq": "FAQ"
-      },
-      "notUploaded": "未上传",
-      "updatedAt": "更新时间",
-      "preview": "预览",
-      "upload": "上传",
-      "replace": "替换"
     }
   },
   "teachers": {

@@ -284,21 +284,8 @@
       "cases": "Cases",
       "clients": "Clients",
       "templates": "Workflow templates",
-      "pricelist": "Price list",
       "guarantors": "Guarantors",
       "stats": "Stats"
-    },
-    "pricelist": {
-      "slots": {
-        "price_list": "Price list",
-        "unit_price": "Unit price",
-        "faq": "FAQ"
-      },
-      "notUploaded": "Not uploaded",
-      "updatedAt": "Updated at",
-      "preview": "Preview",
-      "upload": "Upload",
-      "replace": "Replace"
     }
   },
   "teachers": {
