@@ -509,18 +509,21 @@ export function JobsPageImpl() {
   const [status, setStatus] = useState<RecruitmentJobStatus | null>(null);
   const [priority, setPriority] = useState<RecruitmentJobPriority | null>(null);
   const [industryId, setIndustryId] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<RecruitmentJob | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const queryParams = { status: status ?? undefined, priority: priority ?? undefined, industry_id: industryId ?? undefined, q: q || undefined };
   const query = useQuery({ queryKey: recruitmentKeys.jobs(queryParams), queryFn: () => listRecruitmentJobs(queryParams) });
   const rows = query.data?.jobs ?? [];
+  const filteredRows = companyId ? rows.filter((row) => row.company_id === companyId) : rows;
 
   return (
     <Stack gap="md">
       <ErrorAlert error={query.error ?? base.error} />
       <Group gap="sm" align="flex-end" wrap="wrap">
         <TextInput label={t("recruitment.filters.q")} w={200} value={q} onChange={(e) => setQ(e.currentTarget.value)} />
+        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={setCompanyId} clearable />
         <Select label={t("recruitment.fields.industry")} w={180} data={base.industryOptions} value={industryId} onChange={setIndustryId} clearable />
         <Select label={t("recruitment.fields.status")} w={150} data={recruitmentJobStatuses.map((v) => ({ value: v, label: t(`recruitment.jobStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentJobStatus | null)} clearable />
         <Select label={t("recruitment.fields.priority")} w={140} data={recruitmentJobPriorities.map((v) => ({ value: v, label: t(`recruitment.jobPriority.${v}`) }))} value={priority} onChange={(v) => setPriority(v as RecruitmentJobPriority | null)} clearable />
@@ -530,7 +533,7 @@ export function JobsPageImpl() {
         <Table miw={1040} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
           <Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.title")}</Table.Th><Table.Th>{t("recruitment.fields.company")}</Table.Th><Table.Th>{t("recruitment.fields.industry")}</Table.Th><Table.Th>{t("recruitment.fields.headcount")}</Table.Th><Table.Th>{t("recruitment.fields.salary")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.priority")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead>
           <Table.Tbody>
-            {query.isLoading ? <LoadingRow colSpan={8} /> : rows.length === 0 ? <EmptyRow colSpan={8} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
+            {query.isLoading ? <LoadingRow colSpan={8} /> : filteredRows.length === 0 ? <EmptyRow colSpan={8} /> : filteredRows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
               <Table.Tr key={row.id}>
                 <Table.Td><Anchor onClick={() => navigate(`/recruitment/jobs/${row.id}`)}>{tField(row, "title", lang)}</Anchor></Table.Td>
                 <Table.Td>{optionLabel(base.companyOptions, row.company_id)}</Table.Td>
@@ -545,7 +548,7 @@ export function JobsPageImpl() {
           </Table.Tbody>
         </Table>
       </ScrollArea>
-      <TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+      <TablePagination total={filteredRows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
       <JobFormModal opened={modalOpened} onClose={() => setModalOpened(false)} job={editing} />
     </Stack>
   );
@@ -829,11 +832,52 @@ export function PostingsPageImpl() {
   const base = useBaseOptions();
   const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentPostingStatus | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecruitmentPosting | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.postings(status), queryFn: () => listRecruitmentPostings({ status: status ?? undefined }) });
   const rows = query.data?.postings ?? [];
-  return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentPostingStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.postings.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.platform")}</Table.Th><Table.Th>{t("recruitment.fields.job")}</Table.Th><Table.Th>{t("recruitment.fields.publishedOn")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => <Table.Tr key={row.id}><Table.Td>{row.platform}</Table.Td><Table.Td>{optionLabel(base.jobOptions, row.job_id)}</Table.Td><Table.Td>{row.published_on}</Table.Td><Table.Td><StatusBadge value={row.status} ns="postingStatus" /></Table.Td><Table.Td>{row.inquiry_count}</Table.Td><Table.Td><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /><PostingFormModal opened={modalOpen} onClose={() => setModalOpen(false)} posting={editing} /></Stack>;
+  const filteredRows = companyId ? rows.filter((row) => row.company_id === companyId) : rows;
+  return (
+    <Stack gap="md">
+      <ErrorAlert error={query.error} />
+      <Group align="flex-end">
+        <Select label={t("recruitment.fields.status")} w={180} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentPostingStatus | null)} clearable />
+        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={setCompanyId} clearable />
+        <Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.postings.add")}</Button>
+      </Group>
+      <ScrollArea>
+        <Table miw={920} withTableBorder withColumnBorders highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t("recruitment.fields.platform")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.company")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.job")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.publishedOn")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.status")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.inquiryCount")}</Table.Th>
+              <Table.Th>{t("common.actions")}</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {query.isLoading ? <LoadingRow colSpan={7} /> : filteredRows.length === 0 ? <EmptyRow colSpan={7} /> : filteredRows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
+              <Table.Tr key={row.id}>
+                <Table.Td>{row.platform}</Table.Td>
+                <Table.Td>{optionLabel(base.companyOptions, row.company_id)}</Table.Td>
+                <Table.Td>{optionLabel(base.jobOptions, row.job_id)}</Table.Td>
+                <Table.Td>{row.published_on}</Table.Td>
+                <Table.Td><StatusBadge value={row.status} ns="postingStatus" /></Table.Td>
+                <Table.Td>{row.inquiry_count}</Table.Td>
+                <Table.Td><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </ScrollArea>
+      <TablePagination total={filteredRows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+      <PostingFormModal opened={modalOpen} onClose={() => setModalOpen(false)} posting={editing} />
+    </Stack>
+  );
 }
 
 function CampaignFormModal({ opened, onClose, campaign, initialJobId }: { opened: boolean; onClose: () => void; campaign?: RecruitmentCampaign | null; initialJobId?: string }) {
@@ -859,13 +903,60 @@ function CampaignFormModal({ opened, onClose, campaign, initialJobId }: { opened
 export function CampaignsPageImpl() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const base = useBaseOptions();
   const { page, pageSize, setPage, setPageSize } = usePagination(10);
   const [status, setStatus] = useState<RecruitmentCampaignStatus | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecruitmentCampaign | null>(null);
   const query = useQuery({ queryKey: recruitmentKeys.campaigns(status), queryFn: () => listRecruitmentCampaigns({ status: status ?? undefined }) });
   const rows = query.data?.campaigns ?? [];
-  return <Stack gap="md"><ErrorAlert error={query.error} /><Group align="flex-end"><Select label={t("recruitment.fields.status")} w={180} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentCampaignStatus | null)} clearable /><Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.campaigns.add")}</Button></Group><ScrollArea><Table miw={920} withTableBorder withColumnBorders highlightOnHover><Table.Thead><Table.Tr><Table.Th>{t("recruitment.fields.name")}</Table.Th><Table.Th>{t("recruitment.fields.type")}</Table.Th><Table.Th>{t("recruitment.fields.location")}</Table.Th><Table.Th>{t("recruitment.fields.plannedDate")}</Table.Th><Table.Th>{t("recruitment.fields.status")}</Table.Th><Table.Th>{t("common.actions")}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{query.isLoading ? <LoadingRow colSpan={6} /> : rows.length === 0 ? <EmptyRow colSpan={6} /> : rows.slice((page - 1) * pageSize, page * pageSize).map((row) => <Table.Tr key={row.id}><Table.Td><Anchor onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{row.name}</Anchor></Table.Td><Table.Td><StatusBadge value={row.type} ns="campaignType" /></Table.Td><Table.Td>{row.location}</Table.Td><Table.Td>{row.planned_date} {row.planned_start}-{row.planned_end}</Table.Td><Table.Td><StatusBadge value={row.status} ns="campaignStatus" /></Table.Td><Table.Td><Group gap="xs"><Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{t("common.view")}</Button><Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button></Group></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea><TablePagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /><CampaignFormModal opened={modalOpen} onClose={() => setModalOpen(false)} campaign={editing} /></Stack>;
+  const filteredRows = companyId ? rows.filter((row) => row.company_id === companyId) : rows;
+  return (
+    <Stack gap="md">
+      <ErrorAlert error={query.error} />
+      <Group align="flex-end">
+        <Select label={t("recruitment.fields.status")} w={180} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={status} onChange={(v) => setStatus(v as RecruitmentCampaignStatus | null)} clearable />
+        <Select label={t("recruitment.fields.company")} w={180} data={base.companyOptions} value={companyId} onChange={setCompanyId} clearable />
+        <Button onClick={() => { setEditing(null); setModalOpen(true); }}>{t("recruitment.campaigns.add")}</Button>
+      </Group>
+      <ScrollArea>
+        <Table miw={920} withTableBorder withColumnBorders highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t("recruitment.fields.name")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.company")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.type")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.location")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.plannedDate")}</Table.Th>
+              <Table.Th>{t("recruitment.fields.status")}</Table.Th>
+              <Table.Th>{t("common.actions")}</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {query.isLoading ? <LoadingRow colSpan={7} /> : filteredRows.length === 0 ? <EmptyRow colSpan={7} /> : filteredRows.slice((page - 1) * pageSize, page * pageSize).map((row) => (
+              <Table.Tr key={row.id}>
+                <Table.Td><Anchor onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{row.name}</Anchor></Table.Td>
+                <Table.Td>{optionLabel(base.companyOptions, row.company_id)}</Table.Td>
+                <Table.Td><StatusBadge value={row.type} ns="campaignType" /></Table.Td>
+                <Table.Td>{row.location}</Table.Td>
+                <Table.Td>{row.planned_date} {row.planned_start}-{row.planned_end}</Table.Td>
+                <Table.Td><StatusBadge value={row.status} ns="campaignStatus" /></Table.Td>
+                <Table.Td>
+                  <Group gap="xs">
+                    <Button size="xs" variant="subtle" onClick={() => navigate(`/recruitment/campaigns/${row.id}`)}>{t("common.view")}</Button>
+                    <Button size="xs" variant="subtle" onClick={() => { setEditing(row); setModalOpen(true); }}>{t("common.edit")}</Button>
+                  </Group>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </ScrollArea>
+      <TablePagination total={filteredRows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+      <CampaignFormModal opened={modalOpen} onClose={() => setModalOpen(false)} campaign={editing} />
+    </Stack>
+  );
 }
 
 export function CampaignDetailPageImpl() {
