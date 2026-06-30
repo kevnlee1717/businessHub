@@ -89,16 +89,19 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
           ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, ids))
           : [];
         const stats = computeGuarantorStats(
-          caseRows.map((c) => {
-            const list = subs
-              .filter((s) => s.caseId === c.id)
-              .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-            return {
-              caseId: c.id,
-              createdAt: c.createdAt.toISOString(),
-              latestResult: list[0]?.result ?? null
-            };
-          })
+          caseRows.map((c) => ({
+            caseId: c.id,
+            createdAt: c.createdAt.toISOString(),
+            latestResult: latestSubmissionResult(
+              subs
+                .filter((s) => s.caseId === c.id)
+                .map((s) => ({
+                  result: s.result,
+                  submittedAt: s.submittedAt ? s.submittedAt.toISOString() : null,
+                  createdAt: s.createdAt.toISOString()
+                }))
+            )
+          }))
         );
         return { ...serializeGuarantor(row), sponsored_count: stats.total, stats };
       })
@@ -119,27 +122,42 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
   });
 
   app.get("/guarantors/stats", { preHandler: requirePerm("case.view") }, async () => {
-    const rows = await db.select().from(guarantors);
-    const perGuarantor = await Promise.all(
-      rows.map(async (row) => {
-        const caseRows = await db.select().from(cases).where(eq(cases.guarantorId, row.id));
-        const ids = caseRows.map((c) => c.id);
-        const subs = ids.length
-          ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, ids))
-          : [];
-        return computeGuarantorStats(
-          caseRows.map((c) => {
-            const list = subs
-              .filter((s) => s.caseId === c.id)
-              .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-            return {
-              caseId: c.id,
-              createdAt: c.createdAt.toISOString(),
-              latestResult: list[0]?.result ?? null
-            };
-          })
-        );
-      })
+    const rows = await db.select({ id: guarantors.id }).from(guarantors);
+    const guarantorIds = rows.map((r) => r.id);
+    const caseRows = guarantorIds.length
+      ? await db.select().from(cases).where(inArray(cases.guarantorId, guarantorIds))
+      : [];
+    const caseIds = caseRows.map((c) => c.id);
+    const subs = caseIds.length
+      ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, caseIds))
+      : [];
+    const subsByCase = new Map<string, typeof subs>();
+    for (const s of subs) {
+      const list = subsByCase.get(s.caseId) ?? [];
+      list.push(s);
+      subsByCase.set(s.caseId, list);
+    }
+    const casesByGuarantor = new Map<string, typeof caseRows>();
+    for (const c of caseRows) {
+      if (!c.guarantorId) continue;
+      const list = casesByGuarantor.get(c.guarantorId) ?? [];
+      list.push(c);
+      casesByGuarantor.set(c.guarantorId, list);
+    }
+    const perGuarantor = rows.map((r) =>
+      computeGuarantorStats(
+        (casesByGuarantor.get(r.id) ?? []).map((c) => ({
+          caseId: c.id,
+          createdAt: c.createdAt.toISOString(),
+          latestResult: latestSubmissionResult(
+            (subsByCase.get(c.id) ?? []).map((s) => ({
+              result: s.result,
+              submittedAt: s.submittedAt ? s.submittedAt.toISOString() : null,
+              createdAt: s.createdAt.toISOString()
+            }))
+          )
+        }))
+      )
     );
     return { summary: computeGuarantorSummary(perGuarantor) };
   });
