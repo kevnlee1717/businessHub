@@ -860,6 +860,14 @@
   "caseStep": {
     "title": "Case steps",
     "empty": "No steps yet",
+    "stepNo": "Step {{n}}",
+    "selectHint": "Click a step above to view details",
+    "tone": {
+      "progress": "In progress",
+      "problem": "Issue",
+      "done": "Done",
+      "pending": "Pending"
+    },
     "fields": {
       "assignee": "Assignee",
       "completedAt": "Completed at"

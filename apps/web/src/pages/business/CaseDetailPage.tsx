@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Alert,
   Badge,
+  Box,
   Button,
   Checkbox,
   FileInput,
@@ -135,6 +136,33 @@ function stepStatusColor(status: CaseStepStatus) {
       return "orange";
     default:
       return "yellow";
+  }
+}
+
+// 步骤健康度:有问题(待补材料/被拒) / 完成 / 进行中 / 待开始,用于步骤导航按钮的视觉区分。
+type StepTone = "done" | "progress" | "problem" | "pending";
+function stepTone(step: CaseStep): StepTone {
+  if (step.review_status === "rejected" || step.status === "need_materials") {
+    return "problem";
+  }
+  if (step.status === "done") {
+    return "done";
+  }
+  if (step.status === "in_progress") {
+    return "progress";
+  }
+  return "pending";
+}
+function stepToneColor(tone: StepTone) {
+  switch (tone) {
+    case "done":
+      return "green";
+    case "progress":
+      return "blue";
+    case "problem":
+      return "red";
+    default:
+      return "gray";
   }
 }
 
@@ -1335,6 +1363,67 @@ function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionT
   );
 }
 
+function StepLegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <Group gap={4} wrap="nowrap">
+      <Box w={10} h={10} style={{ borderRadius: "50%", backgroundColor: `var(--mantine-color-${color}-6)` }} />
+      <Text size="xs" c="dimmed">
+        {label}
+      </Text>
+    </Group>
+  );
+}
+
+// 顶部固定的步骤导航卡:每步一个按钮(显示第几步),按健康度着色,点击切换下方显示的步骤卡片。
+function StepNav({
+  steps,
+  selectedStepId,
+  onSelect
+}: {
+  steps: CaseStep[];
+  selectedStepId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Paper
+      withBorder
+      radius="md"
+      p="md"
+      style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: "var(--mantine-color-body)" }}
+    >
+      <Stack gap="sm">
+        <Group justify="space-between">
+          <Title order={4}>{t("caseStep.title")}</Title>
+          <Group gap="md">
+            <StepLegendDot color="blue" label={t("caseStep.tone.progress")} />
+            <StepLegendDot color="red" label={t("caseStep.tone.problem")} />
+            <StepLegendDot color="green" label={t("caseStep.tone.done")} />
+            <StepLegendDot color="gray" label={t("caseStep.tone.pending")} />
+          </Group>
+        </Group>
+        <Group gap="xs">
+          {steps.map((step, index) => {
+            const selected = step.id === selectedStepId;
+            return (
+              <Button
+                key={step.id}
+                size="sm"
+                color={stepToneColor(stepTone(step))}
+                variant={selected ? "filled" : "light"}
+                onClick={() => onSelect(step.id)}
+                title={step.name}
+              >
+                {t("caseStep.stepNo", { n: index + 1 })}
+              </Button>
+            );
+          })}
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
 export function CaseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -1345,6 +1434,7 @@ export function CaseDetailPage() {
   const [signedAtDraft, setSignedAtDraft] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [caseCharges, setCaseCharges] = useState<Charge[]>([]);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
   const caseQuery = useQuery({
     queryKey: ["business", "case", id],
@@ -1383,6 +1473,10 @@ export function CaseDetailPage() {
   const steps = useMemo(
     () => [...(caseQuery.data?.steps ?? [])].sort((a, b) => a.step_order - b.step_order),
     [caseQuery.data?.steps]
+  );
+  const selectedStep = useMemo(
+    () => steps.find((step) => step.id === selectedStepId) ?? null,
+    [steps, selectedStepId]
   );
   const clients = clientsQuery.data?.clients ?? [];
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
@@ -1470,6 +1564,31 @@ export function CaseDetailPage() {
         </Group>
       ) : caseItem ? (
         <>
+          {steps.length > 0 ? (
+            <StepNav steps={steps} selectedStepId={selectedStepId} onSelect={setSelectedStepId} />
+          ) : null}
+
+          {steps.length > 0 ? (
+            selectedStep ? (
+              <StepCard
+                step={selectedStep}
+                caseId={caseItem.id}
+                stepCharges={chargesByStepId.get(selectedStep.id) ?? []}
+                employees={employees}
+                employeeById={employeeById}
+                canManageCases={canManageCases}
+                currentUserId={user?.id}
+                documentCategories={documentCategories}
+              />
+            ) : (
+              <Paper withBorder radius="md" p="lg">
+                <Text ta="center" c="dimmed">
+                  {t("caseStep.selectHint")}
+                </Text>
+              </Paper>
+            )
+          ) : null}
+
           <Paper withBorder radius="md" p="md">
             <Stack gap="md">
               {statusError ? (
@@ -1595,30 +1714,6 @@ export function CaseDetailPage() {
             <ChargeSchedulePanel caseId={caseItem.id} onChargesLoaded={handleChargesLoaded} />
           ) : null}
 
-          <Stack gap="md">
-            <Title order={3}>{t("caseStep.title")}</Title>
-            {steps.length === 0 ? (
-              <Paper withBorder radius="md" p="lg">
-                <Text ta="center" c="dimmed">
-                  {t("caseStep.empty")}
-                </Text>
-              </Paper>
-            ) : (
-              steps.map((step) => (
-                <StepCard
-                  key={step.id}
-                  step={step}
-                  caseId={caseItem.id}
-                  stepCharges={chargesByStepId.get(step.id) ?? []}
-                  employees={employees}
-                  employeeById={employeeById}
-                  canManageCases={canManageCases}
-                  currentUserId={user?.id}
-                  documentCategories={documentCategories}
-                />
-              ))
-            )}
-          </Stack>
         </>
       ) : (
         <Text c="dimmed">{t("case.notFound")}</Text>

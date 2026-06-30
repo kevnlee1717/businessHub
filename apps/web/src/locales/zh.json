@@ -860,6 +860,14 @@
   "caseStep": {
     "title": "案件步骤",
     "empty": "暂无步骤",
+    "stepNo": "第 {{n}} 步",
+    "selectHint": "点击上方步骤查看详情",
+    "tone": {
+      "progress": "进行中",
+      "problem": "有问题",
+      "done": "完成",
+      "pending": "待开始"
+    },
     "fields": {
       "assignee": "负责人",
       "completedAt": "完成时间"
