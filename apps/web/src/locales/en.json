@@ -1274,6 +1274,45 @@
       "fileRequired": "Please choose a file"
     }
   },
+  "rent": {
+    "months": "months",
+    "location": {
+      "add": "Add location",
+      "edit": "Edit location",
+      "empty": "No locations yet — add one first",
+      "selectHint": "Select a location on the left to view lease info and files.",
+      "nameRequired": "Location name is required",
+      "deleteConfirm": "Delete this location? All its files will be removed too."
+    },
+    "kind": {
+      "payment": "Rent payment"
+    },
+    "files": {
+      "empty": "No files for this location",
+      "deleteConfirm": "Delete this file?"
+    },
+    "upload": {
+      "required": "Please choose a location and file",
+      "locationRequired": "Please choose a location",
+      "fileRequired": "Please choose a file"
+    },
+    "fields": {
+      "name": "Location name",
+      "address": "Address",
+      "landlord": "Landlord",
+      "leaseStart": "Lease start",
+      "leaseMonths": "Lease term (months)",
+      "monthlyRent": "Monthly rent",
+      "deposit": "Deposit",
+      "currency": "Currency",
+      "note": "Note",
+      "location": "Location",
+      "kind": "Type",
+      "period": "Month",
+      "paidAt": "Paid date",
+      "periodOrTag": "Month / Type"
+    }
+  },
   "document": {
     "search": {
       "title": "Document Search",

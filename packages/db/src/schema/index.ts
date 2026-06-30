@@ -78,3 +78,5 @@ export * from "./translations";
 export * from "./recruitment";
 export * from "./franchise";
 export * from "./brochures";
+export * from "./rentLocations";
+export * from "./rentFiles";
