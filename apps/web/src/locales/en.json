@@ -2094,7 +2094,8 @@
       "scheduledAt": "Scheduled at",
       "mode": "Mode",
       "interviewer": "Interviewer",
-      "date": "Date"
+      "date": "Date",
+      "active": "Active"
     },
     "jobs": {
       "add": "New job",
@@ -2234,8 +2235,8 @@
     "approved": "Approved",
     "rejected": "Rejected (Pending Resubmission)",
     "pending": "Submitted (Awaiting Result)",
-    "chartTitle": "{year}  Total {count}",
-    "month": "M{month}",
+    "chartTitle": "{{year}}  Total {{count}}",
+    "month": "M{{month}}",
     "newCases": "New Cases"
   }
 }

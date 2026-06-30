@@ -2057,7 +2057,7 @@
       "nationalities": "国籍标签",
       "status": "状态",
       "priority": "紧急度",
-      "active": "启用",
+      "active": "在用",
       "inactive": "停用",
       "owner": "负责人",
       "inviteClerk": "邀约人",
@@ -2094,7 +2094,8 @@
       "scheduledAt": "面试时间",
       "mode": "方式",
       "interviewer": "面试官",
-      "date": "日期"
+      "date": "日期",
+      "active": "启用"
     },
     "jobs": {
       "add": "新建岗位",
@@ -2234,8 +2235,8 @@
     "approved": "已批准",
     "rejected": "被拒等待重提",
     "pending": "提交中等结果",
-    "chartTitle": "{year}年  共{count}个",
-    "month": "{month}月",
+    "chartTitle": "{{year}}年  共{{count}}个",
+    "month": "{{month}}月",
     "newCases": "新建案件"
   }
 }
