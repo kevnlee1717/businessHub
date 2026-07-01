@@ -1163,10 +1163,10 @@ export function CandidatesPageImpl({ talentPool = false }: { talentPool?: boolea
           </Tabs.List>
         </Tabs>
       ) : null}
-      <Group align="flex-end">
+      <Group align="flex-end" gap="xs" wrap="wrap">
         <Select
           label={t("recruitment.fields.company")}
-          w={180}
+          w={130}
           data={base.companyOptions}
           value={companyId}
           onChange={(v) => {
@@ -1175,20 +1175,20 @@ export function CandidatesPageImpl({ talentPool = false }: { talentPool?: boolea
           }}
           clearable
         />
-        <Select label={t("recruitment.fields.job")} w={180} data={jobOptionsForCompany} value={jobId} onChange={setJobId} clearable searchable />
+        <Select label={t("recruitment.fields.job")} w={130} data={jobOptionsForCompany} value={jobId} onChange={setJobId} clearable searchable />
         <Select
           label={t("recruitment.fields.status")}
-          w={190}
+          w={130}
           data={recruitmentCandidateStatuses.map((v) => ({ value: v, label: t(`recruitment.candidateStatus.${v}`) }))}
           value={status}
           onChange={(v) => setStatus(v as RecruitmentCandidateStatus | null)}
           clearable
         />
-        <Select label={t("recruitment.fields.nationality")} w={140} data={["SG", "PR", "Malaysia", "China"]} value={nationality} onChange={setNationality} clearable />
-        <Select label={t("recruitment.fields.ethnicity")} w={140} data={ethnicityOptions} value={ethnicity} onChange={setEthnicity} clearable />
-        <Select label={t("recruitment.fields.ageBand")} w={140} data={ageBandOptions} value={ageBand} onChange={setAgeBand} clearable />
-        <Select label={t("recruitment.fields.experienceLevel")} w={160} data={experienceLevelOptions} value={experienceLevel} onChange={setExperienceLevel} clearable />
-        <Select label={t("recruitment.candidates.scheduleFilter")} w={150} data={[{ value: "unscheduled", label: t("recruitment.candidates.unscheduled") }]} value={scheduleFilter} onChange={setScheduleFilter} clearable />
+        <Select label={t("recruitment.fields.nationality")} w={110} data={["SG", "PR", "Malaysia", "China"]} value={nationality} onChange={setNationality} clearable />
+        <Select label={t("recruitment.fields.ethnicity")} w={110} data={ethnicityOptions} value={ethnicity} onChange={setEthnicity} clearable />
+        <Select label={t("recruitment.fields.ageBand")} w={100} data={ageBandOptions} value={ageBand} onChange={setAgeBand} clearable />
+        <Select label={t("recruitment.fields.experienceLevel")} w={110} data={experienceLevelOptions} value={experienceLevel} onChange={setExperienceLevel} clearable />
+        <Select label={t("recruitment.candidates.scheduleFilter")} w={110} data={[{ value: "unscheduled", label: t("recruitment.candidates.unscheduled") }]} value={scheduleFilter} onChange={setScheduleFilter} clearable />
       </Group>
       <CandidateTable rows={filteredRows} loading={query.isLoading} />
     </Stack>
