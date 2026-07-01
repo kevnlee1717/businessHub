@@ -286,7 +286,58 @@
       "templates": "Workflow templates",
       "guarantors": "Guarantors",
       "stats": "Stats",
-      "feeShare": "Fees & Commission"
+      "feeShare": "Fees & Commission",
+      "packages": "Package management"
+    }
+  },
+  "epPackages": {
+    "tabs": {
+      "services": "Service catalog",
+      "packages": "Packages"
+    },
+    "addService": "Add service",
+    "editService": "Edit service",
+    "addPackage": "Add package",
+    "editPackage": "Edit package",
+    "addMilestone": "Add milestone",
+    "recommended": "★ Recommended",
+    "emptyServices": "No services yet",
+    "emptyPackages": "No packages yet",
+    "emptyMilestones": "No payment milestones yet",
+    "categories": {
+      "core_ep": "EP core",
+      "banking_tax": "Banking / tax",
+      "family": "Family",
+      "gov_fee": "Government fee"
+    },
+    "sections": {
+      "basic": "Basic info",
+      "items": "Included services",
+      "milestones": "Payment milestones"
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "nameEn": "English name",
+      "category": "Category",
+      "defaultPrice": "Unit price",
+      "basePrice": "Base price",
+      "isCore": "Core service",
+      "billable": "Billable",
+      "active": "Active",
+      "sortOrder": "Sort order",
+      "recommended": "Recommended",
+      "tagline": "Tagline",
+      "seq": "Seq",
+      "label": "Label",
+      "labelEn": "English label",
+      "amount": "Amount",
+      "bindStepOrder": "Bound step",
+      "refundableNote": "Refund note"
+    },
+    "messages": {
+      "serviceSaved": "Service saved",
+      "packageSaved": "Package saved"
     }
   },
   "teachers": {
@@ -634,7 +685,8 @@
       "guarantor": "Guarantor",
       "children": "Sub-cases",
       "submissions": "Submissions",
-      "charges": "Charges"
+      "charges": "Charges",
+      "addon": "Add services"
     },
     "filters": {
       "businessType": "Business type",
@@ -645,6 +697,7 @@
       "businessType": "Business type",
       "client": "Client",
       "template": "Workflow template",
+      "package": "Package",
       "status": "Status",
       "currentStep": "Current step",
       "signedAt": "Signed date",
@@ -657,7 +710,8 @@
       "guarantorContact": "Guarantor contact"
     },
     "errors": {
-      "guarantorRequired": "ICA cases require a guarantor name."
+      "guarantorRequired": "ICA cases require a guarantor name.",
+      "packageRequired": "EP cases require a package."
     },
     "stats": {
       "title": "Case Statistics",
@@ -1951,7 +2005,8 @@
   "chargeKind": {
     "milestone": "Milestone",
     "period": "Monthly",
-    "event": "Event"
+    "event": "Event",
+    "service": "Service"
   },
   "chargeStatus": {
     "pending": "Pending",

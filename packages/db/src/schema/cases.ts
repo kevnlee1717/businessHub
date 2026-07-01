@@ -3,6 +3,7 @@ import { billing } from "./billing";
 import { clients } from "./clients";
 import { businessTypeEnum, caseStatusEnum } from "./enums";
 import { guarantors } from "./guarantors";
+import { servicePackages } from "./packages";
 
 export const cases = pgTable("cases", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -12,6 +13,7 @@ export const cases = pgTable("cases", {
   currentStep: integer("current_step").notNull().default(0),
   status: caseStatusEnum("status").notNull().default("open"),
   billingId: uuid("billing_id").references(() => billing.id, { onDelete: "set null" }),
+  packageId: uuid("package_id").references(() => servicePackages.id),
   guarantorId: uuid("guarantor_id").references(() => guarantors.id, { onDelete: "set null" }),
   guarantorName: text("guarantor_name"),
   guarantorRelation: text("guarantor_relation"),

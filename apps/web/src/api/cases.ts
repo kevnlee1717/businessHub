@@ -71,6 +71,7 @@ export type Case = {
   current_step?: number | null;
   status: CaseStatus;
   billing_id?: string | null;
+  package_id?: string | null;
   guarantor_id?: string | null;
   guarantor_name?: string | null;
   guarantor_relation?: string | null;

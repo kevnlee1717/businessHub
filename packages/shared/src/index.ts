@@ -14,6 +14,7 @@ export * from "./schemas/collectionItems";
 export * from "./schemas/commission";
 export * from "./schemas/dms";
 export * from "./schemas/education";
+export * from "./schemas/epPackages";
 export * from "./schemas/external";
 export * from "./schemas/finance";
 export * from "./schemas/franchise";

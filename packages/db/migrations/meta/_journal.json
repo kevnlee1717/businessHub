@@ -372,6 +372,13 @@
       "when": 1782820075182,
       "tag": "0052_recruitment_cost_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1782820075183,
+      "tag": "0053_ep_packages_services",
+      "breakpoints": true
     }
   ]
 }

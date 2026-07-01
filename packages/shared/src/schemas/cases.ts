@@ -54,6 +54,7 @@ export const caseCreateSchema = z.object({
   client_id: uuidField.nullable().optional(),
   template_id: uuidField.optional(),
   billing_id: uuidField.nullable().optional(),
+  package_id: uuidField.nullable().optional(),
   guarantor_name: optionalText,
   guarantor_relation: optionalText,
   guarantor_contact: optionalText,
