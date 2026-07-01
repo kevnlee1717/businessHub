@@ -5,7 +5,7 @@ type Args = {
   dryRun: boolean;
 };
 
-const migrationUrl = new URL("../../../../packages/db/migrations/0054_ep_package_commission.sql", import.meta.url);
+const migrationUrl = new URL("../../../../packages/db/migrations/0055_ep_package_commission.sql", import.meta.url);
 
 function parseArgs(argv: string[]): Args {
   let dryRun = false;
@@ -33,7 +33,7 @@ async function applyDdl(dryRun: boolean) {
   const statements = await loadMigrationStatements();
 
   if (dryRun) {
-    console.log(`ddl dry-run: ${statements.length} statements would be applied from 0054_ep_package_commission.sql`);
+    console.log(`ddl dry-run: ${statements.length} statements would be applied from 0055_ep_package_commission.sql`);
     return;
   }
 
