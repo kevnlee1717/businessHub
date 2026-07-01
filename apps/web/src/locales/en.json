@@ -286,7 +286,58 @@
       "templates": "Workflow templates",
       "guarantors": "Guarantors",
       "stats": "Stats",
-      "feeShare": "Fees & Commission"
+      "feeShare": "Fees & Commission",
+      "packages": "Package management"
+    }
+  },
+  "epPackages": {
+    "tabs": {
+      "services": "Service catalog",
+      "packages": "Packages"
+    },
+    "addService": "Add service",
+    "editService": "Edit service",
+    "addPackage": "Add package",
+    "editPackage": "Edit package",
+    "addMilestone": "Add milestone",
+    "recommended": "★ Recommended",
+    "emptyServices": "No services yet",
+    "emptyPackages": "No packages yet",
+    "emptyMilestones": "No payment milestones yet",
+    "categories": {
+      "core_ep": "EP core",
+      "banking_tax": "Banking / tax",
+      "family": "Family",
+      "gov_fee": "Government fee"
+    },
+    "sections": {
+      "basic": "Basic info",
+      "items": "Included services",
+      "milestones": "Payment milestones"
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "nameEn": "English name",
+      "category": "Category",
+      "defaultPrice": "Unit price",
+      "basePrice": "Base price",
+      "isCore": "Core service",
+      "billable": "Billable",
+      "active": "Active",
+      "sortOrder": "Sort order",
+      "recommended": "Recommended",
+      "tagline": "Tagline",
+      "seq": "Seq",
+      "label": "Label",
+      "labelEn": "English label",
+      "amount": "Amount",
+      "bindStepOrder": "Bound step",
+      "refundableNote": "Refund note"
+    },
+    "messages": {
+      "serviceSaved": "Service saved",
+      "packageSaved": "Package saved"
     }
   },
   "teachers": {

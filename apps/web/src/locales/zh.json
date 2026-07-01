@@ -286,7 +286,58 @@
       "templates": "流程模板",
       "guarantors": "担保人",
       "stats": "统计",
-      "feeShare": "收费&分成"
+      "feeShare": "收费&分成",
+      "packages": "套餐管理"
+    }
+  },
+  "epPackages": {
+    "tabs": {
+      "services": "服务目录",
+      "packages": "套餐"
+    },
+    "addService": "新增服务",
+    "editService": "编辑服务",
+    "addPackage": "新增套餐",
+    "editPackage": "编辑套餐",
+    "addMilestone": "新增节点",
+    "recommended": "★推荐",
+    "emptyServices": "暂无服务",
+    "emptyPackages": "暂无套餐",
+    "emptyMilestones": "暂无付款节点",
+    "categories": {
+      "core_ep": "EP 核心",
+      "banking_tax": "银行/税务",
+      "family": "家属",
+      "gov_fee": "政府费用"
+    },
+    "sections": {
+      "basic": "基本信息",
+      "items": "包含服务",
+      "milestones": "付款节点"
+    },
+    "fields": {
+      "code": "编码",
+      "name": "名称",
+      "nameEn": "英文名",
+      "category": "分类",
+      "defaultPrice": "单价",
+      "basePrice": "基础价格",
+      "isCore": "核心服务",
+      "billable": "可收费",
+      "active": "启用",
+      "sortOrder": "排序",
+      "recommended": "推荐",
+      "tagline": "标语",
+      "seq": "序号",
+      "label": "节点",
+      "labelEn": "英文节点",
+      "amount": "金额",
+      "bindStepOrder": "绑定步骤",
+      "refundableNote": "退款说明"
+    },
+    "messages": {
+      "serviceSaved": "服务已保存",
+      "packageSaved": "套餐已保存"
     }
   },
   "teachers": {
