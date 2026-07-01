@@ -408,9 +408,11 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
                   width: "100%",
                   height: "100%",
                   scrollSnapAlign: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  // 图片按宽度铺满两边;竖版页在横屏会比屏幕高,该页内可纵向滚动看全,横向仍翻页
+                  display: "block",
+                  overflowX: "hidden",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
                   position: "relative",
                 }}
               >
@@ -420,9 +422,8 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
                     alt={`第 ${pageIndex + 1} 页`}
                     style={{
                       display: "block",
-                      maxWidth: "100%",
-                      maxHeight: "100%",
-                      objectFit: "contain",
+                      width: "100%",
+                      height: "auto",
                     }}
                   />
                 ) : (
