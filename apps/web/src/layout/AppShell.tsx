@@ -68,7 +68,16 @@ const navItems: NavItem[] = [
       { to: "/franchise/fnb", key: "nav.franchise_fnb", perm: "franchise.view" }
     ]
   },
-  { to: "/documents", key: "nav.documents", perm: "document.view" },
+  {
+    key: "nav.documents",
+    defaultOpened: false,
+    children: [
+      { to: "/documents/search", key: "documents.tabs.search", perm: "document.view" },
+      { to: "/documents/brochure", key: "documents.tabs.brochure", perm: "brochure.view" },
+      { to: "/documents/ipad-slides", key: "documents.tabs.ipadSlides", perm: "brochure.view" },
+      { to: "/documents/categories", key: "documents.tabs.categories", perm: "document.view" }
+    ]
+  },
   { to: "/recruitment", key: "nav.recruitment", perm: "recruitment.view" },
   {
     key: "nav.finance",

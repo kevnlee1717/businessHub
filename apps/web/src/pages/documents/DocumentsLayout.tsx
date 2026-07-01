@@ -13,6 +13,7 @@ export const tabs = [
   { value: "certificates", path: "/documents/certificates", labelKey: "documents.tabs.certificates" },
   { value: "bizfile", path: "/documents/bizfile", labelKey: "documents.tabs.bizfile" },
   { value: "brochure", path: "/documents/brochure", labelKey: "documents.tabs.brochure", perm: "brochure.view" },
+  { value: "ipad-slides", path: "/documents/ipad-slides", labelKey: "documents.tabs.ipadSlides", perm: "brochure.view" },
   { value: "categories", path: "/documents/categories", labelKey: "documents.tabs.categories" }
 ] as const;
 

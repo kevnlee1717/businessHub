@@ -19,6 +19,7 @@ export * from "./schemas/external";
 export * from "./schemas/finance";
 export * from "./schemas/franchise";
 export * from "./schemas/hr";
+export * from "./schemas/ipadSlides";
 export * from "./schemas/ledger";
 export * from "./schemas/permissions";
 export * from "./schemas/recruitment";
