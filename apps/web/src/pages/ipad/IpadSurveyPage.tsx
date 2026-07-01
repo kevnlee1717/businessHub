@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   Alert,
   Box,
   Button,
@@ -42,6 +41,7 @@ import {
   type PropertySurveyField,
 } from "../franchise/propertySurvey";
 import { KaiderLetterhead } from "./KaiderLetterhead";
+import { PdfSwipeViewer } from "./PdfSwipeViewer";
 
 const interestLabels: Record<FranchiseInterestLevel, string> = {
   high: "高",
@@ -220,35 +220,12 @@ export function IpadSurveyPage() {
         </Container>
       </Box>
 
-      <Modal
+      <PdfSwipeViewer
         opened={Boolean(previewSlide)}
+        url={previewSlide?.url ?? ""}
+        title={previewSlide?.title ?? ""}
         onClose={() => setPreviewSlide(null)}
-        fullScreen
-        withCloseButton={false}
-        padding={0}
-      >
-        <ActionIcon
-          aria-label="关闭"
-          variant="filled"
-          color="dark"
-          radius="xl"
-          size={56}
-          pos="fixed"
-          top={18}
-          right={18}
-          style={{ zIndex: 1000 }}
-          onClick={() => setPreviewSlide(null)}
-        >
-          <Text fz={34} lh={1}>×</Text>
-        </ActionIcon>
-        {previewSlide ? (
-          <iframe
-            src={previewSlide.url}
-            title={previewSlide.title}
-            style={{ width: "100%", height: "100vh", border: 0, display: "block" }}
-          />
-        ) : null}
-      </Modal>
+      />
 
       <Modal
         opened={surveyOpened}

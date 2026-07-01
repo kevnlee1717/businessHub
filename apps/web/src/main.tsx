@@ -96,6 +96,12 @@ if (!root) {
   throw new Error("Root element #root not found");
 }
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="light">
