@@ -44,6 +44,7 @@ export * from "./caseServices";
 export * from "./students";
 export * from "./teachers";
 export * from "./courseTeachers";
+export * from "./courseDesignItems";
 export * from "./courseDesignTasks";
 export * from "./englishLevels";
 export * from "./englishClasses";

@@ -165,6 +165,22 @@ export const courseDesignTaskCreateSchema = z.object({
 
 export const courseDesignTaskUpdateSchema = courseDesignTaskCreateSchema.partial();
 
+export const courseDesignSection = z.enum(["level", "pricing", "addon", "daily", "tier", "ref_app", "screen"]);
+export const courseDesignItemStatus = z.enum(["draft", "approved"]);
+
+export const courseDesignItemCreateSchema = z.object({
+  section: courseDesignSection,
+  fields: z.record(z.string(), z.unknown()).optional(),
+  status: courseDesignItemStatus.optional(),
+  sort_order: z.number().int().optional()
+});
+
+export const courseDesignItemUpdateSchema = z.object({
+  fields: z.record(z.string(), z.unknown()).optional(),
+  status: courseDesignItemStatus.optional(),
+  sort_order: z.number().int().optional()
+});
+
 export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
 export type TeacherCreateInput = z.infer<typeof teacherCreateSchema>;
@@ -191,3 +207,5 @@ export type EnglishAttendanceMarkInput = z.infer<typeof englishAttendanceMarkSch
 export type EnglishClassAttendanceInput = z.infer<typeof englishClassAttendanceSchema>;
 export type CourseDesignTaskCreateInput = z.infer<typeof courseDesignTaskCreateSchema>;
 export type CourseDesignTaskUpdateInput = z.infer<typeof courseDesignTaskUpdateSchema>;
+export type CourseDesignItemCreateInput = z.infer<typeof courseDesignItemCreateSchema>;
+export type CourseDesignItemUpdateInput = z.infer<typeof courseDesignItemUpdateSchema>;

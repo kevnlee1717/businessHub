@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Divider,
+  FileInput,
   Group,
   Image,
   List,
@@ -19,6 +20,7 @@ import {
   Stack,
   Table,
   Text,
+  Textarea,
   TextInput,
   ThemeIcon,
   Title
@@ -30,13 +32,20 @@ import {
   type CourseDesignTaskUpdateInput
 } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import {
+  createCourseDesignItem,
   createCourseDesignTask,
+  deleteCourseDesignItem,
   deleteCourseDesignTask,
+  listCourseDesignItems,
   listCourseDesignTasks,
+  updateCourseDesignItem,
   updateCourseDesignTask,
+  uploadCourseDesignItemImage,
+  type CourseDesignItem,
+  type CourseDesignSection,
   type CourseDesignTask,
   type CourseDesignTaskStatus
 } from "../../api/education";
@@ -48,13 +57,10 @@ import { useCan } from "../../auth/permissions";
  * 「活的设计文档 + 进度看板」。
  * - §0 设计进度：DB 驱动（course_design_tasks 表 + /course-design-tasks API），
  *   有 education.manage 权限可就地新增/编辑/删除/改状态；负责人小雨在此更新进度。
- * - §1~§4 设计内容（分级/命名定价/每日任务/App 界面系统）为静态设计稿，
- *   随设计推进改本文件、走 dev → prod 提交流水线更新（与项目现有工作流一致）。
+ * - §1~§4 设计内容：DB 驱动（course_design_items 表 + /course-design-items API），
+ *   小雨可新增、编辑、删除、上传界面截图，并将条目审核定稿后锁定。
  *
- * 界面稿：小雨把高保真稿命名 <slug>.png 放到 apps/web/public/course-design/ 即覆盖内置 svg；
- * §4 每张卡可点击放大。
- *
- * 首版内容为第一稿框架/提案（命名、分级、定价、界面系统均为建议值），供小雨细化、替换。
+ * 界面稿：优先显示上传图片，其次回落到 apps/web/public/course-design/<slug>.svg。
  */
 
 type Status = CourseDesignTaskStatus;
@@ -65,7 +71,76 @@ type TaskFormValues = {
   deliverable?: string | null | undefined;
 };
 
+type SectionField = {
+  k: string;
+  label: string;
+  area?: boolean;
+};
+
+type ItemModalState = {
+  section: CourseDesignSection;
+  editingItem: CourseDesignItem | null;
+  values: Record<string, string>;
+};
+
 const courseDesignTasksQueryKey = ["education", "course-design-tasks"] as const;
+const courseDesignItemsQueryKey = ["education", "course-design-items"] as const;
+
+const SECTIONS: CourseDesignSection[] = ["level", "pricing", "addon", "daily", "tier", "ref_app", "screen"];
+
+const SECTION_LABELS: Record<CourseDesignSection, string> = {
+  level: "分级体系",
+  pricing: "课程命名 & 收费",
+  addon: "增值服务",
+  daily: "每日任务",
+  tier: "程度区分",
+  ref_app: "参考 App",
+  screen: "关键界面"
+};
+
+const SECTION_FIELDS: Record<CourseDesignSection, SectionField[]> = {
+  level: [
+    { k: "code", label: "级别" },
+    { k: "name", label: "名称" },
+    { k: "cefr", label: "CEFR" },
+    { k: "who", label: "目标人群" },
+    { k: "focus", label: "训练重心" }
+  ],
+  pricing: [
+    { k: "code", label: "级别" },
+    { k: "market", label: "营销课名" },
+    { k: "monthly", label: "月费(S$)" },
+    { k: "quarter", label: "季付(S$)" },
+    { k: "yearly", label: "年付(S$)" },
+    { k: "reason", label: "定价理由", area: true }
+  ],
+  addon: [
+    { k: "name", label: "名称" },
+    { k: "price", label: "价格" },
+    { k: "note", label: "说明", area: true }
+  ],
+  daily: [
+    { k: "icon", label: "图标" },
+    { k: "step", label: "环节" },
+    { k: "desc", label: "说明", area: true },
+    { k: "ref", label: "借鉴" }
+  ],
+  tier: [
+    { k: "tier", label: "档位" },
+    { k: "detail", label: "说明", area: true }
+  ],
+  ref_app: [
+    { k: "name", label: "App" },
+    { k: "borrow", label: "借鉴点", area: true }
+  ],
+  screen: [
+    { k: "no", label: "序号" },
+    { k: "name", label: "界面名" },
+    { k: "slug", label: "slug" },
+    { k: "purpose", label: "用途", area: true },
+    { k: "ref", label: "借鉴来源" }
+  ]
+};
 
 const STATUS_META: Record<Status, { label: string; color: string }> = {
   todo: { label: "待办", color: "gray" },
@@ -131,13 +206,33 @@ function SectionCard({
   );
 }
 
-/**
- * 界面稿显示槽：优先加载 <slug>.png（小雨后续导出的高保真稿），
- * 其次 <slug>.svg（本项目内置的中保真原型稿），都没有则显示占位。
- * 放到 apps/web/public/course-design/ 即自动显示。
- */
-function CourseDesignImage({ slug, height, onClick }: { slug: string; height: number; onClick?: () => void }) {
-  const sources = [`/course-design/${slug}.png`, `/course-design/${slug}.svg`];
+function fieldValue(item: CourseDesignItem, key: string) {
+  return String(item.fields?.[key] ?? "");
+}
+
+function fieldValues(item: CourseDesignItem | null, section: CourseDesignSection) {
+  return Object.fromEntries(SECTION_FIELDS[section].map((field) => [field.k, item ? fieldValue(item, field.k) : ""]));
+}
+
+function formatItemError(error: unknown) {
+  if (error instanceof Error && error.message === "item_locked") {
+    return "该条已定稿并锁定，请先『撤销定稿』再修改/删除";
+  }
+  return error instanceof Error ? error.message : "未知错误";
+}
+
+function CourseDesignImage({
+  slug,
+  imageUrl,
+  height,
+  onClick
+}: {
+  slug: string;
+  imageUrl?: string | null | undefined;
+  height: number;
+  onClick?: () => void;
+}) {
+  const sources = [imageUrl, slug ? `/course-design/${slug}.svg` : null].filter(Boolean) as string[];
   const [idx, setIdx] = useState(0);
 
   if (idx >= sources.length) {
@@ -158,7 +253,7 @@ function CourseDesignImage({ slug, height, onClick }: { slug: string; height: nu
             待上传界面稿
           </Text>
           <Text size="xs" c="dimmed">
-            public/course-design/{slug}.svg
+            上传 png 或填写 slug 使用内置 svg
           </Text>
         </Stack>
       </Box>
@@ -179,101 +274,45 @@ function CourseDesignImage({ slug, height, onClick }: { slug: string; height: nu
   );
 }
 
-function MockupSlot({ slug, onOpen }: { slug: string; onOpen: () => void }) {
-  return <CourseDesignImage slug={slug} height={360} onClick={onOpen} />;
+function EmptySection({ colSpan }: { colSpan?: number }) {
+  if (colSpan) {
+    return (
+      <Table.Tr>
+        <Table.Td colSpan={colSpan}>
+          <Text ta="center" c="dimmed" py="lg">
+            暂无，点「新增」添加
+          </Text>
+        </Table.Td>
+      </Table.Tr>
+    );
+  }
+  return (
+    <Text c="dimmed" size="sm">
+      暂无，点「新增」添加
+    </Text>
+  );
 }
-
-// ── 数据 ──────────────────────────────────────────────────────────────────
-
-const LEVELS: {
-  code: string;
-  name: string;
-  cefr: string;
-  who: string;
-  focus: string;
-}[] = [
-  { code: "L1", name: "入门 Starter", cefr: "pre-A1 / A1", who: "零基础", focus: "字母·发音·生存口语" },
-  { code: "L2", name: "基础 Elementary", cefr: "A1 – A2", who: "识单词但不敢开口", focus: "日常对话·基础语法" },
-  { code: "L3", name: "进阶 Pre-Intermediate", cefr: "A2 – B1", who: "能说短句", focus: "完整表达·时态体系" },
-  { code: "L4", name: "中级 Intermediate", cefr: "B1", who: "日常够用想提升", focus: "流利交流·职场场景" },
-  { code: "L5", name: "中高级 Upper", cefr: "B1 – B2", who: "应试/职场刚需", focus: "雅思 5.5–6.5·职场沟通" },
-  { code: "L6", name: "高级 Advanced", cefr: "B2 – C1", who: "高阶精英", focus: "学术·商务·雅思 7+" }
-];
-
-const PRICING: {
-  code: string;
-  market: string;
-  monthly: string;
-  quarter: string;
-  yearly: string;
-  reason: string;
-}[] = [
-  { code: "L1", market: "开口说 · 零基础启航", monthly: "68", quarter: "180", yearly: "588", reason: "引流价，低门槛拉新；比纯工具 App 贵一点但含真人点评" },
-  { code: "L2", market: "日常英语 · 生活通", monthly: "88", quarter: "238", yearly: "788", reason: "主力走量档，覆盖最大人群" },
-  { code: "L3", market: "进阶表达 · 语法突破", monthly: "108", quarter: "288", yearly: "988", reason: "去中文化拐点，付费意愿开始上升" },
-  { code: "L4", market: "流利中级 · 职场沟通", monthly: "128", quarter: "348", yearly: "1188", reason: "加职场场景，客单上移" },
-  { code: "L5", market: "雅思冲刺 · 5.5–6.5", monthly: "168", quarter: "458", yearly: "1588", reason: "应试溢价，对标线下雅思班几千刀" },
-  { code: "L6", market: "高阶精英 · 学术商务", monthly: "198", quarter: "528", yearly: "1888", reason: "高净值小众，利润档" }
-];
-
-const ADDONS: { name: string; price: string; note: string }[] = [
-  { name: "1v1 外教口语 25 min", price: "S$35 / 节 · 10 节 S$320", note: "App 订阅之上的增值，拉高客单" },
-  { name: "周末线下口语角（8 人小班）", price: "S$40 / 次 · 月卡 S$128", note: "唯一教室的最佳用法：社群黏性" },
-  { name: "私教定制陪跑（月）", price: "S$388", note: "高级别/应试冲刺人群" }
-];
-
-const DAILY_SET: { icon: string; step: string; desc: string; ref: string }[] = [
-  { icon: "🔥", step: "词汇闪卡 Warm-up", desc: "5 词，SRS 间隔重复，滑卡认识/不认识", ref: "百词斩 / Duolingo" },
-  { icon: "🎙", step: "口语跟读 + AI 打分", desc: "音素级发音评分，红黄绿高亮 + 雷达图", ref: "ELSA Speak" },
-  { icon: "💬", step: "AI 情景对话", desc: "1 个场景 3–5 轮，roleplay，实时纠错", ref: "Speak" },
-  { icon: "📖", step: "语法微课 + 即时练", desc: "1 个点讲解卡 + 3 题，答错即时纠错弹层", ref: "Duolingo" },
-  { icon: "👂", step: "听力片段 + 理解题", desc: "短音频 + 2–3 题，级别越高越长", ref: "Busuu" },
-  { icon: "✅", step: "打卡结算", desc: "连续天数 streak、经验值 XP、周榜结算弹窗", ref: "Duolingo" }
-];
-
-const TIER_DIFF: { tier: string; detail: string }[] = [
-  { tier: "L1 – L2", detail: "跟读/闪卡为主，语法轻量，中文辅助多，每日 15 min" },
-  { tier: "L3 – L4", detail: "对话/语法为主，逐步去中文化，加写作微任务，每日 20 min" },
-  { tier: "L5 – L6", detail: "应试题型（雅思 part）、长文听力、观点表达，去脚手架，每日 25 min+" }
-];
-
-const REF_APPS: { name: string; borrow: string }[] = [
-  { name: "Duolingo", borrow: "学习路径 path、streak/XP 游戏化、答错即时纠错弹层" },
-  { name: "ELSA Speak", borrow: "音素级发音打分、红黄绿高亮、发音雷达图" },
-  { name: "Speak", borrow: "AI 自由对话、roleplay 场景卡、对话式 tutor" },
-  { name: "Cambly", borrow: "真人外教预约、视频课界面、评价体系" },
-  { name: "Busuu", borrow: "学习计划、社区互改、复习提醒" }
-];
-
-const SCREENS: { slug: string; no: string; name: string; purpose: string; ref: string }[] = [
-  { slug: "onboarding", no: "1", name: "定级测评流程", purpose: "欢迎 → 15min 自适应测评 → 定级结果 → 推荐课程", ref: "Busuu / Duolingo onboarding" },
-  { slug: "home", no: "2", name: "首页 · 今日任务", purpose: "Daily Set 卡片流 + 顶栏 streak + 学习路径入口", ref: "Duolingo 首页" },
-  { slug: "path", no: "3", name: "学习路径 Path", purpose: "级别地图，节点解锁，进度可视", ref: "Duolingo path" },
-  { slug: "speaking", no: "4", name: "口语练习页", purpose: "跟读 + 波形 + AI 打分雷达 + 重录", ref: "ELSA" },
-  { slug: "ai-chat", no: "5", name: "AI 情景对话页", purpose: "对话气泡 + roleplay 卡 + 纠错高亮", ref: "Speak" },
-  { slug: "grammar", no: "6", name: "语法微课页", purpose: "讲解卡 + 即时练题 + 纠错弹层", ref: "Duolingo" },
-  { slug: "listening", no: "7", name: "听力页", purpose: "音频播放 + 逐句 + 理解题", ref: "Busuu" },
-  { slug: "review", no: "8", name: "复习 / 错题本", purpose: "SRS 待复习队列 + 错题重练", ref: "百词斩" },
-  { slug: "checkin", no: "9", name: "打卡结算页", purpose: "XP、连击、成就弹窗、周榜", ref: "Duolingo" },
-  { slug: "leaderboard", no: "10", name: "排行榜 / 学习小组", purpose: "周榜 + 联盟晋级 + 小组 PK", ref: "Duolingo 联盟" },
-  { slug: "profile", no: "11", name: "我的", purpose: "等级、进度、订阅、约外教入口", ref: "通用" },
-  { slug: "paywall", no: "12", name: "订阅付费页", purpose: "级别套餐、月/季/年、权益对比", ref: "Duolingo Plus / Cambly" },
-  { slug: "booking", no: "13", name: "线下 / 外教预约", purpose: "口语角、1v1 排期与预约", ref: "Cambly" }
-];
-
-// ── 组件 ──────────────────────────────────────────────────────────────────
 
 export function CourseDesignPanel() {
   const queryClient = useQueryClient();
   const canManageEducation = useCan("education.manage");
+  const canManage = canManageEducation;
   const [editingTask, setEditingTask] = useState<CourseDesignTask | null>(null);
   const [taskModalOpened, setTaskModalOpened] = useState(false);
   const [taskFormError, setTaskFormError] = useState<string | null>(null);
-  const [openedMockup, setOpenedMockup] = useState<{ slug: string; name: string } | null>(null);
+  const [itemModal, setItemModal] = useState<ItemModalState | null>(null);
+  const [itemFormError, setItemFormError] = useState<string | null>(null);
+  const [itemActionError, setItemActionError] = useState<string | null>(null);
+  const [openedMockup, setOpenedMockup] = useState<CourseDesignItem | null>(null);
+  const [screenUploads, setScreenUploads] = useState<Record<string, File | null>>({});
 
   const tasksQuery = useQuery({
     queryKey: courseDesignTasksQueryKey,
     queryFn: listCourseDesignTasks
+  });
+  const itemsQuery = useQuery({
+    queryKey: courseDesignItemsQueryKey,
+    queryFn: listCourseDesignItems
   });
   const taskForm = useForm<TaskFormValues>({
     resolver: zodResolver(
@@ -308,9 +347,60 @@ export function CourseDesignPanel() {
       await queryClient.invalidateQueries({ queryKey: courseDesignTasksQueryKey });
     }
   });
+  const createItemMutation = useMutation({
+    mutationFn: createCourseDesignItem,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: courseDesignItemsQueryKey });
+      closeItemModal();
+    }
+  });
+  const updateItemMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof updateCourseDesignItem>[1] }) =>
+      updateCourseDesignItem(id, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: courseDesignItemsQueryKey });
+      closeItemModal();
+    }
+  });
+  const deleteItemMutation = useMutation({
+    mutationFn: deleteCourseDesignItem,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: courseDesignItemsQueryKey });
+    }
+  });
+  const uploadImageMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => uploadCourseDesignItemImage(id, file),
+    onSuccess: async (_result, variables) => {
+      setScreenUploads((current) => ({ ...current, [variables.id]: null }));
+      await queryClient.invalidateQueries({ queryKey: courseDesignItemsQueryKey });
+    }
+  });
+
   const taskErrors = taskForm.formState.errors;
   const tasks = tasksQuery.data?.tasks ?? [];
   const isSavingTask = createTaskMutation.isPending || updateTaskMutation.isPending;
+  const isSavingItem = createItemMutation.isPending || updateItemMutation.isPending;
+
+  const itemsBySection = useMemo(() => {
+    const grouped: Record<CourseDesignSection, CourseDesignItem[]> = {
+      level: [],
+      pricing: [],
+      addon: [],
+      daily: [],
+      tier: [],
+      ref_app: [],
+      screen: []
+    };
+    for (const item of itemsQuery.data?.items ?? []) {
+      grouped[item.section]?.push(item);
+    }
+    for (const section of SECTIONS) {
+      grouped[section].sort(
+        (a, b) => a.sort_order - b.sort_order || new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    }
+    return grouped;
+  }, [itemsQuery.data?.items]);
 
   function openCreateTaskModal() {
     setEditingTask(null);
@@ -331,6 +421,21 @@ export function CourseDesignPanel() {
     setEditingTask(null);
     setTaskFormError(null);
     taskForm.reset(getTaskDefaultValues());
+  }
+
+  function openCreateItemModal(section: CourseDesignSection) {
+    setItemFormError(null);
+    setItemModal({ section, editingItem: null, values: fieldValues(null, section) });
+  }
+
+  function openEditItemModal(item: CourseDesignItem) {
+    setItemFormError(null);
+    setItemModal({ section: item.section, editingItem: item, values: fieldValues(item, item.section) });
+  }
+
+  function closeItemModal() {
+    setItemModal(null);
+    setItemFormError(null);
   }
 
   const onTaskSubmit = taskForm.handleSubmit(async (values) => {
@@ -375,6 +480,434 @@ export function CourseDesignPanel() {
     }
   }
 
+  async function submitItemForm() {
+    if (!itemModal) return;
+    setItemFormError(null);
+    setItemActionError(null);
+
+    try {
+      if (itemModal.editingItem) {
+        await updateItemMutation.mutateAsync({
+          id: itemModal.editingItem.id,
+          body: { fields: itemModal.values }
+        });
+        return;
+      }
+
+      const currentItems = itemsBySection[itemModal.section];
+      const maxSortOrder = currentItems.reduce((max, item) => Math.max(max, item.sort_order), -1);
+      await createItemMutation.mutateAsync({
+        section: itemModal.section,
+        fields: itemModal.values,
+        sort_order: maxSortOrder + 1
+      });
+    } catch (error) {
+      setItemFormError(formatItemError(error));
+    }
+  }
+
+  async function handleItemStatus(item: CourseDesignItem, status: "draft" | "approved") {
+    setItemActionError(null);
+    try {
+      await updateItemMutation.mutateAsync({ id: item.id, body: { status } });
+    } catch (error) {
+      setItemActionError(formatItemError(error));
+    }
+  }
+
+  async function handleDeleteItem(item: CourseDesignItem) {
+    const label = fieldValue(item, "name") || fieldValue(item, "code") || SECTION_LABELS[item.section];
+    if (!window.confirm(`确认删除「${label}」？`)) return;
+
+    setItemActionError(null);
+    try {
+      await deleteItemMutation.mutateAsync(item.id);
+    } catch (error) {
+      setItemActionError(formatItemError(error));
+    }
+  }
+
+  async function handleMoveItem(section: CourseDesignSection, index: number, direction: -1 | 1) {
+    const rows = itemsBySection[section];
+    const current = rows[index];
+    const target = rows[index + direction];
+    if (!current || !target) return;
+
+    setItemActionError(null);
+    try {
+      await Promise.all([
+        updateCourseDesignItem(current.id, { sort_order: target.sort_order }),
+        updateCourseDesignItem(target.id, { sort_order: current.sort_order })
+      ]);
+      await queryClient.invalidateQueries({ queryKey: courseDesignItemsQueryKey });
+    } catch (error) {
+      setItemActionError(formatItemError(error));
+    }
+  }
+
+  async function handleUploadImage(item: CourseDesignItem) {
+    const file = screenUploads[item.id];
+    if (!file) return;
+
+    setItemActionError(null);
+    try {
+      await uploadImageMutation.mutateAsync({ id: item.id, file });
+    } catch (error) {
+      setItemActionError(formatItemError(error));
+    }
+  }
+
+  function addButton(section: CourseDesignSection) {
+    return canManage ? (
+      <Button size="xs" variant="light" onClick={() => openCreateItemModal(section)}>
+        + 新增
+      </Button>
+    ) : null;
+  }
+
+  function sortControls(section: CourseDesignSection, index: number) {
+    const rows = itemsBySection[section];
+    const current = rows[index];
+    const previous = rows[index - 1];
+    const next = rows[index + 1];
+    const locked = current?.status === "approved";
+    return canManage ? (
+      <Group gap={4} wrap="nowrap">
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          disabled={index === 0 || locked || previous?.status === "approved"}
+          onClick={() => void handleMoveItem(section, index, -1)}
+        >
+          ↑
+        </Button>
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          disabled={index === rows.length - 1 || locked || next?.status === "approved"}
+          onClick={() => void handleMoveItem(section, index, 1)}
+        >
+          ↓
+        </Button>
+      </Group>
+    ) : null;
+  }
+
+  function itemActions(item: CourseDesignItem) {
+    return (
+      <Stack gap={6}>
+        <Group gap={6}>
+          {item.status === "approved" ? (
+            <Badge color="green" variant="light">
+              已定稿
+            </Badge>
+          ) : (
+            <Badge color="gray" variant="light">
+              草稿
+            </Badge>
+          )}
+          {canManage && item.status === "approved" ? (
+            <Button size="xs" variant="subtle" onClick={() => void handleItemStatus(item, "draft")}>
+              撤销定稿
+            </Button>
+          ) : null}
+        </Group>
+        {canManage && item.status === "draft" ? (
+          <Group gap={6}>
+            <Button size="xs" variant="light" onClick={() => openEditItemModal(item)}>
+              编辑
+            </Button>
+            <Button size="xs" variant="subtle" color="red" onClick={() => void handleDeleteItem(item)}>
+              删除
+            </Button>
+            <Button size="xs" variant="subtle" color="green" onClick={() => void handleItemStatus(item, "approved")}>
+              审核定稿
+            </Button>
+          </Group>
+        ) : null}
+      </Stack>
+    );
+  }
+
+  function renderItemsLoading() {
+    if (!itemsQuery.isLoading) return null;
+    return (
+      <Group justify="center" py="xl">
+        <Loader size="sm" />
+      </Group>
+    );
+  }
+
+  function renderLevelTable() {
+    const rows = itemsBySection.level;
+    return (
+      <Stack gap="sm">
+        <Group justify="flex-end">{addButton("level")}</Group>
+        <ScrollArea>
+          <Table miw={canManage ? 980 : 760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th w={60}>级别</Table.Th>
+                <Table.Th>名称</Table.Th>
+                <Table.Th w={110}>CEFR</Table.Th>
+                <Table.Th>目标人群</Table.Th>
+                <Table.Th>训练重心</Table.Th>
+                {canManage ? <Table.Th w={80}>排序</Table.Th> : null}
+                {canManage ? <Table.Th w={220}>操作</Table.Th> : null}
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {rows.length === 0 ? (
+                <EmptySection colSpan={canManage ? 7 : 5} />
+              ) : (
+                rows.map((item, index) => (
+                  <Table.Tr key={item.id}>
+                    <Table.Td>
+                      <Badge variant="light">{fieldValue(item, "code")}</Badge>
+                    </Table.Td>
+                    <Table.Td>{fieldValue(item, "name")}</Table.Td>
+                    <Table.Td>{fieldValue(item, "cefr")}</Table.Td>
+                    <Table.Td>{fieldValue(item, "who")}</Table.Td>
+                    <Table.Td>{fieldValue(item, "focus")}</Table.Td>
+                    {canManage ? <Table.Td>{sortControls("level", index)}</Table.Td> : null}
+                    {canManage ? <Table.Td>{itemActions(item)}</Table.Td> : null}
+                  </Table.Tr>
+                ))
+              )}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Stack>
+    );
+  }
+
+  function renderPricingTable() {
+    const rows = itemsBySection.pricing;
+    return (
+      <Stack gap="sm">
+        <Group justify="flex-end">{addButton("pricing")}</Group>
+        <ScrollArea>
+          <Table miw={canManage ? 1080 : 860} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th w={60}>级别</Table.Th>
+                <Table.Th>营销课名</Table.Th>
+                <Table.Th w={80}>月费</Table.Th>
+                <Table.Th w={80}>季付</Table.Th>
+                <Table.Th w={80}>年付</Table.Th>
+                <Table.Th>定价理由</Table.Th>
+                {canManage ? <Table.Th w={80}>排序</Table.Th> : null}
+                {canManage ? <Table.Th w={220}>操作</Table.Th> : null}
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {rows.length === 0 ? (
+                <EmptySection colSpan={canManage ? 8 : 6} />
+              ) : (
+                rows.map((item, index) => (
+                  <Table.Tr key={item.id}>
+                    <Table.Td>
+                      <Badge variant="light">{fieldValue(item, "code")}</Badge>
+                    </Table.Td>
+                    <Table.Td>{fieldValue(item, "market")}</Table.Td>
+                    <Table.Td>S${fieldValue(item, "monthly")}</Table.Td>
+                    <Table.Td>S${fieldValue(item, "quarter")}</Table.Td>
+                    <Table.Td>S${fieldValue(item, "yearly")}</Table.Td>
+                    <Table.Td>
+                      <Text size="sm" c="dimmed">
+                        {fieldValue(item, "reason")}
+                      </Text>
+                    </Table.Td>
+                    {canManage ? <Table.Td>{sortControls("pricing", index)}</Table.Td> : null}
+                    {canManage ? <Table.Td>{itemActions(item)}</Table.Td> : null}
+                  </Table.Tr>
+                ))
+              )}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Stack>
+    );
+  }
+
+  function renderSimpleCards(section: "addon" | "tier" | "ref_app") {
+    const rows = itemsBySection[section];
+    return (
+      <Stack gap="sm">
+        <Group justify="flex-end">{addButton(section)}</Group>
+        {rows.length === 0 ? <EmptySection /> : null}
+        <SimpleGrid cols={{ base: 1, sm: 3 }}>
+          {rows.map((item, index) => (
+            <Card key={item.id} withBorder radius="md" padding="md">
+              <Stack gap="xs">
+                {section === "addon" ? (
+                  <>
+                    <Text fw={600}>{fieldValue(item, "name")}</Text>
+                    <Text size="sm">{fieldValue(item, "price")}</Text>
+                    <Text size="xs" c="dimmed">
+                      {fieldValue(item, "note")}
+                    </Text>
+                  </>
+                ) : null}
+                {section === "tier" ? (
+                  <>
+                    <Badge variant="light" w="fit-content">
+                      {fieldValue(item, "tier")}
+                    </Badge>
+                    <Text size="sm">{fieldValue(item, "detail")}</Text>
+                  </>
+                ) : null}
+                {section === "ref_app" ? (
+                  <>
+                    <Badge color="teal" variant="light" w="fit-content">
+                      {fieldValue(item, "name")}
+                    </Badge>
+                    <Text size="sm">{fieldValue(item, "borrow")}</Text>
+                  </>
+                ) : null}
+                {canManage ? (
+                  <Group justify="space-between" align="flex-start" mt="xs">
+                    {sortControls(section, index)}
+                    {itemActions(item)}
+                  </Group>
+                ) : (
+                  itemActions(item)
+                )}
+              </Stack>
+            </Card>
+          ))}
+        </SimpleGrid>
+      </Stack>
+    );
+  }
+
+  function renderDailyTable() {
+    const rows = itemsBySection.daily;
+    return (
+      <Stack gap="sm">
+        <Group justify="flex-end">{addButton("daily")}</Group>
+        <ScrollArea>
+          <Table miw={canManage ? 940 : 720} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th w={44}></Table.Th>
+                <Table.Th>环节</Table.Th>
+                <Table.Th>说明</Table.Th>
+                <Table.Th w={140}>借鉴</Table.Th>
+                {canManage ? <Table.Th w={80}>排序</Table.Th> : null}
+                {canManage ? <Table.Th w={220}>操作</Table.Th> : null}
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {rows.length === 0 ? (
+                <EmptySection colSpan={canManage ? 6 : 4} />
+              ) : (
+                rows.map((item, index) => (
+                  <Table.Tr key={item.id}>
+                    <Table.Td>
+                      <Text size="lg">{fieldValue(item, "icon")}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text fw={600} size="sm">
+                        {fieldValue(item, "step")}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{fieldValue(item, "desc")}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge size="sm" variant="outline" color="gray">
+                        {fieldValue(item, "ref")}
+                      </Badge>
+                    </Table.Td>
+                    {canManage ? <Table.Td>{sortControls("daily", index)}</Table.Td> : null}
+                    {canManage ? <Table.Td>{itemActions(item)}</Table.Td> : null}
+                  </Table.Tr>
+                ))
+              )}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Stack>
+    );
+  }
+
+  function renderScreenCards() {
+    const rows = itemsBySection.screen;
+    return (
+      <Stack gap="sm">
+        <Group justify="flex-end">{addButton("screen")}</Group>
+        {rows.length === 0 ? <EmptySection /> : null}
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+          {rows.map((item, index) => {
+            const slug = fieldValue(item, "slug");
+            const name = fieldValue(item, "name");
+            return (
+              <Card key={item.id} withBorder radius="md" padding="md">
+                <Stack gap="xs">
+                  <Group gap="xs" align="center">
+                    <ThemeIcon variant="light" size="sm" radius="xl">
+                      <Text size="xs" fw={700}>
+                        {fieldValue(item, "no")}
+                      </Text>
+                    </ThemeIcon>
+                    <Text fw={600} size="sm">
+                      {name}
+                    </Text>
+                  </Group>
+                  <CourseDesignImage
+                    key={`${item.id}-${item.image_url ?? slug}`}
+                    slug={slug}
+                    imageUrl={item.image_url}
+                    height={360}
+                    onClick={() => setOpenedMockup(item)}
+                  />
+                  <Text size="xs">{fieldValue(item, "purpose")}</Text>
+                  <Group gap={6}>
+                    <Badge size="xs" variant="outline" color="gray">
+                      借鉴：{fieldValue(item, "ref")}
+                    </Badge>
+                    <Text size="xs" c="dimmed">
+                      {item.image_url ? "已上传截图" : `${slug}.svg`}
+                    </Text>
+                  </Group>
+                  {canManage ? (
+                    <Stack gap={6} mt="xs">
+                      {sortControls("screen", index)}
+                      {itemActions(item)}
+                      {item.status === "draft" ? (
+                        <Group gap={6} align="end">
+                          <FileInput
+                            accept="image/*"
+                            placeholder="选择截图"
+                            size="xs"
+                            value={screenUploads[item.id] ?? null}
+                            onChange={(file) => setScreenUploads((current) => ({ ...current, [item.id]: file }))}
+                            style={{ flex: 1 }}
+                          />
+                          <Button
+                            size="xs"
+                            loading={uploadImageMutation.isPending}
+                            disabled={!screenUploads[item.id]}
+                            onClick={() => void handleUploadImage(item)}
+                          >
+                            上传截图
+                          </Button>
+                        </Group>
+                      ) : null}
+                    </Stack>
+                  ) : (
+                    itemActions(item)
+                  )}
+                </Stack>
+              </Card>
+            );
+          })}
+        </SimpleGrid>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="lg">
       <Modal opened={taskModalOpened} onClose={closeTaskModal} title={editingTask ? "编辑任务" : "新增任务"} centered>
@@ -385,12 +918,7 @@ export function CourseDesignPanel() {
                 {taskFormError}
               </Alert>
             ) : null}
-            <TextInput
-              label="标题"
-              withAsterisk
-              {...taskForm.register("title")}
-              error={taskErrors.title?.message}
-            />
+            <TextInput label="标题" withAsterisk {...taskForm.register("title")} error={taskErrors.title?.message} />
             <TextInput
               label="负责人"
               withAsterisk
@@ -410,11 +938,7 @@ export function CourseDesignPanel() {
                 />
               )}
             />
-            <TextInput
-              label="交付物"
-              {...taskForm.register("deliverable")}
-              error={taskErrors.deliverable?.message}
-            />
+            <TextInput label="交付物" {...taskForm.register("deliverable")} error={taskErrors.deliverable?.message} />
             <Group justify="flex-end">
               <Button variant="subtle" onClick={closeTaskModal}>
                 取消
@@ -428,13 +952,76 @@ export function CourseDesignPanel() {
       </Modal>
 
       <Modal
+        opened={Boolean(itemModal)}
+        onClose={closeItemModal}
+        title={itemModal ? `${itemModal.editingItem ? "编辑" : "新增"} · ${SECTION_LABELS[itemModal.section]}` : ""}
+        centered
+      >
+        {itemModal ? (
+          <Stack gap="md">
+            {itemFormError ? (
+              <Alert color="red" variant="light">
+                {itemFormError}
+              </Alert>
+            ) : null}
+            {SECTION_FIELDS[itemModal.section].map((field) =>
+              field.area ? (
+                <Textarea
+                  key={field.k}
+                  label={field.label}
+                  autosize
+                  minRows={3}
+                  value={itemModal.values[field.k] ?? ""}
+                  onChange={(event) =>
+                    setItemModal((current) =>
+                      current
+                        ? { ...current, values: { ...current.values, [field.k]: event.currentTarget.value } }
+                        : current
+                    )
+                  }
+                />
+              ) : (
+                <TextInput
+                  key={field.k}
+                  label={field.label}
+                  value={itemModal.values[field.k] ?? ""}
+                  onChange={(event) =>
+                    setItemModal((current) =>
+                      current
+                        ? { ...current, values: { ...current.values, [field.k]: event.currentTarget.value } }
+                        : current
+                    )
+                  }
+                />
+              )
+            )}
+            <Group justify="flex-end">
+              <Button variant="subtle" onClick={closeItemModal}>
+                取消
+              </Button>
+              <Button loading={isSavingItem} onClick={() => void submitItemForm()}>
+                保存
+              </Button>
+            </Group>
+          </Stack>
+        ) : null}
+      </Modal>
+
+      <Modal
         opened={Boolean(openedMockup)}
         onClose={() => setOpenedMockup(null)}
-        title={openedMockup?.name}
+        title={openedMockup ? fieldValue(openedMockup, "name") : ""}
         size="lg"
         centered
       >
-        {openedMockup ? <CourseDesignImage key={openedMockup.slug} slug={openedMockup.slug} height={640} /> : null}
+        {openedMockup ? (
+          <CourseDesignImage
+            key={`${openedMockup.id}-${openedMockup.image_url ?? fieldValue(openedMockup, "slug")}-modal`}
+            slug={fieldValue(openedMockup, "slug")}
+            imageUrl={openedMockup.image_url}
+            height={640}
+          />
+        ) : null}
       </Modal>
 
       <Group justify="space-between" align="center">
@@ -461,7 +1048,6 @@ export function CourseDesignPanel() {
         </Stack>
       </Alert>
 
-      {/* 0. 设计进度 */}
       <SectionCard index="0" title="设计进度追踪" subtitle="小雨在这里更新每项交付物的状态">
         <Group justify="space-between">
           {tasksQuery.error ? (
@@ -553,74 +1139,28 @@ export function CourseDesignPanel() {
         </ScrollArea>
       </SectionCard>
 
-      {/* 1. 分级体系 */}
+      {itemsQuery.error ? (
+        <Alert color="red" variant="light">
+          {itemsQuery.error instanceof Error ? itemsQuery.error.message : "未知错误"}
+        </Alert>
+      ) : null}
+      {itemActionError ? (
+        <Alert color="red" variant="light" onClose={() => setItemActionError(null)} withCloseButton>
+          {itemActionError}
+        </Alert>
+      ) : null}
+      {renderItemsLoading()}
+
       <SectionCard index="1" title="分级体系" subtitle="CEFR 对齐 6 级 · 入学 AI 测评定级，每 4 周复测微调">
-        <ScrollArea>
-          <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={60}>级别</Table.Th>
-                <Table.Th>名称</Table.Th>
-                <Table.Th w={110}>CEFR</Table.Th>
-                <Table.Th>目标人群</Table.Th>
-                <Table.Th>训练重心</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {LEVELS.map((lv) => (
-                <Table.Tr key={lv.code}>
-                  <Table.Td>
-                    <Badge variant="light">{lv.code}</Badge>
-                  </Table.Td>
-                  <Table.Td>{lv.name}</Table.Td>
-                  <Table.Td>{lv.cefr}</Table.Td>
-                  <Table.Td>{lv.who}</Table.Td>
-                  <Table.Td>{lv.focus}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
+        {renderLevelTable()}
         <Text size="sm" c="dimmed">
           定级方式（提案）：入学 <b>AI 自适应测评</b>（约 15 min，听力 + 口语 + 语法）→ 自动定级 →
           推荐课程；此后每 4 周一次复测，动态升降级。
         </Text>
       </SectionCard>
 
-      {/* 2. 课程命名 & 收费 */}
       <SectionCard index="2" title="课程命名 & 收费" subtitle="主打 App 订阅（SGD）· 命名走「分级 + 卖点」双名">
-        <ScrollArea>
-          <Table miw={860} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={60}>级别</Table.Th>
-                <Table.Th>营销课名</Table.Th>
-                <Table.Th w={80}>月费</Table.Th>
-                <Table.Th w={80}>季付</Table.Th>
-                <Table.Th w={80}>年付</Table.Th>
-                <Table.Th>定价理由</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {PRICING.map((p) => (
-                <Table.Tr key={p.code}>
-                  <Table.Td>
-                    <Badge variant="light">{p.code}</Badge>
-                  </Table.Td>
-                  <Table.Td>{p.market}</Table.Td>
-                  <Table.Td>S${p.monthly}</Table.Td>
-                  <Table.Td>S${p.quarter}</Table.Td>
-                  <Table.Td>S${p.yearly}</Table.Td>
-                  <Table.Td>
-                    <Text size="sm" c="dimmed">
-                      {p.reason}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
+        {renderPricingTable()}
 
         <Alert color="gray" variant="light" title="定价逻辑（提案）">
           <List size="sm" spacing={4}>
@@ -632,132 +1172,40 @@ export function CourseDesignPanel() {
         </Alert>
 
         <Divider label="增值服务（线下教室 + 真人）" labelPosition="left" />
-        <SimpleGrid cols={{ base: 1, sm: 3 }}>
-          {ADDONS.map((a) => (
-            <Card key={a.name} withBorder radius="md" padding="md">
-              <Text fw={600}>{a.name}</Text>
-              <Text size="sm" mt={4}>
-                {a.price}
-              </Text>
-              <Text size="xs" c="dimmed" mt={6}>
-                {a.note}
-              </Text>
-            </Card>
-          ))}
-        </SimpleGrid>
+        {renderSimpleCards("addon")}
       </SectionCard>
 
-      {/* 3. 每日任务设计 */}
       <SectionCard
         index="3"
         title="每日任务设计 · Daily Set"
         subtitle="App 核心循环，每天一套 15–25 min，按级别难度自适应"
       >
-        <ScrollArea>
-          <Table miw={720} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={44}></Table.Th>
-                <Table.Th>环节</Table.Th>
-                <Table.Th>说明</Table.Th>
-                <Table.Th w={140}>借鉴</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {DAILY_SET.map((d) => (
-                <Table.Tr key={d.step}>
-                  <Table.Td>
-                    <Text size="lg">{d.icon}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text fw={600} size="sm">
-                      {d.step}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{d.desc}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge size="sm" variant="outline" color="gray">
-                      {d.ref}
-                    </Badge>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
+        {renderDailyTable()}
 
         <Divider label="不同程度怎么区分" labelPosition="left" />
-        <SimpleGrid cols={{ base: 1, sm: 3 }}>
-          {TIER_DIFF.map((t) => (
-            <Card key={t.tier} withBorder radius="md" padding="md">
-              <Badge variant="light" mb={6}>
-                {t.tier}
-              </Badge>
-              <Text size="sm">{t.detail}</Text>
-            </Card>
-          ))}
-        </SimpleGrid>
+        {renderSimpleCards("tier")}
       </SectionCard>
 
-      {/* 4. App 界面系统 */}
       <SectionCard
         index="4"
         title="App 界面系统设计"
         subtitle="先拆参考 App 借鉴点，再产出各界面高保真稿并上传"
       >
-        <Text fw={600} size="sm">
-          参考 App & 借鉴点
-        </Text>
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-          {REF_APPS.map((r) => (
-            <Card key={r.name} withBorder radius="md" padding="md">
-              <Badge color="teal" variant="light" mb={6}>
-                {r.name}
-              </Badge>
-              <Text size="sm">{r.borrow}</Text>
-            </Card>
-          ))}
-        </SimpleGrid>
+        <Group justify="space-between">
+          <Text fw={600} size="sm">
+            参考 App & 借鉴点
+          </Text>
+        </Group>
+        {renderSimpleCards("ref_app")}
 
         <Alert color="grape" variant="light" mt="xs">
           <Text size="sm">
-            下方 13 屏均已内置<b>中保真原型稿（.svg）</b>，直接展示"界面应该长什么样"。
-            小雨据此产出高保真稿时，命名为 <b>&lt;slug&gt;.png</b> 放到{" "}
-            <b>apps/web/public/course-design/</b> 即可覆盖显示（有 png 用 png，无则回落到内置 svg）。
+            截图可直接在每张卡上传 png，未传则用内置 svg 兜底；小雨可先维护界面清单，再逐张替换为高保真稿。
           </Text>
         </Alert>
 
         <Divider label="关键界面清单（13 屏）" labelPosition="left" />
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-          {SCREENS.map((s) => (
-            <Card key={s.slug} withBorder radius="md" padding="md">
-              <Stack gap="xs">
-                <Group gap="xs" align="center">
-                  <ThemeIcon variant="light" size="sm" radius="xl">
-                    <Text size="xs" fw={700}>
-                      {s.no}
-                    </Text>
-                  </ThemeIcon>
-                  <Text fw={600} size="sm">
-                    {s.name}
-                  </Text>
-                </Group>
-                <MockupSlot slug={s.slug} onOpen={() => setOpenedMockup({ slug: s.slug, name: s.name })} />
-                <Text size="xs">{s.purpose}</Text>
-                <Group gap={6}>
-                  <Badge size="xs" variant="outline" color="gray">
-                    借鉴：{s.ref}
-                  </Badge>
-                  <Text size="xs" c="dimmed">
-                    {s.slug}.svg
-                  </Text>
-                </Group>
-              </Stack>
-            </Card>
-          ))}
-        </SimpleGrid>
+        {renderScreenCards()}
 
         <Text size="xs" c="dimmed">
           参考链接：

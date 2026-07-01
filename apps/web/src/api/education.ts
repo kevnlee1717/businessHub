@@ -1,4 +1,6 @@
 import {
+  type CourseDesignItemCreateInput,
+  type CourseDesignItemUpdateInput,
   type CourseDesignTaskCreateInput,
   type CourseDesignTaskUpdateInput,
   type DiplomaCourseCreateInput,
@@ -26,7 +28,7 @@ import {
   type WsqCourseUpdateInput,
   type WsqEnrollmentCreateInput
 } from "@bh/shared";
-import { api } from "./client";
+import { ApiError, UnauthorizedError, api } from "./client";
 
 export type PaginationParams = {
   page?: number | undefined;
@@ -326,6 +328,21 @@ export type CourseDesignTask = {
   updated_at: string;
 };
 
+export type CourseDesignSection = "level" | "pricing" | "addon" | "daily" | "tier" | "ref_app" | "screen";
+export type CourseDesignItemStatus = "draft" | "approved";
+
+export type CourseDesignItem = {
+  id: string;
+  section: CourseDesignSection;
+  status: CourseDesignItemStatus;
+  sort_order: number;
+  fields: Record<string, unknown>;
+  image_key?: string | null;
+  image_url?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EnglishClassListParams = {
   level_id?: string | undefined;
   teacher_id?: string | undefined;
@@ -413,6 +430,36 @@ async function multipartApi<T>(path: string, formData: FormData): Promise<T> {
         ? data.error
         : response.statusText;
     throw new Error(message);
+  }
+
+  return data as T;
+}
+
+async function parseFormDataResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function formDataErrorMessage(data: unknown, fallback: string) {
+  return typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+    ? data.error
+    : fallback;
+}
+
+async function postFormData<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method: "POST",
+    body: formData,
+    credentials: "include"
+  });
+  const data = await parseFormDataResponse(response);
+
+  if (response.status === 401) {
+    throw new UnauthorizedError();
+  }
+
+  if (!response.ok) {
+    throw new ApiError(formDataErrorMessage(data, response.statusText), response.status);
   }
 
   return data as T;
@@ -701,6 +748,39 @@ export function deleteCourseDesignTask(id: string): Promise<{ ok: true }> {
   return api<{ ok: true }>(`/course-design-tasks/${id}`, {
     method: "DELETE"
   });
+}
+
+export function listCourseDesignItems(): Promise<{ items: CourseDesignItem[] }> {
+  return api<{ items: CourseDesignItem[] }>("/course-design-items");
+}
+
+export function createCourseDesignItem(body: CourseDesignItemCreateInput): Promise<{ item: CourseDesignItem }> {
+  return api<{ item: CourseDesignItem }>("/course-design-items", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateCourseDesignItem(
+  id: string,
+  body: CourseDesignItemUpdateInput
+): Promise<{ item: CourseDesignItem }> {
+  return api<{ item: CourseDesignItem }>(`/course-design-items/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteCourseDesignItem(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/course-design-items/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function uploadCourseDesignItemImage(id: string, file: File): Promise<{ item: CourseDesignItem }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return postFormData<{ item: CourseDesignItem }>(`/course-design-items/${id}/image`, formData);
 }
 
 export function listEnglishClasses(

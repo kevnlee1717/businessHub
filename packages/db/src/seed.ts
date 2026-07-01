@@ -11,6 +11,7 @@ import {
   collectionItems,
   companyExpenses,
   companies,
+  courseDesignItems,
   courseDesignTasks,
   dealParties,
   documentCategories,
@@ -570,6 +571,7 @@ let schemeMilestonesUpserted = 0;
 let epMilestonesLinked = 0;
 let epStepCollectionsSet = 0;
 let insertedCourseDesignTasks = 0;
+let insertedCourseDesignItems = 0;
 const financeSeedWarnings: string[] = [];
 
 const [courseDesignTaskCountRow] = await db.select({ count: count() }).from(courseDesignTasks);
@@ -634,6 +636,79 @@ if (Number(courseDesignTaskCountRow?.count ?? 0) === 0) {
     }
   ]);
   insertedCourseDesignTasks = 8;
+}
+
+const [courseDesignItemCountRow] = await db.select({ count: count() }).from(courseDesignItems);
+
+if (Number(courseDesignItemCountRow?.count ?? 0) === 0) {
+  const courseDesignItemSeeds = [
+    ...[
+      { code: "L1", name: "入门 Starter", cefr: "pre-A1 / A1", who: "零基础", focus: "字母·发音·生存口语" },
+      { code: "L2", name: "基础 Elementary", cefr: "A1 – A2", who: "识单词但不敢开口", focus: "日常对话·基础语法" },
+      { code: "L3", name: "进阶 Pre-Intermediate", cefr: "A2 – B1", who: "能说短句", focus: "完整表达·时态体系" },
+      { code: "L4", name: "中级 Intermediate", cefr: "B1", who: "日常够用想提升", focus: "流利交流·职场场景" },
+      { code: "L5", name: "中高级 Upper", cefr: "B1 – B2", who: "应试/职场刚需", focus: "雅思 5.5–6.5·职场沟通" },
+      { code: "L6", name: "高级 Advanced", cefr: "B2 – C1", who: "高阶精英", focus: "学术·商务·雅思 7+" }
+    ].map((fields, sortOrder) => ({ section: "level", status: "draft", sortOrder, fields })),
+    ...[
+      {
+        code: "L1",
+        market: "开口说 · 零基础启航",
+        monthly: "68",
+        quarter: "180",
+        yearly: "588",
+        reason: "引流价，低门槛拉新；比纯工具 App 贵一点但含真人点评"
+      },
+      { code: "L2", market: "日常英语 · 生活通", monthly: "88", quarter: "238", yearly: "788", reason: "主力走量档，覆盖最大人群" },
+      { code: "L3", market: "进阶表达 · 语法突破", monthly: "108", quarter: "288", yearly: "988", reason: "去中文化拐点，付费意愿开始上升" },
+      { code: "L4", market: "流利中级 · 职场沟通", monthly: "128", quarter: "348", yearly: "1188", reason: "加职场场景，客单上移" },
+      { code: "L5", market: "雅思冲刺 · 5.5–6.5", monthly: "168", quarter: "458", yearly: "1588", reason: "应试溢价，对标线下雅思班几千刀" },
+      { code: "L6", market: "高阶精英 · 学术商务", monthly: "198", quarter: "528", yearly: "1888", reason: "高净值小众，利润档" }
+    ].map((fields, sortOrder) => ({ section: "pricing", status: "draft", sortOrder, fields })),
+    ...[
+      { name: "1v1 外教口语 25 min", price: "S$35 / 节 · 10 节 S$320", note: "App 订阅之上的增值，拉高客单" },
+      { name: "周末线下口语角（8 人小班）", price: "S$40 / 次 · 月卡 S$128", note: "唯一教室的最佳用法：社群黏性" },
+      { name: "私教定制陪跑（月）", price: "S$388", note: "高级别/应试冲刺人群" }
+    ].map((fields, sortOrder) => ({ section: "addon", status: "draft", sortOrder, fields })),
+    ...[
+      { icon: "🔥", step: "词汇闪卡 Warm-up", desc: "5 词，SRS 间隔重复，滑卡认识/不认识", ref: "百词斩 / Duolingo" },
+      { icon: "🎙", step: "口语跟读 + AI 打分", desc: "音素级发音评分，红黄绿高亮 + 雷达图", ref: "ELSA Speak" },
+      { icon: "💬", step: "AI 情景对话", desc: "1 个场景 3–5 轮，roleplay，实时纠错", ref: "Speak" },
+      { icon: "📖", step: "语法微课 + 即时练", desc: "1 个点讲解卡 + 3 题，答错即时纠错弹层", ref: "Duolingo" },
+      { icon: "👂", step: "听力片段 + 理解题", desc: "短音频 + 2–3 题，级别越高越长", ref: "Busuu" },
+      { icon: "✅", step: "打卡结算", desc: "连续天数 streak、经验值 XP、周榜结算弹窗", ref: "Duolingo" }
+    ].map((fields, sortOrder) => ({ section: "daily", status: "draft", sortOrder, fields })),
+    ...[
+      { tier: "L1 – L2", detail: "跟读/闪卡为主，语法轻量，中文辅助多，每日 15 min" },
+      { tier: "L3 – L4", detail: "对话/语法为主，逐步去中文化，加写作微任务，每日 20 min" },
+      { tier: "L5 – L6", detail: "应试题型（雅思 part）、长文听力、观点表达，去脚手架，每日 25 min+" }
+    ].map((fields, sortOrder) => ({ section: "tier", status: "draft", sortOrder, fields })),
+    ...[
+      { name: "Duolingo", borrow: "学习路径 path、streak/XP 游戏化、答错即时纠错弹层" },
+      { name: "ELSA Speak", borrow: "音素级发音打分、红黄绿高亮、发音雷达图" },
+      { name: "Speak", borrow: "AI 自由对话、roleplay 场景卡、对话式 tutor" },
+      { name: "Cambly", borrow: "真人外教预约、视频课界面、评价体系" },
+      { name: "Busuu", borrow: "学习计划、社区互改、复习提醒" }
+    ].map((fields, sortOrder) => ({ section: "ref_app", status: "draft", sortOrder, fields })),
+    ...[
+      { slug: "onboarding", no: "1", name: "定级测评流程", purpose: "欢迎 → 15min 自适应测评 → 定级结果 → 推荐课程", ref: "Busuu / Duolingo onboarding" },
+      { slug: "home", no: "2", name: "首页 · 今日任务", purpose: "Daily Set 卡片流 + 顶栏 streak + 学习路径入口", ref: "Duolingo 首页" },
+      { slug: "path", no: "3", name: "学习路径 Path", purpose: "级别地图，节点解锁，进度可视", ref: "Duolingo path" },
+      { slug: "speaking", no: "4", name: "口语练习页", purpose: "跟读 + 波形 + AI 打分雷达 + 重录", ref: "ELSA" },
+      { slug: "ai-chat", no: "5", name: "AI 情景对话页", purpose: "对话气泡 + roleplay 卡 + 纠错高亮", ref: "Speak" },
+      { slug: "grammar", no: "6", name: "语法微课页", purpose: "讲解卡 + 即时练题 + 纠错弹层", ref: "Duolingo" },
+      { slug: "listening", no: "7", name: "听力页", purpose: "音频播放 + 逐句 + 理解题", ref: "Busuu" },
+      { slug: "review", no: "8", name: "复习 / 错题本", purpose: "SRS 待复习队列 + 错题重练", ref: "百词斩" },
+      { slug: "checkin", no: "9", name: "打卡结算页", purpose: "XP、连击、成就弹窗、周榜", ref: "Duolingo" },
+      { slug: "leaderboard", no: "10", name: "排行榜 / 学习小组", purpose: "周榜 + 联盟晋级 + 小组 PK", ref: "Duolingo 联盟" },
+      { slug: "profile", no: "11", name: "我的", purpose: "等级、进度、订阅、约外教入口", ref: "通用" },
+      { slug: "paywall", no: "12", name: "订阅付费页", purpose: "级别套餐、月/季/年、权益对比", ref: "Duolingo Plus / Cambly" },
+      { slug: "booking", no: "13", name: "线下 / 外教预约", purpose: "口语角、1v1 排期与预约", ref: "Cambly" }
+    ].map((fields, sortOrder) => ({ section: "screen", status: "draft", sortOrder, fields, imageKey: null }))
+  ] satisfies (typeof courseDesignItems.$inferInsert)[];
+
+  await db.insert(courseDesignItems).values(courseDesignItemSeeds);
+  insertedCourseDesignItems = courseDesignItemSeeds.length;
 }
 
 if (!fallbackCompany) {
@@ -1661,5 +1736,5 @@ const permissionSeedStats = await backfillPermissionSeedData();
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, courseDesignTasksInserted=${insertedCourseDesignTasks}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, oneTimePriceLinesPatched=${oneTimePriceLinesPatched}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, employeeCompanyAccessBackfilled=${permissionSeedStats.employeeCompanyAccessBackfilled}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, courseDesignTasksInserted=${insertedCourseDesignTasks}, courseDesignItemsInserted=${insertedCourseDesignItems}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, oneTimePriceLinesPatched=${oneTimePriceLinesPatched}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, employeeCompanyAccessBackfilled=${permissionSeedStats.employeeCompanyAccessBackfilled}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );
