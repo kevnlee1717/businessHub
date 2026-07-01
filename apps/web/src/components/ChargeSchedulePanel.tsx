@@ -32,7 +32,7 @@ import {
   type Charge
 } from "../api/charges";
 import { createBilling } from "../api/finance";
-import { updateCase } from "../api/cases";
+import { createGuarantorPayout, updateCase } from "../api/cases";
 import { getIcaFeeConfig } from "../api/businessSchemes";
 import { listBankAccounts } from "../api/ledger";
 
@@ -276,6 +276,8 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
           label: t("chargeSchedule.balanceLabel"),
           amount_expected: balance
         });
+        // 有担保人且方案配了分成额时,生成一笔担保人应付分成(pending),财务后续手动确认付款
+        await createGuarantorPayout(caseId, billing.id);
       }
       return billing;
     },

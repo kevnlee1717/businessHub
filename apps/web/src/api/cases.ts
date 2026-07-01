@@ -605,6 +605,16 @@ export async function uploadSubmissionFiles(
   return data as { submission: CaseSubmission };
 }
 
+export function createGuarantorPayout(
+  caseId: string,
+  billingId: string
+): Promise<{ ok: true; created: boolean }> {
+  return api<{ ok: true; created: boolean }>(`/cases/${caseId}/guarantor-payout`, {
+    method: "POST",
+    body: { billing_id: billingId }
+  });
+}
+
 export function createCaseStepDoc(
   stepId: string,
   body: CaseStepDocCreateInput
