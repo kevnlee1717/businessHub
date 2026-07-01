@@ -2,7 +2,7 @@ import { ActionIcon, Box, Center, Loader, Modal, Progress, Stack, Text } from "@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
 
@@ -13,63 +13,40 @@ type PdfSwipeViewerProps = {
   onClose: () => void;
 };
 
-const MAX_DPR = 2.5;
+// 图片渲染分辨率上限:JPEG 图 dpr=2 已够清晰,避免 3x 设备生成过大图片。
+const MAX_DPR = 2;
 
 function formatMB(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function isRenderCancel(error: unknown) {
-  return error instanceof Error && error.name === "RenderingCancelledException";
-}
-
 export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
   const documentRef = useRef<PDFDocumentProxy | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
-  const renderTasksRef = useRef(new Map<number, RenderTask>());
-  const renderedKeysRef = useRef(new Map<number, string>());
-  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  // 复用的离屏 canvas:只用来把 PDF 页画出来再转成图片,画完即丢,不常驻 DOM。
+  const renderCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // 各页已渲染好的图片 URL(与 pageImages state 同步的 ref,供渲染泵读取,避免闭包过期)。
+  const pageUrlsRef = useRef<Array<string | null>>([]);
+  const renderWidthRef = useRef(0); // 图片当前渲染所用的 CSS 宽度
+  const renderingRef = useRef(false); // 是否有一页正在渲染(串行,防止并发抢 canvas)
+  const currentIndexRef = useRef(0); // 最新当前页,用于渲染优先级
+  const tokenRef = useRef(0); // 代际令牌:换文档/换尺寸时 +1,让在途渲染作废
 
   const [numPages, setNumPages] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [renderedPages, setRenderedPages] = useState<Set<number>>(() => new Set());
+  const [pageImages, setPageImages] = useState<Array<string | null>>([]);
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
 
-  const cancelRenderTasks = useCallback(() => {
-    for (const task of renderTasksRef.current.values()) {
-      task.cancel();
+  const revokeAllUrls = useCallback(() => {
+    for (const objectUrl of pageUrlsRef.current) {
+      if (objectUrl && objectUrl.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
     }
-    renderTasksRef.current.clear();
-  }, []);
-
-  const resetRenderedPages = useCallback(() => {
-    cancelRenderTasks();
-    renderedKeysRef.current.clear();
-    setRenderedPages(new Set());
-  }, [cancelRenderTasks]);
-
-  // 页离开视口足够远时释放它的 canvas 内存并清掉"已渲染"标记,
-  // 这样再进入视口一定会重画 —— 根治 iOS 把屏外 canvas 清空后回来变黑屏。
-  const clearPage = useCallback((pageIndex: number) => {
-    renderTasksRef.current.get(pageIndex)?.cancel();
-    renderTasksRef.current.delete(pageIndex);
-    renderedKeysRef.current.delete(pageIndex);
-    const canvas = canvasRefs.current[pageIndex];
-    if (canvas) {
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-    setRenderedPages((current) => {
-      if (!current.has(pageIndex)) return current;
-      const next = new Set(current);
-      next.delete(pageIndex);
-      return next;
-    });
+    pageUrlsRef.current = [];
   }, []);
 
   const updateContainerWidth = useCallback(() => {
@@ -84,89 +61,108 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     setCurrentIndex((current) => (current === nextIndex ? current : nextIndex));
   }, [numPages]);
 
-  const renderPage = useCallback(
-    async (pageIndex: number) => {
-      const pdfDocument = documentRef.current;
-      const canvas = canvasRefs.current[pageIndex];
-      const cssWidth = scrollRef.current?.clientWidth ?? containerWidth;
+  // 渲染泵:每次挑一页(按"当前页向两边"的优先级、且尚无图片的)渲染成 JPEG 图片,
+  // 串行进行、完成后自动继续下一页,直到所有页都变成现成图片。
+  const pumpRender = useCallback(async () => {
+    if (renderingRef.current) return;
+    const pdfDocument = documentRef.current;
+    const total = pdfDocument?.numPages ?? 0;
+    const width = renderWidthRef.current;
+    if (!pdfDocument || total === 0 || width <= 0) return;
 
-      if (!pdfDocument || !canvas || cssWidth <= 0) return;
+    // 选下一个待渲染页:从当前页向两边扩散,优先把用户即将看的页画出来。
+    const center = Math.max(0, Math.min(total - 1, currentIndexRef.current));
+    let target = -1;
+    const consider = (index: number) => {
+      if (target < 0 && index >= 0 && index < total && !pageUrlsRef.current[index]) target = index;
+    };
+    consider(center);
+    for (let d = 1; d < total && target < 0; d += 1) {
+      consider(center + d);
+      consider(center - d);
+    }
+    if (target < 0) return; // 全部渲染完毕
+
+    renderingRef.current = true;
+    const token = tokenRef.current;
+    try {
+      const page = await pdfDocument.getPage(target + 1);
+      if (token !== tokenRef.current) return;
 
       const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-      const renderKey = `${Math.round(cssWidth)}:${dpr}`;
-      if (renderedKeysRef.current.get(pageIndex) === renderKey) return;
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: (width * dpr) / base.width });
 
-      renderTasksRef.current.get(pageIndex)?.cancel();
-      renderedKeysRef.current.set(pageIndex, renderKey);
-      setRenderedPages((current) => {
-        const next = new Set(current);
-        next.delete(pageIndex);
+      let canvas = renderCanvasRef.current;
+      if (!canvas) {
+        canvas = document.createElement("canvas");
+        renderCanvasRef.current = canvas;
+      }
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      // JPEG 无透明通道,先铺白底,避免透明区域转成黑色。
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      await page.render({ canvasContext: context, canvas, viewport }).promise;
+      if (token !== tokenRef.current) return;
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        if (canvas && typeof canvas.toBlob === "function") canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92);
+        else resolve(null);
+      });
+      if (token !== tokenRef.current) {
+        // 已作废:丢弃这张图,由新一代重画
+        return;
+      }
+
+      const objectUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/jpeg", 0.92);
+      pageUrlsRef.current[target] = objectUrl;
+      setPageImages((prev) => {
+        const next = prev.slice();
+        next[target] = objectUrl;
         return next;
       });
+    } catch {
+      // 渲染被令牌作废/文档已销毁等:忽略,交给下一代重画
+    } finally {
+      renderingRef.current = false;
+      if (token === tokenRef.current) void pumpRender(); // 继续渲染剩余页
+    }
+  }, []);
 
-      try {
-        const page = await pdfDocument.getPage(pageIndex + 1);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const cssScale = cssWidth / baseViewport.width;
-        const cssViewport = page.getViewport({ scale: cssScale });
-        const renderViewport = page.getViewport({ scale: cssScale * dpr });
-        const context = canvas.getContext("2d");
-
-        if (!context) return;
-
-        canvas.width = Math.floor(renderViewport.width);
-        canvas.height = Math.floor(renderViewport.height);
-        canvas.style.width = `${Math.floor(cssViewport.width)}px`;
-        canvas.style.height = `${Math.floor(cssViewport.height)}px`;
-
-        const task = page.render({ canvasContext: context, canvas, viewport: renderViewport });
-        renderTasksRef.current.set(pageIndex, task);
-        await task.promise;
-
-        if (renderedKeysRef.current.get(pageIndex) === renderKey) {
-          setRenderedPages((current) => {
-            const next = new Set(current);
-            next.add(pageIndex);
-            return next;
-          });
-        }
-      } catch (renderError) {
-        if (!isRenderCancel(renderError)) {
-          renderedKeysRef.current.delete(pageIndex);
-        }
-      } finally {
-        renderTasksRef.current.delete(pageIndex);
-      }
-    },
-    [containerWidth]
-  );
-
+  // 加载文档(整包下载,便于 service worker 缓存 + 一次拿到全部页字节)
   useEffect(() => {
     if (!opened || !url) {
       setNumPages(0);
       setCurrentIndex(0);
       setLoading(false);
       setError(false);
-      resetRenderedPages();
       return;
     }
 
     let cancelled = false;
+    tokenRef.current += 1;
+    renderingRef.current = false;
+    renderWidthRef.current = 0;
+    revokeAllUrls();
+
     setLoading(true);
     setError(false);
     setProgress(null);
     setNumPages(0);
     setCurrentIndex(0);
-    resetRenderedPages();
-    canvasRefs.current = [];
-    slideRefs.current = [];
+    currentIndexRef.current = 0;
+    setPageImages([]);
 
     void documentRef.current?.cleanup();
     documentRef.current = null;
     loadingTaskRef.current?.destroy();
     // 整包下载(不走 HTTP Range 分块):
     // 1) 请求变成普通 GET(200),service worker 才能 cache-first 缓存到设备(206 无法被 Cache API 缓存)
-    // 2) 下载完成后所有页字节都在内存,翻页时 getPage 立即返回,不再因等网络出现整页黑屏
+    // 2) 下载完成后所有页字节都在内存,渲染任一页都无需再等网络
     const loadingTask = pdfjsLib.getDocument({
       url,
       disableRange: true,
@@ -175,7 +171,6 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     });
     loadingTaskRef.current = loadingTask;
 
-    // 整包下载时 pdf.js 会持续回调下载进度(total 来自服务器 Content-Length)
     loadingTask.onProgress = ({ loaded, total }: { loaded: number; total: number }) => {
       if (!cancelled) setProgress({ loaded, total: total || 0 });
     };
@@ -186,8 +181,9 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
           pdfDocument.loadingTask.destroy();
           return;
         }
-
         documentRef.current = pdfDocument;
+        pageUrlsRef.current = new Array(pdfDocument.numPages).fill(null);
+        setPageImages(new Array(pdfDocument.numPages).fill(null));
         setNumPages(pdfDocument.numPages);
         setLoading(false);
         requestAnimationFrame(() => {
@@ -204,16 +200,18 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
 
     return () => {
       cancelled = true;
+      tokenRef.current += 1;
       loadingTask.destroy();
       if (loadingTaskRef.current === loadingTask) {
         loadingTaskRef.current = null;
       }
-      cancelRenderTasks();
       void documentRef.current?.cleanup();
       documentRef.current = null;
+      revokeAllUrls();
     };
-  }, [cancelRenderTasks, opened, resetRenderedPages, updateContainerWidth, url]);
+  }, [opened, revokeAllUrls, updateContainerWidth, url]);
 
+  // 跟踪容器宽度(旋转/尺寸变化)
   useEffect(() => {
     if (!opened) return;
 
@@ -225,14 +223,10 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
             updateContainerWidth();
           })
         : null;
-
-    if (node && resizeObserver) {
-      resizeObserver.observe(node);
-    }
+    if (node && resizeObserver) resizeObserver.observe(node);
 
     window.addEventListener("resize", updateContainerWidth);
     window.addEventListener("orientationchange", updateContainerWidth);
-
     return () => {
       resizeObserver?.disconnect();
       window.removeEventListener("resize", updateContainerWidth);
@@ -240,48 +234,29 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     };
   }, [opened, updateContainerWidth]);
 
-  // IntersectionObserver 驱动的移动渲染窗口:
-  // - 页进入(含 rootMargin 提前量)→ 渲染;相邻页提前画好,正常翻页不黑屏
-  // - 页离开足够远 → clearPage 释放 canvas,内存被限制在几页,iOS 不再乱清屏内的页
-  // 尺寸/文档变化时(containerWidth 变)重建 observer 并清缓存键 → 可见页按新尺寸重画
+  // 文档就绪 / 宽度变化 → 启动(或按新尺寸重启)后台渲染
   useEffect(() => {
     if (!opened || loading || error || numPages === 0 || containerWidth <= 0) return;
-    const root = scrollRef.current;
-    if (!root) return;
 
-    if (typeof IntersectionObserver === "undefined") {
-      // 兜底(极旧浏览器无 IO):一次性渲染全部页
-      for (let pageIndex = 0; pageIndex < numPages; pageIndex += 1) {
-        void renderPage(pageIndex);
-      }
-      return;
+    if (renderWidthRef.current === 0) {
+      renderWidthRef.current = containerWidth;
+    } else if (Math.abs(renderWidthRef.current - containerWidth) > 40) {
+      // 宽度明显变化(如横竖屏切换):作废旧图,按新尺寸重画
+      tokenRef.current += 1;
+      renderingRef.current = false;
+      revokeAllUrls();
+      renderWidthRef.current = containerWidth;
+      pageUrlsRef.current = new Array(numPages).fill(null);
+      setPageImages(new Array(numPages).fill(null));
     }
+    void pumpRender();
+  }, [containerWidth, error, loading, numPages, opened, pumpRender, revokeAllUrls]);
 
-    renderedKeysRef.current.clear();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const raw = (entry.target as HTMLElement).dataset.pageIndex;
-          const pageIndex = raw === undefined ? Number.NaN : Number(raw);
-          if (Number.isNaN(pageIndex)) continue;
-          if (entry.isIntersecting) {
-            void renderPage(pageIndex);
-          } else {
-            clearPage(pageIndex);
-          }
-        }
-      },
-      // 横向 scroll-snap:视口左右各扩约一屏做提前量;threshold 稍大于 0 即触发
-      { root, rootMargin: "0px 120% 0px 120%", threshold: 0.01 }
-    );
-
-    for (const node of slideRefs.current) {
-      if (node) observer.observe(node);
-    }
-
-    return () => observer.disconnect();
-  }, [clearPage, containerWidth, error, loading, numPages, opened, renderPage]);
+  // 当前页变化 → 让渲染泵优先补齐当前页附近
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+    void pumpRender();
+  }, [currentIndex, pumpRender]);
 
   return (
     <Modal
@@ -379,10 +354,6 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
             {Array.from({ length: numPages }, (_, pageIndex) => (
               <Box
                 key={pageIndex}
-                ref={(node: HTMLDivElement | null) => {
-                  slideRefs.current[pageIndex] = node;
-                }}
-                data-page-index={pageIndex}
                 style={{
                   flex: "0 0 100%",
                   width: "100%",
@@ -394,17 +365,22 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
                   position: "relative",
                 }}
               >
-                {!renderedPages.has(pageIndex) ? (
+                {pageImages[pageIndex] ? (
+                  <img
+                    src={pageImages[pageIndex] as string}
+                    alt={`第 ${pageIndex + 1} 页`}
+                    style={{
+                      display: "block",
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                ) : (
                   <Center pos="absolute" inset={0}>
                     <Loader color="gray" />
                   </Center>
-                ) : null}
-                <canvas
-                  ref={(node) => {
-                    canvasRefs.current[pageIndex] = node;
-                  }}
-                  style={{ display: "block", maxWidth: "100%" }}
-                />
+                )}
               </Box>
             ))}
           </Box>
