@@ -8,6 +8,7 @@ export const ipadSlides = pgTable("ipad_slides", {
   title: text("title").notNull(),
   filename: text("filename").notNull(),
   storagePath: text("storage_path").notNull(),
+  thumbPath: text("thumb_path"),
   mime: text("mime"),
   size: integer("size"),
   sortOrder: integer("sort_order").notNull().default(0),

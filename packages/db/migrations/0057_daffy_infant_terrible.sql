@@ -1,0 +1,1 @@
+ALTER TABLE "ipad_slides" ADD COLUMN "thumb_path" text;

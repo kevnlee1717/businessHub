@@ -85,6 +85,7 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/statement/:token" element={<StatementPage />} />
+      <Route path="/ipad" element={<IpadSurveyPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
@@ -188,7 +189,6 @@ export function App() {
             <Route path="collection-items" element={<CollectionItemsPage />} />
           </Route>
         </Route>
-        <Route path="ipad" element={<IpadSurveyPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -40,6 +40,7 @@ import { registerIndustryRoutes } from "./industries";
 import { registerIpadSlideRoutes } from "./ipadSlides";
 import { registerLedgerRoutes } from "./ledger";
 import { registerKpiRoutes } from "./kpi";
+import { registerKioskRoutes } from "./kiosk";
 import { registerPayslipRoutes } from "./payslip";
 import { registerPerformanceRoutes } from "./performance";
 import { registerPermissionRoutes } from "./permissions";
@@ -113,6 +114,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerFranchiseRoutes);
   await app.register(registerBrochureRoutes);
   await app.register(registerIpadSlideRoutes);
+  await app.register(registerKioskRoutes);
   await app.register(registerTranslateRoutes);
   await app.register(registerDashboardRoutes);
   await app.register(registerRecurringCostRoutes);

@@ -13,6 +13,8 @@ export type IpadSlide = {
   filename: string;
   storage_path: string;
   url: string;
+  thumb_path?: string | null;
+  thumb_url?: string | null;
   mime?: string | null;
   size?: number | null;
   sort_order: number;
