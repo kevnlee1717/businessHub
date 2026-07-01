@@ -1,22 +1,28 @@
 import {
   billing,
   billingCharges,
+  businesses,
   caseServices,
   caseStepDocuments,
   caseSteps,
   caseSubmissions,
   cases,
   db,
+  dealParties,
   documents,
+  externalCommissionEntries,
+  externalParties,
   followUps,
   guarantors,
   packageItems,
   packageMilestones,
+  schemeLines,
   serviceItems,
   servicePackages,
   stepReviews,
   templateSteps
 } from "@bh/db";
+import { randomUUID } from "node:crypto";
 import {
   businessTypes,
   caseCreateSchema,
@@ -1073,6 +1079,93 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
 
     const filesById = await getSubmissionFilesById([updated]);
     return { submission: serializeSubmission(updated, filesById) };
+  });
+
+  // ICA 建收款计划时生成担保人应付分成(pending):收到定金后由财务在外部分成台账手动确认付款。
+  // 幂等:同一 billing 已有该担保人的分成 entry 就不重复建。
+  app.post("/cases/:id/guarantor-payout", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(z.object({ billing_id: z.string().uuid() }), request.body);
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+    if (caseRow.businessType !== "ica" || !caseRow.guarantorId) {
+      return { ok: true, created: false };
+    }
+
+    // 担保人分成额 = ICA 方案里担保人 commission line 的 rate
+    const [icaBusiness] = await db.select().from(businesses).where(eq(businesses.code, "ica")).limit(1);
+    const [guarantorParty] = await db.select().from(dealParties).where(eq(dealParties.code, "guarantor")).limit(1);
+    if (!icaBusiness?.defaultVersionId || !guarantorParty) {
+      return { ok: true, created: false };
+    }
+    const lines = await db.select().from(schemeLines).where(eq(schemeLines.versionId, icaBusiness.defaultVersionId));
+    const guarantorLine = lines.find((line) => line.kind === "commission" && line.partyId === guarantorParty.id);
+    const share = Number(guarantorLine?.rate ?? 0);
+    if (!(share > 0)) {
+      return { ok: true, created: false };
+    }
+
+    const [guarantor] = await db.select().from(guarantors).where(eq(guarantors.id, caseRow.guarantorId)).limit(1);
+    if (!guarantor) {
+      return { ok: true, created: false };
+    }
+
+    // 找/建这个担保人的外部分成收款人
+    let [payee] = await db
+      .select()
+      .from(externalParties)
+      .where(and(eq(externalParties.name, guarantor.name), eq(externalParties.partyId, guarantorParty.id)))
+      .limit(1);
+    if (!payee) {
+      [payee] = await db
+        .insert(externalParties)
+        .values({
+          partyId: guarantorParty.id,
+          name: guarantor.name,
+          contact: guarantor.nric ?? null,
+          statementToken: randomUUID(),
+          note: "ICA 担保人分成"
+        })
+        .returning();
+    }
+    if (!payee) {
+      throw new Error("external_party_create_failed");
+    }
+
+    // 幂等:该 billing 已有此担保人的应付分成就不重复
+    const existing = await db
+      .select({ id: externalCommissionEntries.id })
+      .from(externalCommissionEntries)
+      .where(
+        and(
+          eq(externalCommissionEntries.billingId, body.billing_id),
+          eq(externalCommissionEntries.payeeId, payee.id)
+        )
+      )
+      .limit(1);
+    if (existing.length > 0) {
+      return { ok: true, created: false };
+    }
+
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await db.insert(externalCommissionEntries).values({
+      payeeId: payee.id,
+      billingId: body.billing_id,
+      businessId: icaBusiness.id,
+      partyId: guarantorParty.id,
+      period,
+      recurrence: "one_time",
+      seq: 1,
+      milestoneSeq: 1,
+      amountSgd: String(share),
+      status: "pending",
+      note: "ICA 定金分成"
+    });
+
+    return { ok: true, created: true };
   });
 
   app.patch("/case-steps/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
