@@ -121,6 +121,13 @@ export type UploadedDocument = {
   size?: number | null;
 };
 
+export type SubmissionFile = {
+  id: string;
+  filename: string;
+  storage_path: string;
+  mime?: string | null;
+};
+
 export type CaseSubmission = {
   id: string;
   case_id: string;
@@ -128,6 +135,9 @@ export type CaseSubmission = {
   result: CaseSubmissionResult;
   rejected_at?: string | null;
   note?: string | null;
+  screenshot_document?: SubmissionFile | null;
+  appeal_document?: SubmissionFile | null;
+  attachment_documents?: SubmissionFile[];
   created_at: string;
 };
 
@@ -558,6 +568,39 @@ export function updateSubmission(
     method: "PATCH",
     body
   });
+}
+
+export async function uploadSubmissionFiles(
+  submissionId: string,
+  files: { screenshot?: File | null; appeal?: File | null; attachments?: File[] }
+): Promise<{ submission: CaseSubmission }> {
+  const formData = new FormData();
+  if (files.screenshot) {
+    formData.append("screenshot", files.screenshot);
+  }
+  if (files.appeal) {
+    formData.append("appeal", files.appeal);
+  }
+  for (const file of files.attachments ?? []) {
+    formData.append("attachment", file);
+  }
+
+  const response = await fetch(`/api/case-submissions/${submissionId}/files`, {
+    method: "POST",
+    body: formData,
+    credentials: "include"
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : response.statusText;
+    throw new Error(message);
+  }
+
+  return data as { submission: CaseSubmission };
 }
 
 export function createCaseStepDoc(

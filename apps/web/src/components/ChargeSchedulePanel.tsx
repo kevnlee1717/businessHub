@@ -18,7 +18,7 @@ import {
   Textarea,
   Title
 } from "@mantine/core";
-import { currencies, type Currency } from "@bh/shared";
+import { currencies, type BusinessType, type Currency } from "@bh/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,11 +31,14 @@ import {
   updateCharge,
   type Charge
 } from "../api/charges";
+import { createBilling } from "../api/finance";
+import { updateCase } from "../api/cases";
 import { listBankAccounts } from "../api/ledger";
 
 type Props = {
   billingId?: string | null;
   caseId?: string | null;
+  caseBusinessType?: BusinessType | null;
   onChargesLoaded?: (charges: Charge[]) => void;
 };
 
@@ -123,9 +126,12 @@ function makeQueryKey(billingId?: string | null, caseId?: string | null) {
   return ["finance", "charges", billingId ? "billing" : "case", billingId ?? caseId] as const;
 }
 
-export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Props) {
+export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onChargesLoaded }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [createPlanOpened, setCreatePlanOpened] = useState(false);
+  const [planTotal, setPlanTotal] = useState<number | null>(null);
+  const [planDeposit, setPlanDeposit] = useState<number | null>(null);
   const [collectCharge, setCollectCharge] = useState<Charge | null>(null);
   const [editingChargeId, setEditingChargeId] = useState<string | null>(null);
   const [editingExpected, setEditingExpected] = useState<number | null>(null);
@@ -227,6 +233,29 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
     onError: (error) => setFormError(errorMessage(error, t))
   });
 
+  // 案件还没有收款计划(billing)时,在此面板直接给案件建一张空账单并绑定,之后即可手动添加收款项
+  const createPlanMutation = useMutation({
+    mutationFn: async () => {
+      if (!caseId || (caseBusinessType !== "ep" && caseBusinessType !== "ica")) {
+        throw new Error("missing_required_fields");
+      }
+      const { billing } = await createBilling({
+        ref_type: caseBusinessType,
+        ref_id: caseId,
+        total_price_sgd: planTotal ?? 0,
+        deposit_sgd: planDeposit ?? undefined
+      });
+      await updateCase(caseId, { billing_id: billing.id });
+      return billing;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
+      await queryClient.invalidateQueries({ queryKey: ["finance", "charges"] });
+      closeCreatePlanModal();
+    },
+    onError: (error) => setFormError(errorMessage(error, t))
+  });
+
   function openCollectModal(charge: Charge) {
     setCollectCharge(charge);
     setCollectForm({
@@ -276,12 +305,30 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
     setFormError(null);
   }
 
+  function openCreatePlanModal() {
+    setPlanTotal(null);
+    setPlanDeposit(null);
+    setFormError(null);
+    setCreatePlanOpened(true);
+  }
+
+  function closeCreatePlanModal() {
+    setCreatePlanOpened(false);
+    setPlanTotal(null);
+    setPlanDeposit(null);
+    setFormError(null);
+  }
+
   const collectDisabled =
     collectForm.paid_amount === null ||
     !collectForm.paid_at ||
     collectForm.proof_files.length === 0 ||
     (collectForm.currency !== "SGD" && collectForm.fx_rate === null);
   const eventDisabled = !resolvedBillingId || !eventForm.label.trim() || eventForm.amount_expected === null;
+  // 案件还没绑定 billing(收款计划)。只有 EP/ICA 案件支持在此面板直接创建。
+  const isNotFoundError = chargesQuery.error instanceof Error && chargesQuery.error.message === "not_found";
+  const canCreatePlan =
+    Boolean(caseId) && !resolvedBillingId && (caseBusinessType === "ep" || caseBusinessType === "ica");
 
   return (
     <Paper withBorder radius="md" p="md">
@@ -291,16 +338,26 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
             <Title order={3}>{t("chargeSchedule.title")}</Title>
             {chargesQuery.isFetching ? <Loader size="sm" /> : null}
           </Stack>
-          {resolvedBillingId && hasEventCharges ? (
+          {canCreatePlan ? (
+            <Button onClick={openCreatePlanModal}>{t("chargeSchedule.createPlan")}</Button>
+          ) : resolvedBillingId ? (
             <Button variant="light" onClick={openEventModal}>
               {t("chargeSchedule.addEvent")}
             </Button>
           ) : null}
         </Group>
 
-        {chargesQuery.error ? (
+        {canCreatePlan ? (
+          <Alert color="blue" variant="light">
+            {t("chargeSchedule.noPlanHint")}
+          </Alert>
+        ) : chargesQuery.error ? (
           <Alert color="red" variant="light">
-            {chargesQuery.error instanceof Error ? chargesQuery.error.message : t("common.unknown_error")}
+            {isNotFoundError
+              ? t("chargeSchedule.notFound")
+              : chargesQuery.error instanceof Error
+                ? chargesQuery.error.message
+                : t("common.unknown_error")}
           </Alert>
         ) : null}
 
@@ -512,6 +569,37 @@ export function ChargeSchedulePanel({ billingId, caseId, onChargesLoaded }: Prop
             </Button>
             <Button onClick={() => eventMutation.mutate()} loading={eventMutation.isPending} disabled={eventDisabled}>
               {t("common.save")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={createPlanOpened} onClose={closeCreatePlanModal} title={t("chargeSchedule.createPlan")} size="md">
+        <Stack gap="md">
+          {formError ? <Alert color="red">{formError}</Alert> : null}
+          <Text size="sm" c="dimmed">
+            {t("chargeSchedule.createPlanHint")}
+          </Text>
+          <NumberInput
+            label={t("chargeSchedule.fields.totalPrice")}
+            value={planTotal ?? ""}
+            onChange={(value) => setPlanTotal(typeof value === "number" ? value : null)}
+            min={0}
+            decimalScale={2}
+          />
+          <NumberInput
+            label={t("chargeSchedule.fields.deposit")}
+            value={planDeposit ?? ""}
+            onChange={(value) => setPlanDeposit(typeof value === "number" ? value : null)}
+            min={0}
+            decimalScale={2}
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={closeCreatePlanModal}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={() => createPlanMutation.mutate()} loading={createPlanMutation.isPending}>
+              {t("chargeSchedule.createPlan")}
             </Button>
           </Group>
         </Stack>
