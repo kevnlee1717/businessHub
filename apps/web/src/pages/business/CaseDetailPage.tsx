@@ -508,9 +508,9 @@ function StepCard({
   }));
   const requiredDocuments = step.documents.filter((doc) => doc.is_required);
   const readyRequiredDocuments = requiredDocuments.filter((doc) => (doc.document_ids?.length ?? 0) > 0).length;
-  const canReviewStep =
-    Boolean(currentUserId && step.reviewer_id === currentUserId) ||
-    canManageCases;
+  // 只有被指派的审核人本人才是"审核人";管理员能审(canReviewStep),但「进行审核」按钮仅审核人可见
+  const isReviewer = Boolean(currentUserId && step.reviewer_id === currentUserId);
+  const canReviewStep = isReviewer || canManageCases;
   const stepChargeOutstanding = stepCharges.reduce(
     (sum, charge) => sum + Math.max(0, Number(charge.amount_expected) - Number(charge.amount_collected)),
     0
@@ -652,6 +652,11 @@ function StepCard({
                 {t("stepReview.request")}
               </Button>
             ) : null}
+            {isReviewer ? (
+              <Button size="xs" variant={reviewOpen ? "subtle" : "light"} onClick={() => setReviewOpen((open) => !open)}>
+                {reviewOpen ? t("common.collapse") : t("stepReview.doReview")}
+              </Button>
+            ) : null}
           </Stack>
         </Group>
 
@@ -661,22 +666,16 @@ function StepCard({
           </Alert>
         ) : null}
 
+        {reviewOpen ? (
         <Stack gap="xs">
-          <Group justify="space-between" align="center">
-            <Group gap="xs">
-              <Title order={5}>{t("stepReview.title")}</Title>
-              {reviews.length > 0 ? (
-                <Badge size="sm" variant="light" color="gray">
-                  {reviews.length}
-                </Badge>
-              ) : null}
-            </Group>
-            <Button size="xs" variant={reviewOpen ? "subtle" : "light"} onClick={() => setReviewOpen((open) => !open)}>
-              {reviewOpen ? t("common.collapse") : canReviewStep ? t("stepReview.doReview") : t("stepReview.addReview")}
-            </Button>
+          <Group gap="xs">
+            <Title order={5}>{t("stepReview.title")}</Title>
+            {reviews.length > 0 ? (
+              <Badge size="sm" variant="light" color="gray">
+                {reviews.length}
+              </Badge>
+            ) : null}
           </Group>
-          {reviewOpen ? (
-            <>
           {reviewError ? (
             <Alert color="red" variant="light">
               {reviewError}
@@ -772,9 +771,8 @@ function StepCard({
               ) : null}
             </Group>
           </Stack>
-            </>
-          ) : null}
         </Stack>
+        ) : null}
 
         <Stack gap="xs">
           <Group justify="space-between">
