@@ -69,7 +69,6 @@ const navItems: NavItem[] = [
     ]
   },
   { to: "/documents", key: "nav.documents", perm: "document.view" },
-  { to: "/brochure", key: "nav.brochure", perm: "brochure.view" },
   { to: "/recruitment", key: "nav.recruitment", perm: "recruitment.view" },
   {
     key: "nav.finance",
@@ -81,9 +80,6 @@ const navItems: NavItem[] = [
       { to: "/finance/ledger", key: "nav.finance_ledger", perm: "finance.view" },
       { to: "/finance/bank-accounts", key: "nav.finance_bank_accounts", perm: "finance.view" },
       { to: "/finance/reconcile", key: "nav.finance_reconcile", perm: "finance.view" },
-      { to: "/finance/commission", key: "nav.finance_commission", perm: "finance.view" },
-      { to: "/finance/my-commission", key: "nav.finance_my_commission", perm: "commission.view_own" },
-      { to: "/finance/external-commission", key: "nav.finance_external_commission", perm: "finance.view" },
       { to: "/finance/reports", key: "nav.finance_reports", perm: "finance.view" }
     ]
   },
@@ -94,7 +90,11 @@ const navItems: NavItem[] = [
     children: [
       // 「分成方案」已并入各业务的"收费&分成"tab,不再作为独立菜单项;仅保留分成人员管理
       { to: "/business-finance/parties", key: "nav.deal_parties", perm: "finance.view" },
-      { to: "/business-finance/external-parties", key: "nav.external_parties", perm: "finance.view" }
+      { to: "/business-finance/external-parties", key: "nav.external_parties", perm: "finance.view" },
+      // 提成菜单从「财务」组移入,路由仍是 /finance/*
+      { to: "/finance/commission", key: "nav.finance_commission", perm: "finance.view" },
+      { to: "/finance/my-commission", key: "nav.finance_my_commission", perm: "commission.view_own" },
+      { to: "/finance/external-commission", key: "nav.finance_external_commission", perm: "finance.view" }
     ]
   },
   { to: "/hr", key: "nav.hr" },

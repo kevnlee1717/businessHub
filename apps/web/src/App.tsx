@@ -136,9 +136,11 @@ export function App() {
                   element={<FolderLibraryPage section={section} />}
                 />
               ))}
+            <Route path="brochure" element={<BrochurePage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
-          <Route path="brochure" element={<BrochurePage />} />
+          {/* 宣传册已并入文档 tab;旧链接重定向 */}
+          <Route path="brochure" element={<Navigate to="/documents/brochure" replace />} />
           <Route path="finance" element={<FinanceLayout />}>
             <Route index element={<Navigate to="billing" replace />} />
             <Route path="billing" element={<BillingPage />} />

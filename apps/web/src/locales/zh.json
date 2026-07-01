@@ -37,7 +37,7 @@
     "finance_my_commission": "我的提成",
     "finance_external_commission": "外部提成",
     "finance_reports": "财务报表",
-    "business_finance": "业务分成人员",
+    "business_finance": "业务分成",
     "business_finance_list": "分成方案",
     "deal_parties": "分成对象",
     "external_parties": "外部分成人",
@@ -1336,6 +1336,7 @@
       "certificates": "证明&模板",
       "fees": "收费标准",
       "bizfile": "BizFile",
+      "brochure": "宣传册",
       "categories": "分类"
     },
     "library": {

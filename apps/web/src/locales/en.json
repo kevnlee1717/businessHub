@@ -37,7 +37,7 @@
     "finance_my_commission": "My Commission",
     "finance_external_commission": "External Commission",
     "finance_reports": "Financial Reports",
-    "business_finance": "Commission Personnel",
+    "business_finance": "Business Commission",
     "business_finance_list": "Commission Schemes",
     "deal_parties": "Deal Parties",
     "external_parties": "External Parties",
@@ -1336,6 +1336,7 @@
       "certificates": "Certificates & Templates",
       "fees": "Fee Standards",
       "bizfile": "BizFile",
+      "brochure": "Brochures",
       "categories": "Categories"
     },
     "library": {

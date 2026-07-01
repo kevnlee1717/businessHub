@@ -16,6 +16,5 @@ export const routeTitleEntries: { path: string; key: string }[] = [
   ...documentsTabs,
   ...financeTabs,
   ...recruitmentTabs,
-  ...trackingTabs,
-  { path: "/brochure", labelKey: "nav.brochure" }
+  ...trackingTabs
 ].map((tab) => ({ path: tab.path, key: tab.labelKey }));
