@@ -2,7 +2,7 @@ import { type Currency } from "@bh/shared";
 import { api } from "./client";
 import { uploadProofDocument } from "./ledger";
 
-export type ChargeKind = "milestone" | "period" | "event";
+export type ChargeKind = "milestone" | "period" | "event" | "service";
 export type ChargeStatus = "pending" | "partial" | "paid" | "waived";
 export type MilestoneBasis = "percent" | "fixed";
 

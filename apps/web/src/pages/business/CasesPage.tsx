@@ -36,6 +36,7 @@ import {
   type Case,
   type Client
 } from "../../api/cases";
+import { listPackages } from "../../api/epPackages";
 import { useAuth } from "../../auth/AuthContext";
 import { ClientSelect } from "../../components/ClientSelect";
 import { TablePagination } from "../../components/TablePagination";
@@ -45,6 +46,7 @@ type CaseFormValues = {
   business_type?: BusinessType | undefined;
   client_id?: string | null | undefined;
   template_id?: string | undefined;
+  package_id?: string | undefined;
   guarantor_name?: string | undefined;
   guarantor_relation?: string | undefined;
   guarantor_contact?: string | undefined;
@@ -106,6 +108,7 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
     business_type: businessType,
     client_id: null,
     template_id: undefined,
+    package_id: undefined,
     guarantor_name: undefined,
     guarantor_relation: undefined,
     guarantor_contact: undefined,
@@ -160,6 +163,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const templatesQuery = useQuery({
     queryKey: ["business", "workflow-templates", businessType],
     queryFn: () => listTemplates(businessType)
+  });
+  const packagesQuery = useQuery({
+    queryKey: ["ep-packages", "packages"],
+    queryFn: () => listPackages(),
+    enabled: businessType === "ep"
   });
 
   const form = useForm<CaseFormValues>({
@@ -223,7 +231,19 @@ export function CasesPage({ businessType }: CasesPageProps) {
       value: template.id,
       label: template.name
     }));
-  const loadError = casesQuery.error ?? clientsQuery.error ?? templatesQuery.error;
+  const packageOptions = (packagesQuery.data?.packages ?? [])
+    .filter((servicePackage) => servicePackage.active)
+    .map((servicePackage) => {
+      const labelParts = [`${servicePackage.name} · SGD ${Number(servicePackage.base_price_sgd).toFixed(2)}`];
+      if (servicePackage.is_recommended) {
+        labelParts.push("★推荐");
+      }
+      return {
+        value: servicePackage.id,
+        label: labelParts.join(" ")
+      };
+    });
+  const loadError = casesQuery.error ?? clientsQuery.error ?? templatesQuery.error ?? packagesQuery.error;
 
   function openCreateModal() {
     setFormError(null);
@@ -279,10 +299,16 @@ export function CasesPage({ businessType }: CasesPageProps) {
       return;
     }
 
+    if (businessType === "ep" && !values.package_id) {
+      setFormError(t("case.errors.packageRequired"));
+      return;
+    }
+
     try {
       await createMutation.mutateAsync({
         ...values,
         business_type: businessType,
+        package_id: businessType === "ep" ? values.package_id : undefined,
         signed_at: values.signed_at || null
       } as CaseCreateInput);
     } catch (error) {
@@ -473,6 +499,23 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 />
               )}
             />
+            {businessType === "ep" ? (
+              <Controller
+                name="package_id"
+                control={form.control}
+                render={({ field }) => (
+                  <Select
+                    label={t("case.fields.package")}
+                    data={packageOptions}
+                    value={field.value ?? null}
+                    onChange={(value) => field.onChange(value ?? undefined)}
+                    error={errors.package_id?.message}
+                    searchable
+                    required
+                  />
+                )}
+              />
+            ) : null}
             {businessType === "ica" ? (
               <Stack gap="md">
                 <Group grow align="flex-start">

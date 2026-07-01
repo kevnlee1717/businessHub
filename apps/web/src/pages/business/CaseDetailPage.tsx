@@ -71,6 +71,7 @@ import { fileUrl, listDocumentCategories, type DocumentCategory } from "../../ap
 import { listEmployees, type Employee } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
 import { useSetTabTitle } from "../../layout/tabTitle";
+import { AddonServicesPanel } from "../../components/AddonServicesPanel";
 import { ChargeSchedulePanel } from "../../components/ChargeSchedulePanel";
 import { type Charge } from "../../api/charges";
 
@@ -1629,6 +1630,9 @@ export function CaseDetailPage() {
     if (isEp || isIca) {
       items.push({ key: "charges", label: t("case.section.charges") });
     }
+    if (isEp && caseItem.package_id) {
+      items.push({ key: "addon", label: t("case.section.addon") });
+    }
     steps.forEach((step, index) => {
       items.push({ key: step.id, label: t("caseStep.stepNo", { n: index + 1 }), tone: stepTone(step) });
     });
@@ -1879,6 +1883,14 @@ export function CaseDetailPage() {
               caseId={caseItem.id}
               submissions={submissions}
               canManageCases={canManageCases}
+            />
+          ) : null}
+
+          {effectiveSelected === "addon" && caseItem.business_type === "ep" && caseItem.package_id ? (
+            <AddonServicesPanel
+              caseId={caseItem.id}
+              caseStepsInfo={steps.map((step) => ({ id: step.id, step_order: step.step_order, name: step.name }))}
+              onGoToCharges={() => setSelectedPanel("charges")}
             />
           ) : null}
 

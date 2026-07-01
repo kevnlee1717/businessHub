@@ -634,7 +634,8 @@
       "guarantor": "担保人",
       "children": "子案件",
       "submissions": "提交记录",
-      "charges": "收款计划"
+      "charges": "收款计划",
+      "addon": "增加服务"
     },
     "filters": {
       "businessType": "业务类型",
@@ -645,6 +646,7 @@
       "businessType": "业务类型",
       "client": "客户",
       "template": "流程模板",
+      "package": "套餐",
       "status": "状态",
       "currentStep": "当前步骤",
       "signedAt": "签约日期",
@@ -657,7 +659,8 @@
       "guarantorContact": "担保人联系方式"
     },
     "errors": {
-      "guarantorRequired": "ICA 案件必须填写担保人姓名。"
+      "guarantorRequired": "ICA 案件必须填写担保人姓名。",
+      "packageRequired": "EP 案件必须选择套餐。"
     },
     "stats": {
       "title": "案件统计",
@@ -1951,7 +1954,8 @@
   "chargeKind": {
     "milestone": "里程碑",
     "period": "每月",
-    "event": "事件"
+    "event": "事件",
+    "service": "服务"
   },
   "chargeStatus": {
     "pending": "待收",
