@@ -151,23 +151,53 @@ export function getBusiness(id: string): Promise<{ business: Business }> {
   return api<{ business: Business }>(`/businesses/${id}`);
 }
 
-export type IcaFeeConfig = {
+export type IcaFeeScheme = {
+  id: string;
+  label: string;
+  is_default: boolean;
   default_total: number;
   default_deposit: number;
   guarantor_share: number;
-  currency: string;
 };
 
-export function getIcaFeeConfig(): Promise<{ config: IcaFeeConfig }> {
-  return api<{ config: IcaFeeConfig }>("/ica-fee-config");
-}
-
-export function updateIcaFeeConfig(body: {
+type IcaFeeSchemeBody = {
+  label: string;
   default_total: number;
   default_deposit: number;
   guarantor_share: number;
-}): Promise<{ ok: true }> {
-  return api<{ ok: true }>("/ica-fee-config", { method: "PUT", body });
+};
+
+export function listIcaFeeSchemes(): Promise<{ schemes: IcaFeeScheme[]; currency: string }> {
+  return api<{ schemes: IcaFeeScheme[]; currency: string }>("/ica-fee-schemes");
+}
+
+export function createIcaFeeScheme(body: IcaFeeSchemeBody): Promise<{ scheme: IcaFeeScheme }> {
+  return api<{ scheme: IcaFeeScheme }>("/ica-fee-schemes", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateIcaFeeScheme(
+  versionId: string,
+  body: Omit<IcaFeeSchemeBody, "label"> & { label?: string }
+): Promise<{ scheme: IcaFeeScheme }> {
+  return api<{ scheme: IcaFeeScheme }>(`/ica-fee-schemes/${versionId}`, {
+    method: "PUT",
+    body
+  });
+}
+
+export function setIcaFeeSchemeDefault(versionId: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/ica-fee-schemes/${versionId}/default`, {
+    method: "POST"
+  });
+}
+
+export function deleteIcaFeeScheme(versionId: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/ica-fee-schemes/${versionId}`, {
+    method: "DELETE"
+  });
 }
 
 export function createBusiness(body: BusinessCreateInput): Promise<{ business: Business }> {

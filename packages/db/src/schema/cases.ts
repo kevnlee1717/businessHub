@@ -4,6 +4,7 @@ import { clients } from "./clients";
 import { businessTypeEnum, caseStatusEnum } from "./enums";
 import { guarantors } from "./guarantors";
 import { servicePackages } from "./packages";
+import { schemeVersions } from "./schemeVersions";
 
 export const cases = pgTable("cases", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -14,6 +15,7 @@ export const cases = pgTable("cases", {
   status: caseStatusEnum("status").notNull().default("open"),
   billingId: uuid("billing_id").references(() => billing.id, { onDelete: "set null" }),
   packageId: uuid("package_id").references(() => servicePackages.id),
+  feeSchemeVersionId: uuid("fee_scheme_version_id").references(() => schemeVersions.id, { onDelete: "set null" }),
   guarantorId: uuid("guarantor_id").references(() => guarantors.id, { onDelete: "set null" }),
   guarantorName: text("guarantor_name"),
   guarantorRelation: text("guarantor_relation"),

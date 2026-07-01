@@ -756,11 +756,13 @@
       "guarantor": "Guarantor",
       "guarantorName": "Guarantor name",
       "guarantorRelation": "Guarantor relation",
-      "guarantorContact": "Guarantor contact"
+      "guarantorContact": "Guarantor contact",
+      "feeScheme": "Fee scheme"
     },
     "errors": {
       "guarantorRequired": "ICA cases require a guarantor name.",
-      "packageRequired": "EP cases require a package."
+      "packageRequired": "EP cases require a package.",
+      "feeSchemeRequired": "ICA cases require a fee scheme."
     },
     "packageCommissionHint": "After selecting a package and sales person, commissions are generated from package defaults and can be changed in case details.",
     "stats": {
@@ -2041,7 +2043,16 @@
   },
   "icaFeeShare": {
     "title": "ICA Fee & Share",
-    "hint": "ICA billing is simple: total splits into deposit + balance; the share is a fixed amount paid to the guarantor each time a deposit is received. Set defaults here; case collection plans are prefilled from them.",
+    "hint": "Manage multiple ICA fee schemes. Each case selects one scheme, and its collection plan is prefilled from that scheme's total, deposit, and guarantor share.",
+    "schemeName": "Scheme name",
+    "addScheme": "Add scheme",
+    "editScheme": "Edit scheme",
+    "setDefault": "Set default",
+    "disable": "Disable",
+    "disableConfirm": "Disable \"{{label}}\"?",
+    "default": "Default",
+    "defaultBadge": "Default",
+    "empty": "No fee schemes yet",
     "feeSection": "Fee",
     "total": "Default total (SGD)",
     "totalHint": "Contract total per case; adjustable per case",
@@ -2050,7 +2061,11 @@
     "balancePreview": "Balance ≈ {{amount}} SGD",
     "shareSection": "Share",
     "guarantorShare": "Guarantor fixed share (SGD)",
-    "guarantorShareHint": "Fixed amount paid to the guarantor each time a deposit is received (auto-recorded as payable on deposit; paid after finance confirmation)"
+    "guarantorShareHint": "Fixed amount paid to the guarantor each time a deposit is received (auto-recorded as payable on deposit; paid after finance confirmation)",
+    "errors": {
+      "cannot_delete_default_scheme": "The default scheme cannot be disabled. Set another scheme as default first.",
+      "missing_required_fields": "Fill in the scheme name and all amounts."
+    }
   },
   "chargeSchedule": {
     "title": "Collection Schedule",

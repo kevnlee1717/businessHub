@@ -1909,6 +1909,7 @@ export function CaseDetailPage() {
                 billingId={caseItem.billing_id ?? null}
                 caseId={caseItem.id}
                 caseBusinessType={caseItem.business_type}
+                icaSchemeVersionId={caseItem.fee_scheme_version_id ?? null}
                 onChargesLoaded={handleChargesLoaded}
               />
             </div>
