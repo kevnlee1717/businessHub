@@ -108,6 +108,7 @@ export type Guarantor = {
   gender?: Gender | null;
   age?: number | null;
   id_card_document_id?: string | null;
+  is_client_own?: boolean;
   note?: string | null;
   sponsored_count: number;
   stats?: { total: number; approved: number; rejected: number; successRate: number | null; firstAt: string | null; lastAt: string | null };

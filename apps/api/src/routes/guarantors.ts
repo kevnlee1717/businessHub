@@ -18,6 +18,7 @@ function serializeGuarantor(row: typeof guarantors.$inferSelect) {
     gender: row.gender,
     age: row.age,
     id_card_document_id: row.idCardDocumentId,
+    is_client_own: row.isClientOwn,
     note: row.note,
     created_at: row.createdAt,
     updated_at: row.updatedAt
@@ -212,6 +213,7 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
         nric: body.nric,
         gender: body.gender,
         age: body.age,
+        isClientOwn: body.is_client_own ?? false,
         note: body.note
       })
       .returning();
@@ -233,6 +235,7 @@ export async function registerGuarantorRoutes(app: FastifyInstance): Promise<voi
         nric: body.nric,
         gender: body.gender,
         age: body.age,
+        isClientOwn: body.is_client_own,
         note: body.note,
         updatedAt: new Date()
       })

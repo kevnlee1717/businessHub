@@ -765,7 +765,9 @@
       "age": "年龄",
       "note": "备注",
       "sponsoredCount": "担保人数",
-      "idCard": "ID 卡"
+      "idCard": "ID 卡",
+      "clientOwn": "客户自己找的担保人",
+      "clientOwnHint": "打开表示这个担保人是客户自带的;这类担保人不给公司分成"
     },
     "summary": {
       "count": "担保人总数",

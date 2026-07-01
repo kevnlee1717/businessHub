@@ -1111,6 +1111,10 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     if (!guarantor) {
       return { ok: true, created: false };
     }
+    // 客户自己找的担保人不给公司分成
+    if (guarantor.isClientOwn) {
+      return { ok: true, created: false };
+    }
 
     // 找/建这个担保人的外部分成收款人
     let [payee] = await db
