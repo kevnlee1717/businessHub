@@ -178,12 +178,32 @@ export function IpadSurveyPage() {
     closeSurvey();
   }
 
+  // 清除本机已缓存的 PDF 整页图片 + PDF 文件(service worker 缓存),然后刷新重新渲染
+  async function handleClearCache() {
+    if (!window.confirm("清除本机已缓存的 PDF 图片并刷新页面?下次打开会按当前尺寸重新渲染。")) return;
+    try {
+      if (typeof caches !== "undefined") {
+        await caches.delete("ipad-pdf-pages-v1");
+        await caches.delete("ipad-pdf-cache-v2");
+      }
+    } catch {
+      // 忽略清理失败
+    }
+    window.location.reload();
+  }
+
   return (
     <Box mih="100vh" bg="#f3f4f2" pb={120} c="#333">
       <Container size={1080} px={{ base: "md", sm: "xl" }} py="lg">
         <Box bg="white" p={{ base: "md", sm: "lg" }} mb="lg">
           <KaiderLetterhead />
         </Box>
+
+        <Group justify="flex-end" mb="lg">
+          <Button variant="light" color="gray" onClick={handleClearCache}>
+            清除缓存并刷新
+          </Button>
+        </Group>
 
         {slidesQuery.isLoading ? (
           <Center h={360}>

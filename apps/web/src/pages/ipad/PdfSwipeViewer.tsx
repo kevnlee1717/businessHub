@@ -72,6 +72,7 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
   const [error, setError] = useState(false);
   const [pageImages, setPageImages] = useState<Array<string | null>>([]);
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   const revokeAllUrls = useCallback(() => {
     for (const objectUrl of pageUrlsRef.current) {
@@ -283,6 +284,22 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     };
   }, [opened, updateContainerWidth]);
 
+  // 竖版宣传册锁定竖屏浏览:iOS Safari 无法真正锁旋转,横屏时改为提示转回竖屏。
+  useEffect(() => {
+    if (!opened) return;
+    const mq = window.matchMedia("(orientation: landscape)");
+    const update = () => setIsLandscape(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      mq.removeEventListener?.("change", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [opened]);
+
   // 文档就绪 / 宽度变化 → 启动(或按新尺寸重启)后台渲染
   useEffect(() => {
     if (!opened || loading || error || numPages === 0 || containerWidth <= 0) return;
@@ -436,7 +453,21 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
           </Box>
         )}
 
-        {numPages > 0 && !loading && !error ? (
+        {isLandscape ? (
+          <Center pos="fixed" inset={0} bg="#111" px={40} style={{ zIndex: 9, flexDirection: "column", gap: 18 }}>
+            <Text fz={64} lh={1}>
+              📱
+            </Text>
+            <Text fz={22} fw={700} c="white" ta="center">
+              请将 iPad 竖过来查看
+            </Text>
+            <Text fz={15} c="gray.5" ta="center">
+              本宣传册为竖版,竖屏浏览铺满全屏、效果最佳
+            </Text>
+          </Center>
+        ) : null}
+
+        {numPages > 0 && !loading && !error && !isLandscape ? (
           <Box
             pos="fixed"
             bottom={22}
