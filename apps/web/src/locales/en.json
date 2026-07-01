@@ -1975,6 +1975,8 @@
     "empty": "No scheduled charges yet",
     "createPlan": "Create collection plan",
     "createPlanHint": "Create a billing for this case; once created you can add charges one by one.",
+    "depositLabel": "Deposit",
+    "balanceLabel": "Balance",
     "noPlanHint": "No collection plan for this case yet. Click \"Create collection plan\" in the top right to start.",
     "notFound": "No collection plan for this case yet.",
     "expected": "Expected",

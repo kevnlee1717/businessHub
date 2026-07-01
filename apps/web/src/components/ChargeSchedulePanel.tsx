@@ -253,6 +253,23 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
         deposit_sgd: planDeposit ?? undefined
       });
       await updateCase(caseId, { billing_id: billing.id });
+      // ICA 收费简单:总价 → 定金 + 尾款,直接铺两笔收款项
+      if (caseBusinessType === "ica") {
+        const deposit = planDeposit ?? 0;
+        const balance = Math.max(0, (planTotal ?? 0) - deposit);
+        await createCharge({
+          billing_id: billing.id,
+          charge_kind: "milestone",
+          label: t("chargeSchedule.depositLabel"),
+          amount_expected: deposit
+        });
+        await createCharge({
+          billing_id: billing.id,
+          charge_kind: "milestone",
+          label: t("chargeSchedule.balanceLabel"),
+          amount_expected: balance
+        });
+      }
       return billing;
     },
     onSuccess: async () => {
