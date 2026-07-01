@@ -63,6 +63,7 @@ import { JobDetailPage } from "./pages/recruitment/JobDetailPage";
 import { JobsPage } from "./pages/recruitment/JobsPage";
 import { PostingsPage } from "./pages/recruitment/PostingsPage";
 import { QuickCapturePage } from "./pages/recruitment/QuickCapturePage";
+import { RecruitmentAnalyticsPage } from "./pages/recruitment/RecruitmentAnalyticsPage";
 import { RecruitmentDashboardPage } from "./pages/recruitment/RecruitmentDashboardPage";
 import { RecruitmentLayout } from "./pages/recruitment/RecruitmentLayout";
 import { RecruitmentSettingsPage } from "./pages/recruitment/RecruitmentSettingsPage";
@@ -160,6 +161,7 @@ export function App() {
             <Route path="candidates" element={<CandidatesPage />} />
             <Route path="candidates/:id" element={<CandidateDetailPage />} />
             <Route path="upcoming" element={<UpcomingInterviewsPage />} />
+            <Route path="analytics" element={<RecruitmentAnalyticsPage />} />
             <Route path="talent-pool" element={<TalentPoolPage />} />
             <Route path="capture" element={<QuickCapturePage />} />
             <Route path="settings" element={<RecruitmentSettingsPage />} />

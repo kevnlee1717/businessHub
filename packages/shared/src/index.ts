@@ -25,4 +25,5 @@ export * from "./schemas/rent";
 export * from "./schemas/reports";
 export * from "./icaImport";
 export * from "./icaStats";
+export * from "./recruitmentAnalytics";
 export * from "./caseStatsSummary";

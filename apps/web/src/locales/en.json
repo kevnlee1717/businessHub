@@ -2207,6 +2207,7 @@
       "campaigns": "Campaigns",
       "candidates": "Candidates",
       "upcoming": "Upcoming",
+      "analytics": "Analytics",
       "talentPool": "Talent Pool",
       "capture": "Capture",
       "settings": "Settings"
@@ -2250,6 +2251,8 @@
       "generatedCopy": "Generated copy",
       "platforms": "Platforms",
       "platform": "Platform",
+      "isPaid": "Paid",
+      "cost": "Cost",
       "publishedOn": "Published on",
       "inquiryCount": "Inquiries",
       "copyMaterial": "Copy material",
@@ -2377,6 +2380,24 @@
       "leads": "Leads",
       "interviews": "Interviews",
       "offers": "Offers"
+    },
+    "analytics": {
+      "title": "Effectiveness analytics",
+      "platforms": "Platforms",
+      "materials": "Materials",
+      "locations": "Locations",
+      "paidVsFree": "Free vs paid",
+      "leads": "Leads",
+      "interviews": "Interviews",
+      "offers": "Offers",
+      "costPerLead": "Cost per lead",
+      "costPerOffer": "Cost per offer",
+      "postingsCount": "Postings",
+      "campaignsCount": "Campaigns",
+      "paidLeads": "Paid leads",
+      "freeLeads": "Free leads",
+      "paid": "Paid",
+      "free": "Free"
     },
     "jobStatus": {
       "open": "Open",

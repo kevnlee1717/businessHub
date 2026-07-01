@@ -17,7 +17,9 @@ import {
   recruitmentSettings
 } from "@bh/db";
 import {
+  computeRecruitmentAnalytics,
   recruitmentAiCopySchema,
+  recruitmentAnalyticsQuerySchema,
   recruitmentCampaignCreateSchema,
   recruitmentCampaignListQuerySchema,
   recruitmentCampaignUpdateSchema,
@@ -399,6 +401,8 @@ function serializePosting(row: typeof recruitmentPostings.$inferSelect, screensh
     share_url: row.shareUrl,
     screenshot_document_id: row.screenshotDocumentId,
     published_on: row.publishedOn,
+    is_paid: row.isPaid,
+    cost: row.cost == null ? null : Number(row.cost),
     status: row.status,
     owner_id: row.ownerId,
     invite_clerk_id: row.inviteClerkId,
@@ -433,6 +437,7 @@ function serializeCampaign(row: typeof recruitmentCampaigns.$inferSelect) {
     type: row.type,
     status: row.status,
     location: row.location,
+    cost: row.cost == null ? null : Number(row.cost),
     planned_date: row.plannedDate,
     planned_start: row.plannedStart,
     planned_end: row.plannedEnd,
@@ -1129,6 +1134,8 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         imageMaterialId: body.image_material_id,
         shareUrl: body.share_url,
         publishedOn: body.published_on,
+        isPaid: body.is_paid,
+        cost: body.cost == null ? null : String(body.cost),
         status: body.status,
         ownerId: body.owner_id,
         inviteClerkId: body.invite_clerk_id,
@@ -1154,6 +1161,8 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (hasOwn(body, "image_material_id")) update.imageMaterialId = body.image_material_id;
     if (hasOwn(body, "share_url")) update.shareUrl = body.share_url;
     if (body.published_on !== undefined) update.publishedOn = body.published_on;
+    if (body.is_paid !== undefined) update.isPaid = body.is_paid;
+    if (hasOwn(body, "cost")) update.cost = body.cost == null ? null : String(body.cost);
     if (body.status !== undefined) update.status = body.status;
     if (body.owner_id !== undefined) update.ownerId = body.owner_id;
     if (hasOwn(body, "invite_clerk_id")) update.inviteClerkId = body.invite_clerk_id;
@@ -1235,6 +1244,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
         type: body.type,
         status: body.status,
         location: body.location,
+        cost: body.cost == null ? null : String(body.cost),
         plannedDate: body.planned_date,
         plannedStart: body.planned_start,
         plannedEnd: body.planned_end,
@@ -1287,6 +1297,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     if (body.type !== undefined) update.type = body.type;
     if (body.status !== undefined) update.status = body.status;
     if (body.location !== undefined) update.location = body.location;
+    if (hasOwn(body, "cost")) update.cost = body.cost == null ? null : String(body.cost);
     if (body.planned_date !== undefined) update.plannedDate = body.planned_date;
     if (body.planned_start !== undefined) update.plannedStart = body.planned_start;
     if (body.planned_end !== undefined) update.plannedEnd = body.planned_end;
@@ -1299,6 +1310,142 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
     await replaceCampaignLinks(updatedCampaign, links.job_ids, links.material_ids);
     const resource = serializeCampaign(updatedCampaign);
     return { campaign: resource, resource };
+  });
+
+  app.get("/recruitment/analytics", { preHandler: requirePerm("recruitment.view") }, async (request) => {
+    const query = parseWithSchema(recruitmentAnalyticsQuerySchema, request.query);
+    const candidateFilters: SQL[] = [];
+    const candidateAccess = await getAccessibleFilter(request, recruitmentCandidates.companyId);
+    if (candidateAccess) candidateFilters.push(candidateAccess);
+    if (query.company_id) candidateFilters.push(eq(recruitmentCandidates.companyId, query.company_id));
+    if (query.job_id) candidateFilters.push(eq(recruitmentCandidates.intendedJobId, query.job_id));
+
+    const postingFilters: SQL[] = [];
+    const postingAccess = await getAccessibleFilter(request, recruitmentPostings.companyId);
+    if (postingAccess) postingFilters.push(postingAccess);
+    if (query.company_id) postingFilters.push(eq(recruitmentPostings.companyId, query.company_id));
+    if (query.job_id) postingFilters.push(eq(recruitmentPostings.jobId, query.job_id));
+
+    const campaignFilters: SQL[] = [];
+    const campaignAccess = await getAccessibleFilter(request, recruitmentCampaigns.companyId);
+    if (campaignAccess) campaignFilters.push(campaignAccess);
+    if (query.company_id) campaignFilters.push(eq(recruitmentCampaigns.companyId, query.company_id));
+
+    const [candidateRows, postingRows, campaignRowsRaw] = await Promise.all([
+      db
+        .select({
+          id: recruitmentCandidates.id,
+          status: recruitmentCandidates.status,
+          sourceType: recruitmentCandidates.sourceType,
+          sourcePostingId: recruitmentCandidates.sourcePostingId,
+          sourceCampaignId: recruitmentCandidates.sourceCampaignId
+        })
+        .from(recruitmentCandidates)
+        .where(candidateFilters.length ? and(...candidateFilters) : sql`true`),
+      db
+        .select({
+          id: recruitmentPostings.id,
+          platform: recruitmentPostings.platform,
+          copyMaterialId: recruitmentPostings.copyMaterialId,
+          imageMaterialId: recruitmentPostings.imageMaterialId,
+          isPaid: recruitmentPostings.isPaid,
+          cost: recruitmentPostings.cost
+        })
+        .from(recruitmentPostings)
+        .where(postingFilters.length ? and(...postingFilters) : sql`true`),
+      query.job_id
+        ? db
+          .select({ campaign: recruitmentCampaigns })
+          .from(recruitmentCampaignJobs)
+          .innerJoin(recruitmentCampaigns, eq(recruitmentCampaignJobs.campaignId, recruitmentCampaigns.id))
+          .where(and(...campaignFilters, eq(recruitmentCampaignJobs.jobId, query.job_id)))
+        : db
+          .select({ campaign: recruitmentCampaigns })
+          .from(recruitmentCampaigns)
+          .where(campaignFilters.length ? and(...campaignFilters) : sql`true`)
+    ]);
+
+    const campaignRows = campaignRowsRaw.map((row) => row.campaign);
+    const candidateIds = candidateRows.map((candidate) => candidate.id);
+    const campaignIds = campaignRows.map((campaign) => campaign.id);
+
+    const [interviewRows, campaignMaterialRows] = await Promise.all([
+      candidateIds.length
+        ? db
+          .select({ candidateId: recruitmentInterviews.candidateId })
+          .from(recruitmentInterviews)
+          .where(inArray(recruitmentInterviews.candidateId, candidateIds))
+          .groupBy(recruitmentInterviews.candidateId)
+        : [],
+      campaignIds.length
+        ? db
+          .select({
+            campaignId: recruitmentCampaignMaterials.campaignId,
+            materialId: recruitmentCampaignMaterials.materialId
+          })
+          .from(recruitmentCampaignMaterials)
+          .where(inArray(recruitmentCampaignMaterials.campaignId, campaignIds))
+        : []
+    ]);
+
+    const campaignMaterialIds = new Map<string, string[]>();
+    for (const row of campaignMaterialRows) {
+      const current = campaignMaterialIds.get(row.campaignId) ?? [];
+      current.push(row.materialId);
+      campaignMaterialIds.set(row.campaignId, current);
+    }
+
+    const materialIds = [
+      ...new Set(
+        [
+          ...postingRows.flatMap((posting) => [posting.copyMaterialId, posting.imageMaterialId]),
+          ...campaignMaterialRows.map((row) => row.materialId)
+        ].filter((id): id is string => Boolean(id))
+      )
+    ];
+    const materialRows = materialIds.length
+      ? await db
+        .select({
+          id: recruitmentMaterials.id,
+          title: recruitmentMaterials.title,
+          type: recruitmentMaterials.type
+        })
+        .from(recruitmentMaterials)
+        .where(inArray(recruitmentMaterials.id, materialIds))
+      : [];
+    const interviewedCandidateIds = new Set(interviewRows.map((row) => row.candidateId));
+
+    const analytics = computeRecruitmentAnalytics({
+      candidates: candidateRows.map((candidate) => ({
+        id: candidate.id,
+        status: candidate.status,
+        source_type: candidate.sourceType,
+        source_posting_id: candidate.sourcePostingId,
+        source_campaign_id: candidate.sourceCampaignId,
+        has_interview: interviewedCandidateIds.has(candidate.id)
+      })),
+      postings: postingRows.map((posting) => ({
+        id: posting.id,
+        platform: posting.platform,
+        copy_material_id: posting.copyMaterialId,
+        image_material_id: posting.imageMaterialId,
+        is_paid: posting.isPaid,
+        cost: posting.cost == null ? null : Number(posting.cost)
+      })),
+      campaigns: campaignRows.map((campaign) => ({
+        id: campaign.id,
+        location: campaign.location,
+        cost: campaign.cost == null ? null : Number(campaign.cost),
+        material_ids: campaignMaterialIds.get(campaign.id) ?? []
+      })),
+      materials: materialRows.map((material) => ({
+        id: material.id,
+        title: material.title,
+        type: material.type
+      }))
+    });
+
+    return { analytics };
   });
 
   app.get("/recruitment/candidates", { preHandler: requirePerm("recruitment.view") }, async (request) => {

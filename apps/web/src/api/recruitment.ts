@@ -24,6 +24,7 @@ export const recruitmentKeys = {
   postings: (params?: unknown) => ["recruitment", "postings", params] as const,
   campaigns: (params?: unknown) => ["recruitment", "campaigns", params] as const,
   campaign: (id: string) => ["recruitment", "campaign", id] as const,
+  analytics: (params?: unknown) => ["recruitment", "analytics", params] as const,
   candidates: (params?: unknown) => ["recruitment", "candidates", params] as const,
   candidate: (id: string) => ["recruitment", "candidate", id] as const,
   upcomingInterviews: () => ["recruitment", "interviews", "upcoming"] as const,
@@ -116,6 +117,8 @@ export type RecruitmentPosting = {
   screenshot_document_id?: string | null;
   screenshot_document?: { id: string; storage_path: string; filename: string; mime?: string | null } | null;
   published_on: string;
+  is_paid?: boolean;
+  cost?: number | null;
   status: RecruitmentPostingStatus;
   owner_id: string;
   invite_clerk_id?: string | null;
@@ -132,6 +135,7 @@ export type RecruitmentCampaign = {
   type: RecruitmentCampaignType;
   status: RecruitmentCampaignStatus;
   location: string;
+  cost?: number | null;
   planned_date: string;
   planned_start: string;
   planned_end: string;
@@ -230,6 +234,46 @@ export type RecruitmentDashboard = {
   campaign_reports: { campaign: RecruitmentCampaign; leads: number; interviews: number; offers: number }[];
   platform_effectiveness: { posting_id: string; platform: string; job_id: string; leads: number; interviews: number; offers: number }[];
   overdue: { count: number; candidates: RecruitmentCandidate[] };
+};
+
+export type RecruitmentAnalytics = {
+  platforms: {
+    platform: string;
+    leads: number;
+    interviews: number;
+    offers: number;
+    cost: number;
+    postings: number;
+    cost_per_lead: number | null;
+    cost_per_offer: number | null;
+    paid_leads: number;
+    free_leads: number;
+  }[];
+  materials: {
+    material_id: string;
+    title: string;
+    type: string;
+    leads: number;
+    interviews: number;
+    offers: number;
+  }[];
+  locations: {
+    location: string;
+    leads: number;
+    interviews: number;
+    offers: number;
+    cost: number;
+    campaigns: number;
+    cost_per_lead: number | null;
+    cost_per_offer: number | null;
+  }[];
+  paid_vs_free: {
+    group: "paid" | "free";
+    leads: number;
+    interviews: number;
+    offers: number;
+    cost: number;
+  }[];
 };
 
 export type RecruitmentMaterialBody = {
@@ -343,6 +387,9 @@ export const getRecruitmentCampaign = (id: string) =>
   api<{ campaign: RecruitmentCampaign; jobs: RecruitmentJob[]; materials: RecruitmentMaterial[]; candidates: RecruitmentCandidate[] }>(`/recruitment/campaigns/${id}`);
 export const updateRecruitmentCampaign = (id: string, body: unknown) =>
   api<{ campaign: RecruitmentCampaign }>(`/recruitment/campaigns/${id}`, { method: "PATCH", body });
+
+export const getRecruitmentAnalytics = (params: { job_id?: string } = {}) =>
+  api<{ analytics: RecruitmentAnalytics }>(`/recruitment/analytics${qs(params)}`);
 
 export const listRecruitmentCandidates = (params: Record<string, unknown> = {}) =>
   api<{ candidates: RecruitmentCandidate[] }>(`/recruitment/candidates${qs(params)}`);
