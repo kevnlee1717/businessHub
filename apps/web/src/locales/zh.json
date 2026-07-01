@@ -1975,6 +1975,8 @@
     "empty": "暂无收款计划",
     "createPlan": "创建收款计划",
     "createPlanHint": "为本案件创建一张账单,创建后即可逐笔添加收款项。",
+    "depositLabel": "定金",
+    "balanceLabel": "尾款",
     "noPlanHint": "本案件尚未创建收款计划,点击右上角「创建收款计划」开始。",
     "notFound": "本案件尚未创建收款计划。",
     "expected": "应收",
