@@ -72,6 +72,7 @@
     "back": "返回",
     "upload": "上传",
     "save": "保存",
+    "saved": "已保存",
     "cancel": "取消",
     "collapse": "收起",
     "active": "启用",
@@ -1966,6 +1967,19 @@
       "unitLabel": "单位",
       "inputKey": "input_key"
     }
+  },
+  "icaFeeShare": {
+    "title": "ICA 收费 & 分成",
+    "hint": "ICA 收费很简单:总价拆成定金 + 尾款;分成是每次收到定金给担保人一笔固定金额。这里设默认值,案件收款计划会按此预填。",
+    "feeSection": "收费",
+    "total": "默认总价 (SGD)",
+    "totalHint": "单个案件的合同总价,可在案件里逐单调整",
+    "deposit": "默认定金 (SGD)",
+    "depositHint": "签约时先收的定金,尾款 = 总价 − 定金",
+    "balancePreview": "尾款 ≈ {{amount}} SGD",
+    "shareSection": "分成",
+    "guarantorShare": "担保人固定分成 (SGD)",
+    "guarantorShareHint": "每次收到定金,给担保人的固定分成金额(收到定金时自动记应付,财务确认后付款)"
   },
   "chargeSchedule": {
     "title": "收款计划",

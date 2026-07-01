@@ -1,4 +1,4 @@
-import { businesses, db, schemeVersions } from "@bh/db";
+import { businesses, collectionItems, db, dealParties, schemeLines, schemeMilestones, schemeVersions } from "@bh/db";
 import { businessCreateSchema, businessUpdateSchema } from "@bh/shared";
 import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
@@ -199,5 +199,145 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     }
 
     return { business: serializeBusiness(business) };
+  });
+
+  // ===== ICA 极简收费&分成配置 =====
+  // 存储复用 ICA 默认 scheme version 的结构:总价=revenue line rate、定金默认=定金里程碑(fixed)、
+  // 担保人分成=担保人 commission line(fixed)。per-case 收款计划按此预填并直接铺定金/尾款收款项。
+  const icaFeeConfigSchema = z.object({
+    default_total: z.coerce.number().min(0),
+    default_deposit: z.coerce.number().min(0),
+    guarantor_share: z.coerce.number().min(0)
+  });
+
+  async function resolveIcaConfigContext() {
+    const [business] = await db.select().from(businesses).where(eq(businesses.code, "ica")).limit(1);
+    if (!business?.defaultVersionId) {
+      return null;
+    }
+    const [guarantorParty] = await db.select().from(dealParties).where(eq(dealParties.code, "guarantor")).limit(1);
+    const [depositItem] = await db.select().from(collectionItems).where(eq(collectionItems.code, "deposit")).limit(1);
+    const [finalItem] = await db.select().from(collectionItems).where(eq(collectionItems.code, "final")).limit(1);
+    return {
+      business,
+      versionId: business.defaultVersionId,
+      guarantorPartyId: guarantorParty?.id ?? null,
+      depositItemId: depositItem?.id ?? null,
+      finalItemId: finalItem?.id ?? null
+    };
+  }
+
+  app.get("/ica-fee-config", { preHandler: requirePerm("finance.view") }, async (_request, reply) => {
+    const ctx = await resolveIcaConfigContext();
+    if (!ctx) {
+      return sendNotFound(reply);
+    }
+    const lines = await db.select().from(schemeLines).where(eq(schemeLines.versionId, ctx.versionId));
+    const revenueLine = lines.find((line) => line.kind === "revenue");
+    const guarantorLine = lines.find((line) => line.kind === "commission" && line.partyId === ctx.guarantorPartyId);
+    const milestones = await db.select().from(schemeMilestones).where(eq(schemeMilestones.versionId, ctx.versionId));
+    const depositMilestone =
+      milestones.find((m) => m.collectionItemId === ctx.depositItemId) ?? milestones.find((m) => m.seq === 1);
+
+    return {
+      config: {
+        default_total: Number(revenueLine?.rate ?? 0),
+        default_deposit: Number(depositMilestone?.value ?? 0),
+        guarantor_share: Number(guarantorLine?.rate ?? 0),
+        currency: ctx.business.currency
+      }
+    };
+  });
+
+  app.put("/ica-fee-config", { preHandler: requirePerm("finance.edit") }, async (request, reply) => {
+    const ctx = await resolveIcaConfigContext();
+    if (!ctx) {
+      return sendNotFound(reply);
+    }
+    const body = parseWithSchema(icaFeeConfigSchema, request.body);
+    const split = { "1": { basis: "fixed" as const, value: body.guarantor_share } };
+
+    await db.transaction(async (tx) => {
+      const lines = await tx.select().from(schemeLines).where(eq(schemeLines.versionId, ctx.versionId));
+
+      const revenueLine = lines.find((line) => line.kind === "revenue");
+      if (revenueLine) {
+        await tx
+          .update(schemeLines)
+          .set({ basis: "fixed", inputKey: "price", rate: String(body.default_total) })
+          .where(eq(schemeLines.id, revenueLine.id));
+      } else {
+        await tx.insert(schemeLines).values({
+          versionId: ctx.versionId,
+          kind: "revenue",
+          basis: "fixed",
+          recurrence: "one_time",
+          inputKey: "price",
+          rate: String(body.default_total),
+          label: "总价"
+        });
+      }
+
+      const guarantorLine = lines.find((line) => line.kind === "commission" && line.partyId === ctx.guarantorPartyId);
+      if (guarantorLine) {
+        await tx
+          .update(schemeLines)
+          .set({ basis: "fixed", recurrence: "one_time", rate: String(body.guarantor_share), milestoneSplit: split })
+          .where(eq(schemeLines.id, guarantorLine.id));
+      } else if (ctx.guarantorPartyId) {
+        await tx.insert(schemeLines).values({
+          versionId: ctx.versionId,
+          kind: "commission",
+          basis: "fixed",
+          recurrence: "one_time",
+          partyId: ctx.guarantorPartyId,
+          rate: String(body.guarantor_share),
+          milestoneSplit: split,
+          label: "担保人分成"
+        });
+      }
+
+      const milestones = await tx.select().from(schemeMilestones).where(eq(schemeMilestones.versionId, ctx.versionId));
+      const depositMilestone =
+        milestones.find((m) => m.collectionItemId === ctx.depositItemId) ?? milestones.find((m) => m.seq === 1);
+      if (depositMilestone) {
+        await tx
+          .update(schemeMilestones)
+          .set({
+            seq: 1,
+            label: "定金",
+            basis: "fixed",
+            value: String(body.default_deposit),
+            collectionItemId: ctx.depositItemId,
+            bindStepOrder: 1
+          })
+          .where(eq(schemeMilestones.id, depositMilestone.id));
+      } else {
+        await tx.insert(schemeMilestones).values({
+          versionId: ctx.versionId,
+          seq: 1,
+          label: "定金",
+          basis: "fixed",
+          value: String(body.default_deposit),
+          collectionItemId: ctx.depositItemId,
+          bindStepOrder: 1
+        });
+      }
+
+      const finalMilestone =
+        milestones.find((m) => m.collectionItemId === ctx.finalItemId) ?? milestones.find((m) => m.seq === 2);
+      if (!finalMilestone) {
+        await tx.insert(schemeMilestones).values({
+          versionId: ctx.versionId,
+          seq: 2,
+          label: "尾款",
+          basis: "percent",
+          value: "100",
+          collectionItemId: ctx.finalItemId
+        });
+      }
+    });
+
+    return { ok: true };
   });
 }

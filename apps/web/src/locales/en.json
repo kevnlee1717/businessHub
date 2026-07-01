@@ -72,6 +72,7 @@
     "back": "Back",
     "upload": "Upload",
     "save": "Save",
+    "saved": "Saved",
     "cancel": "Cancel",
     "collapse": "Collapse",
     "active": "Active",
@@ -1966,6 +1967,19 @@
       "unitLabel": "Unit",
       "inputKey": "input_key"
     }
+  },
+  "icaFeeShare": {
+    "title": "ICA Fee & Share",
+    "hint": "ICA billing is simple: total splits into deposit + balance; the share is a fixed amount paid to the guarantor each time a deposit is received. Set defaults here; case collection plans are prefilled from them.",
+    "feeSection": "Fee",
+    "total": "Default total (SGD)",
+    "totalHint": "Contract total per case; adjustable per case",
+    "deposit": "Default deposit (SGD)",
+    "depositHint": "Deposit collected on signing; balance = total − deposit",
+    "balancePreview": "Balance ≈ {{amount}} SGD",
+    "shareSection": "Share",
+    "guarantorShare": "Guarantor fixed share (SGD)",
+    "guarantorShareHint": "Fixed amount paid to the guarantor each time a deposit is received (auto-recorded as payable on deposit; paid after finance confirmation)"
   },
   "chargeSchedule": {
     "title": "Collection Schedule",
