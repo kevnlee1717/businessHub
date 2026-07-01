@@ -15,6 +15,7 @@ export type IpadSlide = {
   url: string;
   thumb_path?: string | null;
   thumb_url?: string | null;
+  orientation: "landscape" | "portrait";
   mime?: string | null;
   size?: number | null;
   sort_order: number;

@@ -11,6 +11,7 @@ type PdfSwipeViewerProps = {
   title: string;
   opened: boolean;
   onClose: () => void;
+  orientation?: "landscape" | "portrait";
 };
 
 // 图片渲染分辨率上限:JPEG 图 dpr=2 已够清晰,避免 3x 设备生成过大图片。
@@ -50,7 +51,7 @@ async function writeCachedPage(key: string, blob: Blob): Promise<void> {
   }
 }
 
-export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerProps) {
+export function PdfSwipeViewer({ url, title, opened, onClose, orientation = "landscape" }: PdfSwipeViewerProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const documentRef = useRef<PDFDocumentProxy | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
@@ -324,6 +325,9 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     void pumpRender();
   }, [currentIndex, pumpRender]);
 
+  // 设备当前朝向与该资料设定的浏览朝向不一致 → 提示转屏(iOS 无法真正锁旋转)
+  const orientationMismatch = orientation === "portrait" ? isLandscape : !isLandscape;
+
   return (
     <Modal
       opened={opened}
@@ -451,21 +455,23 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
           </Box>
         )}
 
-        {isLandscape ? (
+        {orientationMismatch ? (
           <Center pos="fixed" inset={0} bg="#111" px={40} style={{ zIndex: 9, flexDirection: "column", gap: 18 }}>
             <Text fz={64} lh={1}>
               📱
             </Text>
             <Text fz={22} fw={700} c="white" ta="center">
-              请将 iPad 竖过来查看
+              {orientation === "portrait" ? "请将 iPad 竖过来查看" : "请将 iPad 横过来查看"}
             </Text>
             <Text fz={15} c="gray.5" ta="center">
-              本宣传册为竖版,竖屏浏览铺满全屏、效果最佳
+              {orientation === "portrait"
+                ? "这份资料为竖版,竖屏浏览铺满全屏、效果最佳"
+                : "这份资料为横版,横屏浏览铺满全屏、效果最佳"}
             </Text>
           </Center>
         ) : null}
 
-        {numPages > 0 && !loading && !error && !isLandscape ? (
+        {numPages > 0 && !loading && !error && !orientationMismatch ? (
           <Box
             pos="fixed"
             bottom={22}

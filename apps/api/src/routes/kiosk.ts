@@ -17,6 +17,7 @@ function serializeSlide(row: typeof ipadSlides.$inferSelect) {
     title: row.title,
     url: `/uploads/${row.storagePath}`,
     thumb_url: row.thumbPath ? `/uploads/${row.thumbPath}` : null,
+    orientation: row.orientation,
     sort_order: row.sortOrder
   };
 }

@@ -8,6 +8,7 @@ import {
   Loader,
   Modal,
   Paper,
+  SegmentedControl,
   Stack,
   Table,
   Text,
@@ -71,8 +72,13 @@ export function IpadSlidesAdminPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { title?: string; sort_order?: number } }) =>
-      updateIpadSlide(id, body),
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: { title?: string; sort_order?: number; orientation?: "landscape" | "portrait" };
+    }) => updateIpadSlide(id, body),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ipadSlideKeys.all });
     },
@@ -122,6 +128,7 @@ export function IpadSlidesAdminPage() {
               <Table.Tr>
                 <Table.Th>{t("ipadSlides.fields.title")}</Table.Th>
                 <Table.Th>{t("ipadSlides.fields.filename")}</Table.Th>
+                <Table.Th>朝向</Table.Th>
                 <Table.Th>{t("ipadSlides.fields.sortOrder")}</Table.Th>
                 <Table.Th>{t("ipadSlides.fields.createdAt")}</Table.Th>
                 <Table.Th>{t("common.actions")}</Table.Th>
@@ -130,7 +137,7 @@ export function IpadSlidesAdminPage() {
             <Table.Tbody>
               {slidesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={6}>
                     <Group justify="center" py="lg"><Loader size="sm" /></Group>
                   </Table.Td>
                 </Table.Tr>
@@ -144,6 +151,20 @@ export function IpadSlidesAdminPage() {
                       <Anchor href={slide.url} target="_blank" rel="noreferrer">
                         {slide.filename}
                       </Anchor>
+                    </Table.Td>
+                    <Table.Td>
+                      <SegmentedControl
+                        size="xs"
+                        value={slide.orientation}
+                        disabled={!canManage}
+                        onChange={(value) =>
+                          updateMutation.mutate({ id: slide.id, body: { orientation: value as "landscape" | "portrait" } })
+                        }
+                        data={[
+                          { label: "横屏", value: "landscape" },
+                          { label: "竖屏", value: "portrait" },
+                        ]}
+                      />
                     </Table.Td>
                     <Table.Td>{slide.sort_order}</Table.Td>
                     <Table.Td>{formatDate(slide.created_at)}</Table.Td>
@@ -183,7 +204,7 @@ export function IpadSlidesAdminPage() {
                 ))
               ) : (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={6}>
                     <Text ta="center" c="dimmed" py="lg">{t("ipadSlides.empty")}</Text>
                   </Table.Td>
                 </Table.Tr>

@@ -244,6 +244,7 @@ export function IpadSurveyPage() {
         opened={Boolean(previewSlide)}
         url={previewSlide?.url ?? ""}
         title={previewSlide?.title ?? ""}
+        orientation={previewSlide?.orientation ?? "landscape"}
         onClose={() => setPreviewSlide(null)}
       />
 

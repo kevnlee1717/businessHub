@@ -6,6 +6,7 @@ export type KioskSlide = {
   title: string;
   url: string;
   thumb_url: string | null;
+  orientation: "landscape" | "portrait";
   sort_order: number;
 };
 

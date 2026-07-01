@@ -39,6 +39,7 @@ function serializeSlide(row: IpadSlideRow) {
     url: `/uploads/${row.storagePath}`,
     thumb_path: row.thumbPath,
     thumb_url: row.thumbPath ? `/uploads/${row.thumbPath}` : null,
+    orientation: row.orientation,
     mime: row.mime,
     size: row.size,
     sort_order: row.sortOrder,
@@ -261,6 +262,7 @@ export async function registerIpadSlideRoutes(app: FastifyInstance): Promise<voi
       .set({
         ...(body.title !== undefined ? { title: body.title } : {}),
         ...(body.sort_order !== undefined ? { sortOrder: body.sort_order } : {}),
+        ...(body.orientation !== undefined ? { orientation: body.orientation } : {}),
         updatedAt: new Date()
       })
       .where(and(eq(ipadSlides.id, id), eq(ipadSlides.companyId, existing.companyId)))

@@ -9,6 +9,8 @@ export const ipadSlides = pgTable("ipad_slides", {
   filename: text("filename").notNull(),
   storagePath: text("storage_path").notNull(),
   thumbPath: text("thumb_path"),
+  // iPad 上以哪种朝向浏览:landscape(横屏,默认)/ portrait(竖屏,如宣传册)
+  orientation: text("orientation").notNull().default("landscape"),
   mime: text("mime"),
   size: integer("size"),
   sortOrder: integer("sort_order").notNull().default(0),
