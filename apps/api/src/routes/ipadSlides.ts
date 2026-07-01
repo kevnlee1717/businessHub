@@ -12,6 +12,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
+import { generateIpadSlideThumbnail } from "../lib/ipadThumbs";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,8 @@ function serializeSlide(row: IpadSlideRow) {
     filename: row.filename,
     storage_path: row.storagePath,
     url: `/uploads/${row.storagePath}`,
+    thumb_path: row.thumbPath,
+    thumb_url: row.thumbPath ? `/uploads/${row.thumbPath}` : null,
     mime: row.mime,
     size: row.size,
     sort_order: row.sortOrder,
@@ -189,11 +192,17 @@ export async function registerIpadSlideRoutes(app: FastifyInstance): Promise<voi
 
   app.post("/ipad-slides", { preHandler: requirePerm("brochure.manage") }, async (request, reply) => {
     let file: UploadedFile | null = null;
+    let thumbPath: string | null = null;
 
     try {
       const multipart = await readMultipartWithFirstPdf(request);
       file = multipart.file;
       if (!file) return reply.code(400).send({ error: "file_required" });
+      try {
+        thumbPath = await generateIpadSlideThumbnail(file.storagePath);
+      } catch (error) {
+        request.log.warn({ error, storagePath: file.storagePath }, "ipad_slide_thumbnail_failed");
+      }
 
       const body = parseWithSchema(ipadSlideUploadSchema, multipart.fields);
       const companyId = await defaultCompanyIdForRequest(request);
@@ -218,6 +227,7 @@ export async function registerIpadSlideRoutes(app: FastifyInstance): Promise<voi
           title: body.title,
           filename: file.filename,
           storagePath: file.storagePath,
+          thumbPath,
           mime: file.mime,
           size: file.size,
           sortOrder: next?.sortOrder ?? 1,
@@ -230,6 +240,7 @@ export async function registerIpadSlideRoutes(app: FastifyInstance): Promise<voi
       return reply.code(201).send({ slide: serializeSlide(row) });
     } catch (error) {
       await unlinkStoragePath(file?.storagePath);
+      await unlinkStoragePath(thumbPath);
       if (isFileTooLargeError(error)) return sendFileTooLarge(reply);
       if (error instanceof Error && error.message === "pdf_required") {
         return reply.code(400).send({ error: "pdf_required" });
@@ -268,6 +279,7 @@ export async function registerIpadSlideRoutes(app: FastifyInstance): Promise<voi
     const [row] = await db.delete(ipadSlides).where(eq(ipadSlides.id, id)).returning();
     if (!row) return sendNotFound(reply);
     await unlinkStoragePath(row.storagePath);
+    await unlinkStoragePath(row.thumbPath);
     return { ok: true };
   });
 }
