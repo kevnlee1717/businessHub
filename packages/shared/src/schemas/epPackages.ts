@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { serviceCategories } from "../enums";
+import { commissionBases, commissionTargets, serviceCategories } from "../enums";
 
 const nullableOptionalText = z.string().trim().min(1).nullable().optional();
 const numericField = z.union([z.string(), z.number()]);
@@ -62,8 +62,31 @@ export const packageMilestoneSchema = z.object({
 
 export const packageMilestonesReplaceSchema = z.array(packageMilestoneSchema);
 
+export const packageCommissionSchema = z.object({
+  target: z.enum(commissionTargets),
+  basis: z.enum(commissionBases),
+  value: numericField,
+  default_party_id: uuidField.nullable().optional(),
+  note: nullableOptionalText
+});
+
+export const packageCommissionsReplaceSchema = z.array(packageCommissionSchema);
+
+export const caseCommissionSchema = z.object({
+  target: z.enum(commissionTargets),
+  party_id: uuidField.nullable().optional(),
+  external_party_id: uuidField.nullable().optional(),
+  basis: z.enum(commissionBases),
+  value: numericField,
+  note: nullableOptionalText
+});
+
+export const caseCommissionsReplaceSchema = z.array(caseCommissionSchema);
+
 export type ServiceItemCreateInput = z.infer<typeof serviceItemCreateSchema>;
 export type ServiceItemUpdateInput = z.infer<typeof serviceItemUpdateSchema>;
 export type ServicePackageCreateInput = z.infer<typeof servicePackageCreateSchema>;
 export type ServicePackageUpdateInput = z.infer<typeof servicePackageUpdateSchema>;
 export type PackageMilestoneInput = z.infer<typeof packageMilestoneSchema>;
+export type PackageCommissionInput = z.infer<typeof packageCommissionSchema>;
+export type CaseCommissionInput = z.infer<typeof caseCommissionSchema>;

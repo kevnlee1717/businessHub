@@ -1,11 +1,13 @@
 import {
   db,
+  packageCommissions,
   packageItems,
   packageMilestones,
   serviceItems,
   servicePackages
 } from "@bh/db";
 import {
+  packageCommissionsReplaceSchema,
   packageItemIdsSchema,
   packageMilestonesReplaceSchema,
   serviceItemCreateSchema,
@@ -65,6 +67,19 @@ function serializePackageMilestone(row: typeof packageMilestones.$inferSelect) {
     amount_sgd: row.amountSgd,
     bind_step_order: row.bindStepOrder,
     refundable_note: row.refundableNote
+  };
+}
+
+function serializePackageCommission(row: typeof packageCommissions.$inferSelect) {
+  return {
+    id: row.id,
+    package_id: row.packageId,
+    target: row.target,
+    basis: row.basis,
+    value: row.value,
+    default_party_id: row.defaultPartyId,
+    note: row.note,
+    created_at: row.createdAt
   };
 }
 
@@ -145,13 +160,17 @@ export async function registerEpPackageRoutes(app: FastifyInstance): Promise<voi
   });
 
   app.get("/ep-packages/packages", { preHandler: requirePerm("case.view") }, async () => {
-    const [packages, items, milestones] = await Promise.all([
+    const [packages, items, milestones, commissions] = await Promise.all([
       db.select().from(servicePackages).orderBy(asc(servicePackages.sortOrder), asc(servicePackages.code)),
       db.select().from(packageItems).orderBy(asc(packageItems.id)),
       db
         .select()
         .from(packageMilestones)
-        .orderBy(asc(packageMilestones.packageId), asc(packageMilestones.seq), asc(packageMilestones.id))
+        .orderBy(asc(packageMilestones.packageId), asc(packageMilestones.seq), asc(packageMilestones.id)),
+      db
+        .select()
+        .from(packageCommissions)
+        .orderBy(asc(packageCommissions.packageId), asc(packageCommissions.createdAt), asc(packageCommissions.id))
     ]);
 
     const itemIdsByPackage = new Map<string, string[]>();
@@ -168,11 +187,19 @@ export async function registerEpPackageRoutes(app: FastifyInstance): Promise<voi
       milestonesByPackage.set(milestone.packageId, packageMilestones);
     }
 
+    const commissionsByPackage = new Map<string, Array<ReturnType<typeof serializePackageCommission>>>();
+    for (const commission of commissions) {
+      const packageCommissionRows = commissionsByPackage.get(commission.packageId) ?? [];
+      packageCommissionRows.push(serializePackageCommission(commission));
+      commissionsByPackage.set(commission.packageId, packageCommissionRows);
+    }
+
     return {
       packages: packages.map((servicePackage) => ({
         ...serializePackage(servicePackage),
         items: itemIdsByPackage.get(servicePackage.id) ?? [],
-        milestones: milestonesByPackage.get(servicePackage.id) ?? []
+        milestones: milestonesByPackage.get(servicePackage.id) ?? [],
+        commissions: commissionsByPackage.get(servicePackage.id) ?? []
       }))
     };
   });
@@ -321,5 +348,44 @@ export async function registerEpPackageRoutes(app: FastifyInstance): Promise<voi
     }
 
     return { package_id: id, milestones: milestones.map(serializePackageMilestone) };
+  });
+
+  app.put("/ep-packages/packages/:id/commissions", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(packageCommissionsReplaceSchema, request.body);
+
+    const commissions = await db.transaction(async (tx) => {
+      const [servicePackage] = await tx.select().from(servicePackages).where(eq(servicePackages.id, id)).limit(1);
+
+      if (!servicePackage) {
+        return null;
+      }
+
+      await tx.delete(packageCommissions).where(eq(packageCommissions.packageId, id));
+
+      if (body.length === 0) {
+        return [];
+      }
+
+      return tx
+        .insert(packageCommissions)
+        .values(
+          body.map((commission) => ({
+            packageId: id,
+            target: commission.target,
+            basis: commission.basis,
+            value: toRequiredNumeric(commission.value),
+            defaultPartyId: commission.default_party_id,
+            note: commission.note
+          }))
+        )
+        .returning();
+    });
+
+    if (!commissions) {
+      return sendNotFound(reply);
+    }
+
+    return { package_id: id, commissions: commissions.map(serializePackageCommission) };
   });
 }

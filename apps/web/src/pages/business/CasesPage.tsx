@@ -37,6 +37,7 @@ import {
   type Client
 } from "../../api/cases";
 import { listPackages } from "../../api/epPackages";
+import { listEmployees } from "../../api/hr";
 import { useAuth } from "../../auth/AuthContext";
 import { ClientSelect } from "../../components/ClientSelect";
 import { TablePagination } from "../../components/TablePagination";
@@ -47,6 +48,7 @@ type CaseFormValues = {
   client_id?: string | null | undefined;
   template_id?: string | undefined;
   package_id?: string | undefined;
+  sales_id?: string | null | undefined;
   guarantor_name?: string | undefined;
   guarantor_relation?: string | undefined;
   guarantor_contact?: string | undefined;
@@ -109,6 +111,7 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
     client_id: null,
     template_id: undefined,
     package_id: undefined,
+    sales_id: null,
     guarantor_name: undefined,
     guarantor_relation: undefined,
     guarantor_contact: undefined,
@@ -167,6 +170,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const packagesQuery = useQuery({
     queryKey: ["ep-packages", "packages"],
     queryFn: () => listPackages(),
+    enabled: businessType === "ep"
+  });
+  const employeesQuery = useQuery({
+    queryKey: ["hr", "employees"],
+    queryFn: () => listEmployees(),
     enabled: businessType === "ep"
   });
 
@@ -243,7 +251,14 @@ export function CasesPage({ businessType }: CasesPageProps) {
         label: labelParts.join(" ")
       };
     });
-  const loadError = casesQuery.error ?? clientsQuery.error ?? templatesQuery.error ?? packagesQuery.error;
+  const employeeOptions = (employeesQuery.data?.employees ?? [])
+    .filter((employee) => employee.status === "active")
+    .map((employee) => ({
+      value: employee.id,
+      label: displayName(employee.name, employee.name_en)
+    }));
+  const loadError =
+    casesQuery.error ?? clientsQuery.error ?? templatesQuery.error ?? packagesQuery.error ?? employeesQuery.error;
 
   function openCreateModal() {
     setFormError(null);
@@ -309,6 +324,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
         ...values,
         business_type: businessType,
         package_id: businessType === "ep" ? values.package_id : undefined,
+        sales_id: businessType === "ep" ? values.sales_id ?? null : undefined,
         signed_at: values.signed_at || null
       } as CaseCreateInput);
     } catch (error) {
@@ -500,21 +516,41 @@ export function CasesPage({ businessType }: CasesPageProps) {
               )}
             />
             {businessType === "ep" ? (
-              <Controller
-                name="package_id"
-                control={form.control}
-                render={({ field }) => (
-                  <Select
-                    label={t("case.fields.package")}
-                    data={packageOptions}
-                    value={field.value ?? null}
-                    onChange={(value) => field.onChange(value ?? undefined)}
-                    error={errors.package_id?.message}
-                    searchable
-                    required
-                  />
-                )}
-              />
+              <Stack gap="xs">
+                <Controller
+                  name="package_id"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select
+                      label={t("case.fields.package")}
+                      data={packageOptions}
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value ?? undefined)}
+                      error={errors.package_id?.message}
+                      searchable
+                      required
+                    />
+                  )}
+                />
+                <Controller
+                  name="sales_id"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select
+                      label={t("case.fields.sales")}
+                      data={employeeOptions}
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value ?? null)}
+                      error={errors.sales_id?.message}
+                      searchable
+                      clearable
+                    />
+                  )}
+                />
+                <Text size="sm" c="dimmed">
+                  {t("case.packageCommissionHint")}
+                </Text>
+              </Stack>
             ) : null}
             {businessType === "ica" ? (
               <Stack gap="md">

@@ -98,11 +98,12 @@ export async function refreshExternalCommissionEntries(
   const drafts: Array<typeof externalCommissionEntries.$inferInsert> = [];
 
   for (const line of lineRows) {
-    if (!line.partyId || systemPartyIds.has(line.partyId) || !line.schemeLineId) {
+    if (!line.partyId || systemPartyIds.has(line.partyId)) {
       continue;
     }
 
-    const payeeId = externalPayees[line.schemeLineId];
+    const sourceKey = line.schemeLineId ?? line.id;
+    const payeeId = externalPayees[sourceKey];
     if (!payeeId) {
       continue;
     }
@@ -117,7 +118,7 @@ export async function refreshExternalCommissionEntries(
       line.recurrence === "monthly"
         ? Number(line.amountPerPeriod ?? line.amountTotalExpected ?? 0)
         : Number(line.amountTotalExpected ?? line.amountPerPeriod ?? 0);
-    const schemeLine = schemeLineById.get(line.schemeLineId);
+    const schemeLine = line.schemeLineId ? schemeLineById.get(line.schemeLineId) : undefined;
 
     if (recurrence === "one_time") {
       const splits = splitCommissionByMilestones({
@@ -128,7 +129,7 @@ export async function refreshExternalCommissionEntries(
       });
 
       for (const split of splits) {
-        if (retainedKeys.has(retainedKey(line.schemeLineId, split.milestoneSeq))) {
+        if (retainedKeys.has(retainedKey(sourceKey, split.milestoneSeq))) {
           continue;
         }
 
@@ -144,7 +145,7 @@ export async function refreshExternalCommissionEntries(
           milestoneSeq: split.milestoneSeq,
           amountSgd: toNumeric(roundMoney(split.amount)) ?? "0",
           status: "pending",
-          sourceLineId: line.schemeLineId,
+          sourceLineId: sourceKey,
           note: split.label ? `${lineLabel} · ${split.label}` : lineLabel
         });
       }
@@ -152,7 +153,7 @@ export async function refreshExternalCommissionEntries(
     }
 
     for (let index = 0; index < count; index += 1) {
-      if (retainedKeys.has(retainedKey(line.schemeLineId, null))) {
+      if (retainedKeys.has(retainedKey(sourceKey, null))) {
         continue;
       }
 
@@ -167,7 +168,7 @@ export async function refreshExternalCommissionEntries(
         milestoneSeq: null,
         amountSgd: toNumeric(roundMoney(amount)) ?? "0",
         status: "pending",
-        sourceLineId: line.schemeLineId
+        sourceLineId: sourceKey
       });
     }
   }

@@ -49,13 +49,20 @@ import { ctxCan, getVisibleCaseIds, loadAuthContext } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { deleteUpload, saveUpload } from "../lib/files";
 import { getPagination, paginationQuery } from "../lib/pagination";
+import { generateCommissionEntries } from "./commissionUtils";
+import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
 import { refreshBillingCharges } from "./billing";
+import { refreshPackageDealLineAmounts } from "./financeUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type CaseCreateTransactionResult =
   | { caseRow: typeof cases.$inferSelect; stepRows: (typeof caseSteps.$inferSelect)[] }
   | { error: "package_not_found" | "billing_not_found" };
+
+const caseCommissionParamsSchema = z.object({
+  caseId: z.string().uuid()
+});
 
 function serializeCase(row: typeof cases.$inferSelect) {
   return {
@@ -88,7 +95,8 @@ async function applyPackageToCase(
   tx: DbTransaction,
   caseRow: typeof cases.$inferSelect,
   stepRows: (typeof caseSteps.$inferSelect)[],
-  packageId: string
+  packageId: string,
+  salesId?: string | null
 ) {
   const [servicePackage] = await tx.select().from(servicePackages).where(eq(servicePackages.id, packageId)).limit(1);
 
@@ -111,6 +119,7 @@ async function applyPackageToCase(
       .update(billing)
       .set({
         totalPriceSgd,
+        salesId: salesId === undefined ? undefined : salesId,
         schemeVersionId: null,
         inputs: inputsWithPackagePrice(billingRow.inputs, totalPriceSgd),
         updatedAt: new Date()
@@ -125,6 +134,7 @@ async function applyPackageToCase(
         totalPriceSgd,
         depositSgd: "0",
         status: "unpaid",
+        salesId: salesId ?? null,
         schemeVersionId: null,
         inputs: inputsWithPackagePrice(null, totalPriceSgd)
       })
@@ -202,6 +212,12 @@ async function applyPackageToCase(
 
   if (!updatedCase) {
     throw new Error("case_package_update_failed");
+  }
+
+  const billingRow = await refreshPackageDealLineAmounts(resolvedBillingId, tx);
+  if (billingRow) {
+    await generateCommissionEntries(billingRow, tx);
+    await refreshExternalCommissionEntries(tx, billingRow);
   }
 
   return { caseRow: updatedCase };
@@ -864,7 +880,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (body.package_id) {
-        const packageResult = await applyPackageToCase(tx, resultCaseRow, stepRows, body.package_id);
+        const packageResult = await applyPackageToCase(tx, resultCaseRow, stepRows, body.package_id, body.sales_id);
         if ("error" in packageResult) {
           return { error: packageResult.error };
         }
@@ -886,6 +902,60 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       .code(201)
       .send({ case: serializeCase(created.caseRow), steps: created.stepRows.map(serializeCaseStep) });
   });
+
+  app.post(
+    "/cases/:caseId/commission/recompute",
+    { preHandler: requirePerm("case.manage") },
+    async (request, reply) => {
+      const { caseId } = parseWithSchema(caseCommissionParamsSchema, request.params);
+
+      const result = await db.transaction(async (tx) => {
+        const [caseRow] = await tx.select().from(cases).where(eq(cases.id, caseId)).limit(1);
+
+        if (!caseRow) {
+          return null;
+        }
+
+        const billingId =
+          caseRow.billingId ??
+          (
+            await tx
+              .select({ id: billing.id })
+              .from(billing)
+              .where(and(eq(billing.refType, "ep"), eq(billing.refId, caseId)))
+              .limit(1)
+          )[0]?.id;
+
+        if (!billingId) {
+          return { error: "billing_not_found" as const };
+        }
+
+        const billingRow = await refreshPackageDealLineAmounts(billingId, tx);
+        if (!billingRow) {
+          return { error: "billing_not_found" as const };
+        }
+
+        const internal = await generateCommissionEntries(billingRow, tx);
+        const external = await refreshExternalCommissionEntries(tx, billingRow);
+
+        return {
+          billing_id: billingRow.id,
+          internal,
+          external
+        };
+      });
+
+      if (!result) {
+        return sendNotFound(reply);
+      }
+
+      if ("error" in result) {
+        return reply.code(400).send({ error: result.error });
+      }
+
+      return result;
+    }
+  );
 
   app.patch("/cases/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);

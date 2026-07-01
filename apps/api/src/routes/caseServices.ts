@@ -1,15 +1,22 @@
 import {
   billing,
   billingCharges,
+  caseCommissions,
   caseServices,
   cases,
+  commissionEntries,
   db,
+  externalCommissionEntries,
   serviceItems
 } from "@bh/db";
+import { caseCommissionsReplaceSchema } from "@bh/shared";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
+import { generateCommissionEntries } from "./commissionUtils";
+import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
+import { type DbExecutor, refreshPackageDealLineAmounts } from "./financeUtils";
 import { parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 const caseIdParamsSchema = z.object({
@@ -66,6 +73,97 @@ function serializeCaseService(row: CaseServiceJoined) {
   };
 }
 
+function serializeCaseCommission(row: typeof caseCommissions.$inferSelect) {
+  return {
+    id: row.id,
+    case_id: row.caseId,
+    target: row.target,
+    party_id: row.partyId,
+    external_party_id: row.externalPartyId,
+    basis: row.basis,
+    value: row.value,
+    note: row.note,
+    created_at: row.createdAt
+  };
+}
+
+function zeroEffectiveCommissions() {
+  return {
+    internal_sales: {
+      amount_sgd: "0.00",
+      entries: []
+    },
+    external_channel: {
+      amount_sgd: "0.00",
+      entries: []
+    }
+  };
+}
+
+function moneyTotal(values: string[]) {
+  return values.reduce((sum, value) => sum + Number(value), 0).toFixed(2);
+}
+
+async function loadEffectiveCommissions(billingId: string | null, tx: DbExecutor = db) {
+  if (!billingId) {
+    return zeroEffectiveCommissions();
+  }
+
+  const [internalRows, externalRows] = await Promise.all([
+    tx
+      .select()
+      .from(commissionEntries)
+      .where(and(eq(commissionEntries.billingId, billingId), sql`${commissionEntries.status} <> 'void'`)),
+    tx
+      .select()
+      .from(externalCommissionEntries)
+      .where(and(eq(externalCommissionEntries.billingId, billingId), sql`${externalCommissionEntries.status} <> 'void'`))
+  ]);
+
+  return {
+    internal_sales: {
+      amount_sgd: moneyTotal(internalRows.map((entry) => entry.amountOverride ?? entry.amountSgd)),
+      entries: internalRows.map((entry) => ({
+        id: entry.id,
+        sales_id: entry.salesId,
+        billing_id: entry.billingId,
+        business_id: entry.businessId,
+        period: entry.period,
+        recurrence: entry.recurrence,
+        seq: entry.seq,
+        milestone_seq: entry.milestoneSeq,
+        amount_sgd: entry.amountSgd,
+        amount_override: entry.amountOverride,
+        effective_amount_sgd: entry.amountOverride ?? entry.amountSgd,
+        status: entry.status,
+        source_line_id: entry.sourceLineId,
+        note: entry.note,
+        created_at: entry.createdAt
+      }))
+    },
+    external_channel: {
+      amount_sgd: moneyTotal(externalRows.map((entry) => entry.amountSgd)),
+      entries: externalRows.map((entry) => ({
+        id: entry.id,
+        payee_id: entry.payeeId,
+        billing_id: entry.billingId,
+        business_id: entry.businessId,
+        party_id: entry.partyId,
+        period: entry.period,
+        recurrence: entry.recurrence,
+        seq: entry.seq,
+        milestone_seq: entry.milestoneSeq,
+        amount_sgd: entry.amountSgd,
+        amount_settled: entry.amountSettled,
+        status: entry.status,
+        source_line_id: entry.sourceLineId,
+        note: entry.note,
+        created_at: entry.createdAt
+      }))
+    }
+  };
+}
+
 async function ensureCaseBilling(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], caseRow: typeof cases.$inferSelect) {
   if (caseRow.billingId) {
     return caseRow.billingId;
@@ -113,6 +211,83 @@ async function loadCaseService(id: string) {
 
 export async function registerCaseServiceRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
+
+  app.get("/cases/:caseId/commissions", { preHandler: requirePerm("case.view") }, async (request, reply) => {
+    const { caseId } = parseWithSchema(caseIdParamsSchema, request.params);
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, caseId)).limit(1);
+
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const rows = await db
+      .select()
+      .from(caseCommissions)
+      .where(eq(caseCommissions.caseId, caseId))
+      .orderBy(asc(caseCommissions.createdAt), asc(caseCommissions.id));
+    const effectiveCommissions = await loadEffectiveCommissions(caseRow.billingId);
+
+    return {
+      commissions: rows.map(serializeCaseCommission),
+      effective_commissions: effectiveCommissions
+    };
+  });
+
+  app.put("/cases/:caseId/commissions", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { caseId } = parseWithSchema(caseIdParamsSchema, request.params);
+    const body = parseWithSchema(caseCommissionsReplaceSchema, request.body);
+
+    const result = await db.transaction(async (tx) => {
+      const [caseRow] = await tx.select().from(cases).where(eq(cases.id, caseId)).limit(1);
+
+      if (!caseRow) {
+        return null;
+      }
+
+      const billingId = await ensureCaseBilling(tx, caseRow);
+
+      await tx.delete(caseCommissions).where(eq(caseCommissions.caseId, caseId));
+
+      const commissions =
+        body.length === 0
+          ? []
+          : await tx
+              .insert(caseCommissions)
+              .values(
+                body.map((commission) => ({
+                  caseId,
+                  target: commission.target,
+                  partyId: commission.party_id,
+                  externalPartyId: commission.external_party_id,
+                  basis: commission.basis,
+                  value: toNumeric(commission.value) ?? "0",
+                  note: commission.note
+                }))
+              )
+              .returning();
+
+      const billingRow = await refreshPackageDealLineAmounts(billingId, tx);
+      if (billingRow) {
+        await generateCommissionEntries(billingRow, tx);
+        await refreshExternalCommissionEntries(tx, billingRow);
+      }
+
+      return {
+        commissions,
+        effectiveCommissions: await loadEffectiveCommissions(billingId, tx)
+      };
+    });
+
+    if (!result) {
+      return sendNotFound(reply);
+    }
+
+    return {
+      case_id: caseId,
+      commissions: result.commissions.map(serializeCaseCommission),
+      effective_commissions: result.effectiveCommissions
+    };
+  });
 
   app.get("/cases/:caseId/services", { preHandler: requirePerm("case.view") }, async (request, reply) => {
     const { caseId } = parseWithSchema(caseIdParamsSchema, request.params);

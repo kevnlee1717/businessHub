@@ -386,6 +386,13 @@
       "when": 1782820076183,
       "tag": "0054_guarantor_client_own",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1782820076184,
+      "tag": "0055_ep_package_commission",
+      "breakpoints": true
     }
   ]
 }

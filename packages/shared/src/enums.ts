@@ -43,6 +43,12 @@ export type BillingStatus = (typeof billingStatuses)[number];
 export const commissionTypes = ["percent", "fixed"] as const;
 export type CommissionType = (typeof commissionTypes)[number];
 
+export const commissionTargets = ["internal_sales", "external_channel"] as const;
+export type CommissionTarget = (typeof commissionTargets)[number];
+
+export const commissionBases = ["percent", "fixed"] as const;
+export type CommissionBasis = (typeof commissionBases)[number];
+
 export const commissionRecurrences = ["one_time", "monthly"] as const;
 export type CommissionRecurrence = (typeof commissionRecurrences)[number];
 

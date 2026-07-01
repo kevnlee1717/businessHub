@@ -22,11 +22,13 @@ import {
 } from "@mantine/core";
 import {
   packageMilestoneSchema,
+  packageCommissionSchema,
   serviceCategories,
   serviceItemCreateSchema,
   serviceItemUpdateSchema,
   servicePackageCreateSchema,
   servicePackageUpdateSchema,
+  type PackageCommissionInput,
   type PackageMilestoneInput,
   type ServiceCategory,
   type ServiceItemCreateInput,
@@ -48,11 +50,22 @@ import {
   setPackageMilestones,
   updatePackage,
   updateServiceItem,
+  setPackageCommissions,
   type PackageMilestone,
   type ServiceItem,
   type ServicePackageWithDetails
 } from "../../api/epPackages";
+import { listDealParties } from "../../api/businessSchemes";
 import { useAuth } from "../../auth/AuthContext";
+
+type CommissionBasis = "percent" | "fixed";
+
+type PackageCommissionRuleFormValues = {
+  basis: CommissionBasis;
+  value: string | number;
+  default_party_id?: string | null;
+  note?: string | null;
+};
 
 type ServiceItemFormValues = {
   code?: string;
@@ -77,18 +90,31 @@ type PackageFormValues = {
   sort_order?: number;
   serviceItemIds: string[];
   milestones: PackageMilestoneInput[];
+  commissions: {
+    internal_sales: PackageCommissionRuleFormValues;
+    external_channel: PackageCommissionRuleFormValues;
+  };
 };
 
 const serviceItemsQueryKey = ["ep-packages", "service-items"] as const;
 const packagesQueryKey = ["ep-packages", "packages"] as const;
+const dealPartiesQueryKey = ["business-finance", "deal-parties"] as const;
 const packageEditorSchema = servicePackageCreateSchema
   .extend({
     serviceItemIds: z.array(z.string()),
-    milestones: z.array(packageMilestoneSchema)
+    milestones: z.array(packageMilestoneSchema),
+    commissions: z.object({
+      internal_sales: packageCommissionSchema.omit({ target: true }),
+      external_channel: packageCommissionSchema.omit({ target: true })
+    })
   });
 const packageEditorUpdateSchema = servicePackageUpdateSchema.extend({
   serviceItemIds: z.array(z.string()),
-  milestones: z.array(packageMilestoneSchema)
+  milestones: z.array(packageMilestoneSchema),
+  commissions: z.object({
+    internal_sales: packageCommissionSchema.omit({ target: true }),
+    external_channel: packageCommissionSchema.omit({ target: true })
+  })
 });
 
 function money(value: string | number | null | undefined) {
@@ -129,6 +155,20 @@ function milestoneDefaults(milestone?: PackageMilestone): PackageMilestoneInput 
   };
 }
 
+function commissionDefaults(
+  pkg: ServicePackageWithDetails | undefined,
+  target: "internal_sales" | "external_channel"
+): PackageCommissionRuleFormValues {
+  const rule = pkg?.commissions.find((commission) => commission.target === target);
+
+  return {
+    basis: rule?.basis ?? "percent",
+    value: rule?.value ?? "0",
+    default_party_id: rule?.default_party_id ?? null,
+    note: rule?.note ?? null
+  };
+}
+
 function packageDefaults(pkg?: ServicePackageWithDetails): PackageFormValues {
   return {
     code: pkg?.code ?? "",
@@ -140,8 +180,16 @@ function packageDefaults(pkg?: ServicePackageWithDetails): PackageFormValues {
     active: pkg?.active ?? true,
     sort_order: pkg?.sort_order ?? 0,
     serviceItemIds: pkg?.items ?? [],
-    milestones: pkg?.milestones.length ? pkg.milestones.map(milestoneDefaults) : []
+    milestones: pkg?.milestones.length ? pkg.milestones.map(milestoneDefaults) : [],
+    commissions: {
+      internal_sales: commissionDefaults(pkg, "internal_sales"),
+      external_channel: commissionDefaults(pkg, "external_channel")
+    }
   };
+}
+
+function displayName(name: string, nameEn?: string | null) {
+  return nameEn ? `${name} / ${nameEn}` : name;
 }
 
 export function PackagesAdminPage() {
@@ -163,6 +211,10 @@ export function PackagesAdminPage() {
   const packagesQuery = useQuery({
     queryKey: packagesQueryKey,
     queryFn: () => listPackages()
+  });
+  const dealPartiesQuery = useQuery({
+    queryKey: dealPartiesQueryKey,
+    queryFn: () => listDealParties({ page_size: 100 })
   });
 
   const serviceItemForm = useForm<ServiceItemFormValues>({
@@ -212,6 +264,22 @@ export function PackagesAdminPage() {
 
       await setPackageItems(packageId, values.serviceItemIds);
       await setPackageMilestones(packageId, values.milestones);
+      await setPackageCommissions(packageId, [
+        {
+          target: "internal_sales",
+          basis: values.commissions.internal_sales.basis,
+          value: values.commissions.internal_sales.value ?? "0",
+          default_party_id: null,
+          note: values.commissions.internal_sales.note ?? null
+        },
+        {
+          target: "external_channel",
+          basis: values.commissions.external_channel.basis,
+          value: values.commissions.external_channel.value ?? "0",
+          default_party_id: values.commissions.external_channel.default_party_id ?? null,
+          note: values.commissions.external_channel.note ?? null
+        }
+      ] satisfies PackageCommissionInput[]);
       return packageId;
     },
     onSuccess: async () => {
@@ -225,6 +293,10 @@ export function PackagesAdminPage() {
     value: category,
     label: t(`epPackages.categories.${category}`)
   }));
+  const commissionBasisOptions = [
+    { value: "percent", label: t("epPackages.commissions.basis.percent") },
+    { value: "fixed", label: t("epPackages.commissions.basis.fixed") }
+  ];
   const serviceItemOptions = useMemo(
     () =>
       (serviceItemsQuery.data?.service_items ?? []).map((item) => ({
@@ -235,6 +307,16 @@ export function PackagesAdminPage() {
   );
   const serviceItems = serviceItemsQuery.data?.service_items ?? [];
   const packages = packagesQuery.data?.packages ?? [];
+  const dealPartyOptions = useMemo(
+    () =>
+      (dealPartiesQuery.data?.deal_parties ?? [])
+        .filter((party) => party.active)
+        .map((party) => ({
+          value: party.id,
+          label: `${party.code} · ${displayName(party.name, party.name_en)}`
+        })),
+    [dealPartiesQuery.data?.deal_parties]
+  );
   const serviceErrors = serviceItemForm.formState.errors;
   const packageErrors = packageForm.formState.errors;
   const isSavingService = createServiceItemMutation.isPending || updateServiceItemMutation.isPending;
@@ -758,6 +840,110 @@ export function PackagesAdminPage() {
                     </Checkbox.Group>
                   )}
                 />
+              </Stack>
+            </Card>
+
+            <Card withBorder radius="sm">
+              <Stack gap="md">
+                <Stack gap={2}>
+                  <Text fw={600}>{t("epPackages.sections.commissions")}</Text>
+                  <Text size="sm" c="dimmed">
+                    {t("epPackages.commissions.description")}
+                  </Text>
+                </Stack>
+                {dealPartiesQuery.error ? (
+                  <Alert color="yellow" variant="light">
+                    {dealPartiesQuery.error instanceof Error ? dealPartiesQuery.error.message : t("common.unknown_error")}
+                  </Alert>
+                ) : null}
+                <Grid>
+                  <Grid.Col span={12}>
+                    <Text size="sm" fw={600}>
+                      {t("epPackages.commissions.internalSales")}
+                    </Text>
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Controller
+                      control={packageForm.control}
+                      name="commissions.internal_sales.basis"
+                      render={({ field }) => (
+                        <Select
+                          label={t("epPackages.fields.commissionBasis")}
+                          data={commissionBasisOptions}
+                          value={field.value}
+                          onChange={(value) => field.onChange((value ?? "percent") as CommissionBasis)}
+                        />
+                      )}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Controller
+                      control={packageForm.control}
+                      name="commissions.internal_sales.value"
+                      render={({ field }) => (
+                        <NumberInput
+                          label={t("epPackages.fields.commissionValue")}
+                          value={Number(field.value ?? 0)}
+                          onChange={(value) => field.onChange(value === "" ? "0" : value)}
+                          min={0}
+                          decimalScale={2}
+                        />
+                      )}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={12}>
+                    <Text size="sm" fw={600}>
+                      {t("epPackages.commissions.externalChannel")}
+                    </Text>
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Controller
+                      control={packageForm.control}
+                      name="commissions.external_channel.basis"
+                      render={({ field }) => (
+                        <Select
+                          label={t("epPackages.fields.commissionBasis")}
+                          data={commissionBasisOptions}
+                          value={field.value}
+                          onChange={(value) => field.onChange((value ?? "percent") as CommissionBasis)}
+                        />
+                      )}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Controller
+                      control={packageForm.control}
+                      name="commissions.external_channel.value"
+                      render={({ field }) => (
+                        <NumberInput
+                          label={t("epPackages.fields.commissionValue")}
+                          value={Number(field.value ?? 0)}
+                          onChange={(value) => field.onChange(value === "" ? "0" : value)}
+                          min={0}
+                          decimalScale={2}
+                        />
+                      )}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Controller
+                      control={packageForm.control}
+                      name="commissions.external_channel.default_party_id"
+                      render={({ field }) => (
+                        <Select
+                          label={t("epPackages.fields.defaultParty")}
+                          placeholder={t("epPackages.fields.defaultPartyPlaceholder")}
+                          data={dealPartyOptions}
+                          value={field.value ?? null}
+                          onChange={field.onChange}
+                          clearable
+                          searchable
+                          disabled={dealPartiesQuery.isLoading}
+                        />
+                      )}
+                    />
+                  </Grid.Col>
+                </Grid>
               </Stack>
             </Card>
 

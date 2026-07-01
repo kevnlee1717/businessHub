@@ -1,8 +1,14 @@
 import {
+  billing,
+  businesses,
+  caseCommissions,
+  cases,
   dealLineAmounts,
   dealParties,
   db,
+  packageCommissions,
   schemeLines,
+  servicePackages,
   type schemeVersions
 } from "@bh/db";
 import { computeDealEconomics, type DealInputs, type MilestoneSplit, type SchemeLineInput } from "@bh/shared";
@@ -165,4 +171,173 @@ export async function refreshBillingDealLineAmounts(
   }
 
   return result;
+}
+
+type PackageCommissionRule = {
+  partyId: string | null;
+  externalPartyId: string | null;
+  basis: "percent" | "fixed";
+  value: string;
+};
+
+function computePackageCommissionAmount(basePrice: number, rule: PackageCommissionRule | undefined): number {
+  if (!rule) {
+    return 0;
+  }
+
+  const value = Number(rule.value);
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return rule.basis === "percent" ? (basePrice * value) / 100 : value;
+}
+
+export async function refreshPackageDealLineAmounts(
+  billingId: string,
+  tx: DbExecutor = db
+): Promise<(typeof billing.$inferSelect) | null> {
+  const [billingRow] = await tx.select().from(billing).where(eq(billing.id, billingId)).limit(1);
+
+  if (!billingRow || billingRow.refType !== "ep") {
+    return null;
+  }
+
+  const [caseRow] = await tx.select().from(cases).where(eq(cases.id, billingRow.refId)).limit(1);
+
+  if (!caseRow?.packageId) {
+    return billingRow;
+  }
+
+  const [servicePackage] = await tx
+    .select()
+    .from(servicePackages)
+    .where(eq(servicePackages.id, caseRow.packageId))
+    .limit(1);
+
+  if (!servicePackage) {
+    return billingRow;
+  }
+
+  const [businessRow] = await tx
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(eq(businesses.code, caseRow.businessType))
+    .limit(1);
+  const businessId = businessRow?.id ?? billingRow.businessId;
+  let nextBillingRow = billingRow;
+
+  if (businessId && billingRow.businessId !== businessId) {
+    const [updated] = await tx
+      .update(billing)
+      .set({ businessId, updatedAt: new Date() })
+      .where(eq(billing.id, billingId))
+      .returning();
+    nextBillingRow = updated ?? billingRow;
+  }
+
+  const caseRuleRows = await tx.select().from(caseCommissions).where(eq(caseCommissions.caseId, caseRow.id));
+  const packageRuleRows = await tx
+    .select()
+    .from(packageCommissions)
+    .where(eq(packageCommissions.packageId, caseRow.packageId));
+  const caseRuleByTarget = new Map(
+    caseRuleRows.map((rule) => [
+      rule.target,
+      {
+        partyId: rule.partyId,
+        externalPartyId: rule.externalPartyId,
+        basis: rule.basis,
+        value: rule.value
+      }
+    ])
+  );
+  const packageRuleByTarget = new Map(
+    packageRuleRows.map((rule) => [
+      rule.target,
+      {
+        partyId: rule.defaultPartyId,
+        externalPartyId: null,
+        basis: rule.basis,
+        value: rule.value
+      }
+    ])
+  );
+  const ruleForTarget = (target: "internal_sales" | "external_channel") =>
+    caseRuleByTarget.get(target) ?? packageRuleByTarget.get(target);
+
+  const basePrice = Number(servicePackage.basePriceSgd);
+  const packagePrice = toNumeric(servicePackage.basePriceSgd) ?? "0";
+  const internalRule = ruleForTarget("internal_sales");
+  const externalRule = ruleForTarget("external_channel");
+  const internalAmount = computePackageCommissionAmount(basePrice, internalRule);
+  const externalAmount = computePackageCommissionAmount(basePrice, externalRule);
+
+  await tx.delete(dealLineAmounts).where(eq(dealLineAmounts.billingId, billingId));
+
+  await tx.insert(dealLineAmounts).values({
+    billingId,
+    schemeLineId: null,
+    kind: "revenue",
+    recurrence: "one_time",
+    partyId: null,
+    label: servicePackage.name,
+    amountPerPeriod: packagePrice,
+    periodsCount: 1,
+    amountTotalExpected: packagePrice
+  });
+
+  if (internalRule && internalAmount > 0) {
+    const [salesParty] = await tx
+      .select({ id: dealParties.id })
+      .from(dealParties)
+      .where(eq(dealParties.code, "sales"))
+      .limit(1);
+
+    if (salesParty) {
+      await tx.insert(dealLineAmounts).values({
+        billingId,
+        schemeLineId: null,
+        kind: "commission",
+        recurrence: "one_time",
+        partyId: salesParty.id,
+        label: "Internal sales commission",
+        amountPerPeriod: toNumeric(internalAmount) ?? "0",
+        periodsCount: 1,
+        amountTotalExpected: toNumeric(internalAmount) ?? "0"
+      });
+    }
+  }
+
+  if (externalRule && externalAmount > 0 && externalRule.partyId) {
+    const [externalLine] = await tx
+      .insert(dealLineAmounts)
+      .values({
+        billingId,
+        schemeLineId: null,
+        kind: "commission",
+        recurrence: "one_time",
+        partyId: externalRule.partyId,
+        label: "External channel commission",
+        amountPerPeriod: toNumeric(externalAmount) ?? "0",
+        periodsCount: 1,
+        amountTotalExpected: toNumeric(externalAmount) ?? "0"
+      })
+      .returning({ id: dealLineAmounts.id });
+
+    if (externalLine && externalRule.externalPartyId) {
+      const externalPayees = {
+        ...(nextBillingRow.externalPayees ?? {}),
+        [externalLine.id]: externalRule.externalPartyId
+      };
+      const [updated] = await tx
+        .update(billing)
+        .set({ externalPayees, updatedAt: new Date() })
+        .where(eq(billing.id, billingId))
+        .returning();
+      nextBillingRow = updated ?? { ...nextBillingRow, externalPayees };
+    }
+  }
+
+  return nextBillingRow;
 }

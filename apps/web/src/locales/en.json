@@ -287,8 +287,18 @@
       "templates": "Workflow templates",
       "guarantors": "Guarantors",
       "stats": "Stats",
-      "feeShare": "Fees & Commission",
-      "packages": "Package management"
+      "feeShare": "Fees & Commission"
+    }
+  },
+  "epFeeCommission": {
+    "tabs": {
+      "packages": "Packages",
+      "legacy": "Legacy schemes"
+    },
+    "legacy": {
+      "title": "Legacy orders only",
+      "description": "New EP orders use package configuration. This area remains for existing orders that still use the old fee and commission scheme.",
+      "schemeTitle": "Legacy fee & commission scheme"
     }
   },
   "epPackages": {
@@ -314,7 +324,17 @@
     "sections": {
       "basic": "Basic info",
       "items": "Included services",
-      "milestones": "Payment milestones"
+      "milestones": "Payment milestones",
+      "commissions": "Commission rules"
+    },
+    "commissions": {
+      "description": "Package commission is the default rule. Specific cases can override it in the case detail Commission area.",
+      "internalSales": "Internal sales commission",
+      "externalChannel": "External channel commission (default)",
+      "basis": {
+        "percent": "Percent of package price",
+        "fixed": "Fixed amount"
+      }
     },
     "fields": {
       "code": "Code",
@@ -334,7 +354,11 @@
       "labelEn": "English label",
       "amount": "Amount",
       "bindStepOrder": "Bound step",
-      "refundableNote": "Refund note"
+      "refundableNote": "Refund note",
+      "commissionBasis": "Basis",
+      "commissionValue": "Value",
+      "defaultParty": "Default party",
+      "defaultPartyPlaceholder": "Optional"
     },
     "messages": {
       "serviceSaved": "Service saved",
@@ -688,7 +712,8 @@
       "children": "Sub-cases",
       "submissions": "Submissions",
       "charges": "Charges",
-      "addon": "Add services"
+      "addon": "Add services",
+      "commission": "Commission"
     },
     "filters": {
       "businessType": "Business type",
@@ -700,6 +725,7 @@
       "client": "Client",
       "template": "Workflow template",
       "package": "Package",
+      "sales": "Sales",
       "status": "Status",
       "currentStep": "Current step",
       "signedAt": "Signed date",
@@ -715,6 +741,7 @@
       "guarantorRequired": "ICA cases require a guarantor name.",
       "packageRequired": "EP cases require a package."
     },
+    "packageCommissionHint": "After selecting a package and sales person, commissions are generated from package defaults and can be changed in case details.",
     "stats": {
       "title": "Case Statistics",
       "year": "Year",
@@ -727,6 +754,25 @@
       "summary_approved": "Approved",
       "summary_pending": "In progress",
       "summary_rejected": "Rejected"
+    }
+  },
+  "caseCommission": {
+    "title": "Commission",
+    "internalSales": "Internal sales commission",
+    "externalChannel": "External channel commission",
+    "overrideTitle": "Case-level override",
+    "recompute": "Recompute",
+    "emptyEffective": "No effective commissions yet",
+    "financePermissionRequired": "External party setup requires finance permission.",
+    "fields": {
+      "payee": "Payee",
+      "period": "Period",
+      "amount": "Amount",
+      "status": "Status",
+      "basis": "Basis",
+      "value": "Value",
+      "externalParty": "External payee",
+      "note": "Note"
     }
   },
   "client": {
