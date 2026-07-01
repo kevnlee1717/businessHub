@@ -33,6 +33,7 @@ import {
 } from "../api/charges";
 import { createBilling } from "../api/finance";
 import { updateCase } from "../api/cases";
+import { getIcaFeeConfig } from "../api/businessSchemes";
 import { listBankAccounts } from "../api/ledger";
 
 type Props = {
@@ -150,6 +151,12 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
     queryKey: makeQueryKey(billingId, caseId),
     queryFn: () => (billingId ? listBillingCharges(billingId) : listCaseCharges(caseId ?? "")),
     enabled: Boolean(billingId || caseId)
+  });
+  // ICA:拉收费默认值,用于创建收款计划时预填总价/定金
+  const icaConfigQuery = useQuery({
+    queryKey: ["ica-fee-config"],
+    queryFn: () => getIcaFeeConfig(),
+    enabled: caseBusinessType === "ica"
   });
 
   const charges = chargesQuery.data?.charges ?? [];
@@ -330,8 +337,9 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
   }
 
   function openCreatePlanModal() {
-    setPlanTotal(null);
-    setPlanDeposit(null);
+    const icaConfig = caseBusinessType === "ica" ? icaConfigQuery.data?.config : null;
+    setPlanTotal(icaConfig?.default_total ? icaConfig.default_total : null);
+    setPlanDeposit(icaConfig?.default_deposit ? icaConfig.default_deposit : null);
     setFormError(null);
     setCreatePlanOpened(true);
   }

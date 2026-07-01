@@ -151,6 +151,25 @@ export function getBusiness(id: string): Promise<{ business: Business }> {
   return api<{ business: Business }>(`/businesses/${id}`);
 }
 
+export type IcaFeeConfig = {
+  default_total: number;
+  default_deposit: number;
+  guarantor_share: number;
+  currency: string;
+};
+
+export function getIcaFeeConfig(): Promise<{ config: IcaFeeConfig }> {
+  return api<{ config: IcaFeeConfig }>("/ica-fee-config");
+}
+
+export function updateIcaFeeConfig(body: {
+  default_total: number;
+  default_deposit: number;
+  guarantor_share: number;
+}): Promise<{ ok: true }> {
+  return api<{ ok: true }>("/ica-fee-config", { method: "PUT", body });
+}
+
 export function createBusiness(body: BusinessCreateInput): Promise<{ business: Business }> {
   return api<{ business: Business }>("/businesses", {
     method: "POST",
