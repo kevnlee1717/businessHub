@@ -23,7 +23,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { franchiseInterestLevels, type FranchiseInterestLevel, type FranchiseService } from "@bh/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createKioskVisit,
   kioskKeys,
@@ -116,6 +116,14 @@ export function IpadSurveyPage() {
   const slidesQuery = useQuery({ queryKey: kioskKeys.slides, queryFn: listKioskSlides });
   const propertiesQuery = useQuery({ queryKey: kioskKeys.properties, queryFn: listKioskProperties, enabled: surveyOpened });
   const employeesQuery = useQuery({ queryKey: kioskKeys.employees, queryFn: listKioskEmployees, enabled: surveyOpened });
+
+  // 深链:URL 带 ?survey=1 或 #survey 时直接打开问卷(可用于二维码直达录入表单)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("survey") === "1" || window.location.hash === "#survey") {
+      openSurvey();
+    }
+  }, [openSurvey]);
 
   const slides = slidesQuery.data?.slides ?? [];
   const properties = propertiesQuery.data?.properties ?? [];
