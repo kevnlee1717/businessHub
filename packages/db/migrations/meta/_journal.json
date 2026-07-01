@@ -414,6 +414,13 @@
       "when": 1782881422198,
       "tag": "0058_case_fee_scheme",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1782884685559,
+      "tag": "0059_right_mindworm",
+      "breakpoints": true
     }
   ]
 }
