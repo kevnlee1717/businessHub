@@ -765,7 +765,9 @@
       "age": "Age",
       "note": "Note",
       "sponsoredCount": "Sponsored count",
-      "idCard": "ID card"
+      "idCard": "ID card",
+      "clientOwn": "Client's own guarantor",
+      "clientOwnHint": "On means the guarantor is brought by the client; such guarantors receive no company share"
     },
     "summary": {
       "count": "Guarantors",

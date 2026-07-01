@@ -680,6 +680,7 @@ function VersionEditor({
   const [editorError, setEditorError] = useState<string | null>(null);
   const [splitLine, setSplitLine] = useState<SchemeLine | null>(null);
   const [splitDraft, setSplitDraft] = useState<MilestoneSplitDraft>({});
+  const [showAddRow, setShowAddRow] = useState(false);
   const versionQuery = useQuery({
     queryKey: versionQueryKey(versionId),
     queryFn: () => getSchemeVersion(versionId)
@@ -735,6 +736,7 @@ function VersionEditor({
       // 不再用每单录入/单位:固定价靠 rate,显式清空 input_key/unit_label
       await createLineMutation.mutateAsync({ ...values, input_key: null, unit_label: null } as SchemeLineInputSchema);
       addForm.reset(lineDefaults());
+      setShowAddRow(false);
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -819,8 +821,20 @@ function VersionEditor({
         <Paper withBorder radius="md" p="md">
           <Stack gap="md">
             <Group justify="space-between" align="center">
-              <Title order={3}>{t("businessFinance.lines.title")}</Title>
-              {versionQuery.isFetching ? <Loader size="sm" /> : null}
+              <Group gap="xs" align="center">
+                <Title order={3}>{t("businessFinance.lines.title")}</Title>
+                {versionQuery.isFetching ? <Loader size="sm" /> : null}
+              </Group>
+              <Button
+                size="xs"
+                variant={showAddRow ? "subtle" : "light"}
+                onClick={() => {
+                  addForm.reset(lineDefaults());
+                  setShowAddRow((open) => !open);
+                }}
+              >
+                {showAddRow ? t("common.cancel") : t("businessFinance.lines.add")}
+              </Button>
             </Group>
             {versionQuery.error || editorError ? (
               <Alert color="red" variant="light">
@@ -841,7 +855,7 @@ function VersionEditor({
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {(version?.lines ?? []).length === 0 ? (
+                  {(version?.lines ?? []).length === 0 && !showAddRow ? (
                     <Table.Tr>
                       <Table.Td colSpan={7}>
                         <Text ta="center" c="dimmed" py="md">
@@ -866,15 +880,17 @@ function VersionEditor({
                       />
                     ))
                   )}
-                  <AddLineRow
-                    form={addForm}
-                    partyOptions={partyOptions}
-                    kindOptions={kindOptions}
-                    currency={currency}
-                    recurrenceOptions={recurrenceOptions}
-                    onSubmit={onAddSubmit}
-                    loading={createLineMutation.isPending}
-                  />
+                  {showAddRow ? (
+                    <AddLineRow
+                      form={addForm}
+                      partyOptions={partyOptions}
+                      kindOptions={kindOptions}
+                      currency={currency}
+                      recurrenceOptions={recurrenceOptions}
+                      onSubmit={onAddSubmit}
+                      loading={createLineMutation.isPending}
+                    />
+                  ) : null}
                 </Table.Tbody>
               </Table>
             </ScrollArea>

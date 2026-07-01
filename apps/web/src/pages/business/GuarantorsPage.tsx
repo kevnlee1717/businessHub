@@ -13,6 +13,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Table,
   Text,
   Textarea,
@@ -49,6 +50,7 @@ type GuarantorFormValues = {
   nric?: string | undefined;
   gender?: Gender | null | undefined;
   age?: number | null | undefined;
+  is_client_own?: boolean | undefined;
   note?: string | null | undefined;
 };
 
@@ -76,6 +78,7 @@ function getDefaultValues(guarantor?: Guarantor): GuarantorFormValues {
     nric: guarantor?.nric ?? undefined,
     gender: guarantor?.gender ?? null,
     age: guarantor?.age ?? null,
+    is_client_own: guarantor?.is_client_own ?? false,
     note: guarantor?.note ?? null
   };
 }
@@ -448,6 +451,18 @@ export function GuarantorsPage() {
                 )}
               />
             </Group>
+            <Controller
+              name="is_client_own"
+              control={form.control}
+              render={({ field }) => (
+                <Switch
+                  label={t("guarantor.fields.clientOwn")}
+                  description={t("guarantor.fields.clientOwnHint")}
+                  checked={Boolean(field.value)}
+                  onChange={(event) => field.onChange(event.currentTarget.checked)}
+                />
+              )}
+            />
             <Textarea
               label={t("guarantor.fields.note")}
               error={errors.note?.message}

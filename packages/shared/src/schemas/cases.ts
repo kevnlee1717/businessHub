@@ -88,6 +88,7 @@ export const guarantorCreateSchema = z.object({
   nric: optionalText,
   gender: z.enum(genders).nullable().optional(),
   age: z.number().int().min(0).nullable().optional(),
+  is_client_own: z.boolean().optional(),
   note: nullableOptionalText
 });
 
