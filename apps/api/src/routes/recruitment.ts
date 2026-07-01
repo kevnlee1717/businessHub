@@ -1,6 +1,7 @@
 import {
   db,
   documents,
+  employees,
   recruitmentCampaignJobs,
   recruitmentCampaignMaterials,
   recruitmentCampaigns,
@@ -43,7 +44,7 @@ import {
   recruitmentPromptTemplateUpdateSchema,
   recruitmentSettingsUpdateSchema
 } from "@bh/shared";
-import { and, asc, count, desc, eq, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
@@ -359,6 +360,23 @@ async function getMaterialUsageMap(materialIds: string[]) {
   for (const row of [...copyRows, ...imageRows, ...campaignRows]) {
     if (!row.materialId) continue;
     usage.set(row.materialId, (usage.get(row.materialId) ?? 0) + Number(row.total));
+  }
+
+  return usage;
+}
+
+async function getCandidateInterviewCountMap(candidateIds: string[]) {
+  const usage = new Map<string, number>();
+  if (candidateIds.length === 0) return usage;
+
+  const rows = await db
+    .select({ candidateId: recruitmentInterviews.candidateId, total: count() })
+    .from(recruitmentInterviews)
+    .where(inArray(recruitmentInterviews.candidateId, candidateIds))
+    .groupBy(recruitmentInterviews.candidateId);
+
+  for (const row of rows) {
+    usage.set(row.candidateId, Number(row.total));
   }
 
   return usage;
@@ -1304,7 +1322,12 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       query.overdue === "1" || query.overdue === "true"
         ? rows.filter((row) => isCandidateOverdue(row, settingsForCompany(settingsMap, row.companyId)))
         : rows;
-    return { candidates: filtered.map(serializeCandidate), resources: filtered.map(serializeCandidate) };
+    const interviewCountMap = await getCandidateInterviewCountMap(filtered.map((row) => row.id));
+    const candidates = filtered.map((row) => ({
+      ...serializeCandidate(row),
+      interview_count: interviewCountMap.get(row.id) ?? 0
+    }));
+    return { candidates, resources: candidates };
   });
 
   app.post("/recruitment/candidates", { preHandler: requirePerm("recruitment.candidate.manage") }, async (request, reply) => {
@@ -1451,6 +1474,49 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       .where(and(eq(recruitmentCandidates.id, body.candidate_id), eq(recruitmentCandidates.companyId, body.company_id)));
     const resource = serializeInterview(mustReturn(interview));
     return reply.code(201).send({ interview: resource, resource });
+  });
+
+  app.get("/recruitment/interviews/upcoming", { preHandler: requirePerm("recruitment.view") }, async (request) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const accessFilter = await getAccessibleFilter(request, recruitmentInterviews.companyId);
+    const rows = await db
+      .select({
+        id: recruitmentInterviews.id,
+        scheduledAt: recruitmentInterviews.scheduledAt,
+        mode: recruitmentInterviews.mode,
+        interviewerId: recruitmentInterviews.interviewerId,
+        interviewerName: employees.name,
+        candidateId: recruitmentCandidates.id,
+        candidateName: recruitmentCandidates.name,
+        candidatePhone: recruitmentCandidates.phone,
+        intendedJobId: recruitmentCandidates.intendedJobId,
+        sourceType: recruitmentCandidates.sourceType,
+        companyId: recruitmentCandidates.companyId
+      })
+      .from(recruitmentInterviews)
+      .innerJoin(recruitmentCandidates, eq(recruitmentInterviews.candidateId, recruitmentCandidates.id))
+      .leftJoin(employees, eq(recruitmentInterviews.interviewerId, employees.id))
+      .where(and(accessFilter ?? sql`true`, gte(recruitmentInterviews.scheduledAt, today), eq(recruitmentInterviews.status, "scheduled")))
+      .orderBy(asc(recruitmentInterviews.scheduledAt));
+
+    return {
+      interviews: rows.map((row) => ({
+        id: row.id,
+        scheduled_at: row.scheduledAt,
+        mode: row.mode,
+        interviewer_id: row.interviewerId,
+        interviewer_name: row.interviewerName,
+        candidate: {
+          id: row.candidateId,
+          name: row.candidateName,
+          phone: row.candidatePhone,
+          intended_job_id: row.intendedJobId,
+          source_type: row.sourceType,
+          company_id: row.companyId
+        }
+      }))
+    };
   });
 
   app.patch("/recruitment/interviews/:id", { preHandler: requirePerm("recruitment.candidate.manage") }, async (request, reply) => {

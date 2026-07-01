@@ -67,6 +67,7 @@ import { RecruitmentDashboardPage } from "./pages/recruitment/RecruitmentDashboa
 import { RecruitmentLayout } from "./pages/recruitment/RecruitmentLayout";
 import { RecruitmentSettingsPage } from "./pages/recruitment/RecruitmentSettingsPage";
 import { TalentPoolPage } from "./pages/recruitment/TalentPoolPage";
+import { UpcomingInterviewsPage } from "./pages/recruitment/UpcomingInterviewsPage";
 import { StatementPage } from "./pages/StatementPage";
 import { CollectionItemsPage } from "./pages/settings/CollectionItemsPage";
 import { CompaniesPage } from "./pages/settings/CompaniesPage";
@@ -158,6 +159,7 @@ export function App() {
             <Route path="campaigns/:id" element={<CampaignDetailPage />} />
             <Route path="candidates" element={<CandidatesPage />} />
             <Route path="candidates/:id" element={<CandidateDetailPage />} />
+            <Route path="upcoming" element={<UpcomingInterviewsPage />} />
             <Route path="talent-pool" element={<TalentPoolPage />} />
             <Route path="capture" element={<QuickCapturePage />} />
             <Route path="settings" element={<RecruitmentSettingsPage />} />
