@@ -92,7 +92,7 @@ const navItems: NavItem[] = [
     perm: "finance.view",
     defaultOpened: false,
     children: [
-      { to: "/business-finance", key: "nav.business_finance_list", perm: "finance.view" },
+      // 「分成方案」已并入各业务的"收费&分成"tab,不再作为独立菜单项;仅保留分成人员管理
       { to: "/business-finance/parties", key: "nav.deal_parties", perm: "finance.view" },
       { to: "/business-finance/external-parties", key: "nav.external_parties", perm: "finance.view" }
     ]
