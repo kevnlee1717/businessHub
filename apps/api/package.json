@@ -12,6 +12,7 @@
     "backfill:recruitment-i18n": "tsx src/scripts/backfillRecruitmentTranslations.ts",
     "backfill:client-pinyin": "tsx src/scripts/backfillClientPinyin.ts",
     "seed:ep-packages": "tsx src/scripts/applyEpPackages.ts",
+    "apply:package-commission": "tsx src/scripts/applyPackageCommissions.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
     "lint": "echo skip"
