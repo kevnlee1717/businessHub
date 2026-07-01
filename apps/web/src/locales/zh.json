@@ -37,8 +37,8 @@
     "finance_my_commission": "我的提成",
     "finance_external_commission": "外部提成",
     "finance_reports": "财务报表",
-    "business_finance": "业务方案",
-    "business_finance_list": "业务列表",
+    "business_finance": "业务分成人员",
+    "business_finance_list": "分成方案",
     "deal_parties": "分成对象",
     "external_parties": "外部分成人",
     "settings": "设置",
@@ -285,7 +285,8 @@
       "clients": "客户",
       "templates": "流程模板",
       "guarantors": "担保人",
-      "stats": "统计"
+      "stats": "统计",
+      "feeShare": "收费&分成"
     }
   },
   "teachers": {
@@ -1825,8 +1826,9 @@
     }
   },
   "businessFinance": {
+    "noSchemeForBusiness": "该业务暂无收费&分成方案",
     "list": {
-      "title": "业务方案",
+      "title": "分成方案",
       "add": "新增业务",
       "detail": "详情",
       "empty": "暂无业务"

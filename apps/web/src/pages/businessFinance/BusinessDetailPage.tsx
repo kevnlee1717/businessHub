@@ -228,9 +228,13 @@ function getPresetLabel(preset: (typeof DEAL_PRESETS)[number], language: string)
   return language.startsWith("en") ? preset.nameEn : preset.name;
 }
 
-export function BusinessDetailPage() {
+export function BusinessDetailPage({
+  businessId,
+  embedded = false
+}: { businessId?: string; embedded?: boolean } = {}) {
   const { t, i18n } = useTranslation();
-  const { id } = useParams();
+  const params = useParams();
+  const id = businessId ?? params.id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [versionModalOpened, setVersionModalOpened] = useState(false);
@@ -365,12 +369,16 @@ export function BusinessDetailPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <Group gap="sm">
-          <Button variant="light" onClick={() => navigate("/business-finance")}>
-            {t("common.back")}
-          </Button>
-          <Title order={2}>{t("businessFinance.detail.title")}</Title>
-        </Group>
+        {embedded ? (
+          <div />
+        ) : (
+          <Group gap="sm">
+            <Button variant="light" onClick={() => navigate("/business-finance")}>
+              {t("common.back")}
+            </Button>
+            <Title order={2}>{t("businessFinance.detail.title")}</Title>
+          </Group>
+        )}
         <Button onClick={openVersionModal}>{t("businessFinance.detail.addVersion")}</Button>
       </Group>
 

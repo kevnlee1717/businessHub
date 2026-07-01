@@ -5,6 +5,7 @@ import { CaseStatsPanel } from "./CaseStatsPanel";
 import { CasesPage } from "./CasesPage";
 import { ClientsPage } from "./ClientsPage";
 import { TemplatesPage } from "./TemplatesPage";
+import { BusinessSchemePanel } from "../businessFinance/BusinessSchemePanel";
 
 export function EpSection() {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export function EpSection() {
         <Tabs.Tab value="clients">{t("business.tabs.clients")}</Tabs.Tab>
         <Tabs.Tab value="templates">{t("business.tabs.templates")}</Tabs.Tab>
         <Tabs.Tab value="stats">{t("business.tabs.stats")}</Tabs.Tab>
+        <Tabs.Tab value="feeShare">{t("business.tabs.feeShare")}</Tabs.Tab>
       </Tabs.List>
 
       <Tabs.Panel value="cases" pt="md">
@@ -30,6 +32,9 @@ export function EpSection() {
       </Tabs.Panel>
       <Tabs.Panel value="stats" pt="md">
         <CaseStatsPanel />
+      </Tabs.Panel>
+      <Tabs.Panel value="feeShare" pt="md">
+        <BusinessSchemePanel businessCode="ep" />
       </Tabs.Panel>
     </Tabs>
   );

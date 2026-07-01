@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DiplomaPage } from "./DiplomaPage";
 import { StudentsPage } from "./StudentsPage";
+import { BusinessSchemePanel } from "../businessFinance/BusinessSchemePanel";
 
 export function DiplomaSection() {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ export function DiplomaSection() {
         <Tabs.Tab value="courses">{t("education.tabs.courses")}</Tabs.Tab>
         <Tabs.Tab value="enrollments">{t("education.tabs.enrollments")}</Tabs.Tab>
         <Tabs.Tab value="students">{t("education.tabs.students")}</Tabs.Tab>
+        <Tabs.Tab value="feeShare">{t("business.tabs.feeShare")}</Tabs.Tab>
       </Tabs.List>
 
       <Tabs.Panel value="programs" pt="md">
@@ -28,6 +30,9 @@ export function DiplomaSection() {
       </Tabs.Panel>
       <Tabs.Panel value="students" pt="md">
         <StudentsPage />
+      </Tabs.Panel>
+      <Tabs.Panel value="feeShare" pt="md">
+        <BusinessSchemePanel businessCode="diploma" />
       </Tabs.Panel>
     </Tabs>
   );

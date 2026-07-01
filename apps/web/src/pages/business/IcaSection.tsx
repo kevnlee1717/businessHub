@@ -6,6 +6,7 @@ import { ClientsPage } from "./ClientsPage";
 import { GuarantorsPage } from "./GuarantorsPage";
 import { IcaStatsPanel } from "./IcaStatsPanel";
 import { TemplatesPage } from "./TemplatesPage";
+import { BusinessSchemePanel } from "../businessFinance/BusinessSchemePanel";
 
 export function IcaSection() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export function IcaSection() {
         <Tabs.Tab value="guarantors">{t("business.tabs.guarantors")}</Tabs.Tab>
         <Tabs.Tab value="templates">{t("business.tabs.templates")}</Tabs.Tab>
         <Tabs.Tab value="stats">{t("business.tabs.stats")}</Tabs.Tab>
+        <Tabs.Tab value="feeShare">{t("business.tabs.feeShare")}</Tabs.Tab>
       </Tabs.List>
 
       <Tabs.Panel value="cases" pt="md">
@@ -35,6 +37,9 @@ export function IcaSection() {
       </Tabs.Panel>
       <Tabs.Panel value="stats" pt="md">
         <IcaStatsPanel />
+      </Tabs.Panel>
+      <Tabs.Panel value="feeShare" pt="md">
+        <BusinessSchemePanel businessCode="ica" />
       </Tabs.Panel>
     </Tabs>
   );

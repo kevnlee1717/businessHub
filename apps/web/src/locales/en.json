@@ -37,8 +37,8 @@
     "finance_my_commission": "My Commission",
     "finance_external_commission": "External Commission",
     "finance_reports": "Financial Reports",
-    "business_finance": "Business Schemes",
-    "business_finance_list": "Business List",
+    "business_finance": "Commission Personnel",
+    "business_finance_list": "Commission Schemes",
     "deal_parties": "Deal Parties",
     "external_parties": "External Parties",
     "settings": "Settings",
@@ -285,7 +285,8 @@
       "clients": "Clients",
       "templates": "Workflow templates",
       "guarantors": "Guarantors",
-      "stats": "Stats"
+      "stats": "Stats",
+      "feeShare": "Fees & Commission"
     }
   },
   "teachers": {
@@ -1825,8 +1826,9 @@
     }
   },
   "businessFinance": {
+    "noSchemeForBusiness": "No fees & commission scheme for this business yet",
     "list": {
-      "title": "Business Schemes",
+      "title": "Commission Schemes",
       "add": "Add business",
       "detail": "Details",
       "empty": "No businesses yet"
