@@ -137,6 +137,26 @@
       "sortOrder": "排序"
     }
   },
+  "ipadSlides": {
+    "title": "iPad 展示 PDF",
+    "subtitle": "管理销售 iPad 首页展示的项目资料 PDF。",
+    "upload": "上传 PDF",
+    "empty": "暂无 iPad 展示 PDF",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "confirmDelete": "确认删除「{{title}}」？",
+    "validation": {
+      "titleRequired": "请填写标题",
+      "fileRequired": "请选择 PDF 文件"
+    },
+    "fields": {
+      "title": "标题",
+      "filename": "文件名",
+      "file": "PDF 文件",
+      "sortOrder": "排序",
+      "createdAt": "上传时间"
+    }
+  },
   "dashboard": {
     "welcome": "欢迎，{{name}}",
     "title": "财务总面板",
@@ -1385,6 +1405,7 @@
       "fees": "收费标准",
       "bizfile": "BizFile",
       "brochure": "宣传册",
+      "ipadSlides": "iPad 展示 PDF",
       "categories": "分类"
     },
     "library": {

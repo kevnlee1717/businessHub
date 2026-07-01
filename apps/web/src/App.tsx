@@ -54,6 +54,8 @@ import { HrLayout } from "./pages/hr/HrLayout";
 import { PayrollPage } from "./pages/hr/PayrollPage";
 import { PerformancePage } from "./pages/hr/PerformancePage";
 import { SiteVisitsPage } from "./pages/hr/SiteVisitsPage";
+import { IpadSlidesAdminPage } from "./pages/ipad/IpadSlidesAdminPage";
+import { IpadSurveyPage } from "./pages/ipad/IpadSurveyPage";
 import { LoginPage } from "./pages/LoginPage";
 import { CampaignDetailPage } from "./pages/recruitment/CampaignDetailPage";
 import { CampaignsPage } from "./pages/recruitment/CampaignsPage";
@@ -137,6 +139,7 @@ export function App() {
                 />
               ))}
             <Route path="brochure" element={<BrochurePage />} />
+            <Route path="ipad-slides" element={<IpadSlidesAdminPage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
           {/* 宣传册已并入文档 tab;旧链接重定向 */}
@@ -185,6 +188,7 @@ export function App() {
             <Route path="collection-items" element={<CollectionItemsPage />} />
           </Route>
         </Route>
+        <Route path="ipad" element={<IpadSurveyPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

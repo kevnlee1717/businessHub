@@ -1,0 +1,25 @@
+{
+  "name": "恺德拜访录入",
+  "short_name": "恺德拜访",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/ipad",
+  "scope": "/ipad",
+  "background_color": "#ffffff",
+  "theme_color": "#2f9e44",
+  "lang": "zh",
+  "icons": [
+    {
+      "src": "/founder-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/founder-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -84,7 +84,7 @@ import { usePagination } from "../../hooks/usePagination";
 
 type Dict = Record<string, unknown>;
 type Option = { value: string; label: string };
-type PropertySurveyDetails = Record<string, Record<string, string | string[]>>;
+export type PropertySurveyDetails = Record<string, Record<string, string | string[]>>;
 
 function qsKey(values: Record<string, unknown>) {
   return JSON.stringify(values);
@@ -265,7 +265,7 @@ function setSurveyField(
   });
 }
 
-function buildVisibleSurveyDetails(details: PropertySurveyDetails, services: FranchiseService[]) {
+export function buildVisibleSurveyDetails(details: PropertySurveyDetails, services: FranchiseService[]) {
   const out: PropertySurveyDetails = {};
   for (const section of visiblePropertySurveySections(services)) {
     const current = details[section.key] ?? {};
@@ -280,7 +280,7 @@ function buildVisibleSurveyDetails(details: PropertySurveyDetails, services: Fra
   return out;
 }
 
-function PropertySurveyFields({
+export function PropertySurveyFields({
   services,
   details,
   setDetails
