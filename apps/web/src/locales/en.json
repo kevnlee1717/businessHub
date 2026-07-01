@@ -688,7 +688,8 @@
       "children": "Sub-cases",
       "submissions": "Submissions",
       "charges": "Charges",
-      "addon": "Add services"
+      "addon": "Add services",
+      "commission": "Commission"
     },
     "filters": {
       "businessType": "Business type",
@@ -700,6 +701,7 @@
       "client": "Client",
       "template": "Workflow template",
       "package": "Package",
+      "sales": "Sales",
       "status": "Status",
       "currentStep": "Current step",
       "signedAt": "Signed date",
@@ -715,6 +717,7 @@
       "guarantorRequired": "ICA cases require a guarantor name.",
       "packageRequired": "EP cases require a package."
     },
+    "packageCommissionHint": "After selecting a package and sales person, commissions are generated from package defaults and can be changed in case details.",
     "stats": {
       "title": "Case Statistics",
       "year": "Year",
@@ -727,6 +730,25 @@
       "summary_approved": "Approved",
       "summary_pending": "In progress",
       "summary_rejected": "Rejected"
+    }
+  },
+  "caseCommission": {
+    "title": "Commission",
+    "internalSales": "Internal sales commission",
+    "externalChannel": "External channel commission",
+    "overrideTitle": "Case-level override",
+    "recompute": "Recompute",
+    "emptyEffective": "No effective commissions yet",
+    "financePermissionRequired": "External party setup requires finance permission.",
+    "fields": {
+      "payee": "Payee",
+      "period": "Period",
+      "amount": "Amount",
+      "status": "Status",
+      "basis": "Basis",
+      "value": "Value",
+      "externalParty": "External payee",
+      "note": "Note"
     }
   },
   "client": {

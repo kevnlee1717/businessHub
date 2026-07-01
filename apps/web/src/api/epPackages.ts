@@ -1,4 +1,5 @@
 import {
+  type PackageCommissionInput,
   type PackageMilestoneInput,
   type ServiceCategory,
   type ServiceItemCreateInput,
@@ -32,6 +33,17 @@ export type PackageMilestone = {
   refundable_note?: string | null;
 };
 
+export type PackageCommission = {
+  id: string;
+  package_id: string;
+  target: "internal_sales" | "external_channel";
+  basis: "percent" | "fixed";
+  value: string;
+  default_party_id?: string | null;
+  note?: string | null;
+  created_at: string;
+};
+
 export type ServicePackage = {
   id: string;
   code: string;
@@ -47,6 +59,7 @@ export type ServicePackage = {
 export type ServicePackageWithDetails = ServicePackage & {
   items: string[];
   milestones: PackageMilestone[];
+  commissions: PackageCommission[];
 };
 
 export function listPackages(): Promise<{ packages: ServicePackageWithDetails[] }> {
@@ -93,5 +106,15 @@ export function setPackageMilestones(
   return api<{ package_id: string; milestones: PackageMilestone[] }>(`/ep-packages/packages/${id}/milestones`, {
     method: "PUT",
     body: milestones
+  });
+}
+
+export function setPackageCommissions(
+  id: string,
+  rules: PackageCommissionInput[]
+): Promise<{ package_id: string; commissions: PackageCommission[] }> {
+  return api<{ package_id: string; commissions: PackageCommission[] }>(`/ep-packages/packages/${id}/commissions`, {
+    method: "PUT",
+    body: rules
   });
 }
