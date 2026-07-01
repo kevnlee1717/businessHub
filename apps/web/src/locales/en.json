@@ -742,11 +742,12 @@
     "saveAppointment": "Save appointment"
   },
   "caseSubmission": {
-    "title": "Submission timeline",
+    "title": "Submission records",
     "add": "Record submission",
     "empty": "No submissions yet",
     "hint": "ICA failures are usually resubmitted after 3 months. Record each submission and rejection time here.",
     "markResult": "Mark result",
+    "submissionNo": "Submission #{{n}}",
     "daysSince": "{{count}} days ago",
     "fields": {
       "submittedAt": "Submitted at",
@@ -929,6 +930,8 @@
   "stepReview": {
     "title": "Step review",
     "request": "Request review",
+    "addReview": "Add review",
+    "doReview": "Do review",
     "comment": "Comment",
     "approve": "Approve",
     "reject": "Reject",

@@ -427,9 +427,7 @@ function StepCard({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [followUpContent, setFollowUpContent] = useState("");
   const [followUpError, setFollowUpError] = useState<string | null>(null);
-  const [appointmentDraft, setAppointmentDraft] = useState(() =>
-    toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null)
-  );
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const followUpsQuery = useQuery({
     queryKey: ["business", "case-step-follow-ups", step.id],
@@ -520,10 +518,6 @@ function StepCard({
   const stepChargesPaid = stepCharges.length > 0 && stepCharges.every((charge) => charge.status === "paid" || charge.status === "waived");
 
   useEffect(() => {
-    setAppointmentDraft(toDateTimeLocalValue(typeof step.meta?.appointment_at === "string" ? step.meta.appointment_at : null));
-  }, [step.id, step.meta]);
-
-  useEffect(() => {
     setReviewerId(step.reviewer_id ?? null);
   }, [step.id, step.reviewer_id]);
 
@@ -538,20 +532,6 @@ function StepCard({
     } catch (error) {
       const message = error instanceof Error ? error.message : t("common.unknown_error");
       setStepError(message === "missing_required_documents" ? t("caseStepDoc.missingRequiredDocuments") : message);
-    }
-  }
-
-  async function saveAppointment() {
-    setStepError(null);
-    try {
-      await updateStepMutation.mutateAsync({
-        meta: {
-          ...(step.meta ?? {}),
-          appointment_at: toIsoDateTime(appointmentDraft) ?? null
-        }
-      });
-    } catch (error) {
-      setStepError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
   }
 
@@ -681,23 +661,22 @@ function StepCard({
           </Alert>
         ) : null}
 
-        <Group align="flex-end">
-          <TextInput
-            type="datetime-local"
-            label={t("kyc.appointmentAt")}
-            value={appointmentDraft}
-            onChange={(event) => setAppointmentDraft(event.currentTarget.value)}
-            disabled={!canManageCases}
-          />
-          {canManageCases ? (
-            <Button variant="light" onClick={saveAppointment} loading={updateStepMutation.isPending}>
-              {t("kyc.saveAppointment")}
-            </Button>
-          ) : null}
-        </Group>
-
         <Stack gap="xs">
-          <Title order={5}>{t("stepReview.title")}</Title>
+          <Group justify="space-between" align="center">
+            <Group gap="xs">
+              <Title order={5}>{t("stepReview.title")}</Title>
+              {reviews.length > 0 ? (
+                <Badge size="sm" variant="light" color="gray">
+                  {reviews.length}
+                </Badge>
+              ) : null}
+            </Group>
+            <Button size="xs" variant={reviewOpen ? "subtle" : "light"} onClick={() => setReviewOpen((open) => !open)}>
+              {reviewOpen ? t("common.collapse") : canReviewStep ? t("stepReview.doReview") : t("stepReview.addReview")}
+            </Button>
+          </Group>
+          {reviewOpen ? (
+            <>
           {reviewError ? (
             <Alert color="red" variant="light">
               {reviewError}
@@ -793,6 +772,8 @@ function StepCard({
               ) : null}
             </Group>
           </Stack>
+            </>
+          ) : null}
         </Stack>
 
         <Stack gap="xs">
@@ -1397,12 +1378,15 @@ function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionT
           <Text c="dimmed">{t("caseSubmission.empty")}</Text>
         ) : (
           <Stack gap="sm">
-            {submissions.map((submission) => (
+            {submissions.map((submission, index) => (
               <Paper key={submission.id} withBorder radius="md" p="sm">
                 <Stack gap="xs">
                   <Group justify="space-between" align="flex-start">
                     <Stack gap={2}>
                       <Group gap="xs">
+                        <Badge color="blue" variant="filled">
+                          {t("caseSubmission.submissionNo", { n: submissions.length - index })}
+                        </Badge>
                         <Badge color={submissionResultColor(submission.result)} variant="light">
                           {t(`caseSubmissionResult.${submission.result}`)}
                         </Badge>
