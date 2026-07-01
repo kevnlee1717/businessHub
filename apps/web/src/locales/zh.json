@@ -633,7 +633,7 @@
       "info": "案件信息",
       "guarantor": "担保人",
       "children": "子案件",
-      "submissions": "提交周期",
+      "submissions": "提交记录",
       "charges": "收款计划"
     },
     "filters": {
@@ -742,11 +742,12 @@
     "saveAppointment": "保存预约时间"
   },
   "caseSubmission": {
-    "title": "提交周期",
+    "title": "提交记录",
     "add": "记录一次提交",
     "empty": "暂无提交记录",
     "hint": "ICA 失败一般3个月后重提，这里记录每次提交/拒绝时间。",
     "markResult": "标记结果",
+    "submissionNo": "第 {{n}} 次提交",
     "daysSince": "距今 {{count}} 天",
     "fields": {
       "submittedAt": "提交时间",
@@ -929,6 +930,8 @@
   "stepReview": {
     "title": "步骤审核",
     "request": "请求审核",
+    "addReview": "添加审核",
+    "doReview": "进行审核",
     "comment": "评论",
     "approve": "通过",
     "reject": "驳回",
