@@ -137,7 +137,15 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     void documentRef.current?.cleanup();
     documentRef.current = null;
     loadingTaskRef.current?.destroy();
-    const loadingTask = pdfjsLib.getDocument({ url });
+    // 整包下载(不走 HTTP Range 分块):
+    // 1) 请求变成普通 GET(200),service worker 才能 cache-first 缓存到设备(206 无法被 Cache API 缓存)
+    // 2) 下载完成后所有页字节都在内存,翻页时 getPage 立即返回,不再因等网络出现整页黑屏
+    const loadingTask = pdfjsLib.getDocument({
+      url,
+      disableRange: true,
+      disableStream: true,
+      disableAutoFetch: true,
+    });
     loadingTaskRef.current = loadingTask;
 
     loadingTask.promise
