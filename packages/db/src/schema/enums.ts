@@ -131,6 +131,7 @@ export const chargeStatusEnum = pgEnum("charge_status", chargeStatuses);
 export const serviceCategoryEnum = pgEnum("service_category", ["core_ep", "banking_tax", "family", "gov_fee"] as const);
 export const caseServiceSourceEnum = pgEnum("case_service_source", ["package", "extra"] as const);
 export const caseServiceStatusEnum = pgEnum("case_service_status", ["active", "removed"] as const);
+export const commissionTargetEnum = pgEnum("commission_target", ["internal_sales", "external_channel"] as const);
 export const recruitmentJobStatusEnum = pgEnum("recruitment_job_status", recruitmentJobStatuses);
 export const recruitmentJobPriorityEnum = pgEnum("recruitment_job_priority", recruitmentJobPriorities);
 export const recruitmentMaterialTypeEnum = pgEnum("recruitment_material_type", recruitmentMaterialTypes);

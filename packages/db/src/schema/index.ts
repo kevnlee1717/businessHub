@@ -38,6 +38,8 @@ export * from "./serviceItems";
 export * from "./packages";
 export * from "./packageItems";
 export * from "./packageMilestones";
+export * from "./packageCommissions";
+export * from "./caseCommissions";
 export * from "./caseServices";
 export * from "./students";
 export * from "./teachers";
