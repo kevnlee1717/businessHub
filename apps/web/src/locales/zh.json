@@ -287,8 +287,18 @@
       "templates": "流程模板",
       "guarantors": "担保人",
       "stats": "统计",
-      "feeShare": "收费&分成",
-      "packages": "套餐管理"
+      "feeShare": "收费&分成"
+    }
+  },
+  "epFeeCommission": {
+    "tabs": {
+      "packages": "套餐",
+      "legacy": "老订单方案"
+    },
+    "legacy": {
+      "title": "老订单专用 (legacy)",
+      "description": "新 EP 订单走套餐配置；这里保留给旧订单继续使用原收费与分成方案。",
+      "schemeTitle": "旧收费&分成方案"
     }
   },
   "epPackages": {
@@ -314,7 +324,17 @@
     "sections": {
       "basic": "基本信息",
       "items": "包含服务",
-      "milestones": "付款节点"
+      "milestones": "付款节点",
+      "commissions": "分成规则"
+    },
+    "commissions": {
+      "description": "套餐分成是默认规则，具体案件可在案件详情「分成」里覆盖。",
+      "internalSales": "内部销售分成",
+      "externalChannel": "外部渠道分成（默认）",
+      "basis": {
+        "percent": "按套餐价百分比",
+        "fixed": "固定金额"
+      }
     },
     "fields": {
       "code": "编码",
@@ -334,7 +354,11 @@
       "labelEn": "英文节点",
       "amount": "金额",
       "bindStepOrder": "绑定步骤",
-      "refundableNote": "退款说明"
+      "refundableNote": "退款说明",
+      "commissionBasis": "计算方式",
+      "commissionValue": "数值",
+      "defaultParty": "默认分成方",
+      "defaultPartyPlaceholder": "可选"
     },
     "messages": {
       "serviceSaved": "服务已保存",

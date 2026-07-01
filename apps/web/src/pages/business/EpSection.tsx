@@ -4,9 +4,8 @@ import { useTranslation } from "react-i18next";
 import { CaseStatsPanel } from "./CaseStatsPanel";
 import { CasesPage } from "./CasesPage";
 import { ClientsPage } from "./ClientsPage";
-import { PackagesAdminPage } from "./PackagesAdminPage";
+import { FeeCommissionPanel } from "./FeeCommissionPanel";
 import { TemplatesPage } from "./TemplatesPage";
-import { BusinessSchemePanel } from "../businessFinance/BusinessSchemePanel";
 
 export function EpSection() {
   const { t } = useTranslation();
@@ -20,7 +19,6 @@ export function EpSection() {
         <Tabs.Tab value="templates">{t("business.tabs.templates")}</Tabs.Tab>
         <Tabs.Tab value="stats">{t("business.tabs.stats")}</Tabs.Tab>
         <Tabs.Tab value="feeShare">{t("business.tabs.feeShare")}</Tabs.Tab>
-        <Tabs.Tab value="packages">{t("business.tabs.packages")}</Tabs.Tab>
       </Tabs.List>
 
       <Tabs.Panel value="cases" pt="md">
@@ -36,10 +34,7 @@ export function EpSection() {
         <CaseStatsPanel />
       </Tabs.Panel>
       <Tabs.Panel value="feeShare" pt="md">
-        <BusinessSchemePanel businessCode="ep" />
-      </Tabs.Panel>
-      <Tabs.Panel value="packages" pt="md">
-        <PackagesAdminPage />
+        <FeeCommissionPanel />
       </Tabs.Panel>
     </Tabs>
   );

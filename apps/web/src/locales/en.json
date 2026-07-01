@@ -287,8 +287,18 @@
       "templates": "Workflow templates",
       "guarantors": "Guarantors",
       "stats": "Stats",
-      "feeShare": "Fees & Commission",
-      "packages": "Package management"
+      "feeShare": "Fees & Commission"
+    }
+  },
+  "epFeeCommission": {
+    "tabs": {
+      "packages": "Packages",
+      "legacy": "Legacy schemes"
+    },
+    "legacy": {
+      "title": "Legacy orders only",
+      "description": "New EP orders use package configuration. This area remains for existing orders that still use the old fee and commission scheme.",
+      "schemeTitle": "Legacy fee & commission scheme"
     }
   },
   "epPackages": {
@@ -314,7 +324,17 @@
     "sections": {
       "basic": "Basic info",
       "items": "Included services",
-      "milestones": "Payment milestones"
+      "milestones": "Payment milestones",
+      "commissions": "Commission rules"
+    },
+    "commissions": {
+      "description": "Package commission is the default rule. Specific cases can override it in the case detail Commission area.",
+      "internalSales": "Internal sales commission",
+      "externalChannel": "External channel commission (default)",
+      "basis": {
+        "percent": "Percent of package price",
+        "fixed": "Fixed amount"
+      }
     },
     "fields": {
       "code": "Code",
@@ -334,7 +354,11 @@
       "labelEn": "English label",
       "amount": "Amount",
       "bindStepOrder": "Bound step",
-      "refundableNote": "Refund note"
+      "refundableNote": "Refund note",
+      "commissionBasis": "Basis",
+      "commissionValue": "Value",
+      "defaultParty": "Default party",
+      "defaultPartyPlaceholder": "Optional"
     },
     "messages": {
       "serviceSaved": "Service saved",
