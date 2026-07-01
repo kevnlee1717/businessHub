@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import bcrypt from "bcryptjs";
 import { DEAL_PRESETS, ROLE_PERMISSIONS, allPermissions, computeDealEconomics, type SchemeLineInput } from "@bh/shared";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
   bankAccounts,
@@ -11,6 +11,7 @@ import {
   collectionItems,
   companyExpenses,
   companies,
+  courseDesignTasks,
   dealParties,
   documentCategories,
   diplomaEnrollments,
@@ -568,7 +569,72 @@ let oneTimePriceLinesPatched = 0;
 let schemeMilestonesUpserted = 0;
 let epMilestonesLinked = 0;
 let epStepCollectionsSet = 0;
+let insertedCourseDesignTasks = 0;
 const financeSeedWarnings: string[] = [];
+
+const [courseDesignTaskCountRow] = await db.select({ count: count() }).from(courseDesignTasks);
+
+if (Number(courseDesignTaskCountRow?.count ?? 0) === 0) {
+  await db.insert(courseDesignTasks).values([
+    {
+      title: "确认产品定位 & 主打 App 模式",
+      owner: "小雨",
+      status: "review",
+      deliverable: "定位说明（见 tab 顶部）",
+      sortOrder: 0
+    },
+    {
+      title: "分级体系定稿（CEFR 对齐 6 级）",
+      owner: "小雨",
+      status: "doing",
+      deliverable: "分级表 + 定级测评方案",
+      sortOrder: 1
+    },
+    {
+      title: "课程命名 & 定价方案",
+      owner: "小雨",
+      status: "doing",
+      deliverable: "命名/价格表 + 定价理由",
+      sortOrder: 2
+    },
+    {
+      title: "每日任务(Daily Set)内容设计",
+      owner: "小雨",
+      status: "todo",
+      deliverable: "各级别每日任务模板",
+      sortOrder: 3
+    },
+    {
+      title: "参考 App 拆解 & 借鉴点整理",
+      owner: "小雨",
+      status: "done",
+      deliverable: "已整理进 §4 参考 App 表",
+      sortOrder: 4
+    },
+    {
+      title: "App 界面清单 → 中保真原型",
+      owner: "小雨",
+      status: "done",
+      deliverable: "13 屏 .svg 已内置，见 §4",
+      sortOrder: 5
+    },
+    {
+      title: "界面清单 → 高保真设计稿",
+      owner: "小雨",
+      status: "doing",
+      deliverable: "各界面 PNG 覆盖上传本 tab",
+      sortOrder: 6
+    },
+    {
+      title: "定级测评题库 & 自适应逻辑",
+      owner: "小雨",
+      status: "todo",
+      deliverable: "测评产品文档",
+      sortOrder: 7
+    }
+  ]);
+  insertedCourseDesignTasks = 8;
+}
 
 if (!fallbackCompany) {
   financeSeedWarnings.push("未找到任何 companies, 跳过 businesses/scheme/billing 财务 seed");
@@ -1595,5 +1661,5 @@ const permissionSeedStats = await backfillPermissionSeedData();
 await pool.end();
 
 console.log(
-  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, oneTimePriceLinesPatched=${oneTimePriceLinesPatched}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, employeeCompanyAccessBackfilled=${permissionSeedStats.employeeCompanyAccessBackfilled}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
+  `Seed completed: owner=${owner?.email ?? ownerEmail}, documentCategoriesInserted=${insertedCategories}, industriesInserted=${insertedIndustries}, payrollSettingsInserted=${insertedPayrollSettings}, workShiftsInserted=${insertedWorkShifts}, templatesInserted=${insertedWorkflowTemplates}, dealPartiesUpserted=${upsertedDealParties}, collectionItemsUpserted=${collectionItemsUpserted}, courseDesignTasksInserted=${insertedCourseDesignTasks}, businessesUpserted=${upsertedBusinesses}, schemeVersionsInserted=${insertedSchemeVersions}, schemeVersionsSkipped=${skippedSchemeVersions}, schemeLinesInserted=${insertedSchemeLines}, oneTimePriceLinesPatched=${oneTimePriceLinesPatched}, schemeMilestonesUpserted=${schemeMilestonesUpserted}, epMilestonesLinked=${epMilestonesLinked}, epStepCollectionsSet=${epStepCollectionsSet}, billingRowsBackfilled=${updatedBillingRows}, DEMO academySkipped=${academyDemoStats.demoSkipped}, demoStudents=${academyDemoStats.demoStudents}, demoEnrollments=${academyDemoStats.demoEnrollments}, demoPayments=${academyDemoStats.demoPayments}, demoPaid=${academyDemoStats.demoPaid}, demoExpenses=${academyDemoStats.demoExpenses}, expenseCategoriesUpserted=${financeLedgerDemoStats.expenseCategoriesUpserted}, expenseCategoryReportSections=default operating_expense; other=other, bankAccountsUpserted=${financeLedgerDemoStats.bankAccountsUpserted}, recurringCostsUpserted=${financeLedgerDemoStats.recurringCostsUpserted}, bankOpeningSet=${financeLedgerDemoStats.bankOpeningSet}, ledgerBridged=${financeLedgerDemoStats.ledgerBridged}, statementLinesDemo=${financeLedgerDemoStats.statementLinesDemo}, demoSalesUpserted=${demoSalesStats.demoSalesUpserted}, salesAssignmentsUpserted=${demoSalesStats.salesAssignmentsUpserted}, employeeCompanyAccessBackfilled=${permissionSeedStats.employeeCompanyAccessBackfilled}, warnings=${financeSeedWarnings.join(" | ") || "none"}`
 );

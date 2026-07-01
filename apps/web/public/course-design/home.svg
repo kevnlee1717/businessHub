@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" font-family="-apple-system, 'PingFang SC', 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <clipPath id="frame"><rect x="0" y="0" width="375" height="812" rx="40"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect x="0" y="0" width="375" height="812" fill="#F1F5F9"/>
+
+    <!-- status bar -->
+    <text x="24" y="30" font-size="14" font-weight="700" fill="#0F172A">9:41</text>
+    <g fill="#0F172A"><rect x="316" y="20" width="18" height="11" rx="2"/><rect x="337" y="22" width="2" height="7" rx="1"/><circle cx="300" cy="26" r="2.5"/><circle cx="292" cy="26" r="2.5"/><circle cx="284" cy="26" r="2.5"/></g>
+
+    <!-- top stats bar -->
+    <g>
+      <rect x="20" y="52" width="86" height="34" rx="17" fill="#FEF3C7"/>
+      <text x="36" y="74" font-size="16">🔥</text>
+      <text x="60" y="74" font-size="15" font-weight="800" fill="#B45309">12</text>
+      <rect x="116" y="52" width="104" height="34" rx="17" fill="#EEF2FF"/>
+      <text x="132" y="74" font-size="15">💎</text>
+      <text x="156" y="74" font-size="15" font-weight="800" fill="#4338CA">1,240</text>
+      <rect x="284" y="52" width="71" height="34" rx="17" fill="#DCFCE7"/>
+      <text x="298" y="74" font-size="13" font-weight="800" fill="#15803D">L2 基础</text>
+    </g>
+
+    <!-- greeting -->
+    <text x="24" y="128" font-size="22" font-weight="800" fill="#0F172A">早上好，Kevin 👋</text>
+    <text x="24" y="152" font-size="13" fill="#64748B">连续学习 12 天，今天 15 分钟搞定</text>
+
+    <!-- daily goal card -->
+    <rect x="20" y="170" width="335" height="72" rx="16" fill="#FFFFFF"/>
+    <text x="38" y="200" font-size="14" font-weight="700" fill="#0F172A">今日目标</text>
+    <text x="300" y="200" font-size="13" font-weight="700" fill="#22C55E">2 / 5</text>
+    <rect x="38" y="212" width="299" height="12" rx="6" fill="#E2E8F0"/>
+    <rect x="38" y="212" width="120" height="12" rx="6" fill="#22C55E"/>
+
+    <!-- section title -->
+    <text x="24" y="278" font-size="17" font-weight="800" fill="#0F172A">今日任务 · Daily Set</text>
+    <text x="330" y="278" font-size="12" fill="#94A3B8" text-anchor="end">约 15 分钟</text>
+
+    <!-- task 1 done -->
+    <rect x="20" y="294" width="335" height="60" rx="14" fill="#FFFFFF"/>
+    <circle cx="52" cy="324" r="18" fill="#DCFCE7"/><text x="52" y="330" font-size="17" text-anchor="middle">🔥</text>
+    <text x="82" y="319" font-size="14" font-weight="700" fill="#94A3B8">词汇闪卡 Warm-up</text>
+    <text x="82" y="338" font-size="11" fill="#CBD5E1">5 词 · SRS 间隔重复</text>
+    <circle cx="330" cy="324" r="12" fill="#22C55E"/><path d="M324 324 l4 4 l7 -8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- task 2 done -->
+    <rect x="20" y="362" width="335" height="60" rx="14" fill="#FFFFFF"/>
+    <circle cx="52" cy="392" r="18" fill="#EEF2FF"/><text x="52" y="398" font-size="17" text-anchor="middle">🎙</text>
+    <text x="82" y="387" font-size="14" font-weight="700" fill="#94A3B8">口语跟读 + AI 打分</text>
+    <text x="82" y="406" font-size="11" fill="#CBD5E1">音素级发音评分</text>
+    <circle cx="330" cy="392" r="12" fill="#22C55E"/><path d="M324 392 l4 4 l7 -8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- task 3 current -->
+    <rect x="20" y="430" width="335" height="72" rx="14" fill="#FFFFFF" stroke="#22C55E" stroke-width="2"/>
+    <circle cx="52" cy="466" r="18" fill="#EEF2FF"/><text x="52" y="472" font-size="17" text-anchor="middle">💬</text>
+    <text x="82" y="459" font-size="14" font-weight="800" fill="#0F172A">AI 情景对话</text>
+    <text x="82" y="479" font-size="11" fill="#64748B">咖啡店点单 · 3–5 轮</text>
+    <rect x="278" y="450" width="64" height="32" rx="16" fill="#22C55E"/>
+    <text x="310" y="470" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">继续</text>
+
+    <!-- task 4 locked -->
+    <rect x="20" y="510" width="335" height="56" rx="14" fill="#FFFFFF"/>
+    <circle cx="52" cy="538" r="18" fill="#F1F5F9"/><text x="52" y="544" font-size="17" text-anchor="middle">📖</text>
+    <text x="82" y="533" font-size="14" font-weight="700" fill="#0F172A">语法微课 + 即时练</text>
+    <text x="82" y="551" font-size="11" fill="#94A3B8">一般现在时 · 3 题</text>
+    <text x="332" y="544" font-size="15" text-anchor="middle" fill="#CBD5E1">›</text>
+
+    <!-- task 5 locked -->
+    <rect x="20" y="574" width="335" height="56" rx="14" fill="#FFFFFF"/>
+    <circle cx="52" cy="602" r="18" fill="#F1F5F9"/><text x="52" y="608" font-size="17" text-anchor="middle">👂</text>
+    <text x="82" y="597" font-size="14" font-weight="700" fill="#0F172A">听力理解</text>
+    <text x="82" y="615" font-size="11" fill="#94A3B8">短对话 · 2 题</text>
+    <text x="332" y="608" font-size="15" text-anchor="middle" fill="#CBD5E1">›</text>
+
+    <!-- task 6 checkin locked -->
+    <rect x="20" y="638" width="335" height="56" rx="14" fill="#FFFFFF"/>
+    <circle cx="52" cy="666" r="18" fill="#FEF3C7"/><text x="52" y="672" font-size="16" text-anchor="middle">🏆</text>
+    <text x="82" y="661" font-size="14" font-weight="700" fill="#0F172A">打卡结算</text>
+    <text x="82" y="679" font-size="11" fill="#94A3B8">领取 XP + 保持连击</text>
+    <text x="330" y="672" font-size="16" text-anchor="middle">🔒</text>
+
+    <!-- bottom nav -->
+    <rect x="0" y="740" width="375" height="72" fill="#FFFFFF"/>
+    <line x1="0" y1="740" x2="375" y2="740" stroke="#E2E8F0" stroke-width="1"/>
+    <g text-anchor="middle">
+      <text x="47" y="772" font-size="20">🏠</text><text x="47" y="792" font-size="10" font-weight="700" fill="#22C55E">首页</text>
+      <text x="141" y="772" font-size="20" opacity="0.4">📚</text><text x="141" y="792" font-size="10" fill="#94A3B8">学习</text>
+      <text x="235" y="772" font-size="20" opacity="0.4">🎙</text><text x="235" y="792" font-size="10" fill="#94A3B8">口语</text>
+      <text x="329" y="772" font-size="20" opacity="0.4">👤</text><text x="329" y="792" font-size="10" fill="#94A3B8">我的</text>
+    </g>
+  </g>
+  <rect x="0.5" y="0.5" width="374" height="811" rx="40" fill="none" stroke="#CBD5E1" stroke-width="1"/>
+</svg>

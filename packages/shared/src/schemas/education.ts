@@ -153,6 +153,18 @@ export const englishClassAttendanceSchema = z.object({
   present_enrollment_ids: z.array(uuidField)
 });
 
+export const courseDesignTaskStatus = z.enum(["todo", "doing", "review", "done"]);
+
+export const courseDesignTaskCreateSchema = z.object({
+  title: z.string().trim().min(1),
+  owner: z.string().trim().min(1).optional(),
+  status: courseDesignTaskStatus.optional(),
+  deliverable: z.string().trim().min(1).nullable().optional(),
+  sort_order: z.number().int().optional()
+});
+
+export const courseDesignTaskUpdateSchema = courseDesignTaskCreateSchema.partial();
+
 export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
 export type TeacherCreateInput = z.infer<typeof teacherCreateSchema>;
@@ -177,3 +189,5 @@ export type EnglishClassUpdateInput = z.infer<typeof englishClassUpdateSchema>;
 export type EnglishEnrollmentCreateInput = z.infer<typeof englishEnrollmentCreateSchema>;
 export type EnglishAttendanceMarkInput = z.infer<typeof englishAttendanceMarkSchema>;
 export type EnglishClassAttendanceInput = z.infer<typeof englishClassAttendanceSchema>;
+export type CourseDesignTaskCreateInput = z.infer<typeof courseDesignTaskCreateSchema>;
+export type CourseDesignTaskUpdateInput = z.infer<typeof courseDesignTaskUpdateSchema>;

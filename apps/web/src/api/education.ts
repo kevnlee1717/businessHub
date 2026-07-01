@@ -1,4 +1,6 @@
 import {
+  type CourseDesignTaskCreateInput,
+  type CourseDesignTaskUpdateInput,
   type DiplomaCourseCreateInput,
   type DiplomaCourseUpdateInput,
   type DiplomaProgramCreateInput,
@@ -309,6 +311,19 @@ export type EnglishAttendance = {
 export type EnglishAttendanceSummary = {
   total_sessions: number;
   attended_sessions: number;
+};
+
+export type CourseDesignTaskStatus = "todo" | "doing" | "review" | "done";
+
+export type CourseDesignTask = {
+  id: string;
+  title: string;
+  owner: string;
+  status: CourseDesignTaskStatus;
+  deliverable?: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type EnglishClassListParams = {
@@ -658,6 +673,33 @@ export function updateEnglishLevel(
   return api<{ level: EnglishLevel }>(`/english-levels/${id}`, {
     method: "PATCH",
     body
+  });
+}
+
+export function listCourseDesignTasks(): Promise<{ tasks: CourseDesignTask[] }> {
+  return api<{ tasks: CourseDesignTask[] }>("/course-design-tasks");
+}
+
+export function createCourseDesignTask(body: CourseDesignTaskCreateInput): Promise<{ task: CourseDesignTask }> {
+  return api<{ task: CourseDesignTask }>("/course-design-tasks", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateCourseDesignTask(
+  id: string,
+  body: CourseDesignTaskUpdateInput
+): Promise<{ task: CourseDesignTask }> {
+  return api<{ task: CourseDesignTask }>(`/course-design-tasks/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteCourseDesignTask(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/course-design-tasks/${id}`, {
+    method: "DELETE"
   });
 }
 

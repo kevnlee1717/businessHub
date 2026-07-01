@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" font-family="-apple-system, 'PingFang SC', 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <clipPath id="frame"><rect x="0" y="0" width="375" height="812" rx="40"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect x="0" y="0" width="375" height="812" fill="#F1F5F9"/>
+
+    <!-- status bar -->
+    <text x="24" y="30" font-size="14" font-weight="700" fill="#0F172A">9:41</text>
+    <g fill="#0F172A"><rect x="316" y="20" width="18" height="11" rx="2"/><rect x="337" y="22" width="2" height="7" rx="1"/><circle cx="300" cy="26" r="2.5"/><circle cx="292" cy="26" r="2.5"/><circle cx="284" cy="26" r="2.5"/></g>
+
+    <!-- confetti -->
+    <rect x="48" y="70" width="10" height="10" rx="2" fill="#22C55E" transform="rotate(20 53 75)"/>
+    <rect x="316" y="86" width="9" height="9" rx="2" fill="#F59E0B" transform="rotate(-25 320 90)"/>
+    <rect x="90" y="120" width="8" height="8" rx="2" fill="#6366F1" transform="rotate(35 94 124)"/>
+    <rect x="290" y="140" width="10" height="10" rx="2" fill="#8B5CF6" transform="rotate(15 295 145)"/>
+    <rect x="30" y="150" width="8" height="8" rx="2" fill="#EF4444" transform="rotate(-15 34 154)"/>
+    <rect x="340" y="180" width="9" height="9" rx="2" fill="#22C55E" transform="rotate(30 344 184)"/>
+    <rect x="26" y="220" width="9" height="9" rx="2" fill="#F59E0B" transform="rotate(25 30 224)"/>
+
+    <!-- close -->
+    <text x="30" y="66" font-size="22" fill="#94A3B8">✕</text>
+
+    <!-- title -->
+    <text x="187" y="132" font-size="22" font-weight="800" fill="#0F172A" text-anchor="middle">🎉 今日任务完成！</text>
+    <text x="187" y="158" font-size="13" fill="#64748B" text-anchor="middle">坚持每一天，进步看得见</text>
+
+    <!-- streak card -->
+    <rect x="20" y="180" width="335" height="170" rx="16" fill="#FFFFFF"/>
+    <text x="187" y="240" font-size="44" text-anchor="middle">🔥</text>
+    <text x="187" y="278" font-size="17" font-weight="800" fill="#0F172A" text-anchor="middle">连续 12 天</text>
+
+    <!-- week calendar -->
+    <g text-anchor="middle">
+      <!-- Mon -->
+      <circle cx="52" cy="312" r="14" fill="#DCFCE7"/><text x="52" y="317" font-size="13" fill="#16A34A">✓</text>
+      <text x="52" y="340" font-size="11" fill="#94A3B8">一</text>
+      <!-- Tue -->
+      <circle cx="97" cy="312" r="14" fill="#DCFCE7"/><text x="97" y="317" font-size="13" fill="#16A34A">✓</text>
+      <text x="97" y="340" font-size="11" fill="#94A3B8">二</text>
+      <!-- Wed -->
+      <circle cx="142" cy="312" r="14" fill="#DCFCE7"/><text x="142" y="317" font-size="13" fill="#16A34A">✓</text>
+      <text x="142" y="340" font-size="11" fill="#94A3B8">三</text>
+      <!-- Thu -->
+      <circle cx="187" cy="312" r="14" fill="#DCFCE7"/><text x="187" y="317" font-size="13" fill="#16A34A">✓</text>
+      <text x="187" y="340" font-size="11" fill="#94A3B8">四</text>
+      <!-- Fri -->
+      <circle cx="232" cy="312" r="14" fill="#DCFCE7"/><text x="232" y="317" font-size="13" fill="#16A34A">✓</text>
+      <text x="232" y="340" font-size="11" fill="#94A3B8">五</text>
+      <!-- Sat today -->
+      <circle cx="277" cy="312" r="15" fill="#22C55E" stroke="#16A34A" stroke-width="2"/><text x="277" y="317" font-size="13" fill="#fff">🔥</text>
+      <text x="277" y="340" font-size="11" font-weight="700" fill="#16A34A">六</text>
+      <!-- Sun -->
+      <circle cx="322" cy="312" r="14" fill="#F1F5F9"/>
+      <text x="322" y="340" font-size="11" fill="#CBD5E1">日</text>
+    </g>
+
+    <!-- +30 XP -->
+    <text x="187" y="398" font-size="32" font-weight="800" fill="#F59E0B" text-anchor="middle">+30 XP</text>
+
+    <!-- three stat cards -->
+    <g>
+      <rect x="20" y="418" width="105" height="70" rx="14" fill="#FFFFFF"/>
+      <text x="72" y="452" font-size="20" font-weight="800" fill="#22C55E" text-anchor="middle">92%</text>
+      <text x="72" y="472" font-size="12" fill="#64748B" text-anchor="middle">正确率</text>
+
+      <rect x="135" y="418" width="105" height="70" rx="14" fill="#FFFFFF"/>
+      <text x="187" y="452" font-size="20" font-weight="800" fill="#6366F1" text-anchor="middle">14min</text>
+      <text x="187" y="472" font-size="12" fill="#64748B" text-anchor="middle">用时</text>
+
+      <rect x="250" y="418" width="105" height="70" rx="14" fill="#FFFFFF"/>
+      <text x="302" y="452" font-size="20" font-weight="800" fill="#8B5CF6" text-anchor="middle">8 词</text>
+      <text x="302" y="472" font-size="12" fill="#64748B" text-anchor="middle">新学</text>
+    </g>
+
+    <!-- achievement badge card -->
+    <rect x="20" y="504" width="335" height="76" rx="16" fill="#FEF3C7"/>
+    <circle cx="60" cy="542" r="24" fill="#FFFFFF"/>
+    <text x="60" y="550" font-size="24" text-anchor="middle">🏅</text>
+    <text x="98" y="536" font-size="13" fill="#B45309">解锁成就</text>
+    <text x="98" y="558" font-size="16" font-weight="800" fill="#B45309">一周全勤</text>
+
+    <!-- buttons -->
+    <rect x="20" y="640" width="160" height="56" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <text x="100" y="674" font-size="16" font-weight="700" fill="#64748B" text-anchor="middle">分享</text>
+    <rect x="195" y="640" width="160" height="56" rx="16" fill="#22C55E"/>
+    <text x="275" y="674" font-size="16" font-weight="800" fill="#fff" text-anchor="middle">完成</text>
+  </g>
+  <rect x="0.5" y="0.5" width="374" height="811" rx="40" fill="none" stroke="#CBD5E1" stroke-width="1"/>
+</svg>

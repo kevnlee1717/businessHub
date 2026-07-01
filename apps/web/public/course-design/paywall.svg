@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" font-family="-apple-system, 'PingFang SC', 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <clipPath id="frame"><rect x="0" y="0" width="375" height="812" rx="40"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect x="0" y="0" width="375" height="812" fill="#F1F5F9"/>
+
+    <!-- status bar -->
+    <text x="24" y="30" font-size="14" font-weight="700" fill="#0F172A">9:41</text>
+    <g fill="#0F172A"><rect x="316" y="20" width="18" height="11" rx="2"/><rect x="337" y="22" width="2" height="7" rx="1"/><circle cx="300" cy="26" r="2.5"/><circle cx="292" cy="26" r="2.5"/><circle cx="284" cy="26" r="2.5"/></g>
+
+    <!-- close -->
+    <text x="30" y="72" font-size="22" fill="#94A3B8">✕</text>
+
+    <!-- title -->
+    <text x="24" y="118" font-size="22" font-weight="800" fill="#0F172A">解锁 L2 · 日常英语 生活通</text>
+    <text x="24" y="144" font-size="14" fill="#64748B">解锁全部每日任务与 AI 功能</text>
+
+    <!-- benefits -->
+    <g font-size="14" fill="#0F172A">
+      <circle cx="32" cy="178" r="10" fill="#DCFCE7"/><path d="M27 178 l4 4 l7 -8" stroke="#16A34A" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="52" y="183">无限每日任务</text>
+      <circle cx="32" cy="210" r="10" fill="#DCFCE7"/><path d="M27 210 l4 4 l7 -8" stroke="#16A34A" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="52" y="215">AI 口语发音打分</text>
+      <circle cx="32" cy="242" r="10" fill="#DCFCE7"/><path d="M27 242 l4 4 l7 -8" stroke="#16A34A" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="52" y="247">AI 情景对话</text>
+      <circle cx="32" cy="274" r="10" fill="#DCFCE7"/><path d="M27 274 l4 4 l7 -8" stroke="#16A34A" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="52" y="279">智能错题复习</text>
+      <circle cx="32" cy="306" r="10" fill="#DCFCE7"/><path d="M27 306 l4 4 l7 -8" stroke="#16A34A" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="52" y="311">每月 1 次外教体验课</text>
+    </g>
+
+    <!-- plan: monthly -->
+    <rect x="20" y="340" width="335" height="64" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <text x="38" y="368" font-size="15" font-weight="800" fill="#0F172A">月付</text>
+    <text x="38" y="388" font-size="12" fill="#94A3B8">灵活体验</text>
+    <text x="337" y="381" font-size="17" font-weight="800" fill="#0F172A" text-anchor="end">S$88</text>
+
+    <!-- plan: quarterly -->
+    <rect x="20" y="416" width="335" height="64" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <text x="38" y="444" font-size="15" font-weight="800" fill="#0F172A">季付</text>
+    <text x="38" y="464" font-size="12" fill="#94A3B8">约 S$79 / 月</text>
+    <text x="337" y="457" font-size="17" font-weight="800" fill="#0F172A" text-anchor="end">S$238</text>
+
+    <!-- plan: yearly (selected) -->
+    <rect x="20" y="492" width="335" height="80" rx="16" fill="#FFFFFF" stroke="#22C55E" stroke-width="2.5"/>
+    <rect x="234" y="480" width="128" height="26" rx="13" fill="#FEF3C7"/>
+    <text x="298" y="497" font-size="11" font-weight="800" fill="#B45309" text-anchor="middle">省 2 个月 · 最划算</text>
+    <circle cx="40" cy="532" r="11" fill="#22C55E"/><path d="M35 532 l4 4 l7 -8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="62" y="528" font-size="15" font-weight="800" fill="#0F172A">年付</text>
+    <text x="62" y="550" font-size="12" fill="#16A34A">约 S$66 / 月 · 立省 S$268</text>
+    <text x="337" y="540" font-size="19" font-weight="800" fill="#16A34A" text-anchor="end">S$788</text>
+
+    <!-- CTA -->
+    <rect x="20" y="632" width="335" height="56" rx="28" fill="#22C55E"/>
+    <text x="187" y="666" font-size="17" font-weight="800" fill="#fff" text-anchor="middle">立即开通 · S$788/年</text>
+    <text x="187" y="708" font-size="12" fill="#94A3B8" text-anchor="middle">随时可取消，到期不自动续订可关闭</text>
+  </g>
+  <rect x="0.5" y="0.5" width="374" height="811" rx="40" fill="none" stroke="#CBD5E1" stroke-width="1"/>
+</svg>
