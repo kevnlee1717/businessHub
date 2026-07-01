@@ -34,10 +34,14 @@ import {
 } from "../../api/kiosk";
 import {
   buildVisibleSurveyDetails,
-  PropertySurveyFields,
   type PropertySurveyDetails,
 } from "../franchise/TrackingShared";
-import { propertySurveyServices } from "../franchise/propertySurvey";
+import {
+  propertySurveyServices,
+  visiblePropertySurveySections,
+  type PropertySurveyField,
+} from "../franchise/propertySurvey";
+import { KaiderLetterhead } from "./KaiderLetterhead";
 
 const interestLabels: Record<FranchiseInterestLevel, string> = {
   high: "高",
@@ -73,6 +77,28 @@ function emptyToNull(value: string) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "提交失败，请稍后重试";
+}
+
+function fieldVisible(field: PropertySurveyField, sectionValues: Record<string, string | string[]>) {
+  if (!field.showWhen) return true;
+  return sectionValues[field.showWhen.field] === field.showWhen.value;
+}
+
+function setSurveyField(
+  setDetails: React.Dispatch<React.SetStateAction<PropertySurveyDetails>>,
+  sectionKey: string,
+  fieldKey: string,
+  value: string | string[] | null
+) {
+  setDetails((current) => {
+    const section = { ...(current[sectionKey] ?? {}) };
+    if (value === null || (Array.isArray(value) && value.length === 0)) {
+      delete section[fieldKey];
+    } else {
+      section[fieldKey] = value;
+    }
+    return { ...current, [sectionKey]: section };
+  });
 }
 
 export function IpadSurveyPage() {
@@ -145,11 +171,11 @@ export function IpadSurveyPage() {
   }
 
   return (
-    <Box mih="100vh" bg="#f6f8f5" pb={120}>
+    <Box mih="100vh" bg="#f3f4f2" pb={120} c="#333">
       <Container size={1080} px={{ base: "md", sm: "xl" }} py="lg">
-        <Group justify="center" mb="lg">
-          <Image src="/founder-logo.png" alt="Kaider" w={52} h={52} fit="contain" />
-        </Group>
+        <Box bg="white" p={{ base: "md", sm: "lg" }} mb="lg">
+          <KaiderLetterhead />
+        </Box>
 
         {slidesQuery.isLoading ? (
           <Center h={360}>
@@ -175,12 +201,12 @@ export function IpadSurveyPage() {
         bottom={0}
         left={0}
         right={0}
-        bg="rgba(255, 255, 255, 0.96)"
+        bg="rgba(255, 255, 255, 0.97)"
         p="md"
         style={{ borderTop: "1px solid #dfe8dc", zIndex: 100 }}
       >
         <Container size={1080} px={0}>
-          <Button fullWidth h={82} radius="md" color="green" fz={30} fw={700} onClick={openQuestionnaire}>
+          <Button fullWidth h={82} radius="md" bg="#6aa84f" fz={30} fw={700} onClick={openQuestionnaire}>
             ＋ 添加问卷
           </Button>
         </Container>
@@ -219,28 +245,41 @@ export function IpadSurveyPage() {
       <Modal
         opened={surveyOpened}
         onClose={closeSurvey}
-        title={<Text fw={700} fz={28}>物业服务需求表</Text>}
         fullScreen
-        padding="xl"
+        withCloseButton={false}
+        padding={0}
         styles={{
-          header: { borderBottom: "1px solid #e5eee4" },
-          body: { background: "#f7f9f6" },
+          header: { display: "none" },
+          body: { background: "#eceeeb", minHeight: "100vh" },
         }}
       >
         {submitted ? (
-          <Center mih="80vh">
-            <Stack align="center" gap="xl">
-              <Text fz={36} fw={700} c="green">✓ 问卷已提交，已生成拜访记录</Text>
-              <Button size="xl" color="green" onClick={finishSuccess}>完成</Button>
+          <Center mih="100vh" p="xl">
+            <Stack align="center" gap="xl" bg="white" p={48} maw={820} w="100%">
+              <KaiderLetterhead />
+              <Text fz={34} fw={700} c="#4e8a3a" ta="center">✓ 已提交 / Submitted，已生成拜访记录</Text>
+              <Button size="xl" bg="#6aa84f" onClick={finishSuccess}>完成</Button>
             </Stack>
           </Center>
         ) : (
-          <Container size={980} px={{ base: 0, sm: "md" }} py="xl">
-            <Stack gap={28}>
-              <SurveySection title="① 物业基本信息">
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+          <Container size={860} px={{ base: "md", sm: "xl" }} py="xl">
+            <Box bg="white" p={{ base: "lg", sm: 36 }} style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
+              <Stack gap={28}>
+                <KaiderLetterhead />
+
+                <Box ta="center">
+                  <Title order={1} fz={{ base: 24, sm: 26 }} fw={800} c="#333">
+                    Property Service Needs Form{" "}
+                    <Text span c="#6aa84f" inherit>物业服务需求表</Text>
+                  </Title>
+                  <Text c="#777" fz={16} mt={6}>
+                    Please tick the boxes — about 3 minutes.　请勾选，约 3 分钟完成。
+                  </Text>
+                </Box>
+
+                <PaperSection title="① Property basics 物业基本信息">
                   <Select
-                    label="物业"
+                    label={<FieldLabel en="Property name" zh="物业名称" />}
                     placeholder="搜索物业名称或地址"
                     data={properties.map((property) => ({
                       value: property.id,
@@ -253,8 +292,51 @@ export function IpadSurveyPage() {
                     size="lg"
                     rightSection={propertiesQuery.isLoading ? <Loader size="xs" /> : null}
                   />
+
+                {selectedProperty ? (
+                  <Box mt="md" p="md" style={{ border: "1px solid #d7e5d1", borderRadius: 6 }}>
+                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                      <ReadOnlyInfo label="Property name 物业名称" value={selectedProperty.name} />
+                      <ReadOnlyInfo label="Type 类型" value={propertyTypeLabels[selectedProperty.property_type] ?? selectedProperty.property_type} />
+                      <ReadOnlyInfo label="Address 地址" value={selectedProperty.address ?? "-"} />
+                    </SimpleGrid>
+                  </Box>
+                ) : null}
+                </PaperSection>
+
+                <PaperSection title="② Services you're interested in 您感兴趣的服务　(tick all that apply 可多选)">
+                <Checkbox.Group
+                  value={interestedServices}
+                  onChange={(values) => setInterestedServices(values as FranchiseService[])}
+                >
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                    {propertySurveyServices.map((service) => (
+                      <Checkbox.Card key={service.value} value={service.value} radius="sm" p="md" style={{ borderColor: "#b9d4ad" }}>
+                        <Group wrap="nowrap" align="flex-start">
+                          <Checkbox.Indicator size="xl" />
+                          <Box>
+                            <Text fw={700} fz={18}>{service.label.en}</Text>
+                            <Text c="#555" fz={17}>{service.label.zh}</Text>
+                          </Box>
+                        </Group>
+                      </Checkbox.Card>
+                    ))}
+                  </SimpleGrid>
+                </Checkbox.Group>
+                </PaperSection>
+
+                <PaperSection title="③ Details — fill only the services you ticked 按所选服务填写">
+                {interestedServices.length ? (
+                  <PaperSurveyFields services={interestedServices} details={details} setDetails={setDetails} />
+                ) : (
+                  <Text c="#777" fz={18}>Please tick services above first. 请先勾选感兴趣的服务。</Text>
+                )}
+                </PaperSection>
+
+                <PaperSection title="④ For our use 业务员填写">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
                   <Select
-                    label="业务员"
+                    label={<FieldLabel en="Salesperson" zh="业务员" />}
                     placeholder="选择业务员"
                     data={employees.map((employee) => ({ value: employee.id, label: employee.name }))}
                     value={employeeId}
@@ -264,102 +346,63 @@ export function IpadSurveyPage() {
                     size="lg"
                     rightSection={employeesQuery.isLoading ? <Loader size="xs" /> : null}
                   />
-                </SimpleGrid>
-
-                {selectedProperty ? (
-                  <Card withBorder bg="#fbfdfb" radius="md" padding="lg">
-                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-                      <ReadOnlyInfo label="物业名称" value={selectedProperty.name} />
-                      <ReadOnlyInfo label="类型" value={propertyTypeLabels[selectedProperty.property_type] ?? selectedProperty.property_type} />
-                      <ReadOnlyInfo label="地址" value={selectedProperty.address ?? "-"} />
-                    </SimpleGrid>
-                  </Card>
-                ) : null}
-              </SurveySection>
-
-              <SurveySection title="② 感兴趣的服务">
-                <Checkbox.Group
-                  value={interestedServices}
-                  onChange={(values) => setInterestedServices(values as FranchiseService[])}
-                >
-                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    {propertySurveyServices.map((service) => (
-                      <Checkbox.Card key={service.value} value={service.value} radius="md" p="lg">
-                        <Group wrap="nowrap" align="flex-start">
-                          <Checkbox.Indicator size="lg" />
-                          <Box>
-                            <Text fw={700} fz={20}>{service.label.zh}</Text>
-                            <Text c="dimmed" fz={16}>{service.label.en}</Text>
-                          </Box>
-                        </Group>
-                      </Checkbox.Card>
-                    ))}
-                  </SimpleGrid>
-                </Checkbox.Group>
-              </SurveySection>
-
-              <SurveySection title="③ 服务细项">
-                {interestedServices.length ? (
-                  <PropertySurveyFields services={interestedServices} details={details} setDetails={setDetails} />
-                ) : (
-                  <Text c="dimmed" fz={18}>请选择感兴趣的服务后填写细项。</Text>
-                )}
-              </SurveySection>
-
-              <SurveySection title="④ 业务员填写">
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
                   <TextInput
                     type="date"
-                    label="拜访日期"
+                    label={<FieldLabel en="Visit date" zh="拜访日期" />}
                     value={visitedAt}
                     onChange={(event) => setVisitedAt(event.currentTarget.value)}
                     size="lg"
                     required
                   />
-                  <Radio.Group
-                    label="意向"
-                    value={interestLevel}
-                    onChange={(value) => setInterestLevel(value as FranchiseInterestLevel)}
-                    size="lg"
-                  >
-                    <Group mt="xs">
-                      {franchiseInterestLevels.map((level) => (
-                        <Radio key={level} value={level} label={interestLabels[level]} />
-                      ))}
-                    </Group>
-                  </Radio.Group>
                 </SimpleGrid>
+                <Radio.Group
+                  label={<FieldLabel en="Interest level" zh="意向" />}
+                  value={interestLevel}
+                  onChange={(value) => setInterestLevel(value as FranchiseInterestLevel)}
+                  size="lg"
+                >
+                  <Group mt="xs" gap="xl">
+                    {franchiseInterestLevels.map((level) => (
+                      <Radio key={level} value={level} label={`${interestLabels[level]} / ${level}`} size="lg" />
+                    ))}
+                  </Group>
+                </Radio.Group>
                 <Textarea
-                  label="备注"
+                  label={<FieldLabel en="Notes" zh="备注" />}
                   value={note}
                   onChange={(event) => setNote(event.currentTarget.value)}
                   minRows={4}
                   autosize
                   size="lg"
                 />
-              </SurveySection>
+                </PaperSection>
 
-              {propertiesQuery.error || employeesQuery.error || createVisitMutation.error ? (
-                <Alert color="red" title="无法提交">
-                  {errorMessage(createVisitMutation.error ?? propertiesQuery.error ?? employeesQuery.error)}
-                </Alert>
-              ) : null}
+                <Text ta="center" c="#777" fz={13}>
+                  Kaider Management 恺德管理　Tel +65 8319 5718 · 111 N Bridge Rd #24-05B, Singapore 179098
+                </Text>
 
-              <Group justify="flex-end" gap="md">
-                <Button variant="default" size="lg" onClick={closeSurvey}>
-                  取消
-                </Button>
-                <Button
-                  color="green"
-                  size="lg"
-                  disabled={!canSubmit}
-                  loading={createVisitMutation.isPending}
-                  onClick={() => createVisitMutation.mutate()}
-                >
-                  提交问卷
-                </Button>
-              </Group>
-            </Stack>
+                {propertiesQuery.error || employeesQuery.error || createVisitMutation.error ? (
+                  <Alert color="red" title="无法提交">
+                    {errorMessage(createVisitMutation.error ?? propertiesQuery.error ?? employeesQuery.error)}
+                  </Alert>
+                ) : null}
+
+                <Group justify="flex-end" gap="md">
+                  <Button variant="default" size="lg" onClick={closeSurvey}>
+                    取消 Cancel
+                  </Button>
+                  <Button
+                    bg="#6aa84f"
+                    size="lg"
+                    disabled={!canSubmit}
+                    loading={createVisitMutation.isPending}
+                    onClick={() => createVisitMutation.mutate()}
+                  >
+                    提交问卷 Submit
+                  </Button>
+                </Group>
+              </Stack>
+            </Box>
           </Container>
         )}
       </Modal>
@@ -386,16 +429,132 @@ function SlideCard({ slide, onOpen }: { slide: KioskSlide; onOpen: () => void })
   );
 }
 
-function SurveySection({ title, children }: { title: string; children: React.ReactNode }) {
+function PaperSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card withBorder radius="md" padding="xl" bg="white">
-      <Stack gap="lg">
-        <Title order={2} fz={{ base: 24, sm: 28 }}>
-          {title}
-        </Title>
-        {children}
-      </Stack>
-    </Card>
+    <Box>
+      <SectionBar>{title}</SectionBar>
+      <Box mt="md">
+        <Stack gap="lg">{children}</Stack>
+      </Box>
+    </Box>
+  );
+}
+
+function SectionBar({ children }: { children: React.ReactNode }) {
+  return (
+    <Box bg="#6aa84f" c="white" fw={800} fz={19} px={16} py={10} style={{ borderRadius: 6 }}>
+      {children}
+    </Box>
+  );
+}
+
+function FieldLabel({ en, zh }: { en: string; zh: string }) {
+  return (
+    <Text span fz={17} c="#333">
+      <Text span fw={800}>{en}</Text>{" "}
+      <Text span fw={400}>{zh}</Text>
+    </Text>
+  );
+}
+
+function PaperSurveyFields({
+  services,
+  details,
+  setDetails
+}: {
+  services: FranchiseService[];
+  details: PropertySurveyDetails;
+  setDetails: React.Dispatch<React.SetStateAction<PropertySurveyDetails>>;
+}) {
+  return (
+    <Stack gap={24}>
+      {visiblePropertySurveySections(services).map((section) => {
+        const sectionValues = details[section.key] ?? {};
+        return (
+          <Box key={section.key}>
+            <Text fw={800} fz={18} c="#4e8a3a" mb="md">
+              {section.title.en} {section.title.zh}
+            </Text>
+            <Stack gap="lg">
+              {section.fields.filter((field) => fieldVisible(field, sectionValues)).map((field) => (
+                <PaperSurveyQuestion
+                  key={field.key}
+                  sectionKey={section.key}
+                  field={field}
+                  value={sectionValues[field.key]}
+                  setDetails={setDetails}
+                />
+              ))}
+            </Stack>
+          </Box>
+        );
+      })}
+    </Stack>
+  );
+}
+
+function PaperSurveyQuestion({
+  sectionKey,
+  field,
+  value,
+  setDetails
+}: {
+  sectionKey: string;
+  field: PropertySurveyField;
+  value: string | string[] | undefined;
+  setDetails: React.Dispatch<React.SetStateAction<PropertySurveyDetails>>;
+}) {
+  return (
+    <Box pb="md" style={{ borderBottom: "1px solid #dfe8dc" }}>
+      <Text fz={17} mb="sm" c="#333">
+        <Text span fw={800}>{field.label.en}</Text>{" "}
+        <Text span>{field.label.zh}</Text>
+      </Text>
+      {field.type === "multi" ? (
+        <Checkbox.Group
+          value={(value as string[] | undefined) ?? []}
+          onChange={(next) => setSurveyField(setDetails, sectionKey, field.key, next)}
+        >
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+            {field.options.map((option) => (
+              <Checkbox
+                key={option.value}
+                value={option.value}
+                size="lg"
+                label={<OptionLabel en={option.label.en} zh={option.label.zh} />}
+                styles={{ body: { alignItems: "center" }, labelWrapper: { width: "100%" } }}
+              />
+            ))}
+          </SimpleGrid>
+        </Checkbox.Group>
+      ) : (
+        <Radio.Group
+          value={(value as string | undefined) ?? ""}
+          onChange={(next) => setSurveyField(setDetails, sectionKey, field.key, next || null)}
+        >
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+            {field.options.map((option) => (
+              <Radio
+                key={option.value}
+                value={option.value}
+                size="lg"
+                label={<OptionLabel en={option.label.en} zh={option.label.zh} />}
+                styles={{ body: { alignItems: "center" }, labelWrapper: { width: "100%" } }}
+              />
+            ))}
+          </SimpleGrid>
+        </Radio.Group>
+      )}
+    </Box>
+  );
+}
+
+function OptionLabel({ en, zh }: { en: string; zh: string }) {
+  return (
+    <Text fz={16} c="#333">
+      <Text span fw={700}>{en}</Text>{" "}
+      <Text span>{zh}</Text>
+    </Text>
   );
 }
 
