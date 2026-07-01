@@ -746,11 +746,18 @@
     "empty": "暂无提交记录",
     "hint": "ICA 失败一般3个月后重提，这里记录每次提交/拒绝时间。",
     "markResult": "标记结果",
+    "daysSince": "距今 {{count}} 天",
     "fields": {
       "submittedAt": "提交时间",
       "result": "结果",
       "rejectedAt": "拒绝时间",
-      "note": "备注"
+      "note": "备注",
+      "screenshot": "提交截图",
+      "screenshotHint": "提交时的系统截图(图片)",
+      "appeal": "申诉信",
+      "appealHint": "本次提交的申诉信(PDF / Word 等)",
+      "attachments": "附件",
+      "attachmentsHint": "本次提交的其它材料,可多选"
     }
   },
   "caseSubmissionResult": {
@@ -1904,8 +1911,12 @@
     "title": "收款计划",
     "collect": "收款",
     "editExpected": "编辑应收",
-    "addEvent": "加一笔事件收入",
+    "addEvent": "添加收款项",
     "empty": "暂无收款计划",
+    "createPlan": "创建收款计划",
+    "createPlanHint": "为本案件创建一张账单,创建后即可逐笔添加收款项。",
+    "noPlanHint": "本案件尚未创建收款计划,点击右上角「创建收款计划」开始。",
+    "notFound": "本案件尚未创建收款计划。",
     "expected": "应收",
     "collected": "已收",
     "outstanding": "未收",
@@ -1921,7 +1932,9 @@
       "dueDate": "应收日",
       "paidAmount": "收款金额",
       "paidAt": "收款时间",
-      "period": "期间"
+      "period": "期间",
+      "totalPrice": "合同总额 (SGD)",
+      "deposit": "订金 (SGD)"
     }
   },
   "receivablesLedger": {

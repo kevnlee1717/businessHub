@@ -746,11 +746,18 @@
     "empty": "No submissions yet",
     "hint": "ICA failures are usually resubmitted after 3 months. Record each submission and rejection time here.",
     "markResult": "Mark result",
+    "daysSince": "{{count}} days ago",
     "fields": {
       "submittedAt": "Submitted at",
       "result": "Result",
       "rejectedAt": "Rejected at",
-      "note": "Note"
+      "note": "Note",
+      "screenshot": "Submission screenshot",
+      "screenshotHint": "Screenshot taken at submission (image)",
+      "appeal": "Appeal letter",
+      "appealHint": "Appeal letter for this submission (PDF / Word, etc.)",
+      "attachments": "Attachments",
+      "attachmentsHint": "Other materials submitted, multiple allowed"
     }
   },
   "caseSubmissionResult": {
@@ -1904,8 +1911,12 @@
     "title": "Collection Schedule",
     "collect": "Collect",
     "editExpected": "Edit expected",
-    "addEvent": "Add event income",
+    "addEvent": "Add charge",
     "empty": "No scheduled charges yet",
+    "createPlan": "Create collection plan",
+    "createPlanHint": "Create a billing for this case; once created you can add charges one by one.",
+    "noPlanHint": "No collection plan for this case yet. Click \"Create collection plan\" in the top right to start.",
+    "notFound": "No collection plan for this case yet.",
     "expected": "Expected",
     "collected": "Collected",
     "outstanding": "Outstanding",
@@ -1921,7 +1932,9 @@
       "dueDate": "Due date",
       "paidAmount": "Paid amount",
       "paidAt": "Paid at",
-      "period": "Period"
+      "period": "Period",
+      "totalPrice": "Total price (SGD)",
+      "deposit": "Deposit (SGD)"
     }
   },
   "receivablesLedger": {

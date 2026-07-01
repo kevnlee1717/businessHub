@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Alert,
+  Anchor,
   Badge,
   Box,
   Button,
   Checkbox,
   FileInput,
   Group,
+  Image,
   Loader,
   Modal,
   Paper,
@@ -55,8 +57,10 @@ import {
   updateCaseStep,
   updateSubmission,
   uploadCaseStepDoc,
+  uploadSubmissionFiles,
   type Case,
   type CaseSubmission,
+  type SubmissionFile,
   type CaseStep,
   type CaseStepDoc,
   type Client,
@@ -177,6 +181,22 @@ function submissionResultColor(result: CaseSubmissionResult) {
     default:
       return "gray";
   }
+}
+
+// 距今天数(向下取整),用于显示"这次提交距离现在几天了"
+function daysSince(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) {
+    return null;
+  }
+  return Math.max(0, Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24)));
+}
+
+function isImageFile(file: SubmissionFile) {
+  return file.mime?.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.filename);
 }
 
 function docStatusColor(status: CaseStepDocStatus) {
@@ -1059,9 +1079,11 @@ function GuarantorSection({ caseItem, guarantor, guarantors, canManageCases }: G
               clearable
               w={360}
             />
-            <Button onClick={saveGuarantor} loading={updateGuarantorMutation.isPending}>
-              {t("guarantor.saveToCase")}
-            </Button>
+            {guarantorDraft !== (caseItem.guarantor_id ?? null) ? (
+              <Button onClick={saveGuarantor} loading={updateGuarantorMutation.isPending}>
+                {t("guarantor.saveToCase")}
+              </Button>
+            ) : null}
           </Group>
         ) : null}
       </Stack>
@@ -1209,6 +1231,63 @@ function DpChildrenSection({ parentCaseId, children, clients, canManageCases }: 
   );
 }
 
+function SubmissionFileLink({ file }: { file: SubmissionFile }) {
+  return (
+    <Anchor href={fileUrl(file.storage_path)} target="_blank" rel="noreferrer" size="sm">
+      {file.filename}
+    </Anchor>
+  );
+}
+
+// 卡片里预览本次提交的 截图 / 申诉信 / 附件
+function SubmissionFiles({ submission }: { submission: CaseSubmission }) {
+  const { t } = useTranslation();
+  const screenshot = submission.screenshot_document ?? null;
+  const appeal = submission.appeal_document ?? null;
+  const attachments = submission.attachment_documents ?? [];
+
+  if (!screenshot && !appeal && attachments.length === 0) {
+    return null;
+  }
+
+  return (
+    <Group gap="lg" align="flex-start" wrap="wrap">
+      {screenshot ? (
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed">
+            {t("caseSubmission.fields.screenshot")}
+          </Text>
+          {isImageFile(screenshot) ? (
+            <Anchor href={fileUrl(screenshot.storage_path)} target="_blank" rel="noreferrer">
+              <Image src={fileUrl(screenshot.storage_path)} alt={screenshot.filename} w={120} h={120} fit="cover" radius="sm" />
+            </Anchor>
+          ) : (
+            <SubmissionFileLink file={screenshot} />
+          )}
+        </Stack>
+      ) : null}
+      {appeal ? (
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed">
+            {t("caseSubmission.fields.appeal")}
+          </Text>
+          <SubmissionFileLink file={appeal} />
+        </Stack>
+      ) : null}
+      {attachments.length > 0 ? (
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed">
+            {t("caseSubmission.fields.attachments")}
+          </Text>
+          {attachments.map((file) => (
+            <SubmissionFileLink key={file.id} file={file} />
+          ))}
+        </Stack>
+      ) : null}
+    </Group>
+  );
+}
+
 type SubmissionTimelineProps = {
   caseId: string;
   submissions: CaseSubmission[];
@@ -1221,21 +1300,36 @@ function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionT
   const [createOpened, setCreateOpened] = useState(false);
   const [submittedAt, setSubmittedAt] = useState(toDateTimeLocalValue(new Date().toISOString()));
   const [note, setNote] = useState("");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [appealFile, setAppealFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resultDraft, setResultDraft] = useState<CaseSubmissionResult>("pending");
   const [rejectedAtDraft, setRejectedAtDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createSubmission(caseId, {
+    mutationFn: async () => {
+      const { submission } = await createSubmission(caseId, {
         submitted_at: toIsoDateTime(submittedAt),
         note: note.trim() ? note.trim() : null
-      }),
+      });
+      if (screenshotFile || appealFile || attachmentFiles.length > 0) {
+        await uploadSubmissionFiles(submission.id, {
+          screenshot: screenshotFile,
+          appeal: appealFile,
+          attachments: attachmentFiles
+        });
+      }
+      return submission;
+    },
     onSuccess: async () => {
       setCreateOpened(false);
       setSubmittedAt(toDateTimeLocalValue(new Date().toISOString()));
       setNote("");
+      setScreenshotFile(null);
+      setAppealFile(null);
+      setAttachmentFiles([]);
       await queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] });
     }
   });
@@ -1313,6 +1407,11 @@ function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionT
                           {t(`caseSubmissionResult.${submission.result}`)}
                         </Badge>
                         <Text fw={500}>{formatDateTime(submission.submitted_at)}</Text>
+                        {daysSince(submission.submitted_at) !== null ? (
+                          <Badge color="gray" variant="outline">
+                            {t("caseSubmission.daysSince", { count: daysSince(submission.submitted_at) ?? 0 })}
+                          </Badge>
+                        ) : null}
                       </Group>
                       {submission.rejected_at ? (
                         <Text size="sm" c="dimmed">
@@ -1327,6 +1426,7 @@ function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionT
                       </Button>
                     ) : null}
                   </Group>
+                  <SubmissionFiles submission={submission} />
                   {editingId === submission.id ? (
                     <Group align="flex-end">
                       <Select
@@ -1370,6 +1470,29 @@ function SubmissionTimeline({ caseId, submissions, canManageCases }: SubmissionT
             label={t("caseSubmission.fields.note")}
             value={note}
             onChange={(event) => setNote(event.currentTarget.value)}
+          />
+          <FileInput
+            label={t("caseSubmission.fields.screenshot")}
+            description={t("caseSubmission.fields.screenshotHint")}
+            accept="image/*"
+            value={screenshotFile}
+            onChange={setScreenshotFile}
+            clearable
+          />
+          <FileInput
+            label={t("caseSubmission.fields.appeal")}
+            description={t("caseSubmission.fields.appealHint")}
+            value={appealFile}
+            onChange={setAppealFile}
+            clearable
+          />
+          <FileInput
+            label={t("caseSubmission.fields.attachments")}
+            description={t("caseSubmission.fields.attachmentsHint")}
+            value={attachmentFiles}
+            onChange={setAttachmentFiles}
+            multiple
+            clearable
           />
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setCreateOpened(false)}>
@@ -1738,9 +1861,11 @@ export function CaseDetailPage() {
                     value={signedAtDraft ?? ""}
                     onChange={(event) => setSignedAtDraft(event.currentTarget.value || null)}
                   />
-                  <Button onClick={updateStatus} loading={updateCaseMutation.isPending}>
-                    {t("case.updateStatus")}
-                  </Button>
+                  {statusDraft !== caseItem.status || signedAtDraft !== (caseItem.signed_at ?? null) ? (
+                    <Button onClick={updateStatus} loading={updateCaseMutation.isPending}>
+                      {t("case.updateStatus")}
+                    </Button>
+                  ) : null}
                 </Group>
               </Group>
             </Stack>
@@ -1776,7 +1901,12 @@ export function CaseDetailPage() {
           {/* 收款计划:始终挂载(用于加载 charges 供步骤卡使用),未选中时隐藏 */}
           {caseItem.business_type === "ep" || caseItem.business_type === "ica" ? (
             <div style={{ display: effectiveSelected === "charges" ? undefined : "none" }}>
-              <ChargeSchedulePanel caseId={caseItem.id} onChargesLoaded={handleChargesLoaded} />
+              <ChargeSchedulePanel
+                billingId={caseItem.billing_id ?? null}
+                caseId={caseItem.id}
+                caseBusinessType={caseItem.business_type}
+                onChargesLoaded={handleChargesLoaded}
+              />
             </div>
           ) : null}
 

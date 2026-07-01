@@ -34,7 +34,7 @@ import { z } from "zod";
 import { getTranslations, saveTranslation, type TranslationValue } from "../lib/translationStore";
 import { ctxCan, getVisibleCaseIds, loadAuthContext } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
-import { saveUpload } from "../lib/files";
+import { deleteUpload, saveUpload } from "../lib/files";
 import { getPagination, paginationQuery } from "../lib/pagination";
 import { refreshBillingCharges } from "./billing";
 import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
@@ -91,7 +91,16 @@ function serializeGuarantor(row: typeof guarantors.$inferSelect) {
   };
 }
 
-function serializeSubmission(row: typeof caseSubmissions.$inferSelect) {
+type SubmissionFile = Pick<typeof documents.$inferSelect, "id" | "filename" | "storagePath" | "mime">;
+
+function serializeSubmissionFile(file?: SubmissionFile | null) {
+  return file ? { id: file.id, filename: file.filename, storage_path: file.storagePath, mime: file.mime } : null;
+}
+
+function serializeSubmission(
+  row: typeof caseSubmissions.$inferSelect,
+  filesById: Map<string, SubmissionFile> = new Map()
+) {
   return {
     id: row.id,
     case_id: row.caseId,
@@ -99,8 +108,39 @@ function serializeSubmission(row: typeof caseSubmissions.$inferSelect) {
     result: row.result,
     rejected_at: row.rejectedAt,
     note: row.note,
+    screenshot_document: serializeSubmissionFile(row.screenshotDocumentId ? filesById.get(row.screenshotDocumentId) : null),
+    appeal_document: serializeSubmissionFile(row.appealDocumentId ? filesById.get(row.appealDocumentId) : null),
+    attachment_documents: row.attachmentDocumentIds
+      .map((documentId) => serializeSubmissionFile(filesById.get(documentId)))
+      .filter((file): file is NonNullable<typeof file> => Boolean(file)),
     created_at: row.createdAt
   };
+}
+
+async function getSubmissionFilesById(submissionRows: (typeof caseSubmissions.$inferSelect)[]) {
+  const documentIds = [
+    ...new Set(
+      submissionRows.flatMap((row) => [
+        ...(row.screenshotDocumentId ? [row.screenshotDocumentId] : []),
+        ...(row.appealDocumentId ? [row.appealDocumentId] : []),
+        ...row.attachmentDocumentIds
+      ])
+    )
+  ];
+  const fileRows =
+    documentIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: documents.id,
+            filename: documents.filename,
+            storagePath: documents.storagePath,
+            mime: documents.mime
+          })
+          .from(documents)
+          .where(inArray(documents.id, documentIds));
+
+  return new Map(fileRows.map((file) => [file.id, file]));
 }
 
 function getSlotDocumentIds(row: typeof caseStepDocuments.$inferSelect) {
@@ -562,6 +602,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       .from(caseSubmissions)
       .where(eq(caseSubmissions.caseId, id))
       .orderBy(desc(caseSubmissions.createdAt));
+    const submissionFilesById = await getSubmissionFilesById(submissionRows);
 
     return {
       case: serializeCase(caseRow),
@@ -586,7 +627,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       })),
       children: childRows.map(serializeCase),
       guarantor: guarantorRow ? serializeGuarantor(guarantorRow) : null,
-      submissions: submissionRows.map(serializeSubmission)
+      submissions: submissionRows.map((submission) => serializeSubmission(submission, submissionFilesById))
     };
   });
 
@@ -776,8 +817,9 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       .from(caseSubmissions)
       .where(eq(caseSubmissions.caseId, id))
       .orderBy(desc(caseSubmissions.createdAt));
+    const submissionFilesById = await getSubmissionFilesById(submissionRows);
 
-    return { submissions: submissionRows.map(serializeSubmission) };
+    return { submissions: submissionRows.map((submission) => serializeSubmission(submission, submissionFilesById)) };
   });
 
   app.patch("/case-submissions/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
@@ -799,7 +841,89 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       return sendNotFound(reply);
     }
 
-    return { submission: serializeSubmission(submission) };
+    const filesById = await getSubmissionFilesById([submission]);
+    return { submission: serializeSubmission(submission, filesById) };
+  });
+
+  // 给某次提交记录上传文件:fieldname 决定槽位 —— screenshot(截图,单图)/ appeal(申诉信,单文件)/ attachment(附件,可多)
+  app.post("/case-submissions/:id/files", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [submission] = await db.select().from(caseSubmissions).where(eq(caseSubmissions.id, id)).limit(1);
+
+    if (!submission) {
+      return sendNotFound(reply);
+    }
+
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, submission.caseId)).limit(1);
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    let screenshotDocumentId = submission.screenshotDocumentId;
+    let appealDocumentId = submission.appealDocumentId;
+    const attachmentDocumentIds = [...submission.attachmentDocumentIds];
+    const replacedDocumentIds: string[] = [];
+    let uploadedAny = false;
+
+    for await (const part of request.parts()) {
+      if (part.type !== "file") {
+        continue;
+      }
+
+      const document = await saveUpload(part, {
+        subjectType: "case_submission",
+        subjectId: submission.id,
+        clientId: caseRow.clientId ?? null,
+        uploadedBy: request.user.id
+      });
+      if (!document) {
+        throw new Error("case_submission_file_upload_failed");
+      }
+      uploadedAny = true;
+
+      if (part.fieldname === "screenshot") {
+        if (screenshotDocumentId) {
+          replacedDocumentIds.push(screenshotDocumentId);
+        }
+        screenshotDocumentId = document.id;
+      } else if (part.fieldname === "appeal") {
+        if (appealDocumentId) {
+          replacedDocumentIds.push(appealDocumentId);
+        }
+        appealDocumentId = document.id;
+      } else {
+        attachmentDocumentIds.push(document.id);
+      }
+    }
+
+    if (!uploadedAny) {
+      return reply.code(400).send({ error: "file_required" });
+    }
+
+    const [updated] = await db
+      .update(caseSubmissions)
+      .set({ screenshotDocumentId, appealDocumentId, attachmentDocumentIds })
+      .where(eq(caseSubmissions.id, id))
+      .returning();
+
+    if (!updated) {
+      return sendNotFound(reply);
+    }
+
+    // 删除被替换掉的旧截图/申诉信文件,避免遗留孤儿
+    if (replacedDocumentIds.length > 0) {
+      const oldRows = await db
+        .select({ id: documents.id, storagePath: documents.storagePath })
+        .from(documents)
+        .where(inArray(documents.id, replacedDocumentIds));
+      for (const oldRow of oldRows) {
+        await deleteUpload(oldRow.storagePath);
+      }
+      await db.delete(documents).where(inArray(documents.id, replacedDocumentIds));
+    }
+
+    const filesById = await getSubmissionFilesById([updated]);
+    return { submission: serializeSubmission(updated, filesById) };
   });
 
   app.patch("/case-steps/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
