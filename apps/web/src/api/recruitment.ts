@@ -26,6 +26,7 @@ export const recruitmentKeys = {
   campaign: (id: string) => ["recruitment", "campaign", id] as const,
   candidates: (params?: unknown) => ["recruitment", "candidates", params] as const,
   candidate: (id: string) => ["recruitment", "candidate", id] as const,
+  upcomingInterviews: () => ["recruitment", "interviews", "upcoming"] as const,
   settings: () => ["recruitment", "settings"] as const
 };
 
@@ -164,6 +165,7 @@ export type RecruitmentCandidate = {
   reusable_note?: string | null;
   last_contacted_at?: string | null;
   notes?: string | null;
+  interview_count?: number;
   created_at: string;
   updated_at: string;
 };
@@ -193,6 +195,22 @@ export type RecruitmentInterview = {
   notes?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type UpcomingInterview = {
+  id: string;
+  scheduled_at: string;
+  mode: string;
+  interviewer_id?: string | null;
+  interviewer_name?: string | null;
+  candidate: {
+    id: string;
+    name: string;
+    phone: string;
+    intended_job_id?: string | null;
+    source_type: RecruitmentSourceType;
+    company_id: string;
+  };
 };
 
 export type RecruitmentSettings = {
@@ -343,6 +361,8 @@ export const createRecruitmentInterview = (body: unknown) =>
   api<{ interview: RecruitmentInterview }>("/recruitment/interviews", { method: "POST", body });
 export const updateRecruitmentInterview = (id: string, body: unknown) =>
   api<{ interview: RecruitmentInterview }>(`/recruitment/interviews/${id}`, { method: "PATCH", body });
+export const listUpcomingInterviews = () =>
+  api<{ interviews: UpcomingInterview[] }>("/recruitment/interviews/upcoming");
 
 export const listRecruitmentSettings = () =>
   api<{ settings: RecruitmentSettings[] }>("/recruitment/settings");

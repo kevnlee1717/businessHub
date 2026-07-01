@@ -2203,6 +2203,7 @@
       "postings": "Postings",
       "campaigns": "Campaigns",
       "candidates": "Candidates",
+      "upcoming": "Upcoming",
       "talentPool": "Talent Pool",
       "capture": "Capture",
       "settings": "Settings"
@@ -2277,6 +2278,8 @@
       "scheduledAt": "Scheduled at",
       "mode": "Mode",
       "interviewer": "Interviewer",
+      "result": "Result",
+      "rating": "Rating",
       "date": "Date",
       "active": "Active"
     },
@@ -2311,6 +2314,8 @@
       "add": "Add candidate",
       "all": "All",
       "overdue": "Overdue",
+      "scheduleFilter": "Interview",
+      "unscheduled": "Not scheduled",
       "noResume": "No resume"
     },
     "ethnicity": {
@@ -2336,6 +2341,9 @@
     "interviews": {
       "title": "Interviews",
       "add": "New interview"
+    },
+    "upcoming": {
+      "title": "Upcoming interviews"
     },
     "capture": {
       "title": "Quick capture",

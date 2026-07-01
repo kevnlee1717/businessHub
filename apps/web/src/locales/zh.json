@@ -2203,6 +2203,7 @@
       "postings": "线上发布",
       "campaigns": "线下活动",
       "candidates": "候选人",
+      "upcoming": "未来预约",
       "talentPool": "人才库",
       "capture": "现场登记",
       "settings": "设置"
@@ -2277,6 +2278,8 @@
       "scheduledAt": "面试时间",
       "mode": "方式",
       "interviewer": "面试官",
+      "result": "结果",
+      "rating": "评分",
       "date": "日期",
       "active": "启用"
     },
@@ -2311,6 +2314,8 @@
       "add": "添加候选人",
       "all": "全部",
       "overdue": "待跟进",
+      "scheduleFilter": "面试",
+      "unscheduled": "未约面试",
       "noResume": "无简历"
     },
     "ethnicity": {
@@ -2336,6 +2341,9 @@
     "interviews": {
       "title": "面试记录",
       "add": "新增面试"
+    },
+    "upcoming": {
+      "title": "未来面试预约"
     },
     "capture": {
       "title": "现场登记",
