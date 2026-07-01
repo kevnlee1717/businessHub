@@ -425,11 +425,8 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
                   width: "100%",
                   height: "100%",
                   scrollSnapAlign: "center",
-                  // 图片按宽度铺满两边;竖版页在横屏会比屏幕高,该页内可纵向滚动看全,横向仍翻页
-                  display: "block",
-                  overflowX: "hidden",
-                  overflowY: "auto",
-                  WebkitOverflowScrolling: "touch",
+                  // 每页图片正好铺满整屏(不管比例):无上下溢出,避免纵向滚动抢走左右翻页手势
+                  overflow: "hidden",
                   position: "relative",
                 }}
               >
@@ -440,7 +437,8 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
                     style={{
                       display: "block",
                       width: "100%",
-                      height: "auto",
+                      height: "100%",
+                      objectFit: "fill",
                     }}
                   />
                 ) : (
