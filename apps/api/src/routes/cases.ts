@@ -1,4 +1,7 @@
 import {
+  billing,
+  billingCharges,
+  caseServices,
   caseStepDocuments,
   caseSteps,
   caseSubmissions,
@@ -7,6 +10,10 @@ import {
   documents,
   followUps,
   guarantors,
+  packageItems,
+  packageMilestones,
+  serviceItems,
+  servicePackages,
   stepReviews,
   templateSteps
 } from "@bh/db";
@@ -37,7 +44,12 @@ import { requirePerm } from "../auth/jwt";
 import { deleteUpload, saveUpload } from "../lib/files";
 import { getPagination, paginationQuery } from "../lib/pagination";
 import { refreshBillingCharges } from "./billing";
-import { idParamsSchema, parseWithSchema, sendNotFound } from "./hrUtils";
+import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type CaseCreateTransactionResult =
+  | { caseRow: typeof cases.$inferSelect; stepRows: (typeof caseSteps.$inferSelect)[] }
+  | { error: "package_not_found" | "billing_not_found" };
 
 function serializeCase(row: typeof cases.$inferSelect) {
   return {
@@ -48,6 +60,7 @@ function serializeCase(row: typeof cases.$inferSelect) {
     current_step: row.currentStep,
     status: row.status,
     billing_id: row.billingId,
+    package_id: row.packageId,
     guarantor_id: row.guarantorId,
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
@@ -56,6 +69,136 @@ function serializeCase(row: typeof cases.$inferSelect) {
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
+}
+
+function inputsWithPackagePrice(
+  inputs: Record<string, unknown> | null | undefined,
+  totalPriceSgd: string
+): Record<string, unknown> {
+  return { ...(inputs ?? {}), price: Number(totalPriceSgd) };
+}
+
+async function applyPackageToCase(
+  tx: DbTransaction,
+  caseRow: typeof cases.$inferSelect,
+  stepRows: (typeof caseSteps.$inferSelect)[],
+  packageId: string
+) {
+  const [servicePackage] = await tx.select().from(servicePackages).where(eq(servicePackages.id, packageId)).limit(1);
+
+  if (!servicePackage) {
+    return { error: "package_not_found" as const };
+  }
+
+  const totalPriceSgd = toNumeric(servicePackage.basePriceSgd) ?? "0";
+  const billingId = caseRow.billingId;
+  let resolvedBillingId = billingId;
+
+  if (billingId) {
+    const [billingRow] = await tx.select().from(billing).where(eq(billing.id, billingId)).limit(1);
+
+    if (!billingRow) {
+      return { error: "billing_not_found" as const };
+    }
+
+    await tx
+      .update(billing)
+      .set({
+        totalPriceSgd,
+        schemeVersionId: null,
+        inputs: inputsWithPackagePrice(billingRow.inputs, totalPriceSgd),
+        updatedAt: new Date()
+      })
+      .where(eq(billing.id, billingId));
+  } else {
+    const [billingRow] = await tx
+      .insert(billing)
+      .values({
+        refType: "ep",
+        refId: caseRow.id,
+        totalPriceSgd,
+        depositSgd: "0",
+        status: "unpaid",
+        schemeVersionId: null,
+        inputs: inputsWithPackagePrice(null, totalPriceSgd)
+      })
+      .returning();
+
+    if (!billingRow) {
+      throw new Error("billing_create_failed");
+    }
+
+    resolvedBillingId = billingRow.id;
+  }
+
+  if (!resolvedBillingId) {
+    throw new Error("billing_resolve_failed");
+  }
+
+  await tx
+    .delete(billingCharges)
+    .where(and(eq(billingCharges.billingId, resolvedBillingId), eq(billingCharges.status, "pending")));
+
+  const stepIdByOrder = new Map(stepRows.map((step) => [step.stepOrder, step.id]));
+  const milestoneRows = await tx
+    .select()
+    .from(packageMilestones)
+    .where(eq(packageMilestones.packageId, packageId))
+    .orderBy(asc(packageMilestones.seq), asc(packageMilestones.id));
+
+  if (milestoneRows.length > 0) {
+    await tx.insert(billingCharges).values(
+      milestoneRows.map((milestone) => ({
+        billingId: resolvedBillingId,
+        chargeKind: "milestone" as const,
+        seq: milestone.seq,
+        label: milestone.label,
+        caseStepId:
+          milestone.bindStepOrder === null || milestone.bindStepOrder === undefined
+            ? null
+            : stepIdByOrder.get(milestone.bindStepOrder) ?? null,
+        amountExpected: toNumeric(milestone.amountSgd) ?? "0",
+        amountCollected: "0",
+        status: "pending" as const,
+        currency: "SGD" as const,
+        note: milestone.refundableNote
+      }))
+    );
+  }
+
+  const packageServiceRows = await tx
+    .select({ serviceItem: serviceItems })
+    .from(packageItems)
+    .innerJoin(serviceItems, eq(packageItems.serviceItemId, serviceItems.id))
+    .where(eq(packageItems.packageId, packageId))
+    .orderBy(asc(serviceItems.sortOrder), asc(serviceItems.code));
+
+  if (packageServiceRows.length > 0) {
+    await tx.insert(caseServices).values(
+      packageServiceRows.map(({ serviceItem }) => ({
+        caseId: caseRow.id,
+        serviceItemId: serviceItem.id,
+        nameSnapshot: serviceItem.name,
+        source: "package" as const,
+        isBillable: false,
+        priceSgd: null,
+        chargeId: null,
+        status: "active" as const
+      }))
+    );
+  }
+
+  const [updatedCase] = await tx
+    .update(cases)
+    .set({ packageId, billingId: resolvedBillingId, updatedAt: new Date() })
+    .where(eq(cases.id, caseRow.id))
+    .returning();
+
+  if (!updatedCase) {
+    throw new Error("case_package_update_failed");
+  }
+
+  return { caseRow: updatedCase };
 }
 
 function serializeCaseStep(row: typeof caseSteps.$inferSelect) {
@@ -638,7 +781,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "guarantor_required" });
     }
 
-    const created = await db.transaction(async (tx) => {
+    const created: CaseCreateTransactionResult = await db.transaction(async (tx): Promise<CaseCreateTransactionResult> => {
       const [caseRow] = await tx
         .insert(cases)
         .values({
@@ -648,6 +791,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           currentStep: 0,
           status: "open",
           billingId: body.billing_id ?? null,
+          packageId: body.package_id ?? null,
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
           guarantorContact: body.guarantor_contact,
@@ -659,53 +803,50 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
         throw new Error("case_create_failed");
       }
 
-      if (!body.template_id) {
-        if (body.billing_id) {
-          await refreshBillingCharges(body.billing_id, tx);
-        }
-        return { caseRow, stepRows: [] };
-      }
-
-      const templateStepRows = await tx
-        .select()
-        .from(templateSteps)
-        .where(eq(templateSteps.templateId, body.template_id))
-        .orderBy(asc(templateSteps.stepOrder));
       const stepRows: (typeof caseSteps.$inferSelect)[] = [];
 
-      for (const templateStep of templateStepRows) {
-        const [step] = await tx
-          .insert(caseSteps)
-          .values({
-            caseId: caseRow.id,
-            stepOrder: templateStep.stepOrder,
-            name: templateStep.name,
-            nameEn: templateStep.nameEn,
-            description: templateStep.description,
-            collections: templateStep.collections,
-            assigneeId: null
-          })
-          .returning();
+      if (body.template_id) {
+        const templateStepRows = await tx
+          .select()
+          .from(templateSteps)
+          .where(eq(templateSteps.templateId, body.template_id))
+          .orderBy(asc(templateSteps.stepOrder));
 
-        if (!step) {
-          throw new Error("case_step_snapshot_failed");
-        }
+        for (const templateStep of templateStepRows) {
+          const [step] = await tx
+            .insert(caseSteps)
+            .values({
+              caseId: caseRow.id,
+              stepOrder: templateStep.stepOrder,
+              name: templateStep.name,
+              nameEn: templateStep.nameEn,
+              description: templateStep.description,
+              collections: templateStep.collections,
+              assigneeId: null
+            })
+            .returning();
 
-        stepRows.push(step);
+          if (!step) {
+            throw new Error("case_step_snapshot_failed");
+          }
 
-        for (const item of templateStep.requiredDocuments) {
-          await tx.insert(caseStepDocuments).values({
-            caseStepId: step.id,
-            docName: item.name,
-            docNameEn: item.name_en,
-            categoryId: item.category_id ?? null,
-            isRequired: item.required ?? true,
-            status: "missing"
-          });
+          stepRows.push(step);
+
+          for (const item of templateStep.requiredDocuments) {
+            await tx.insert(caseStepDocuments).values({
+              caseStepId: step.id,
+              docName: item.name,
+              docNameEn: item.name_en,
+              categoryId: item.category_id ?? null,
+              isRequired: item.required ?? true,
+              status: "missing"
+            });
+          }
         }
       }
 
       const firstStepOrder = stepRows[0]?.stepOrder;
+      let resultCaseRow = caseRow;
       if (firstStepOrder !== undefined) {
         const [updatedCase] = await tx
           .update(cases)
@@ -713,19 +854,27 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(cases.id, caseRow.id))
           .returning();
 
-        if (body.billing_id) {
-          await refreshBillingCharges(body.billing_id, tx);
-        }
+        resultCaseRow = updatedCase ?? caseRow;
+      }
 
-        return { caseRow: updatedCase ?? caseRow, stepRows };
+      if (body.package_id) {
+        const packageResult = await applyPackageToCase(tx, resultCaseRow, stepRows, body.package_id);
+        if ("error" in packageResult) {
+          return { error: packageResult.error };
+        }
+        return { caseRow: packageResult.caseRow, stepRows };
       }
 
       if (body.billing_id) {
         await refreshBillingCharges(body.billing_id, tx);
       }
 
-      return { caseRow, stepRows };
+      return { caseRow: resultCaseRow, stepRows };
     });
+
+    if ("error" in created) {
+      return reply.code(400).send({ error: created.error });
+    }
 
     return reply
       .code(201)

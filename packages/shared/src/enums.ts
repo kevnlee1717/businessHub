@@ -182,6 +182,15 @@ export type ChargeKind = (typeof chargeKinds)[number];
 export const chargeStatuses = ["pending", "partial", "paid", "waived"] as const;
 export type ChargeStatus = (typeof chargeStatuses)[number];
 
+export const serviceCategories = ["core_ep", "banking_tax", "family", "gov_fee"] as const;
+export type ServiceCategory = (typeof serviceCategories)[number];
+
+export const caseServiceSources = ["package", "extra"] as const;
+export type CaseServiceSource = (typeof caseServiceSources)[number];
+
+export const caseServiceStatuses = ["active", "removed"] as const;
+export type CaseServiceStatus = (typeof caseServiceStatuses)[number];
+
 export const recruitmentJobStatuses = ["open", "paused", "filled", "closed"] as const;
 export type RecruitmentJobStatus = (typeof recruitmentJobStatuses)[number];
 
