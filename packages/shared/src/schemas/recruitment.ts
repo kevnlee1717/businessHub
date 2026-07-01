@@ -23,6 +23,7 @@ const timeString = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/);
 const booleanQuery = z.enum(["0", "1", "true", "false"]).optional();
 const bilingualText = z.string().nullable().optional();
 const sourceLang = z.enum(["zh", "en"]).optional();
+const numericInput = z.union([z.number(), z.string()]).nullish();
 
 export const recruitmentIndustryCreateSchema = z.object({
   company_id: uuidField,
@@ -152,6 +153,8 @@ const recruitmentPostingBaseSchema = z.object({
   image_material_id: nullableOptionalUuid,
   share_url: z.string().trim().max(1024).nullable().optional(),
   published_on: dateString,
+  is_paid: z.boolean().optional(),
+  cost: numericInput,
   status: z.enum(recruitmentPostingStatuses).optional(),
   owner_id: uuidField,
   invite_clerk_id: nullableOptionalUuid,
@@ -177,6 +180,7 @@ const recruitmentCampaignBaseSchema = z.object({
   type: z.enum(recruitmentCampaignTypes),
   status: z.enum(recruitmentCampaignStatuses).optional(),
   location: z.string().trim().min(1).max(255),
+  cost: numericInput,
   planned_date: dateString,
   planned_start: timeString,
   planned_end: timeString,
@@ -196,6 +200,11 @@ export const recruitmentCampaignUpdateSchema = recruitmentCampaignBaseSchema.par
 export const recruitmentCampaignListQuerySchema = z.object({
   status: z.enum(recruitmentCampaignStatuses).optional(),
   type: z.enum(recruitmentCampaignTypes).optional()
+});
+
+export const recruitmentAnalyticsQuerySchema = z.object({
+  job_id: optionalUuid,
+  company_id: optionalUuid
 });
 
 const recruitmentCandidateBaseSchema = z.object({

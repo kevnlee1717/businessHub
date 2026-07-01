@@ -365,6 +365,13 @@
       "when": 1782820075181,
       "tag": "0051_case_submission_files",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1782820075182,
+      "tag": "0052_recruitment_cost_fields",
+      "breakpoints": true
     }
   ]
 }

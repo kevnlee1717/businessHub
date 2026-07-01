@@ -70,6 +70,7 @@ import {
   createRecruitmentPosting,
   deleteRecruitmentMaterial,
   generateRecruitmentCopy,
+  getRecruitmentAnalytics,
   getRecruitmentCampaign,
   getRecruitmentCandidate,
   getRecruitmentDashboard,
@@ -200,6 +201,10 @@ async function jobBodyFromTitle(companyId: unknown, title: string) {
 
 function fmt(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
+}
+
+function fmtNumber(value?: number | null) {
+  return value == null ? "-" : value.toLocaleString();
 }
 
 function badgeColor(status: string) {
@@ -677,7 +682,7 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
   });
   useMemo(() => {
     if (opened) {
-      form.setValues({ company_id: posting?.company_id ?? lockedCompanyId ?? base.companyOptions[0]?.value ?? "", job_id: posting?.job_id ?? jobId ?? "", platform: posting?.platform ?? "", published_on: posting?.published_on ?? toDateInput(new Date().toISOString()), status: posting?.status ?? "publishing", owner_id: posting?.owner_id ?? "", invite_clerk_id: posting?.invite_clerk_id ?? null, copy_material_id: posting?.copy_material_id ?? null, image_material_id: posting?.image_material_id ?? null, share_url: posting?.share_url ?? "", inquiry_count: posting?.inquiry_count ?? 0, notes: posting?.notes ?? "" });
+      form.setValues({ company_id: posting?.company_id ?? lockedCompanyId ?? base.companyOptions[0]?.value ?? "", job_id: posting?.job_id ?? jobId ?? "", platform: posting?.platform ?? "", published_on: posting?.published_on ?? toDateInput(new Date().toISOString()), is_paid: posting?.is_paid ?? false, cost: posting?.cost ?? "", status: posting?.status ?? "publishing", owner_id: posting?.owner_id ?? "", invite_clerk_id: posting?.invite_clerk_id ?? null, copy_material_id: posting?.copy_material_id ?? null, image_material_id: posting?.image_material_id ?? null, share_url: posting?.share_url ?? "", inquiry_count: posting?.inquiry_count ?? 0, notes: posting?.notes ?? "" });
       setScreenshotDocument(posting?.screenshot_document ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -688,6 +693,7 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
       invite_clerk_id: emptyToNull(form.values.invite_clerk_id),
       copy_material_id: emptyToNull(form.values.copy_material_id),
       image_material_id: emptyToNull(form.values.image_material_id),
+      cost: form.values.is_paid ? emptyToNull(form.values.cost) : null,
       share_url: emptyToNull(form.values.share_url),
       notes: emptyToNull(form.values.notes)
     };
@@ -717,6 +723,10 @@ function PostingFormModal({ opened, onClose, posting, jobId }: { opened: boolean
         />
       </Group>
       <Group grow><RecruitmentPlatformSelect companyId={(form.values.company_id as string | null) ?? null} value={(form.values.platform as string | null) ?? null} onChange={(v) => form.set("platform", v)} label={t("recruitment.fields.platform")} /><TextInput type="date" label={t("recruitment.fields.publishedOn")} value={String(form.values.published_on ?? "")} onChange={(e) => form.set("published_on", e.currentTarget.value)} /></Group>
+      <Group grow align="flex-end">
+        <Checkbox label={t("recruitment.fields.isPaid")} checked={Boolean(form.values.is_paid)} onChange={(e) => form.set("is_paid", e.currentTarget.checked)} />
+        {form.values.is_paid ? <NumberInput label={t("recruitment.fields.cost")} min={0} value={(form.values.cost as number | string | undefined) ?? ""} onChange={(v) => form.set("cost", v)} /> : <Box />}
+      </Group>
       <Group grow><Select label={t("recruitment.fields.status")} data={recruitmentPostingStatuses.map((v) => ({ value: v, label: t(`recruitment.postingStatus.${v}`) }))} value={String(form.values.status ?? "publishing")} onChange={(v) => form.set("status", v)} /><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><Select label={t("recruitment.fields.inviteClerk")} data={base.employeeOptions} value={(form.values.invite_clerk_id as string | null) ?? null} onChange={(v) => form.set("invite_clerk_id", v)} clearable searchable /></Group>
       <Group grow><Select label={t("recruitment.fields.copyMaterial")} data={copyMaterialOptions} value={(form.values.copy_material_id as string | null) ?? null} onChange={(v) => form.set("copy_material_id", v)} disabled={materialDisabled} placeholder={materialPlaceholder} clearable searchable /><Select label={t("recruitment.fields.imageMaterial")} data={imageMaterialOptions} value={(form.values.image_material_id as string | null) ?? null} onChange={(v) => form.set("image_material_id", v)} disabled={materialDisabled} placeholder={materialPlaceholder} clearable searchable /></Group>
       <TextInput label={t("recruitment.fields.shareUrl")} value={String(form.values.share_url ?? "")} onChange={(e) => form.set("share_url", e.currentTarget.value)} />
@@ -987,9 +997,41 @@ function CampaignFormModal({ opened, onClose, campaign, initialJobId }: { opened
     () => Array.from(new Set(base.campaigns.map((row) => row.location.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [base.campaigns]
   );
-  const mutation = useMutation({ mutationFn: (body: Dict) => campaign ? updateRecruitmentCampaign(campaign.id, body) : createRecruitmentCampaign(body), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }); onClose(); } });
-  useMemo(() => { if (opened) form.setValues({ company_id: campaign?.company_id ?? lockedCompanyId ?? base.companyOptions[0]?.value ?? "", name: campaign?.name ?? "", type: campaign?.type ?? "roadshow", status: campaign?.status ?? "planned", location: campaign?.location ?? "", planned_date: campaign?.planned_date ?? toDateInput(new Date().toISOString()), planned_start: campaign?.planned_start ?? "09:00", planned_end: campaign?.planned_end ?? "18:00", actual_date: campaign?.actual_date ?? null, owner_id: campaign?.owner_id ?? "", notes: campaign?.notes ?? "", job_ids: campaign ? [] : (initialJobId ? [initialJobId] : []) }); }, [opened, campaign?.id, base.companyOptions.length, initialJobId, lockedCompanyId]);
-  return <FieldModal opened={opened} onClose={onClose} title={campaign ? t("recruitment.campaigns.edit") : t("recruitment.campaigns.add")} saving={mutation.isPending} onSubmit={() => mutation.mutate({ ...form.values, notes: emptyToNull(form.values.notes), actual_date: emptyToNull(form.values.actual_date) })}><ErrorAlert error={mutation.error} /><Group grow><Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => { form.set("company_id", v); const next = ((form.values.job_ids as string[]) ?? []).filter((id) => base.jobs.some((j) => j.id === id && j.company_id === v)); form.set("job_ids", next); }} disabled={Boolean(campaign) || lockedFromJob} /><TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} /></Group><Group grow><Select label={t("recruitment.fields.type")} data={recruitmentCampaignTypes.map((v) => ({ value: v, label: t(`recruitment.campaignType.${v}`) }))} value={String(form.values.type ?? "roadshow")} onChange={(v) => form.set("type", v)} /><Select label={t("recruitment.fields.status")} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={String(form.values.status ?? "planned")} onChange={(v) => form.set("status", v)} /></Group><Autocomplete label={t("recruitment.fields.location")} data={locationOptions} value={String(form.values.location ?? "")} onChange={(v) => form.set("location", v)} /><Group grow><TextInput type="date" label={t("recruitment.fields.plannedDate")} value={String(form.values.planned_date ?? "")} onChange={(e) => form.set("planned_date", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedStart")} value={String(form.values.planned_start ?? "")} onChange={(e) => form.set("planned_start", e.currentTarget.value)} /><TextInput type="time" label={t("recruitment.fields.plannedEnd")} value={String(form.values.planned_end ?? "")} onChange={(e) => form.set("planned_end", e.currentTarget.value)} /></Group><Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable /><MultiSelect label={t("recruitment.fields.jobs")} data={jobOptionsForCompany} value={(form.values.job_ids as string[]) ?? []} onChange={(v) => form.set("job_ids", v)} disabled={lockedFromJob} searchable /><Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} /></FieldModal>;
+  const mutation = useMutation({
+    mutationFn: (body: Dict) => campaign ? updateRecruitmentCampaign(campaign.id, body) : createRecruitmentCampaign(body),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recruitmentKeys.all }); onClose(); }
+  });
+  useMemo(() => {
+    if (opened) {
+      form.setValues({ company_id: campaign?.company_id ?? lockedCompanyId ?? base.companyOptions[0]?.value ?? "", name: campaign?.name ?? "", type: campaign?.type ?? "roadshow", status: campaign?.status ?? "planned", location: campaign?.location ?? "", cost: campaign?.cost ?? "", planned_date: campaign?.planned_date ?? toDateInput(new Date().toISOString()), planned_start: campaign?.planned_start ?? "09:00", planned_end: campaign?.planned_end ?? "18:00", actual_date: campaign?.actual_date ?? null, owner_id: campaign?.owner_id ?? "", notes: campaign?.notes ?? "", job_ids: campaign ? [] : (initialJobId ? [initialJobId] : []) });
+    }
+  }, [opened, campaign?.id, base.companyOptions.length, initialJobId, lockedCompanyId]);
+  const submitCampaign = () => {
+    mutation.mutate({ ...form.values, cost: emptyToNull(form.values.cost), notes: emptyToNull(form.values.notes), actual_date: emptyToNull(form.values.actual_date) });
+  };
+  return (
+    <FieldModal opened={opened} onClose={onClose} title={campaign ? t("recruitment.campaigns.edit") : t("recruitment.campaigns.add")} saving={mutation.isPending} onSubmit={submitCampaign}>
+      <ErrorAlert error={mutation.error} />
+      <Group grow>
+        <Select label={t("recruitment.fields.company")} data={base.companyOptions} value={String(form.values.company_id ?? "")} onChange={(v) => { form.set("company_id", v); const next = ((form.values.job_ids as string[]) ?? []).filter((id) => base.jobs.some((j) => j.id === id && j.company_id === v)); form.set("job_ids", next); }} disabled={Boolean(campaign) || lockedFromJob} />
+        <TextInput label={t("recruitment.fields.name")} value={String(form.values.name ?? "")} onChange={(e) => form.set("name", e.currentTarget.value)} />
+      </Group>
+      <Group grow>
+        <Select label={t("recruitment.fields.type")} data={recruitmentCampaignTypes.map((v) => ({ value: v, label: t(`recruitment.campaignType.${v}`) }))} value={String(form.values.type ?? "roadshow")} onChange={(v) => form.set("type", v)} />
+        <Select label={t("recruitment.fields.status")} data={recruitmentCampaignStatuses.map((v) => ({ value: v, label: t(`recruitment.campaignStatus.${v}`) }))} value={String(form.values.status ?? "planned")} onChange={(v) => form.set("status", v)} />
+      </Group>
+      <Autocomplete label={t("recruitment.fields.location")} data={locationOptions} value={String(form.values.location ?? "")} onChange={(v) => form.set("location", v)} />
+      <NumberInput label={t("recruitment.fields.cost")} min={0} value={(form.values.cost as number | string | undefined) ?? ""} onChange={(v) => form.set("cost", v)} />
+      <Group grow>
+        <TextInput type="date" label={t("recruitment.fields.plannedDate")} value={String(form.values.planned_date ?? "")} onChange={(e) => form.set("planned_date", e.currentTarget.value)} />
+        <TextInput type="time" label={t("recruitment.fields.plannedStart")} value={String(form.values.planned_start ?? "")} onChange={(e) => form.set("planned_start", e.currentTarget.value)} />
+        <TextInput type="time" label={t("recruitment.fields.plannedEnd")} value={String(form.values.planned_end ?? "")} onChange={(e) => form.set("planned_end", e.currentTarget.value)} />
+      </Group>
+      <Select label={t("recruitment.fields.owner")} data={base.employeeOptions} value={String(form.values.owner_id ?? "")} onChange={(v) => form.set("owner_id", v)} searchable />
+      <MultiSelect label={t("recruitment.fields.jobs")} data={jobOptionsForCompany} value={(form.values.job_ids as string[]) ?? []} onChange={(v) => form.set("job_ids", v)} disabled={lockedFromJob} searchable />
+      <Textarea label={t("recruitment.fields.notes")} value={String(form.values.notes ?? "")} onChange={(e) => form.set("notes", e.currentTarget.value)} />
+    </FieldModal>
+  );
 }
 
 export function CampaignsPageImpl() {
@@ -1285,6 +1327,147 @@ export function CandidateDetailPageImpl() {
           ))}</Stack>
         </Card>
       </SimpleGrid>
+    </Stack>
+  );
+}
+
+export function RecruitmentAnalyticsPageImpl() {
+  const { t } = useTranslation();
+  const base = useBaseOptions();
+  const [jobId, setJobId] = useState<string | null>(null);
+  const analyticsParams: { job_id?: string } = jobId ? { job_id: jobId } : {};
+  const query = useQuery({
+    queryKey: recruitmentKeys.analytics(analyticsParams),
+    queryFn: () => getRecruitmentAnalytics(analyticsParams)
+  });
+  const analytics = query.data?.analytics;
+
+  return (
+    <Stack gap="md">
+      <Group justify="space-between" align="flex-end">
+        <Text fw={600}>{t("recruitment.analytics.title")}</Text>
+        <Select label={t("recruitment.fields.job")} data={base.jobOptions} value={jobId} onChange={setJobId} clearable searchable w={220} />
+      </Group>
+      <ErrorAlert error={base.error ?? query.error} />
+
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.analytics.paidVsFree")}</Text>
+        {query.isLoading ? (
+          <Group justify="center" py="lg"><Loader size="sm" /></Group>
+        ) : (analytics?.paid_vs_free ?? []).length === 0 ? (
+          <Text ta="center" c="dimmed" py="lg">{t("recruitment.empty")}</Text>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
+            {(analytics?.paid_vs_free ?? []).map((row) => (
+              <Card key={row.group} withBorder>
+                <Text fw={600}>{t(`recruitment.analytics.${row.group}`)}</Text>
+                <SimpleGrid cols={4} mt="sm">
+                  <Box><Text size="xs" c="dimmed">{t("recruitment.analytics.leads")}</Text><Text fw={600}>{fmtNumber(row.leads)}</Text></Box>
+                  <Box><Text size="xs" c="dimmed">{t("recruitment.analytics.interviews")}</Text><Text fw={600}>{fmtNumber(row.interviews)}</Text></Box>
+                  <Box><Text size="xs" c="dimmed">{t("recruitment.analytics.offers")}</Text><Text fw={600}>{fmtNumber(row.offers)}</Text></Box>
+                  <Box><Text size="xs" c="dimmed">{t("recruitment.fields.cost")}</Text><Text fw={600}>{fmtNumber(row.cost)}</Text></Box>
+                </SimpleGrid>
+              </Card>
+            ))}
+          </SimpleGrid>
+        )}
+      </Card>
+
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.analytics.platforms")}</Text>
+        <ScrollArea>
+          <Table miw={900} withTableBorder withColumnBorders highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("recruitment.fields.platform")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.postingsCount")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.leads")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.interviews")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.offers")}</Table.Th>
+                <Table.Th>{t("recruitment.fields.cost")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.costPerLead")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.costPerOffer")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.paidLeads")} · {t("recruitment.analytics.freeLeads")}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {query.isLoading ? <LoadingRow colSpan={9} /> : (analytics?.platforms ?? []).length === 0 ? <EmptyRow colSpan={9} /> : (analytics?.platforms ?? []).map((row) => (
+                <Table.Tr key={row.platform}>
+                  <Table.Td>{row.platform}</Table.Td>
+                  <Table.Td>{fmtNumber(row.postings)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.leads)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.interviews)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.offers)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.cost)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.cost_per_lead)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.cost_per_offer)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.paid_leads)} · {fmtNumber(row.free_leads)}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Card>
+
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.analytics.materials")}</Text>
+        <ScrollArea>
+          <Table miw={700} withTableBorder withColumnBorders highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("recruitment.materials.title")}</Table.Th>
+                <Table.Th>{t("recruitment.fields.type")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.leads")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.interviews")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.offers")}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {query.isLoading ? <LoadingRow colSpan={5} /> : (analytics?.materials ?? []).length === 0 ? <EmptyRow colSpan={5} /> : (analytics?.materials ?? []).map((row) => (
+                <Table.Tr key={row.material_id}>
+                  <Table.Td>{row.title}</Table.Td>
+                  <Table.Td><StatusBadge value={row.type} ns="materialType" /></Table.Td>
+                  <Table.Td>{fmtNumber(row.leads)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.interviews)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.offers)}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Card>
+
+      <Card withBorder>
+        <Text fw={600} mb="md">{t("recruitment.analytics.locations")}</Text>
+        <ScrollArea>
+          <Table miw={850} withTableBorder withColumnBorders highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("recruitment.fields.location")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.campaignsCount")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.leads")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.interviews")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.offers")}</Table.Th>
+                <Table.Th>{t("recruitment.fields.cost")}</Table.Th>
+                <Table.Th>{t("recruitment.analytics.costPerLead")}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {query.isLoading ? <LoadingRow colSpan={7} /> : (analytics?.locations ?? []).length === 0 ? <EmptyRow colSpan={7} /> : (analytics?.locations ?? []).map((row) => (
+                <Table.Tr key={row.location}>
+                  <Table.Td>{row.location}</Table.Td>
+                  <Table.Td>{fmtNumber(row.campaigns)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.leads)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.interviews)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.offers)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.cost)}</Table.Td>
+                  <Table.Td>{fmtNumber(row.cost_per_lead)}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Card>
     </Stack>
   );
 }

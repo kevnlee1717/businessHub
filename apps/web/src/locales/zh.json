@@ -2204,6 +2204,7 @@
       "campaigns": "线下活动",
       "candidates": "候选人",
       "upcoming": "未来预约",
+      "analytics": "效果分析",
       "talentPool": "人才库",
       "capture": "现场登记",
       "settings": "设置"
@@ -2247,6 +2248,8 @@
       "generatedCopy": "AI 文案",
       "platforms": "适用平台",
       "platform": "平台",
+      "isPaid": "付费投放",
+      "cost": "费用",
       "publishedOn": "发布日期",
       "inquiryCount": "咨询数",
       "copyMaterial": "选用文案",
@@ -2374,6 +2377,24 @@
       "leads": "线索",
       "interviews": "面试",
       "offers": "录用"
+    },
+    "analytics": {
+      "title": "效果分析",
+      "platforms": "平台效果",
+      "materials": "素材·文案效果",
+      "locations": "地点效果",
+      "paidVsFree": "免费 vs 付费",
+      "leads": "线索",
+      "interviews": "面试",
+      "offers": "录用",
+      "costPerLead": "单线索成本",
+      "costPerOffer": "单录用成本",
+      "postingsCount": "发布数",
+      "campaignsCount": "活动数",
+      "paidLeads": "付费线索",
+      "freeLeads": "免费线索",
+      "paid": "付费",
+      "free": "免费"
     },
     "jobStatus": {
       "open": "在招",
