@@ -10,7 +10,7 @@ export function BusinessSchemePanel({ businessCode }: { businessCode: string }) 
   const { t } = useTranslation();
   const businessesQuery = useQuery({
     queryKey: ["business-finance", "businesses", "all"],
-    queryFn: () => listBusinesses({ page_size: 200 })
+    queryFn: () => listBusinesses({ page_size: 100 })
   });
 
   if (businessesQuery.isLoading) {
