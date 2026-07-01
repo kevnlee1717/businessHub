@@ -54,8 +54,8 @@ const navItems: NavItem[] = [
       { to: "/education/diploma", key: "nav.diploma", perm: "education.view" },
       { to: "/education/wsq", key: "nav.wsq", perm: "education.view" },
       { to: "/education/english", key: "nav.english", perm: "education.view" },
-      { to: "/education/teachers", key: "nav.teachers", perm: "education.view" },
-      { to: "/education/academy-collection", key: "nav.academy_collection", perm: "education.view" }
+      { to: "/education/teachers", key: "nav.teachers", perm: "education.view" }
+      // 「学院收款」已并入 成人大专 的"收款统计"tab,不再作为独立菜单项
     ]
   },
   {
