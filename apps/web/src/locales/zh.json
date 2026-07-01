@@ -735,11 +735,13 @@
       "guarantor": "担保人",
       "guarantorName": "担保人姓名",
       "guarantorRelation": "担保人关系",
-      "guarantorContact": "担保人联系方式"
+      "guarantorContact": "担保人联系方式",
+      "feeScheme": "收费方案"
     },
     "errors": {
       "guarantorRequired": "ICA 案件必须填写担保人姓名。",
-      "packageRequired": "EP 案件必须选择套餐。"
+      "packageRequired": "EP 案件必须选择套餐。",
+      "feeSchemeRequired": "ICA 案件必须选择收费方案。"
     },
     "packageCommissionHint": "选了套餐和销售人后，分成会按套餐默认规则自动生成；案件详情可修改。",
     "stats": {
@@ -2019,7 +2021,16 @@
   },
   "icaFeeShare": {
     "title": "ICA 收费 & 分成",
-    "hint": "ICA 收费很简单:总价拆成定金 + 尾款;分成是每次收到定金给担保人一笔固定金额。这里设默认值,案件收款计划会按此预填。",
+    "hint": "ICA 收费可维护多套方案;每个案件选择一套方案,收款计划会按该方案预填总价、定金和担保人分成。",
+    "schemeName": "方案名",
+    "addScheme": "新增方案",
+    "editScheme": "编辑方案",
+    "setDefault": "设为默认",
+    "disable": "停用",
+    "disableConfirm": "确认停用「{{label}}」？",
+    "default": "默认",
+    "defaultBadge": "默认",
+    "empty": "暂无收费方案",
     "feeSection": "收费",
     "total": "默认总价 (SGD)",
     "totalHint": "单个案件的合同总价,可在案件里逐单调整",
@@ -2028,7 +2039,11 @@
     "balancePreview": "尾款 ≈ {{amount}} SGD",
     "shareSection": "分成",
     "guarantorShare": "担保人固定分成 (SGD)",
-    "guarantorShareHint": "每次收到定金,给担保人的固定分成金额(收到定金时自动记应付,财务确认后付款)"
+    "guarantorShareHint": "每次收到定金,给担保人的固定分成金额(收到定金时自动记应付,财务确认后付款)",
+    "errors": {
+      "cannot_delete_default_scheme": "默认方案不能停用,请先将其他方案设为默认。",
+      "missing_required_fields": "请填写方案名和所有金额。"
+    }
   },
   "chargeSchedule": {
     "title": "收款计划",

@@ -24,7 +24,7 @@ import {
   type CaseStatus
 } from "@bh/shared";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -38,6 +38,7 @@ import {
 } from "../../api/cases";
 import { listPackages } from "../../api/epPackages";
 import { listEmployees } from "../../api/hr";
+import { listIcaFeeSchemes } from "../../api/businessSchemes";
 import { useAuth } from "../../auth/AuthContext";
 import { ClientSelect } from "../../components/ClientSelect";
 import { TablePagination } from "../../components/TablePagination";
@@ -49,6 +50,7 @@ type CaseFormValues = {
   template_id?: string | undefined;
   package_id?: string | undefined;
   sales_id?: string | null | undefined;
+  fee_scheme_version_id?: string | undefined;
   guarantor_name?: string | undefined;
   guarantor_relation?: string | undefined;
   guarantor_contact?: string | undefined;
@@ -112,6 +114,7 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
     template_id: undefined,
     package_id: undefined,
     sales_id: null,
+    fee_scheme_version_id: undefined,
     guarantor_name: undefined,
     guarantor_relation: undefined,
     guarantor_contact: undefined,
@@ -176,6 +179,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
     queryKey: ["hr", "employees"],
     queryFn: () => listEmployees(),
     enabled: businessType === "ep"
+  });
+  const icaSchemesQuery = useQuery({
+    queryKey: ["ica-fee-schemes"],
+    queryFn: () => listIcaFeeSchemes(),
+    enabled: businessType === "ica"
   });
 
   const form = useForm<CaseFormValues>({
@@ -257,12 +265,32 @@ export function CasesPage({ businessType }: CasesPageProps) {
       value: employee.id,
       label: displayName(employee.name, employee.name_en)
     }));
+  const schemes = icaSchemesQuery.data?.schemes ?? [];
+  const defaultSchemeId = schemes.find((scheme) => scheme.is_default)?.id ?? schemes[0]?.id;
+  const schemeOptions = schemes.map((scheme) => ({
+    value: scheme.id,
+    label: scheme.label
+  }));
   const loadError =
-    casesQuery.error ?? clientsQuery.error ?? templatesQuery.error ?? packagesQuery.error ?? employeesQuery.error;
+    casesQuery.error ??
+    clientsQuery.error ??
+    templatesQuery.error ??
+    packagesQuery.error ??
+    employeesQuery.error ??
+    icaSchemesQuery.error;
+
+  useEffect(() => {
+    if (businessType === "ica" && modalOpened && defaultSchemeId && !form.getValues("fee_scheme_version_id")) {
+      form.setValue("fee_scheme_version_id", defaultSchemeId);
+    }
+  }, [businessType, defaultSchemeId, form, modalOpened]);
 
   function openCreateModal() {
     setFormError(null);
-    form.reset(getDefaultValues(businessType));
+    form.reset({
+      ...getDefaultValues(businessType),
+      fee_scheme_version_id: businessType === "ica" ? defaultSchemeId : undefined
+    });
     setModalOpened(true);
   }
 
@@ -314,6 +342,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
       return;
     }
 
+    if (businessType === "ica" && !values.fee_scheme_version_id) {
+      setFormError(t("case.errors.feeSchemeRequired"));
+      return;
+    }
+
     if (businessType === "ep" && !values.package_id) {
       setFormError(t("case.errors.packageRequired"));
       return;
@@ -324,6 +357,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
         ...values,
         business_type: businessType,
         package_id: businessType === "ep" ? values.package_id : undefined,
+        fee_scheme_version_id: businessType === "ica" ? values.fee_scheme_version_id : undefined,
         sales_id: businessType === "ep" ? values.sales_id ?? null : undefined,
         signed_at: values.signed_at || null
       } as CaseCreateInput);
@@ -554,6 +588,22 @@ export function CasesPage({ businessType }: CasesPageProps) {
             ) : null}
             {businessType === "ica" ? (
               <Stack gap="md">
+                <Controller
+                  name="fee_scheme_version_id"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select
+                      label={t("case.fields.feeScheme")}
+                      data={schemeOptions}
+                      value={field.value ?? null}
+                      onChange={(value) => field.onChange(value ?? undefined)}
+                      error={errors.fee_scheme_version_id?.message}
+                      searchable
+                      required
+                      disabled={icaSchemesQuery.isLoading}
+                    />
+                  )}
+                />
                 <Group grow align="flex-start">
                   <TextInput
                     label={t("case.fields.guarantorName")}

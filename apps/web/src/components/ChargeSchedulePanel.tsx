@@ -33,13 +33,14 @@ import {
 } from "../api/charges";
 import { createBilling } from "../api/finance";
 import { createGuarantorPayout, updateCase } from "../api/cases";
-import { getIcaFeeConfig } from "../api/businessSchemes";
+import { listIcaFeeSchemes } from "../api/businessSchemes";
 import { listBankAccounts } from "../api/ledger";
 
 type Props = {
   billingId?: string | null;
   caseId?: string | null;
   caseBusinessType?: BusinessType | null;
+  icaSchemeVersionId?: string | null;
   onChargesLoaded?: (charges: Charge[]) => void;
 };
 
@@ -127,7 +128,13 @@ function makeQueryKey(billingId?: string | null, caseId?: string | null) {
   return ["finance", "charges", billingId ? "billing" : "case", billingId ?? caseId] as const;
 }
 
-export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onChargesLoaded }: Props) {
+export function ChargeSchedulePanel({
+  billingId,
+  caseId,
+  caseBusinessType,
+  icaSchemeVersionId,
+  onChargesLoaded
+}: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [createPlanOpened, setCreatePlanOpened] = useState(false);
@@ -152,10 +159,10 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
     queryFn: () => (billingId ? listBillingCharges(billingId) : listCaseCharges(caseId ?? "")),
     enabled: Boolean(billingId || caseId)
   });
-  // ICA:拉收费默认值,用于创建收款计划时预填总价/定金
-  const icaConfigQuery = useQuery({
-    queryKey: ["ica-fee-config"],
-    queryFn: () => getIcaFeeConfig(),
+  // ICA:拉收费方案,用于创建收款计划时按案件方案预填总价/定金
+  const icaSchemesQuery = useQuery({
+    queryKey: ["ica-fee-schemes"],
+    queryFn: () => listIcaFeeSchemes(),
     enabled: caseBusinessType === "ica"
   });
 
@@ -191,6 +198,15 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
     return { value: account.id, label: parts.join(" · ") };
   });
   const currencyOptions = currencies.map((currency) => ({ value: currency, label: currency }));
+  const currentIcaScheme = useMemo(() => {
+    const schemes = icaSchemesQuery.data?.schemes ?? [];
+    return (
+      schemes.find((scheme) => scheme.id === icaSchemeVersionId) ??
+      schemes.find((scheme) => scheme.is_default) ??
+      schemes[0] ??
+      null
+    );
+  }, [icaSchemeVersionId, icaSchemesQuery.data?.schemes]);
 
   const collectMutation = useMutation({
     mutationFn: async () => {
@@ -257,7 +273,8 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
         ref_type: caseBusinessType,
         ref_id: caseId,
         total_price_sgd: planTotal ?? 0,
-        deposit_sgd: planDeposit ?? undefined
+        deposit_sgd: planDeposit ?? undefined,
+        scheme_version_id: caseBusinessType === "ica" ? currentIcaScheme?.id ?? null : undefined
       });
       await updateCase(caseId, { billing_id: billing.id });
       // ICA 收费简单:总价 → 定金 + 尾款,直接铺两笔收款项
@@ -339,9 +356,9 @@ export function ChargeSchedulePanel({ billingId, caseId, caseBusinessType, onCha
   }
 
   function openCreatePlanModal() {
-    const icaConfig = caseBusinessType === "ica" ? icaConfigQuery.data?.config : null;
-    setPlanTotal(icaConfig?.default_total ? icaConfig.default_total : null);
-    setPlanDeposit(icaConfig?.default_deposit ? icaConfig.default_deposit : null);
+    const icaScheme = caseBusinessType === "ica" ? currentIcaScheme : null;
+    setPlanTotal(icaScheme?.default_total ?? null);
+    setPlanDeposit(icaScheme?.default_deposit ?? null);
     setFormError(null);
     setCreatePlanOpened(true);
   }

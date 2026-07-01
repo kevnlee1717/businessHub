@@ -74,6 +74,7 @@ function serializeCase(row: typeof cases.$inferSelect) {
     status: row.status,
     billing_id: row.billingId,
     package_id: row.packageId,
+    fee_scheme_version_id: row.feeSchemeVersionId,
     guarantor_id: row.guarantorId,
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
@@ -814,6 +815,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           status: "open",
           billingId: body.billing_id ?? null,
           packageId: body.package_id ?? null,
+          feeSchemeVersionId: body.fee_scheme_version_id ?? null,
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
           guarantorContact: body.guarantor_contact,
@@ -975,6 +977,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           billingId: body.billing_id,
           status: body.status,
           currentStep: body.current_step,
+          feeSchemeVersionId: body.fee_scheme_version_id,
           guarantorId: body.guarantor_id,
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
@@ -1167,10 +1170,11 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     // 担保人分成额 = ICA 方案里担保人 commission line 的 rate
     const [icaBusiness] = await db.select().from(businesses).where(eq(businesses.code, "ica")).limit(1);
     const [guarantorParty] = await db.select().from(dealParties).where(eq(dealParties.code, "guarantor")).limit(1);
-    if (!icaBusiness?.defaultVersionId || !guarantorParty) {
+    const versionId = caseRow.feeSchemeVersionId ?? icaBusiness?.defaultVersionId;
+    if (!icaBusiness || !versionId || !guarantorParty) {
       return { ok: true, created: false };
     }
-    const lines = await db.select().from(schemeLines).where(eq(schemeLines.versionId, icaBusiness.defaultVersionId));
+    const lines = await db.select().from(schemeLines).where(eq(schemeLines.versionId, versionId));
     const guarantorLine = lines.find((line) => line.kind === "commission" && line.partyId === guarantorParty.id);
     const share = Number(guarantorLine?.rate ?? 0);
     if (!(share > 0)) {

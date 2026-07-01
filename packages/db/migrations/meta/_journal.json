@@ -393,6 +393,13 @@
       "when": 1782820076184,
       "tag": "0055_ep_package_commission",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1782820077184,
+      "tag": "0056_case_fee_scheme",
+      "breakpoints": true
     }
   ]
 }
