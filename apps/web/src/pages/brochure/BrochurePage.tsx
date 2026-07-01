@@ -390,7 +390,7 @@ export function BrochurePage() {
   }
 
   return (
-    <Box p={20}>
+    <Box>
       <Group align="stretch" gap="md" wrap="nowrap">
         <Paper withBorder radius="sm" p="sm" w={240} style={{ flexShrink: 0 }}>
           <Stack gap="xs" h="100%">
