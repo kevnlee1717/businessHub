@@ -30,6 +30,7 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const renderTasksRef = useRef(new Map<number, RenderTask>());
   const renderedKeysRef = useRef(new Map<number, string>());
+  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const [numPages, setNumPages] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -51,6 +52,25 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     renderedKeysRef.current.clear();
     setRenderedPages(new Set());
   }, [cancelRenderTasks]);
+
+  // 页离开视口足够远时释放它的 canvas 内存并清掉"已渲染"标记,
+  // 这样再进入视口一定会重画 —— 根治 iOS 把屏外 canvas 清空后回来变黑屏。
+  const clearPage = useCallback((pageIndex: number) => {
+    renderTasksRef.current.get(pageIndex)?.cancel();
+    renderTasksRef.current.delete(pageIndex);
+    renderedKeysRef.current.delete(pageIndex);
+    const canvas = canvasRefs.current[pageIndex];
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+    setRenderedPages((current) => {
+      if (!current.has(pageIndex)) return current;
+      const next = new Set(current);
+      next.delete(pageIndex);
+      return next;
+    });
+  }, []);
 
   const updateContainerWidth = useCallback(() => {
     const nextWidth = scrollRef.current?.clientWidth ?? 0;
@@ -139,6 +159,7 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     setCurrentIndex(0);
     resetRenderedPages();
     canvasRefs.current = [];
+    slideRefs.current = [];
 
     void documentRef.current?.cleanup();
     documentRef.current = null;
@@ -219,20 +240,48 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     };
   }, [opened, updateContainerWidth]);
 
-  useEffect(() => {
-    if (!opened || containerWidth <= 0) return;
-    resetRenderedPages();
-  }, [containerWidth, opened, resetRenderedPages]);
-
+  // IntersectionObserver 驱动的移动渲染窗口:
+  // - 页进入(含 rootMargin 提前量)→ 渲染;相邻页提前画好,正常翻页不黑屏
+  // - 页离开足够远 → clearPage 释放 canvas,内存被限制在几页,iOS 不再乱清屏内的页
+  // 尺寸/文档变化时(containerWidth 变)重建 observer 并清缓存键 → 可见页按新尺寸重画
   useEffect(() => {
     if (!opened || loading || error || numPages === 0 || containerWidth <= 0) return;
+    const root = scrollRef.current;
+    if (!root) return;
 
-    const firstPage = Math.max(0, currentIndex - 1);
-    const lastPage = Math.min(numPages - 1, currentIndex + 1);
-    for (let pageIndex = firstPage; pageIndex <= lastPage; pageIndex += 1) {
-      void renderPage(pageIndex);
+    if (typeof IntersectionObserver === "undefined") {
+      // 兜底(极旧浏览器无 IO):一次性渲染全部页
+      for (let pageIndex = 0; pageIndex < numPages; pageIndex += 1) {
+        void renderPage(pageIndex);
+      }
+      return;
     }
-  }, [containerWidth, currentIndex, error, loading, numPages, opened, renderPage]);
+
+    renderedKeysRef.current.clear();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const raw = (entry.target as HTMLElement).dataset.pageIndex;
+          const pageIndex = raw === undefined ? Number.NaN : Number(raw);
+          if (Number.isNaN(pageIndex)) continue;
+          if (entry.isIntersecting) {
+            void renderPage(pageIndex);
+          } else {
+            clearPage(pageIndex);
+          }
+        }
+      },
+      // 横向 scroll-snap:视口左右各扩约一屏做提前量;threshold 稍大于 0 即触发
+      { root, rootMargin: "0px 120% 0px 120%", threshold: 0.01 }
+    );
+
+    for (const node of slideRefs.current) {
+      if (node) observer.observe(node);
+    }
+
+    return () => observer.disconnect();
+  }, [clearPage, containerWidth, error, loading, numPages, opened, renderPage]);
 
   return (
     <Modal
@@ -330,6 +379,10 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
             {Array.from({ length: numPages }, (_, pageIndex) => (
               <Box
                 key={pageIndex}
+                ref={(node: HTMLDivElement | null) => {
+                  slideRefs.current[pageIndex] = node;
+                }}
+                data-page-index={pageIndex}
                 style={{
                   flex: "0 0 100%",
                   width: "100%",
