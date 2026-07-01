@@ -148,11 +148,12 @@ export function App() {
             <Route path="ledger" element={<LedgerPage />} />
             <Route path="bank-accounts" element={<BankAccountsPage />} />
             <Route path="reconcile" element={<ReconcilePage />} />
-            <Route path="commission" element={<SalesCommissionPage />} />
-            <Route path="my-commission" element={<MyCommissionPage />} />
-            <Route path="external-commission" element={<ExternalCommissionPage />} />
             <Route path="reports" element={<ReportsPage />} />
           </Route>
+          {/* 提成页已归入「业务分成」;URL 仍是 /finance/*,但独立渲染不再套财务 tab 排 */}
+          <Route path="finance/commission" element={<SalesCommissionPage />} />
+          <Route path="finance/my-commission" element={<MyCommissionPage />} />
+          <Route path="finance/external-commission" element={<ExternalCommissionPage />} />
           <Route path="recruitment" element={<RecruitmentLayout />}>
             <Route index element={<RecruitmentDashboardPage />} />
             <Route path="jobs" element={<JobsPage />} />

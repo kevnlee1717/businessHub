@@ -16,5 +16,9 @@ export const routeTitleEntries: { path: string; key: string }[] = [
   ...documentsTabs,
   ...financeTabs,
   ...recruitmentTabs,
-  ...trackingTabs
+  ...trackingTabs,
+  // 提成页已独立(不在 finance tab 里),标题单列
+  { path: "/finance/commission", labelKey: "nav.finance_commission" },
+  { path: "/finance/my-commission", labelKey: "nav.finance_my_commission" },
+  { path: "/finance/external-commission", labelKey: "nav.finance_external_commission" }
 ].map((tab) => ({ path: tab.path, key: tab.labelKey }));

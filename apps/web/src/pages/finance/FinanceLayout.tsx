@@ -8,9 +8,6 @@ export const tabs = [
   { value: "ledger", path: "/finance/ledger", labelKey: "finance.tabs.ledger" },
   { value: "bank-accounts", path: "/finance/bank-accounts", labelKey: "finance.tabs.bankAccounts" },
   { value: "reconcile", path: "/finance/reconcile", labelKey: "finance.tabs.reconcile" },
-  { value: "commission", path: "/finance/commission", labelKey: "finance.tabs.commission" },
-  { value: "my-commission", path: "/finance/my-commission", labelKey: "finance.tabs.myCommission" },
-  { value: "external-commission", path: "/finance/external-commission", labelKey: "finance.tabs.externalCommission" },
   { value: "reports", path: "/finance/reports", labelKey: "finance.tabs.reports" }
 ] as const;
 
