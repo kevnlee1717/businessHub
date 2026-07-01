@@ -20,10 +20,41 @@ function formatMB(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+// 渲染好的整页图片持久化到设备(Cache API),下次打开同一 PDF 直接取用、跳过 pdf.js 渲染。
+const PAGE_CACHE_NAME = "ipad-pdf-pages-v1";
+
+// 缓存键:同源合成 URL,按 PDF 地址 + 渲染宽度分桶 + 页码。宽度分桶避免细小尺寸差异导致重渲。
+function pageCacheKey(pdfUrl: string, width: number, pageIndex: number) {
+  const bucket = Math.round(width / 20) * 20;
+  return `${window.location.origin}/__pdfpage/v1/${encodeURIComponent(pdfUrl)}/${bucket}/${pageIndex}.jpg`;
+}
+
+async function readCachedPage(key: string): Promise<Blob | null> {
+  if (typeof caches === "undefined") return null;
+  try {
+    const cache = await caches.open(PAGE_CACHE_NAME);
+    const response = await cache.match(key);
+    return response ? await response.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedPage(key: string, blob: Blob): Promise<void> {
+  if (typeof caches === "undefined") return;
+  try {
+    const cache = await caches.open(PAGE_CACHE_NAME);
+    await cache.put(key, new Response(blob, { headers: { "Content-Type": "image/jpeg" } }));
+  } catch {
+    // 配额不足 / 隐私模式等:忽略,下次再渲。
+  }
+}
+
 export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const documentRef = useRef<PDFDocumentProxy | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const urlRef = useRef(url); // 当前 PDF 地址,供渲染泵拼缓存键
 
   // 复用的离屏 canvas:只用来把 PDF 页画出来再转成图片,画完即丢,不常驻 DOM。
   const renderCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -85,7 +116,25 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
 
     renderingRef.current = true;
     const token = tokenRef.current;
+    const cacheKey = pageCacheKey(urlRef.current, width, target);
+    const publish = (objectUrl: string) => {
+      pageUrlsRef.current[target] = objectUrl;
+      setPageImages((prev) => {
+        const next = prev.slice();
+        next[target] = objectUrl;
+        return next;
+      });
+    };
     try {
+      // 1) 先查本地持久缓存 —— 命中直接显示,跳过 pdf.js 渲染(重复打开秒开)
+      const cachedBlob = await readCachedPage(cacheKey);
+      if (token !== tokenRef.current) return;
+      if (cachedBlob) {
+        publish(URL.createObjectURL(cachedBlob));
+        return;
+      }
+
+      // 2) 未命中 → pdf.js 渲染成 JPEG,并持久化到设备供下次秒开
       const page = await pdfDocument.getPage(target + 1);
       if (token !== tokenRef.current) return;
 
@@ -118,13 +167,12 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
         return;
       }
 
-      const objectUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/jpeg", 0.92);
-      pageUrlsRef.current[target] = objectUrl;
-      setPageImages((prev) => {
-        const next = prev.slice();
-        next[target] = objectUrl;
-        return next;
-      });
+      if (blob) {
+        publish(URL.createObjectURL(blob));
+        void writeCachedPage(cacheKey, blob); // 后台持久化,不阻塞显示
+      } else {
+        publish(canvas.toDataURL("image/jpeg", 0.92));
+      }
     } catch {
       // 渲染被令牌作废/文档已销毁等:忽略,交给下一代重画
     } finally {
@@ -144,6 +192,7 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     }
 
     let cancelled = false;
+    urlRef.current = url;
     tokenRef.current += 1;
     renderingRef.current = false;
     renderWidthRef.current = 0;
