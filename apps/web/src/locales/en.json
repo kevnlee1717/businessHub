@@ -137,6 +137,26 @@
       "sortOrder": "Sort order"
     }
   },
+  "ipadSlides": {
+    "title": "iPad Display PDFs",
+    "subtitle": "Manage the project PDFs shown on the sales iPad home screen.",
+    "upload": "Upload PDF",
+    "empty": "No iPad display PDFs yet",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "confirmDelete": "Delete \"{{title}}\"?",
+    "validation": {
+      "titleRequired": "Title is required",
+      "fileRequired": "Choose a PDF file"
+    },
+    "fields": {
+      "title": "Title",
+      "filename": "Filename",
+      "file": "PDF file",
+      "sortOrder": "Sort order",
+      "createdAt": "Uploaded at"
+    }
+  },
   "dashboard": {
     "welcome": "Welcome, {{name}}",
     "title": "Finance Dashboard",
@@ -1385,6 +1405,7 @@
       "fees": "Fee Standards",
       "bizfile": "BizFile",
       "brochure": "Brochures",
+      "ipadSlides": "iPad Display PDFs",
       "categories": "Categories"
     },
     "library": {
