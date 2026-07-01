@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Center, Loader, Modal, Text } from "@mantine/core";
+import { ActionIcon, Box, Center, Loader, Modal, Progress, Stack, Text } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -14,6 +14,10 @@ type PdfSwipeViewerProps = {
 };
 
 const MAX_DPR = 2.5;
+
+function formatMB(bytes: number) {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 function isRenderCancel(error: unknown) {
   return error instanceof Error && error.name === "RenderingCancelledException";
@@ -33,6 +37,7 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [renderedPages, setRenderedPages] = useState<Set<number>>(() => new Set());
+  const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
 
   const cancelRenderTasks = useCallback(() => {
     for (const task of renderTasksRef.current.values()) {
@@ -129,6 +134,7 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
     let cancelled = false;
     setLoading(true);
     setError(false);
+    setProgress(null);
     setNumPages(0);
     setCurrentIndex(0);
     resetRenderedPages();
@@ -147,6 +153,11 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
       disableAutoFetch: true,
     });
     loadingTaskRef.current = loadingTask;
+
+    // 整包下载时 pdf.js 会持续回调下载进度(total 来自服务器 Content-Length)
+    loadingTask.onProgress = ({ loaded, total }: { loaded: number; total: number }) => {
+      if (!cancelled) setProgress({ loaded, total: total || 0 });
+    };
 
     loadingTask.promise
       .then((pdfDocument) => {
@@ -269,8 +280,32 @@ export function PdfSwipeViewer({ url, title, opened, onClose }: PdfSwipeViewerPr
         </ActionIcon>
 
         {loading ? (
-          <Center h="100%">
-            <Loader color="gray" size="lg" />
+          <Center h="100%" px={40}>
+            {progress && progress.total > 0 ? (
+              <Stack gap={14} w="100%" maw={360} align="center">
+                <Text fz={16} fw={600} c="white">
+                  正在加载 PDF… {Math.floor((progress.loaded / progress.total) * 100)}%
+                </Text>
+                <Progress
+                  value={(progress.loaded / progress.total) * 100}
+                  w="100%"
+                  size="lg"
+                  radius="xl"
+                  color="teal"
+                  transitionDuration={200}
+                />
+                <Text fz={13} c="gray.5">
+                  {formatMB(progress.loaded)} / {formatMB(progress.total)}
+                </Text>
+              </Stack>
+            ) : (
+              <Stack gap={14} align="center">
+                <Loader color="gray" size="lg" />
+                <Text fz={13} c="gray.5">
+                  {progress ? `已加载 ${formatMB(progress.loaded)}` : "正在加载 PDF…"}
+                </Text>
+              </Stack>
+            )}
           </Center>
         ) : error ? (
           <Center h="100%">
