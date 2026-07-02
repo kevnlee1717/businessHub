@@ -410,8 +410,8 @@
   },
   "education": {
     "tabs": {
-      "programs": "专业",
-      "courses": "课程",
+      "programs": "课程",
+      "courses": "模块",
       "enrollments": "报名",
       "coursesAndSchedule": "课程与排课",
       "students": "学生",
@@ -456,7 +456,7 @@
       "student": "学生",
       "course": "课程",
       "intake": "开课批次",
-      "program": "专业",
+      "program": "课程",
       "enrollDate": "报名日期",
       "depositAmount": "定金金额",
       "depositPaidAt": "定金时间",
@@ -468,8 +468,8 @@
       "startPeriod": "开始月份",
       "monthsRead": "已读月份",
       "monthsReadValue": "{{read}}/6 个月",
-      "coursesPassed": "课程通过",
-      "coursesPassedValue": "{{passed}}/{{total}} 门",
+      "modulesPassed": "模块通过",
+      "modulesPassedValue": "{{passed}}/{{total}} 个",
       "estimatedGraduationPeriod": "预计毕业月",
       "graduated": "已毕业",
       "notGraduated": "未毕业",
@@ -486,52 +486,51 @@
       "empty": "暂无开课",
       "placeholder": "选择或输入开课批次",
       "selectCourseFirst": "请先选择课程",
-      "selectProgramFirst": "请先选择专业"
-    }
-  },
-  "diplomaProgram": {
-    "add": "新增专业",
-    "edit": "编辑专业",
-    "empty": "暂无专业",
-    "inactive": "停用",
-    "enable": "启用",
-    "disable": "停用",
-    "confirmDelete": "确认删除专业 {{name}}？",
-    "fields": {
-      "name": "专业名称",
-      "nameEn": "英文名",
-      "sortOrder": "排序",
-      "months": "总月数",
-      "priceSgd": "价格 SGD",
-      "status": "状态"
+      "selectCourseFirst": "请先选择课程"
     }
   },
   "diplomaCourse": {
     "add": "新增课程",
     "edit": "编辑课程",
     "empty": "暂无课程",
+    "inactive": "停用",
+    "enable": "启用",
+    "disable": "停用",
     "confirmDelete": "确认删除课程 {{name}}？",
+    "fields": {
+      "name": "课程名称",
+      "nameEn": "英文名",
+      "sortOrder": "排序",
+      "months": "时长(月)",
+      "priceSgd": "价格 SGD",
+      "status": "状态"
+    }
+  },
+  "diplomaModule": {
+    "add": "新增模块",
+    "edit": "编辑模块",
+    "empty": "暂无模块",
+    "confirmDelete": "确认删除模块 {{name}}？",
     "filters": {
-      "program": "按专业筛选"
+      "course": "按课程筛选"
     },
     "fields": {
       "name": "名称",
-      "program": "所属专业",
+      "course": "所属课程",
       "nameEn": "英文名",
-      "content": "课程内容",
+      "content": "模块内容",
       "teacher": "老师",
       "priceSgd": "价格 SGD",
-      "duration": "时长",
-      "monthIndex": "月份"
+      "weeks": "时长(周)",
+      "sortOrder": "排序"
     },
-    "monthHint": "第几个月的课",
-    "monthValue": "第 {{month}} 月",
-    "monthPicker": {
-      "selectProgramFirst": "请先选专业"
+    "sortOrderValue": "排序 {{order}}",
+    "sortOrderPicker": {
+      "selectCourseFirst": "请先选课程"
     },
     "errors": {
-      "monthTaken": "该月份已被其他课程占用",
-      "monthOutOfRange": "月份超出专业总月数范围"
+      "sortOrderTaken": "该排序已被其他模块占用",
+      "sortOrderOutOfRange": "排序超出课程总月数范围"
     }
   },
   "diplomaAssignment": {

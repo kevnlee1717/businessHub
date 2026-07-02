@@ -3,15 +3,15 @@ import { boolean, date, integer, numeric, pgTable, timestamp, text, uuid } from 
 import { billing } from "./billing";
 import { diplomaCourses } from "./diplomaCourses";
 import { diplomaIntakes } from "./diplomaIntakes";
-import { diplomaPrograms } from "./diplomaPrograms";
+import { diplomaModules } from "./diplomaModules";
 import { documents } from "./documents";
 import { students } from "./students";
 
 export const diplomaEnrollments = pgTable("diploma_enrollments", {
   id: uuid("id").primaryKey().defaultRandom(),
   studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  programId: uuid("program_id").references(() => diplomaPrograms.id, { onDelete: "set null" }),
   courseId: uuid("course_id").references(() => diplomaCourses.id, { onDelete: "set null" }),
+  moduleId: uuid("module_id").references(() => diplomaModules.id, { onDelete: "set null" }),
   intakeId: uuid("intake_id").references(() => diplomaIntakes.id, { onDelete: "set null" }),
   program: text("program"),
   enrollDate: date("enroll_date"),

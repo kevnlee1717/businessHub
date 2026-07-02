@@ -410,8 +410,8 @@
   },
   "education": {
     "tabs": {
-      "programs": "Programs",
-      "courses": "Courses",
+      "programs": "Courses",
+      "courses": "Modules",
       "enrollments": "Enrollments",
       "coursesAndSchedule": "Courses and schedules",
       "students": "Students",
@@ -456,7 +456,7 @@
       "student": "Student",
       "course": "Course",
       "intake": "Intake",
-      "program": "Program",
+      "program": "Course",
       "enrollDate": "Enroll date",
       "depositAmount": "Deposit amount",
       "depositPaidAt": "Deposit time",
@@ -468,8 +468,8 @@
       "startPeriod": "Start period",
       "monthsRead": "Months read",
       "monthsReadValue": "{{read}}/6 months",
-      "coursesPassed": "Courses passed",
-      "coursesPassedValue": "{{passed}}/{{total}} courses",
+      "modulesPassed": "Modules passed",
+      "modulesPassedValue": "{{passed}}/{{total}} modules",
       "estimatedGraduationPeriod": "Estimated graduation month",
       "graduated": "Graduated",
       "notGraduated": "Not graduated",
@@ -486,52 +486,51 @@
       "empty": "No intakes yet",
       "placeholder": "Select or create an intake",
       "selectCourseFirst": "Select a course first",
-      "selectProgramFirst": "Select a program first"
-    }
-  },
-  "diplomaProgram": {
-    "add": "Add program",
-    "edit": "Edit program",
-    "empty": "No programs yet",
-    "inactive": "Inactive",
-    "enable": "Enable",
-    "disable": "Disable",
-    "confirmDelete": "Delete program {{name}}?",
-    "fields": {
-      "name": "Program name",
-      "nameEn": "English name",
-      "sortOrder": "Sort order",
-      "months": "Months",
-      "priceSgd": "Price SGD",
-      "status": "Status"
+      "selectCourseFirst": "Select a course first"
     }
   },
   "diplomaCourse": {
     "add": "Add course",
     "edit": "Edit course",
     "empty": "No courses yet",
+    "inactive": "Inactive",
+    "enable": "Enable",
+    "disable": "Disable",
     "confirmDelete": "Delete course {{name}}?",
+    "fields": {
+      "name": "Course name",
+      "nameEn": "English name",
+      "sortOrder": "Sort order",
+      "months": "Duration (months)",
+      "priceSgd": "Price SGD",
+      "status": "Status"
+    }
+  },
+  "diplomaModule": {
+    "add": "Add module",
+    "edit": "Edit module",
+    "empty": "No modules yet",
+    "confirmDelete": "Delete module {{name}}?",
     "filters": {
-      "program": "Filter by program"
+      "course": "Filter by course"
     },
     "fields": {
       "name": "Name",
-      "program": "Program",
+      "course": "Course",
       "nameEn": "English name",
-      "content": "Course content",
+      "content": "Module content",
       "teacher": "Teacher",
       "priceSgd": "Price SGD",
-      "duration": "Duration",
-      "monthIndex": "Month"
+      "weeks": "Duration (weeks)",
+      "sortOrder": "Sort order"
     },
-    "monthHint": "Which month this course belongs to",
-    "monthValue": "Month {{month}}",
-    "monthPicker": {
-      "selectProgramFirst": "Select a program first"
+    "sortOrderValue": "Order {{order}}",
+    "sortOrderPicker": {
+      "selectCourseFirst": "Select a course first"
     },
     "errors": {
-      "monthTaken": "This month is already taken by another course",
-      "monthOutOfRange": "Month is out of the program's range"
+      "sortOrderTaken": "This sort order is already taken by another module",
+      "sortOrderOutOfRange": "Sort order is out of the course's range"
     }
   },
   "diplomaAssignment": {

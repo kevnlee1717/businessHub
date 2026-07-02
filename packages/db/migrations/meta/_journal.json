@@ -435,6 +435,13 @@
       "when": 1782899900526,
       "tag": "0061_ipad_orientation",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1782900000526,
+      "tag": "0062_diploma_rename_course_module",
+      "breakpoints": true
     }
   ]
 }

@@ -23,54 +23,54 @@ import {
   Title
 } from "@mantine/core";
 import {
-  diplomaCourseCreateSchema,
-  diplomaCourseUpdateSchema,
+  diplomaModuleCreateSchema,
+  diplomaModuleUpdateSchema,
   diplomaEnrollmentCreateSchema,
   diplomaEnrollmentUpdateSchema,
-  diplomaProgramCreateSchema,
-  diplomaProgramUpdateSchema,
-  type DiplomaCourseCreateInput,
-  type DiplomaCourseUpdateInput,
+  diplomaCourseCreateSchema,
+  diplomaCourseUpdateSchema,
+  type DiplomaModuleCreateInput,
+  type DiplomaModuleUpdateInput,
   type DiplomaAssignmentAction,
   type DiplomaEnrollmentCreateInput,
   type DiplomaEnrollmentUpdateInput,
   type DiplomaIntakeCreateInput,
-  type DiplomaProgramCreateInput,
-  type DiplomaProgramUpdateInput
+  type DiplomaCourseCreateInput,
+  type DiplomaCourseUpdateInput
 } from "@bh/shared";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
-  createDiplomaCourse,
+  createDiplomaModule,
   createDiplomaEnrollment,
   createDiplomaIntake,
-  createDiplomaProgram,
-  deleteDiplomaCourse,
+  createDiplomaCourse,
+  deleteDiplomaModule,
   deleteDiplomaIntake,
-  deleteDiplomaProgram,
+  deleteDiplomaCourse,
   getDiplomaEnrollment,
-  listDiplomaCourseEnrollments,
-  listDiplomaCourses,
+  listDiplomaModuleEnrollments,
+  listDiplomaModules,
   listDiplomaEnrollments,
   listDiplomaIntakes,
-  listDiplomaPrograms,
+  listDiplomaCourses,
   listStudents,
   postAssignmentMessage,
   updateDiplomaPayment,
-  updateDiplomaCourse,
+  updateDiplomaModule,
   updateDiplomaEnrollment,
   updateDiplomaIntake,
-  updateDiplomaProgram,
+  updateDiplomaCourse,
   uploadDiplomaCertificate,
   uploadDiplomaMedia,
   type DiplomaAssignment,
-  type DiplomaCourse,
+  type DiplomaModule,
   type DiplomaEnrollment,
   type DiplomaIntake,
   type DiplomaPayment,
-  type DiplomaProgram
+  type DiplomaCourse
 } from "../../api/education";
 import { fileUrl, searchDocuments, type DocumentMeta } from "../../api/dms";
 import { listEmployees, type Employee } from "../../api/hr";
@@ -82,19 +82,20 @@ import { TeacherMultiSelect } from "../../components/TeacherMultiSelect";
 import { usePagination } from "../../hooks/usePagination";
 import { displayStudentName, emptyToNull, emptyToUndefined, studentsQueryKey } from "./StudentsPage";
 
-type CourseFormValues = {
-  program_id?: string | null | undefined;
+type ModuleFormValues = {
+  course_id?: string | null | undefined;
   name?: string | undefined;
   name_en?: string | undefined;
   content?: string | null | undefined;
   teacher_ids?: string[] | undefined;
-  month_index?: number | null | undefined;
+  weeks?: number | null | undefined;
+  sort_order?: number | null | undefined;
 };
 
 type DiplomaFormValues = {
   student_id?: string | undefined;
-  program_id?: string | null | undefined;
   course_id?: string | null | undefined;
+  module_id?: string | null | undefined;
   intake_id?: string | null | undefined;
   program?: string | undefined;
   enroll_date?: string | undefined;
@@ -110,7 +111,7 @@ type IntakeFormValues = {
   active: boolean;
 };
 
-type ProgramFormValues = {
+type CourseFormValues = {
   name?: string | undefined;
   name_en?: string | undefined;
   active?: boolean | undefined;
@@ -125,8 +126,8 @@ type DiplomaPageProps = {
   section?: DiplomaPageSection;
 };
 
+const diplomaModulesQueryKey = ["education", "diploma-modules"] as const;
 const diplomaCoursesQueryKey = ["education", "diploma-courses"] as const;
-const diplomaProgramsQueryKey = ["education", "diploma-programs"] as const;
 const diplomaIntakesQueryKey = ["education", "diploma-intakes"] as const;
 const diplomaQueryKey = ["education", "diploma-enrollments"] as const;
 const employeesQueryKey = ["hr", "employees"] as const;
@@ -224,22 +225,23 @@ function assignmentActionColor(action: DiplomaAssignmentAction) {
   }
 }
 
-function getCourseDefaultValues(course?: DiplomaCourse): CourseFormValues {
+function getCourseDefaultValues(course?: DiplomaModule): ModuleFormValues {
   return {
-    program_id: course?.program_id ?? null,
+    course_id: course?.course_id ?? null,
     name: course?.name ?? "",
     name_en: course?.name_en ?? undefined,
     content: course?.content ?? null,
     teacher_ids: course?.teachers?.map((teacher) => teacher.id) ?? [],
-    month_index: course?.month_index ?? null
+    weeks: course?.weeks ?? null,
+    sort_order: course?.sort_order ?? null
   };
 }
 
 function getEnrollmentDefaultValues(enrollment?: DiplomaEnrollment): DiplomaFormValues {
   return {
     student_id: enrollment?.student_id ?? undefined,
-    program_id: enrollment?.program_id ?? null,
     course_id: enrollment?.course_id ?? null,
+    module_id: enrollment?.module_id ?? null,
     intake_id: enrollment?.intake_id ?? null,
     program: enrollment?.program ?? "-",
     enroll_date: enrollment?.enroll_date ?? undefined,
@@ -250,7 +252,7 @@ function getEnrollmentDefaultValues(enrollment?: DiplomaEnrollment): DiplomaForm
   };
 }
 
-function getProgramDefaultValues(program?: DiplomaProgram): ProgramFormValues {
+function getProgramDefaultValues(program?: DiplomaCourse): CourseFormValues {
   return {
     name: program?.name ?? "",
     name_en: program?.name_en ?? undefined,
@@ -318,10 +320,10 @@ function AssignmentCard({ assignment, enrollmentId, employeesById, canReview }: 
       <Stack gap="sm">
         <Group justify="space-between" align="flex-start">
           <Stack gap={2}>
-            <Text fw={600}>{assignment.course?.name ?? t("common.not_available")}</Text>
+            <Text fw={600}>{assignment.module?.name ?? t("common.not_available")}</Text>
             <Text size="sm" c="dimmed">
-              {assignment.course?.month_index
-                ? t("diplomaCourse.monthValue", { month: assignment.course.month_index })
+              {assignment.module?.sort_order
+                ? t("diplomaModule.sortOrderValue", { order: assignment.module.sort_order })
                 : t("common.not_available")}
             </Text>
           </Stack>
@@ -558,11 +560,11 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [courseProgramFilter, setCourseProgramFilter] = useState<string | null>(null);
   const [studentFilter, setStudentFilter] = useState<string | null>(null);
-  const [editingProgram, setEditingProgram] = useState<DiplomaProgram | null>(null);
+  const [editingProgram, setEditingProgram] = useState<DiplomaCourse | null>(null);
   const [programModalOpened, setProgramModalOpened] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<DiplomaCourse | null>(null);
+  const [editingCourse, setEditingCourse] = useState<DiplomaModule | null>(null);
   const [courseModalOpened, setCourseModalOpened] = useState(false);
-  const [intakeProgram, setIntakeProgram] = useState<DiplomaProgram | null>(null);
+  const [intakeProgram, setIntakeProgram] = useState<DiplomaCourse | null>(null);
   const [intakeFormValues, setIntakeFormValues] = useState<IntakeFormValues>({
     label: "",
     start_date: "",
@@ -616,19 +618,19 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   });
 
   const coursesQuery = useQuery({
-    queryKey: [...diplomaCoursesQueryKey, courseProgramFilter, coursesPage, coursesPageSize],
-    queryFn: () => listDiplomaCourses(courseProgramFilter, { page: coursesPage, page_size: coursesPageSize }),
+    queryKey: [...diplomaModulesQueryKey, courseProgramFilter, coursesPage, coursesPageSize],
+    queryFn: () => listDiplomaModules(courseProgramFilter, { page: coursesPage, page_size: coursesPageSize }),
     placeholderData: keepPreviousData
   });
 
   const programsQuery = useQuery({
-    queryKey: diplomaProgramsQueryKey,
-    queryFn: () => listDiplomaPrograms()
+    queryKey: diplomaCoursesQueryKey,
+    queryFn: () => listDiplomaCourses()
   });
 
   const programsListQuery = useQuery({
-    queryKey: [...diplomaProgramsQueryKey, "table", programsPage, programsPageSize],
-    queryFn: () => listDiplomaPrograms({ page: programsPage, page_size: programsPageSize }),
+    queryKey: [...diplomaCoursesQueryKey, "table", programsPage, programsPageSize],
+    queryFn: () => listDiplomaCourses({ page: programsPage, page_size: programsPageSize }),
     enabled: showPrograms,
     placeholderData: keepPreviousData
   });
@@ -647,7 +649,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
 
   const courseEnrollmentsQuery = useQuery({
     queryKey: [...diplomaQueryKey, "course", enrollmentCourseId],
-    queryFn: () => listDiplomaCourseEnrollments(enrollmentCourseId ?? ""),
+    queryFn: () => listDiplomaModuleEnrollments(enrollmentCourseId ?? ""),
     enabled: showEnrollments && Boolean(enrollmentCourseId)
   });
 
@@ -689,27 +691,27 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     enabled: Boolean(detailEnrollmentId)
   });
 
-  const courseForm = useForm<CourseFormValues>({
+  const courseForm = useForm<ModuleFormValues>({
     resolver: zodResolver(
-      editingCourse ? diplomaCourseUpdateSchema : diplomaCourseCreateSchema
-    ) as Resolver<CourseFormValues>,
+      editingCourse ? diplomaModuleUpdateSchema : diplomaModuleCreateSchema
+    ) as Resolver<ModuleFormValues>,
     defaultValues: getCourseDefaultValues(editingCourse ?? undefined)
   });
   const selectedCourseProgramId = useWatch({
     control: courseForm.control,
-    name: "program_id"
+    name: "course_id"
   });
 
   const selectedProgramCoursesQuery = useQuery({
-    queryKey: [...diplomaCoursesQueryKey, selectedCourseProgramId],
-    queryFn: () => listDiplomaCourses(selectedCourseProgramId),
+    queryKey: [...diplomaModulesQueryKey, selectedCourseProgramId],
+    queryFn: () => listDiplomaModules(selectedCourseProgramId),
     enabled: courseModalOpened && Boolean(selectedCourseProgramId)
   });
 
-  const programForm = useForm<ProgramFormValues>({
+  const programForm = useForm<CourseFormValues>({
     resolver: zodResolver(
-      editingProgram ? diplomaProgramUpdateSchema : diplomaProgramCreateSchema
-    ) as Resolver<ProgramFormValues>,
+      editingProgram ? diplomaCourseUpdateSchema : diplomaCourseCreateSchema
+    ) as Resolver<CourseFormValues>,
     defaultValues: getProgramDefaultValues(editingProgram ?? undefined)
   });
 
@@ -721,54 +723,54 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   });
 
   const createCourseMutation = useMutation({
-    mutationFn: createDiplomaCourse,
+    mutationFn: createDiplomaModule,
     onSuccess: async (data) => {
-      await queryClient.invalidateQueries({ queryKey: diplomaCoursesQueryKey });
-      setSelectedCourseId(data.course.id);
+      await queryClient.invalidateQueries({ queryKey: diplomaModulesQueryKey });
+      setSelectedCourseId(data.module.id);
       closeCourseModal();
     }
   });
 
   const createProgramMutation = useMutation({
-    mutationFn: createDiplomaProgram,
+    mutationFn: createDiplomaCourse,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: diplomaProgramsQueryKey });
+      await queryClient.invalidateQueries({ queryKey: diplomaCoursesQueryKey });
       closeProgramModal();
     }
   });
 
   const updateProgramMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: DiplomaProgramUpdateInput }) => updateDiplomaProgram(id, body),
+    mutationFn: ({ id, body }: { id: string; body: DiplomaCourseUpdateInput }) => updateDiplomaCourse(id, body),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: diplomaProgramsQueryKey });
+      await queryClient.invalidateQueries({ queryKey: diplomaCoursesQueryKey });
       closeProgramModal();
     }
   });
 
   const deleteProgramMutation = useMutation({
-    mutationFn: deleteDiplomaProgram,
+    mutationFn: deleteDiplomaCourse,
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: diplomaProgramsQueryKey }),
         queryClient.invalidateQueries({ queryKey: diplomaCoursesQueryKey }),
+        queryClient.invalidateQueries({ queryKey: diplomaModulesQueryKey }),
         queryClient.invalidateQueries({ queryKey: diplomaQueryKey })
       ]);
     }
   });
 
   const updateCourseMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: DiplomaCourseUpdateInput }) => updateDiplomaCourse(id, body),
+    mutationFn: ({ id, body }: { id: string; body: DiplomaModuleUpdateInput }) => updateDiplomaModule(id, body),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: diplomaCoursesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: diplomaModulesQueryKey });
       closeCourseModal();
     }
   });
 
   const deleteCourseMutation = useMutation({
-    mutationFn: deleteDiplomaCourse,
+    mutationFn: deleteDiplomaModule,
     onSuccess: async (_data, courseId) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: diplomaCoursesQueryKey }),
+        queryClient.invalidateQueries({ queryKey: diplomaModulesQueryKey }),
         queryClient.invalidateQueries({ queryKey: diplomaQueryKey })
       ]);
       if (selectedCourseId === courseId) {
@@ -817,8 +819,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     onSuccess: async (_data, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: diplomaQueryKey }),
-        variables.course_id
-          ? queryClient.invalidateQueries({ queryKey: [...diplomaQueryKey, "course", variables.course_id] })
+        variables.module_id
+          ? queryClient.invalidateQueries({ queryKey: [...diplomaQueryKey, "course", variables.module_id] })
           : Promise.resolve()
       ]);
       closeEnrollmentModal();
@@ -860,9 +862,9 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     }
   });
 
-  const courses = coursesQuery.data?.courses ?? [];
-  const programs = programsQuery.data?.programs ?? [];
-  const programRows = programsListQuery.data?.programs ?? [];
+  const courses = coursesQuery.data?.modules ?? [];
+  const programs = programsQuery.data?.courses ?? [];
+  const programRows = programsListQuery.data?.courses ?? [];
   const students = studentsQuery.data?.students ?? [];
   const employees = employeesQuery.data?.employees ?? [];
   const courseEnrollments = courseEnrollmentsQuery.data?.enrollments ?? [];
@@ -901,13 +903,13 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
   const programsById = useMemo(() => new Map(programs.map((program) => [program.id, program])), [programs]);
   const selectedCourseProgram = programsById.get(selectedCourseProgramId ?? "");
-  const selectedProgramCourses = selectedProgramCoursesQuery.data?.courses ?? [];
+  const selectedProgramCourses = selectedProgramCoursesQuery.data?.modules ?? [];
   const occupiedCourseMonths = useMemo(
     () =>
       new Set(
         selectedProgramCourses
-          .filter((course) => course.id !== editingCourse?.id && course.month_index !== null && course.month_index !== undefined)
-          .map((course) => course.month_index as number)
+          .filter((course) => course.id !== editingCourse?.id && course.sort_order !== null && course.sort_order !== undefined)
+          .map((course) => course.sort_order as number)
       ),
     [editingCourse?.id, selectedProgramCourses]
   );
@@ -917,7 +919,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   );
   const enrollmentDetail = enrollmentDetailQuery.data;
   const detailAssignments = [...(enrollmentDetail?.assignments ?? [])].sort(
-    (left, right) => (left.course?.month_index ?? 99) - (right.course?.month_index ?? 99)
+    (left, right) => (left.module?.sort_order ?? 99) - (right.module?.sort_order ?? 99)
   );
   const detailPayments = [...(enrollmentDetail?.payments ?? [])].sort((left, right) =>
     left.period.localeCompare(right.period)
@@ -946,7 +948,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     setCourseModalOpened(true);
   }
 
-  function openEditCourseModal(course: DiplomaCourse) {
+  function openEditCourseModal(course: DiplomaModule) {
     setEditingCourse(course);
     setCourseFormError(null);
     courseForm.reset(getCourseDefaultValues(course));
@@ -967,7 +969,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     setProgramModalOpened(true);
   }
 
-  function openEditProgramModal(program: DiplomaProgram) {
+  function openEditProgramModal(program: DiplomaCourse) {
     setEditingProgram(program);
     setProgramFormError(null);
     programForm.reset(getProgramDefaultValues(program));
@@ -981,7 +983,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     programForm.reset(getProgramDefaultValues());
   }
 
-  function openIntakesModal(program: DiplomaProgram) {
+  function openIntakesModal(program: DiplomaCourse) {
     setIntakeProgram(program);
     setIntakeFormValues({ label: "", start_date: "", active: true });
     setIntakeFormError(null);
@@ -996,13 +998,13 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   function openCreateEnrollmentModal() {
     setEditingEnrollment(null);
     setEnrollmentFormError(null);
-    const initialProgramId = enrollmentCourseId ? coursesById.get(enrollmentCourseId)?.program_id ?? null : null;
-    setEnrollmentSelectedProgramId(initialProgramId);
+    const initialCourseId = enrollmentCourseId ? coursesById.get(enrollmentCourseId)?.course_id ?? null : null;
+    setEnrollmentSelectedProgramId(initialCourseId);
     enrollmentForm.reset({
       ...getEnrollmentDefaultValues(),
       student_id: studentFilter ?? undefined,
-      course_id: enrollmentCourseId ?? null,
-      program_id: initialProgramId
+      course_id: initialCourseId,
+      module_id: enrollmentCourseId ?? null
     });
     setEnrollmentModalOpened(true);
   }
@@ -1010,7 +1012,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
   function openEditEnrollmentModal(enrollment: DiplomaEnrollment) {
     setEditingEnrollment(enrollment);
     setEnrollmentFormError(null);
-    setEnrollmentSelectedProgramId(enrollment.program_id ?? null);
+    setEnrollmentSelectedProgramId(enrollment.course_id ?? null);
     enrollmentForm.reset(getEnrollmentDefaultValues(enrollment));
     setEnrollmentModalOpened(true);
   }
@@ -1069,9 +1071,10 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     try {
       const body = {
         ...values,
-        program_id: values.program_id ?? null,
+        course_id: values.course_id ?? null,
         teacher_ids: values.teacher_ids ?? [],
-        month_index: values.month_index ?? null
+        weeks: values.weeks ?? null,
+        sort_order: values.sort_order ?? null
       };
 
       if (editingCourse) {
@@ -1079,13 +1082,13 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         return;
       }
 
-      await createCourseMutation.mutateAsync(body as DiplomaCourseCreateInput);
+      await createCourseMutation.mutateAsync(body as DiplomaModuleCreateInput);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message === "diploma_month_taken") {
-        setCourseFormError(t("diplomaCourse.errors.monthTaken"));
+        setCourseFormError(t("diplomaModule.errors.sortOrderTaken"));
       } else if (message === "diploma_month_out_of_range") {
-        setCourseFormError(t("diplomaCourse.errors.monthOutOfRange"));
+        setCourseFormError(t("diplomaModule.errors.sortOrderOutOfRange"));
       } else {
         setCourseFormError(message || t("common.unknown_error"));
       }
@@ -1110,7 +1113,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         return;
       }
 
-      await createProgramMutation.mutateAsync(body as DiplomaProgramCreateInput);
+      await createProgramMutation.mutateAsync(body as DiplomaCourseCreateInput);
     } catch (error) {
       setProgramFormError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -1124,8 +1127,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         await updateEnrollmentMutation.mutateAsync({
           id: editingEnrollment.id,
           body: {
-            program_id: values.program_id ?? undefined,
-            course_id: values.course_id ?? null,
+            course_id: values.course_id ?? undefined,
+            module_id: values.module_id ?? null,
             intake_id: values.intake_id ?? null,
             installments_count: values.installments_count ?? null,
             deposit_amount: values.deposit_amount ?? null,
@@ -1138,8 +1141,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
 
       await createEnrollmentMutation.mutateAsync({
         ...values,
-        program_id: values.program_id ?? "",
-        course_id: values.course_id ?? null,
+        course_id: values.course_id ?? "",
+        module_id: values.module_id ?? null,
         intake_id: values.intake_id ?? null,
         installments_count: values.installments_count ?? null,
         deposit_amount: values.deposit_amount ?? null,
@@ -1150,23 +1153,23 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     }
   });
 
-  async function handleDeleteCourse(course: DiplomaCourse) {
-    if (!window.confirm(t("diplomaCourse.confirmDelete", { name: displayName(course) }))) {
+  async function handleDeleteCourse(course: DiplomaModule) {
+    if (!window.confirm(t("diplomaModule.confirmDelete", { name: displayName(course) }))) {
       return;
     }
 
     await deleteCourseMutation.mutateAsync(course.id);
   }
 
-  async function handleDeleteProgram(program: DiplomaProgram) {
-    if (!window.confirm(t("diplomaProgram.confirmDelete", { name: displayName(program) }))) {
+  async function handleDeleteProgram(program: DiplomaCourse) {
+    if (!window.confirm(t("diplomaCourse.confirmDelete", { name: displayName(program) }))) {
       return;
     }
 
     await deleteProgramMutation.mutateAsync(program.id);
   }
 
-  async function handleToggleProgram(program: DiplomaProgram) {
+  async function handleToggleProgram(program: DiplomaCourse) {
     await updateProgramMutation.mutateAsync({
       id: program.id,
       body: {
@@ -1185,7 +1188,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
       await createIntakeMutation.mutateAsync({
         programId: intakeProgram.id,
         body: {
-          program_id: intakeProgram.id,
+          course_id: intakeProgram.id,
           label: intakeFormValues.label.trim(),
           start_date: intakeFormValues.start_date || null,
           active: intakeFormValues.active
@@ -1229,7 +1232,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
     const result = await createEnrollmentIntakeMutation.mutateAsync({
       programId: enrollmentSelectedProgramId,
       body: {
-        program_id: enrollmentSelectedProgramId,
+        course_id: enrollmentSelectedProgramId,
         label
       }
     });
@@ -1266,8 +1269,8 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
         <Title order={2}>{t("diploma.title")}</Title>
         {canManageEducation ? (
           <Group gap="xs">
-            {showPrograms ? <Button onClick={openCreateProgramModal}>{t("diplomaProgram.add")}</Button> : null}
-            {showCourses ? <Button onClick={openCreateCourseModal}>{t("diplomaCourse.add")}</Button> : null}
+            {showPrograms ? <Button onClick={openCreateProgramModal}>{t("diplomaCourse.add")}</Button> : null}
+            {showCourses ? <Button onClick={openCreateCourseModal}>{t("diplomaModule.add")}</Button> : null}
           </Group>
         ) : null}
       </Group>
@@ -1285,10 +1288,10 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
               <Table miw={760} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>{t("diplomaProgram.fields.name")}</Table.Th>
-                    <Table.Th>{t("diplomaProgram.fields.nameEn")}</Table.Th>
-                    <Table.Th>{t("diplomaProgram.fields.sortOrder")}</Table.Th>
-                    <Table.Th>{t("diplomaProgram.fields.status")}</Table.Th>
+                    <Table.Th>{t("diplomaCourse.fields.name")}</Table.Th>
+                    <Table.Th>{t("diplomaCourse.fields.nameEn")}</Table.Th>
+                    <Table.Th>{t("diplomaCourse.fields.sortOrder")}</Table.Th>
+                    <Table.Th>{t("diplomaCourse.fields.status")}</Table.Th>
                     {canManageEducation ? <Table.Th>{t("common.actions")}</Table.Th> : null}
                   </Table.Tr>
                 </Table.Thead>
@@ -1305,7 +1308,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                     <Table.Tr>
                       <Table.Td colSpan={canManageEducation ? 5 : 4}>
                         <Text ta="center" c="dimmed" py="lg">
-                          {t("diplomaProgram.empty")}
+                          {t("diplomaCourse.empty")}
                         </Text>
                       </Table.Td>
                     </Table.Tr>
@@ -1317,7 +1320,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                         <Table.Td>{program.sort_order ?? t("common.not_available")}</Table.Td>
                         <Table.Td>
                           <Badge color={program.active ? "green" : "gray"} variant="light">
-                            {program.active ? t("common.active") : t("diplomaProgram.inactive")}
+                            {program.active ? t("common.active") : t("diplomaCourse.inactive")}
                           </Badge>
                         </Table.Td>
                         {canManageEducation ? (
@@ -1336,7 +1339,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                                 loading={updateProgramMutation.isPending}
                                 onClick={() => void handleToggleProgram(program)}
                               >
-                                {program.active ? t("diplomaProgram.disable") : t("diplomaProgram.enable")}
+                                {program.active ? t("diplomaCourse.disable") : t("diplomaCourse.enable")}
                               </Button>
                               <Button
                                 size="xs"
@@ -1372,7 +1375,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             <Group justify="space-between" align="flex-end">
               <Title order={3}>{t("education.tabs.courses")}</Title>
               <Select
-                label={t("diplomaCourse.filters.program")}
+                label={t("diplomaModule.filters.course")}
                 placeholder={t("common.all")}
                 data={programFilterOptions}
                 value={courseProgramFilter}
@@ -1386,18 +1389,19 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             <Table miw={900} verticalSpacing="sm" withTableBorder withColumnBorders highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>{t("diplomaCourse.fields.name")}</Table.Th>
-                  <Table.Th>{t("diplomaCourse.fields.program")}</Table.Th>
-                  <Table.Th>{t("diplomaCourse.fields.monthIndex")}</Table.Th>
-                  <Table.Th>{t("diplomaCourse.fields.teacher")}</Table.Th>
-                  <Table.Th>{t("diplomaCourse.fields.content")}</Table.Th>
+                  <Table.Th>{t("diplomaModule.fields.name")}</Table.Th>
+                  <Table.Th>{t("diplomaModule.fields.course")}</Table.Th>
+                  <Table.Th>{t("diplomaModule.fields.sortOrder")}</Table.Th>
+                  <Table.Th>{t("diplomaModule.fields.weeks")}</Table.Th>
+                  <Table.Th>{t("diplomaModule.fields.teacher")}</Table.Th>
+                  <Table.Th>{t("diplomaModule.fields.content")}</Table.Th>
                   {canManageEducation ? <Table.Th>{t("common.actions")}</Table.Th> : null}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {coursesQuery.isLoading || employeesQuery.isLoading ? (
                   <Table.Tr>
-                    <Table.Td colSpan={canManageEducation ? 6 : 5}>
+                    <Table.Td colSpan={canManageEducation ? 7 : 6}>
                       <Group justify="center" py="lg">
                         <Loader size="sm" />
                       </Group>
@@ -1405,9 +1409,9 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Table.Tr>
                 ) : courses.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={canManageEducation ? 6 : 5}>
+                    <Table.Td colSpan={canManageEducation ? 7 : 6}>
                       <Text ta="center" c="dimmed" py="lg">
-                        {t("diplomaCourse.empty")}
+                        {t("diplomaModule.empty")}
                       </Text>
                     </Table.Td>
                   </Table.Tr>
@@ -1427,13 +1431,14 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                     >
                       <Table.Td>{displayName(course)}</Table.Td>
                       <Table.Td>
-                        {displayName(programsById.get(course.program_id ?? "")) || t("common.not_available")}
+                        {displayName(programsById.get(course.course_id ?? "")) || t("common.not_available")}
                       </Table.Td>
                       <Table.Td>
-                        {course.month_index
-                          ? t("diplomaCourse.monthValue", { month: course.month_index })
+                        {course.sort_order
+                          ? t("diplomaModule.sortOrderValue", { order: course.sort_order })
                           : t("common.not_available")}
                       </Table.Td>
+                      <Table.Td>{course.weeks ?? t("common.not_available")}</Table.Td>
                       <Table.Td>
                         {displayTeachers(course.teachers).length > 0 ? (
                           <Group gap={4}>
@@ -1528,7 +1533,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>{t("diploma.fields.student")}</Table.Th>
-                    <Table.Th>{t("diploma.fields.program")}</Table.Th>
+                    <Table.Th>{t("diploma.fields.course")}</Table.Th>
                     <Table.Th>{t("diploma.fields.intake")}</Table.Th>
                     <Table.Th>{t("diploma.fields.enrollDate")}</Table.Th>
                     <Table.Th>{t("diploma.fields.depositAmount")}</Table.Th>
@@ -1562,7 +1567,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                           {displayStudentName(studentsById.get(enrollment.student_id)) || t("common.not_available")}
                         </Table.Td>
                         <Table.Td>
-                          {displayName(programsById.get(enrollment.program_id ?? "")) ||
+                          {displayName(programsById.get(enrollment.course_id ?? "")) ||
                             enrollment.program ||
                             t("common.not_available")}
                         </Table.Td>
@@ -1608,7 +1613,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
       <Modal
         opened={programModalOpened}
         onClose={closeProgramModal}
-        title={editingProgram ? t("diplomaProgram.edit") : t("diplomaProgram.add")}
+        title={editingProgram ? t("diplomaCourse.edit") : t("diplomaCourse.add")}
         size="lg"
       >
         <form onSubmit={onProgramSubmit}>
@@ -1620,12 +1625,12 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             ) : null}
             <Group grow align="flex-start">
               <TextInput
-                label={t("diplomaProgram.fields.name")}
+                label={t("diplomaCourse.fields.name")}
                 error={programErrors.name?.message}
                 {...programForm.register("name")}
               />
               <TextInput
-                label={t("diplomaProgram.fields.nameEn")}
+                label={t("diplomaCourse.fields.nameEn")}
                 error={programErrors.name_en?.message}
                 {...programForm.register("name_en", { setValueAs: emptyToUndefined })}
               />
@@ -1636,7 +1641,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 name="price_sgd"
                 render={({ field }) => (
                   <NumberInput
-                    label={t("diplomaProgram.fields.priceSgd")}
+                    label={t("diplomaCourse.fields.priceSgd")}
                     value={field.value ?? ""}
                     onChange={(value) => field.onChange(numberOrNull(value))}
                     error={programErrors.price_sgd?.message}
@@ -1649,7 +1654,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 name="months"
                 render={({ field }) => (
                   <NumberInput
-                    label={t("diplomaProgram.fields.months")}
+                    label={t("diplomaCourse.fields.months")}
                     value={field.value ?? ""}
                     onChange={(value) => field.onChange(numberOrNull(value))}
                     error={programErrors.months?.message}
@@ -1663,7 +1668,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 name="sort_order"
                 render={({ field }) => (
                   <NumberInput
-                    label={t("diplomaProgram.fields.sortOrder")}
+                    label={t("diplomaCourse.fields.sortOrder")}
                     value={field.value ?? ""}
                     onChange={(value) => field.onChange(numberOrNull(value))}
                     error={programErrors.sort_order?.message}
@@ -1701,7 +1706,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
       <Modal
         opened={courseModalOpened}
         onClose={closeCourseModal}
-        title={editingCourse ? t("diplomaCourse.edit") : t("diplomaCourse.add")}
+        title={editingCourse ? t("diplomaModule.edit") : t("diplomaModule.add")}
         size="lg"
       >
         <form onSubmit={onCourseSubmit}>
@@ -1713,35 +1718,35 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             ) : null}
             <Group grow align="flex-start">
               <TextInput
-                label={t("diplomaCourse.fields.name")}
+                label={t("diplomaModule.fields.name")}
                 error={courseErrors.name?.message}
                 {...courseForm.register("name")}
               />
               <TextInput
-                label={t("diplomaCourse.fields.nameEn")}
+                label={t("diplomaModule.fields.nameEn")}
                 error={courseErrors.name_en?.message}
                 {...courseForm.register("name_en", { setValueAs: emptyToUndefined })}
               />
             </Group>
             <Textarea
-              label={t("diplomaCourse.fields.content")}
+              label={t("diplomaModule.fields.content")}
               error={courseErrors.content?.message}
               {...courseForm.register("content", { setValueAs: emptyToNull })}
             />
             <Group grow align="flex-start">
               <Controller
                 control={courseForm.control}
-                name="program_id"
+                name="course_id"
                 render={({ field }) => (
                   <Select
-                    label={t("diplomaCourse.fields.program")}
+                    label={t("diplomaModule.fields.course")}
                     data={programOptions}
                     value={field.value ?? null}
                     onChange={(value) => {
                       field.onChange(value);
-                      courseForm.setValue("month_index", null);
+                      courseForm.setValue("sort_order", null);
                     }}
-                    error={courseErrors.program_id?.message}
+                    error={courseErrors.course_id?.message}
                     clearable
                     searchable
                   />
@@ -1751,7 +1756,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                 control={courseForm.control}
                 name="teacher_ids"
                 render={({ field }) => (
-                  <Input.Wrapper label={t("diplomaCourse.fields.teacher")} error={courseErrors.teacher_ids?.message}>
+                  <Input.Wrapper label={t("diplomaModule.fields.teacher")} error={courseErrors.teacher_ids?.message}>
                     <TeacherMultiSelect
                       value={field.value ?? []}
                       onChange={(nextValue) => field.onChange(nextValue)}
@@ -1762,15 +1767,15 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             </Group>
             <Controller
               control={courseForm.control}
-              name="month_index"
+              name="sort_order"
               render={({ field }) => {
                 const months = selectedCourseProgram?.months ?? null;
 
                 return (
-                  <Input.Wrapper label={t("diplomaCourse.fields.monthIndex")} error={courseErrors.month_index?.message}>
+                  <Input.Wrapper label={t("diplomaModule.fields.sortOrder")} error={courseErrors.sort_order?.message}>
                     {!selectedCourseProgramId || !months ? (
                       <Text size="sm" c="dimmed">
-                        {t("diplomaCourse.monthPicker.selectProgramFirst")}
+                        {t("diplomaModule.sortOrderPicker.selectCourseFirst")}
                       </Text>
                     ) : (
                       <Group gap="xs" wrap="wrap">
@@ -1798,6 +1803,20 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Input.Wrapper>
                 );
               }}
+            />
+            <Controller
+              control={courseForm.control}
+              name="weeks"
+              render={({ field }) => (
+                <NumberInput
+                  label={t("diplomaModule.fields.weeks")}
+                  value={field.value ?? ""}
+                  onChange={(value) => field.onChange(numberOrNull(value))}
+                  error={courseErrors.weeks?.message}
+                  min={1}
+                  allowDecimal={false}
+                />
+              )}
             />
             <Group justify="flex-end">
               <Button variant="subtle" onClick={closeCourseModal}>
@@ -1945,10 +1964,10 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
             )}
             <Controller
               control={enrollmentForm.control}
-              name="program_id"
+              name="course_id"
               render={({ field }) => (
                 <Select
-                  label={t("diploma.fields.program")}
+                  label={t("diploma.fields.course")}
                   data={programOptions}
                   value={field.value ?? null}
                   onChange={(value) => {
@@ -1956,7 +1975,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                     setEnrollmentSelectedProgramId(value);
                     enrollmentForm.setValue("intake_id", null);
                   }}
-                  error={enrollmentErrors.program_id?.message}
+                  error={enrollmentErrors.course_id?.message}
                   clearable
                   searchable
                 />
@@ -1971,7 +1990,7 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   placeholder={
                     enrollmentSelectedProgramId
                       ? t("diploma.intakes.placeholder")
-                      : t("diploma.intakes.selectProgramFirst")
+                      : t("diploma.intakes.selectCourseFirst")
                   }
                   options={enrollmentIntakeOptions}
                   value={field.value ?? null}
@@ -2103,12 +2122,12 @@ export function DiplomaPage({ section = "all" }: DiplomaPageProps) {
                   </Stack>
                   <Stack gap={2}>
                     <Text size="xs" c="dimmed">
-                      {t("diploma.progress.coursesPassed")}
+                      {t("diploma.progress.modulesPassed")}
                     </Text>
                     <Text fw={600}>
-                      {t("diploma.progress.coursesPassedValue", {
-                        passed: enrollmentDetail.progress.courses_passed,
-                        total: enrollmentDetail.progress.courses_total
+                      {t("diploma.progress.modulesPassedValue", {
+                        passed: enrollmentDetail.progress.modules_passed,
+                        total: enrollmentDetail.progress.modules_total
                       })}
                     </Text>
                   </Stack>
