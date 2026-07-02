@@ -3,10 +3,10 @@ import {
   type CourseDesignItemUpdateInput,
   type CourseDesignTaskCreateInput,
   type CourseDesignTaskUpdateInput,
+  type DiplomaModuleCreateInput,
+  type DiplomaModuleUpdateInput,
   type DiplomaCourseCreateInput,
   type DiplomaCourseUpdateInput,
-  type DiplomaProgramCreateInput,
-  type DiplomaProgramUpdateInput,
   type DiplomaIntakeCreateInput,
   type DiplomaIntakeUpdateInput,
   type DiplomaAssignmentAction,
@@ -68,7 +68,7 @@ export type CourseTeacher = {
   name_en?: string | null;
 };
 
-export type DiplomaProgram = {
+export type DiplomaCourse = {
   id: string;
   name: string;
   name_en?: string | null;
@@ -82,8 +82,8 @@ export type DiplomaProgram = {
 export type DiplomaEnrollment = {
   id: string;
   student_id: string;
-  program_id?: string | null;
   course_id?: string | null;
+  module_id?: string | null;
   intake_id?: string | null;
   intake_label?: string | null;
   program: string;
@@ -101,7 +101,8 @@ export type DiplomaEnrollment = {
 
 export type DiplomaIntake = {
   id: string;
-  program_id: string;
+  course_id: string;
+  module_id?: string | null;
   label: string;
   start_date?: string | null;
   active: boolean;
@@ -109,17 +110,17 @@ export type DiplomaIntake = {
   created_at: string;
 };
 
-export type DiplomaCourse = {
+export type DiplomaModule = {
   id: string;
-  program_id?: string | null;
+  course_id?: string | null;
   name: string;
   name_en?: string | null;
   content?: string | null;
   teacher_id?: string | null;
   teachers?: CourseTeacher[];
   price_sgd?: string | null;
-  duration?: string | null;
-  month_index?: number | null;
+  weeks?: number | null;
+  sort_order?: number | null;
   created_at: string;
 };
 
@@ -143,14 +144,14 @@ export type DiplomaAssignmentMessage = {
 export type DiplomaAssignment = {
   id: string;
   enrollment_id: string;
-  course_id?: string | null;
+  module_id?: string | null;
   status: DiplomaAssignmentStatus;
   passed_at?: string | null;
-  course?: {
+  module?: {
     id: string;
     name: string;
     name_en?: string | null;
-    month_index?: number | null;
+    sort_order?: number | null;
   } | null;
   messages: DiplomaAssignmentMessage[];
   created_at?: string;
@@ -227,8 +228,8 @@ export type AcademyHealth = {
 export type DiplomaEnrollmentProgress = {
   start_period?: string | null;
   months_read: number;
-  courses_total: number;
-  courses_passed: number;
+  modules_total: number;
+  modules_passed: number;
   graduated: boolean;
   estimated_graduation_period?: string | null;
   deposit_paid_at?: string | null;
@@ -554,47 +555,10 @@ export function uploadDiplomaMedia(enrollmentId: string, files: File[]): Promise
   return multipartApi<{ enrollment: DiplomaEnrollment }>(`/diploma-enrollments/${enrollmentId}/media`, formData);
 }
 
-export function listDiplomaPrograms(
-  params: PaginationParams = {}
-): Promise<{ programs: DiplomaProgram[] } & PaginationMeta> {
-  const searchParams = new URLSearchParams();
-  appendPaginationParams(searchParams, params);
-
-  const query = searchParams.toString();
-  return api<{ programs: DiplomaProgram[] } & PaginationMeta>(`/diploma-programs${query ? `?${query}` : ""}`);
-}
-
-export function createDiplomaProgram(body: DiplomaProgramCreateInput): Promise<{ program: DiplomaProgram }> {
-  return api<{ program: DiplomaProgram }>("/diploma-programs", {
-    method: "POST",
-    body
-  });
-}
-
-export function updateDiplomaProgram(
-  id: string,
-  body: DiplomaProgramUpdateInput
-): Promise<{ program: DiplomaProgram }> {
-  return api<{ program: DiplomaProgram }>(`/diploma-programs/${id}`, {
-    method: "PATCH",
-    body
-  });
-}
-
-export function deleteDiplomaProgram(id: string): Promise<{ ok: true }> {
-  return api<{ ok: true }>(`/diploma-programs/${id}`, {
-    method: "DELETE"
-  });
-}
-
 export function listDiplomaCourses(
-  programId?: string | null,
   params: PaginationParams = {}
 ): Promise<{ courses: DiplomaCourse[] } & PaginationMeta> {
   const searchParams = new URLSearchParams();
-  if (programId) {
-    searchParams.set("program_id", programId);
-  }
   appendPaginationParams(searchParams, params);
 
   const query = searchParams.toString();
@@ -624,39 +588,76 @@ export function deleteDiplomaCourse(id: string): Promise<{ ok: true }> {
   });
 }
 
-export function listDiplomaIntakes(programId: string): Promise<{ intakes: DiplomaIntake[] }> {
-  return api<{ intakes: DiplomaIntake[] }>(`/diploma-programs/${programId}/intakes`);
+export function listDiplomaModules(
+  courseId?: string | null,
+  params: PaginationParams = {}
+): Promise<{ modules: DiplomaModule[] } & PaginationMeta> {
+  const searchParams = new URLSearchParams();
+  if (courseId) {
+    searchParams.set("course_id", courseId);
+  }
+  appendPaginationParams(searchParams, params);
+
+  const query = searchParams.toString();
+  return api<{ modules: DiplomaModule[] } & PaginationMeta>(`/diploma-modules${query ? `?${query}` : ""}`);
+}
+
+export function createDiplomaModule(body: DiplomaModuleCreateInput): Promise<{ module: DiplomaModule }> {
+  return api<{ module: DiplomaModule }>("/diploma-modules", {
+    method: "POST",
+    body
+  });
+}
+
+export function updateDiplomaModule(
+  id: string,
+  body: DiplomaModuleUpdateInput
+): Promise<{ module: DiplomaModule }> {
+  return api<{ module: DiplomaModule }>(`/diploma-modules/${id}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteDiplomaModule(id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/diploma-modules/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export function listDiplomaIntakes(courseId: string): Promise<{ intakes: DiplomaIntake[] }> {
+  return api<{ intakes: DiplomaIntake[] }>(`/diploma-courses/${courseId}/intakes`);
 }
 
 export function createDiplomaIntake(
-  programId: string,
+  courseId: string,
   body: DiplomaIntakeCreateInput
 ): Promise<{ intake: DiplomaIntake }> {
-  return api<{ intake: DiplomaIntake }>(`/diploma-programs/${programId}/intakes`, {
+  return api<{ intake: DiplomaIntake }>(`/diploma-courses/${courseId}/intakes`, {
     method: "POST",
     body
   });
 }
 
 export function updateDiplomaIntake(
-  programId: string,
+  courseId: string,
   id: string,
   body: DiplomaIntakeUpdateInput
 ): Promise<{ intake: DiplomaIntake }> {
-  return api<{ intake: DiplomaIntake }>(`/diploma-programs/${programId}/intakes/${id}`, {
+  return api<{ intake: DiplomaIntake }>(`/diploma-courses/${courseId}/intakes/${id}`, {
     method: "PATCH",
     body
   });
 }
 
-export function deleteDiplomaIntake(programId: string, id: string): Promise<{ ok: true }> {
-  return api<{ ok: true }>(`/diploma-programs/${programId}/intakes/${id}`, {
+export function deleteDiplomaIntake(courseId: string, id: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/diploma-courses/${courseId}/intakes/${id}`, {
     method: "DELETE"
   });
 }
 
-export function listDiplomaCourseEnrollments(courseId: string): Promise<{ enrollments: DiplomaEnrollment[] }> {
-  return api<{ enrollments: DiplomaEnrollment[] }>(`/diploma-courses/${courseId}/enrollments`);
+export function listDiplomaModuleEnrollments(moduleId: string): Promise<{ enrollments: DiplomaEnrollment[] }> {
+  return api<{ enrollments: DiplomaEnrollment[] }>(`/diploma-modules/${moduleId}/enrollments`);
 }
 
 export function listWsqCourses(params: PaginationParams = {}): Promise<{ courses: WsqCourse[] } & PaginationMeta> {

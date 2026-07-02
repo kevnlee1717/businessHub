@@ -5,8 +5,8 @@ import {
   diplomaCourses,
   diplomaEnrollments,
   diplomaIntakes,
+  diplomaModules,
   diplomaPayments,
-  diplomaPrograms,
   documents
 } from "@bh/db";
 import {
@@ -31,8 +31,8 @@ function serializeDiploma(
   return {
     id: enrollment.id,
     student_id: enrollment.studentId,
-    program_id: enrollment.programId,
     course_id: enrollment.courseId,
+    module_id: enrollment.moduleId,
     intake_id: enrollment.intakeId,
     intake_label: intake?.label ?? null,
     program: enrollment.program,
@@ -59,22 +59,22 @@ function serializeDocument(row: Pick<typeof documents.$inferSelect, "id" | "file
 
 function serializeAssignment(
   row: typeof diplomaAssignments.$inferSelect,
-  course?: Pick<typeof diplomaCourses.$inferSelect, "id" | "name" | "monthIndex"> | null,
+  module?: Pick<typeof diplomaModules.$inferSelect, "id" | "name" | "sortOrder"> | null,
   messages: ReturnType<typeof serializeAssignmentMessage>[] = []
 ) {
   return {
     id: row.id,
     enrollment_id: row.enrollmentId,
-    course_id: row.courseId,
+    module_id: row.moduleId,
     status: row.status,
     passed_at: row.passedAt,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
-    course: course
+    module: module
       ? {
-          id: course.id,
-          name: course.name,
-          month_index: course.monthIndex
+          id: module.id,
+          name: module.name,
+          sort_order: module.sortOrder
         }
       : null,
     messages
@@ -275,16 +275,16 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     const assignmentRows = await db
       .select({
         assignment: diplomaAssignments,
-        course: {
-          id: diplomaCourses.id,
-          name: diplomaCourses.name,
-          monthIndex: diplomaCourses.monthIndex
+        module: {
+          id: diplomaModules.id,
+          name: diplomaModules.name,
+          sortOrder: diplomaModules.sortOrder
         }
       })
       .from(diplomaAssignments)
-      .leftJoin(diplomaCourses, eq(diplomaAssignments.courseId, diplomaCourses.id))
+      .leftJoin(diplomaModules, eq(diplomaAssignments.moduleId, diplomaModules.id))
       .where(eq(diplomaAssignments.enrollmentId, id))
-      .orderBy(asc(diplomaCourses.monthIndex), asc(diplomaAssignments.createdAt));
+      .orderBy(asc(diplomaModules.sortOrder), asc(diplomaAssignments.createdAt));
 
     const assignmentIds = assignmentRows.map((row) => row.assignment.id);
     const messageRows =
@@ -313,14 +313,14 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
       .from(diplomaPayments)
       .where(eq(diplomaPayments.enrollmentId, id))
       .orderBy(asc(diplomaPayments.period));
-    const [coursesTotalRow] = enrollment.programId
+    const [modulesTotalRow] = enrollment.courseId
       ? await db
           .select({ count: sql<number>`count(*)::int` })
-          .from(diplomaCourses)
-          .where(eq(diplomaCourses.programId, enrollment.programId))
-      : await db.select({ count: sql<number>`count(*)::int` }).from(diplomaCourses);
-    const coursesTotal = coursesTotalRow?.count ?? 0;
-    const coursesPassed = assignmentRows.filter((row) => row.assignment.status === "passed").length;
+          .from(diplomaModules)
+          .where(eq(diplomaModules.courseId, enrollment.courseId))
+      : await db.select({ count: sql<number>`count(*)::int` }).from(diplomaModules);
+    const modulesTotal = modulesTotalRow?.count ?? 0;
+    const modulesPassed = assignmentRows.filter((row) => row.assignment.status === "passed").length;
     const paymentsPaid = paymentRows.filter((payment) => payment.paid).length;
 
     return {
@@ -328,8 +328,8 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
       progress: {
         start_period: enrollment.startPeriod,
         months_read: monthsRead(enrollment.startPeriod),
-        courses_total: coursesTotal,
-        courses_passed: coursesPassed,
+        modules_total: modulesTotal,
+        modules_passed: modulesPassed,
         graduated: enrollment.graduated,
         estimated_graduation_period: enrollment.startPeriod ? addMonthsToPeriod(enrollment.startPeriod, 5) : null,
         deposit_paid_at: enrollment.depositPaidAt,
@@ -337,7 +337,7 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
         payments_total: paymentRows.length
       },
       assignments: assignmentRows.map((row) =>
-        serializeAssignment(row.assignment, row.course, messagesByAssignmentId.get(row.assignment.id) ?? [])
+        serializeAssignment(row.assignment, row.module, messagesByAssignmentId.get(row.assignment.id) ?? [])
       ),
       payments: paymentRows.map(serializePayment)
     };
@@ -347,20 +347,20 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     const body = parseWithSchema(diplomaEnrollmentCreateSchema, request.body);
     const startPeriod = getStartPeriod(body.enroll_date);
     const enrollment = await db.transaction(async (tx) => {
-      const [program] = await tx.select().from(diplomaPrograms).where(eq(diplomaPrograms.id, body.program_id)).limit(1);
+      const [course] = await tx.select().from(diplomaCourses).where(eq(diplomaCourses.id, body.course_id)).limit(1);
 
-      if (!program) {
-        throw new Error("diploma_program_not_found");
+      if (!course) {
+        throw new Error("diploma_course_not_found");
       }
 
       const [createdEnrollment] = await tx
         .insert(diplomaEnrollments)
         .values({
           studentId: body.student_id,
-          programId: body.program_id,
           courseId: body.course_id,
+          moduleId: body.module_id,
           intakeId: body.intake_id,
-          program: program.name,
+          program: course.name,
           enrollDate: body.enroll_date,
           billingId: body.billing_id,
           installmentsCount: body.installments_count,
@@ -377,22 +377,22 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
 
       const courses = await tx
         .select()
-        .from(diplomaCourses)
-        .where(eq(diplomaCourses.programId, body.program_id))
-        .orderBy(asc(diplomaCourses.monthIndex), asc(diplomaCourses.createdAt));
+        .from(diplomaModules)
+        .where(eq(diplomaModules.courseId, body.course_id))
+        .orderBy(asc(diplomaModules.sortOrder), asc(diplomaModules.createdAt));
 
       if (courses.length > 0) {
         await tx.insert(diplomaAssignments).values(
-          courses.map((course) => ({
+          courses.map((module) => ({
             enrollmentId: createdEnrollment.id,
-            courseId: course.id,
+            moduleId: module.id,
             status: "pending" as const
           }))
         );
       }
 
-      const installmentsCount = Math.max(1, program.months ?? 6);
-      const programPrice = program.priceSgd === null || program.priceSgd === undefined ? null : Number(program.priceSgd);
+      const installmentsCount = Math.max(1, course.months ?? 6);
+      const programPrice = course.priceSgd === null || course.priceSgd === undefined ? null : Number(course.priceSgd);
       const otherInstallmentAmount =
         programPrice === null || Number.isNaN(programPrice) ? null : Math.floor(programPrice / installmentsCount);
       const firstInstallmentAmount =
@@ -428,22 +428,22 @@ export async function registerDiplomaRoutes(app: FastifyInstance): Promise<void>
     const enrollment = await db.transaction(async (tx) => {
       let programName = body.program;
 
-      if (body.program_id !== undefined) {
-        const [program] = await tx.select().from(diplomaPrograms).where(eq(diplomaPrograms.id, body.program_id)).limit(1);
+      if (body.course_id !== undefined) {
+        const [course] = await tx.select().from(diplomaCourses).where(eq(diplomaCourses.id, body.course_id)).limit(1);
 
-        if (!program) {
+        if (!course) {
           return null;
         }
 
-        programName = program.name;
+        programName = course.name;
       }
 
       const [updated] = await tx
         .update(diplomaEnrollments)
         .set({
           studentId: body.student_id,
-          programId: body.program_id,
           courseId: body.course_id,
+          moduleId: body.module_id,
           intakeId: body.intake_id,
           program: programName,
           enrollDate: body.enroll_date,

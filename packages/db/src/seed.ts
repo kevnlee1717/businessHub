@@ -1111,7 +1111,7 @@ async function seedAcademyDemo() {
         .values({
           studentId: student.id,
           program: "城市轨道交通运营管理",
-          courseId: null,
+          moduleId: null,
           enrollDate: `${startPeriod}-01`,
           billingId: null,
           installmentsCount: 6,

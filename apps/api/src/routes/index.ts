@@ -22,7 +22,7 @@ import { registerCourseDesignItemRoutes } from "./courseDesignItems";
 import { registerCourseDesignTaskRoutes } from "./courseDesignTasks";
 import { registerDashboardRoutes } from "./dashboard";
 import { registerDiplomaCourseRoutes } from "./diplomaCourses";
-import { registerDiplomaProgramRoutes } from "./diplomaPrograms";
+import { registerDiplomaModuleRoutes } from "./diplomaModules";
 import { registerDiplomaRoutes } from "./diploma";
 import { registerDocumentCategoryRoutes } from "./documentCategories";
 import { registerDocumentRoutes } from "./documents";
@@ -127,8 +127,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerTeacherRoutes);
   await app.register(registerCourseDesignItemRoutes);
   await app.register(registerCourseDesignTaskRoutes);
-  await app.register(registerDiplomaProgramRoutes);
   await app.register(registerDiplomaCourseRoutes);
+  await app.register(registerDiplomaModuleRoutes);
   await app.register(registerDiplomaRoutes);
   await app.register(registerAcademyFinanceRoutes);
   await app.register(registerWsqRoutes);
