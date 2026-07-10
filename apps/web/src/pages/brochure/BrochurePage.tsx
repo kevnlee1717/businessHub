@@ -71,12 +71,18 @@ function TreeButton({
   active,
   indent = 0,
   children,
-  onClick
+  onClick,
+  expandable = false,
+  expanded = false,
+  onToggle
 }: {
   active: boolean;
   indent?: number;
   children: React.ReactNode;
   onClick: () => void;
+  expandable?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   return (
     <UnstyledButton
@@ -91,9 +97,32 @@ function TreeButton({
         border: active ? "1px solid #b3d8ff" : "1px solid transparent"
       }}
     >
-      <Text size="sm" fw={active ? 600 : 400} truncate>
-        {children}
-      </Text>
+      <Group gap={6} wrap="nowrap" align="center">
+        {expandable ? (
+          <span
+            role="button"
+            aria-label={expanded ? "collapse" : "expand"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle?.();
+            }}
+            style={{
+              display: "inline-flex",
+              flexShrink: 0,
+              cursor: "pointer",
+              fontSize: 12,
+              lineHeight: 1,
+              transition: "transform 120ms",
+              transform: expanded ? "rotate(90deg)" : "none"
+            }}
+          >
+            ▸
+          </span>
+        ) : null}
+        <Text size="sm" fw={active ? 600 : 400} truncate>
+          {children}
+        </Text>
+      </Group>
     </UnstyledButton>
   );
 }
@@ -328,6 +357,8 @@ export function BrochurePage() {
   const canManage = can("brochure.manage");
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const [selection, setSelection] = useState<Selection>({ type: "all" });
+  // 行业默认展开；「宣传车」默认折叠，其余可点箭头切换（overrides 存用户手动改过的）
+  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const [q, setQ] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingBrochure, setEditingBrochure] = useState<Brochure | null>(null);
@@ -360,6 +391,10 @@ export function BrochurePage() {
   });
 
   const industries = industriesQuery.data?.industries ?? [];
+  // 默认折叠的行业名（用户要求「宣传车」默认不展开）
+  const DEFAULT_COLLAPSED_INDUSTRIES = ["宣传车"];
+  const isIndustryExpanded = (industry: { id: string; name: string }) =>
+    expandedOverrides[industry.id] ?? !DEFAULT_COLLAPSED_INDUSTRIES.includes(industry.name?.trim());
   const categories = categoriesQuery.data?.categories ?? [];
   const brochures = brochuresQuery.data?.brochures ?? [];
   const total = brochuresQuery.data?.total ?? brochures.length;
@@ -400,26 +435,39 @@ export function BrochurePage() {
                 <TreeButton active={activeKey === "all"} onClick={() => select({ type: "all" })}>
                   {t("common.all")}
                 </TreeButton>
-                {industries.map((industry) => (
-                  <Stack key={industry.id} gap={4}>
-                    <TreeButton active={activeKey === `industry:${industry.id}`} onClick={() => select({ type: "industry", industryId: industry.id })}>
-                      ▸ {industry.name}
-                    </TreeButton>
-                    {(treeUsageQuery.isLoading
-                      ? []
-                      : categories.filter((category) => usageSet.has(`${industry.id}:${category.id}`))
-                    ).map((category) => (
+                {industries.map((industry) => {
+                  const expanded = isIndustryExpanded(industry);
+                  return (
+                    <Stack key={industry.id} gap={4}>
                       <TreeButton
-                        key={`${industry.id}-${category.id}`}
-                        indent={18}
-                        active={activeKey === `category:${industry.id}:${category.id}`}
-                        onClick={() => select({ type: "category", industryId: industry.id, categoryId: category.id })}
+                        active={activeKey === `industry:${industry.id}`}
+                        expandable
+                        expanded={expanded}
+                        onToggle={() =>
+                          setExpandedOverrides((prev) => ({ ...prev, [industry.id]: !expanded }))
+                        }
+                        onClick={() => select({ type: "industry", industryId: industry.id })}
                       >
-                        {category.name}
+                        {industry.name}
                       </TreeButton>
-                    ))}
-                  </Stack>
-                ))}
+                      {expanded
+                        ? (treeUsageQuery.isLoading
+                            ? []
+                            : categories.filter((category) => usageSet.has(`${industry.id}:${category.id}`))
+                          ).map((category) => (
+                            <TreeButton
+                              key={`${industry.id}-${category.id}`}
+                              indent={18}
+                              active={activeKey === `category:${industry.id}:${category.id}`}
+                              onClick={() => select({ type: "category", industryId: industry.id, categoryId: category.id })}
+                            >
+                              {category.name}
+                            </TreeButton>
+                          ))
+                        : null}
+                    </Stack>
+                  );
+                })}
               </Stack>
             </ScrollArea>
             {canManage ? (
