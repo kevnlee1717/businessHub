@@ -357,7 +357,7 @@ export function BrochurePage() {
   const canManage = can("brochure.manage");
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const [selection, setSelection] = useState<Selection>({ type: "all" });
-  // 行业默认展开；「宣传车」默认折叠，其余可点箭头切换（overrides 存用户手动改过的）
+  // 行业默认全部折叠，可点箭头切换（overrides 存用户手动改过的）
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const [q, setQ] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -391,10 +391,9 @@ export function BrochurePage() {
   });
 
   const industries = industriesQuery.data?.industries ?? [];
-  // 默认折叠的行业名（用户要求「宣传车」默认不展开）
-  const DEFAULT_COLLAPSED_INDUSTRIES = ["宣传车"];
-  const isIndustryExpanded = (industry: { id: string; name: string }) =>
-    expandedOverrides[industry.id] ?? !DEFAULT_COLLAPSED_INDUSTRIES.includes(industry.name?.trim());
+  // 所有行业默认折叠，用户点箭头再展开（overrides 记住手动切换）
+  const isIndustryExpanded = (industry: { id: string }) =>
+    expandedOverrides[industry.id] ?? false;
   const categories = categoriesQuery.data?.categories ?? [];
   const brochures = brochuresQuery.data?.brochures ?? [];
   const total = brochuresQuery.data?.total ?? brochures.length;
