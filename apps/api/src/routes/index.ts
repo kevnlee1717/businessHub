@@ -26,6 +26,7 @@ import { registerDiplomaModuleRoutes } from "./diplomaModules";
 import { registerDiplomaRoutes } from "./diploma";
 import { registerDocumentCategoryRoutes } from "./documentCategories";
 import { registerDocumentRoutes } from "./documents";
+import { registerDriveRoutes } from "./drive";
 import { registerEmployeeRoutes } from "./employees";
 import { registerEpPackageRoutes } from "./epPackages";
 import { registerEpPriceFileRoutes } from "./epPriceFiles";
@@ -115,6 +116,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerRecruitmentRoutes);
   await app.register(registerFranchiseRoutes);
   await app.register(registerBrochureRoutes);
+  await app.register(registerDriveRoutes);
   await app.register(registerIpadSlideRoutes);
   await app.register(registerKioskRoutes);
   await app.register(registerTranslateRoutes);

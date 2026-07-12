@@ -13,6 +13,7 @@ export * from "./schemas/cases";
 export * from "./schemas/collectionItems";
 export * from "./schemas/commission";
 export * from "./schemas/dms";
+export * from "./schemas/drive";
 export * from "./schemas/education";
 export * from "./schemas/epPackages";
 export * from "./schemas/external";

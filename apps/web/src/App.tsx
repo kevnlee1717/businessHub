@@ -24,6 +24,7 @@ import { CategoriesPage } from "./pages/documents/CategoriesPage";
 import { companyFileSections } from "./pages/documents/companyFileSections";
 import { DocumentSearchPage } from "./pages/documents/DocumentSearchPage";
 import { DocumentsLayout } from "./pages/documents/DocumentsLayout";
+import { DrivePage } from "./pages/documents/drive/DrivePage";
 import { FolderLibraryPage } from "./pages/documents/FolderLibraryPage";
 import { RentPage } from "./pages/documents/RentPage";
 import { AcademyCollectionPage } from "./pages/education/AcademyCollectionPage";
@@ -139,7 +140,7 @@ export function App() {
                   element={<FolderLibraryPage section={section} />}
                 />
               ))}
-            <Route path="brochure" element={<BrochurePage />} />
+            <Route path="brochure" element={<DrivePage />} />
             <Route path="ipad-slides" element={<IpadSlidesAdminPage />} />
             <Route path="categories" element={<CategoriesPage />} />
           </Route>
