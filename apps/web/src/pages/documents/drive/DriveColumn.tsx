@@ -24,8 +24,8 @@ function formatDate(value?: string | null) {
 function FolderIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 6.75A2.75 2.75 0 0 1 5.75 4h4.02c.73 0 1.43.29 1.94.8l1.2 1.2h5.34A2.75 2.75 0 0 1 21 8.75v7.5A3.75 3.75 0 0 1 17.25 20H6.75A3.75 3.75 0 0 1 3 16.25v-9.5Z" fill="currentColor" />
-      <path d="M3.5 9h17v7.25a3.25 3.25 0 0 1-3.25 3.25H6.75a3.25 3.25 0 0 1-3.25-3.25V9Z" fill="currentColor" opacity="0.78" />
+      <path d="M3 6.75A2.75 2.75 0 0 1 5.75 4h4.02c.73 0 1.43.29 1.94.8l1.2 1.2h5.34A2.75 2.75 0 0 1 21 8.75v7.5A3.75 3.75 0 0 1 17.25 20H6.75A3.75 3.75 0 0 1 3 16.25v-9.5Z" fill="#D99A00" />
+      <path d="M3.5 9h17v7.25a3.25 3.25 0 0 1-3.25 3.25H6.75a3.25 3.25 0 0 1-3.25-3.25V9Z" fill="#F9C74F" />
     </svg>
   );
 }
@@ -33,9 +33,9 @@ function FolderIcon() {
 function PdfIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 2.75h8.5L19 7.25v14H6a2 2 0 0 1-2-2V4.75a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M14.5 2.75v4.5H19" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M7 16.5h10M7 12.5h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6 2.75h8.5L19 7.25v14H6a2 2 0 0 1-2-2V4.75a2 2 0 0 1 2-2Z" stroke="#D92D20" strokeWidth="1.8" />
+      <path d="M14.5 2.75v4.5H19" stroke="#D92D20" strokeWidth="1.8" />
+      <path d="M7 16.5h10M7 12.5h10" stroke="#D92D20" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -43,9 +43,9 @@ function PdfIcon() {
 function PhotoIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="m5 17 4.5-4.5 3.2 3.2 2.1-2.1L19 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="15.75" cy="8.75" r="1.35" fill="currentColor" />
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="#12B76A" strokeWidth="1.8" />
+      <path d="m5 17 4.5-4.5 3.2 3.2 2.1-2.1L19 17" stroke="#2E90FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="15.75" cy="8.75" r="1.35" fill="#12B76A" />
     </svg>
   );
 }
@@ -53,19 +53,19 @@ function PhotoIcon() {
 function FileIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 2.75h8.5L19 7.25v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4.75a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M14.5 2.75v4.5H19M8 12.5h8M8 16h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6 2.75h8.5L19 7.25v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4.75a2 2 0 0 1 2-2Z" stroke="#667085" strokeWidth="1.8" />
+      <path d="M14.5 2.75v4.5H19M8 12.5h8M8 16h6" stroke="#667085" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
 
 function iconFor(node: DriveNode) {
-  if (node.kind === "folder") return { Icon: FolderIcon, color: "yellow" };
+  if (node.kind === "folder") return { Icon: FolderIcon, color: "transparent" };
   const mime = node.mime ?? "";
   const name = node.name.toLowerCase();
-  if (mime === "application/pdf" || name.endsWith(".pdf")) return { Icon: PdfIcon, color: "red" };
-  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(name)) return { Icon: PhotoIcon, color: "green" };
-  return { Icon: FileIcon, color: "gray" };
+  if (mime === "application/pdf" || name.endsWith(".pdf")) return { Icon: PdfIcon, color: "transparent" };
+  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(name)) return { Icon: PhotoIcon, color: "transparent" };
+  return { Icon: FileIcon, color: "transparent" };
 }
 
 function previewKind(file: DriveNode) {
@@ -86,7 +86,7 @@ function DriveFilePreviewColumn({ file }: { file: DriveNode }) {
     <Box w={300} h={560} style={{ flex: "0 0 300px", borderLeft: "1px solid #dcdfe6", overflowY: "auto" }}>
       <Stack gap="sm" p="md">
         <Group gap="sm" wrap="nowrap">
-          <ThemeIcon color={icon.color} variant="light" radius="sm" size="lg">
+          <ThemeIcon color={icon.color} variant="transparent" radius="sm" size="lg">
             <Icon />
           </ThemeIcon>
           <Text size="sm" fw={600} truncate title={file.name}>
@@ -233,7 +233,7 @@ function DriveColumnRow({
         }}
       >
         <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
-          <ThemeIcon color={icon.color} variant={selected ? "filled" : "light"} radius="sm" size="sm" style={{ flexShrink: 0 }}>
+          <ThemeIcon color={icon.color} variant="transparent" radius="sm" size="sm" style={{ flexShrink: 0 }}>
             <Icon />
           </ThemeIcon>
           {editing ? (
