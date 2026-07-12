@@ -21,14 +21,51 @@ function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function FolderIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 6.75A2.75 2.75 0 0 1 5.75 4h4.02c.73 0 1.43.29 1.94.8l1.2 1.2h5.34A2.75 2.75 0 0 1 21 8.75v7.5A3.75 3.75 0 0 1 17.25 20H6.75A3.75 3.75 0 0 1 3 16.25v-9.5Z" fill="currentColor" />
+      <path d="M3.5 9h17v7.25a3.25 3.25 0 0 1-3.25 3.25H6.75a3.25 3.25 0 0 1-3.25-3.25V9Z" fill="currentColor" opacity="0.78" />
+    </svg>
+  );
+}
+
+function PdfIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 2.75h8.5L19 7.25v14H6a2 2 0 0 1-2-2V4.75a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M14.5 2.75v4.5H19" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 16.5h10M7 12.5h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PhotoIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m5 17 4.5-4.5 3.2 3.2 2.1-2.1L19 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="15.75" cy="8.75" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 2.75h8.5L19 7.25v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4.75a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M14.5 2.75v4.5H19M8 12.5h8M8 16h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function iconFor(node: DriveNode) {
-  if (node.kind === "folder") return { label: "DIR", color: "yellow" };
+  if (node.kind === "folder") return { Icon: FolderIcon, color: "yellow" };
   const mime = node.mime ?? "";
   const name = node.name.toLowerCase();
-  if (mime === "application/pdf" || name.endsWith(".pdf")) return { label: "PDF", color: "red" };
-  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(name)) return { label: "IMG", color: "green" };
-  if (/\.(xlsx|xls|csv)$/.test(name)) return { label: "XLS", color: "teal" };
-  return { label: "FILE", color: "gray" };
+  if (mime === "application/pdf" || name.endsWith(".pdf")) return { Icon: PdfIcon, color: "red" };
+  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(name)) return { Icon: PhotoIcon, color: "green" };
+  return { Icon: FileIcon, color: "gray" };
 }
 
 function previewKind(file: DriveNode) {
@@ -42,15 +79,15 @@ function previewKind(file: DriveNode) {
 function DriveFilePreviewColumn({ file }: { file: DriveNode }) {
   const { t } = useTranslation();
   const kind = previewKind(file);
+  const icon = iconFor(file);
+  const Icon = icon.Icon;
 
   return (
     <Box w={300} h={560} style={{ flex: "0 0 300px", borderLeft: "1px solid #dcdfe6", overflowY: "auto" }}>
       <Stack gap="sm" p="md">
         <Group gap="sm" wrap="nowrap">
-          <ThemeIcon color={iconFor(file).color} variant="light" radius="sm" size="lg">
-            <Text size="9px" fw={700}>
-              {iconFor(file).label}
-            </Text>
+          <ThemeIcon color={icon.color} variant="light" radius="sm" size="lg">
+            <Icon />
           </ThemeIcon>
           <Text size="sm" fw={600} truncate title={file.name}>
             {file.name}
@@ -123,9 +160,11 @@ function DriveColumnRow({
   const { t } = useTranslation();
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const [menuOpened, setMenuOpened] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [dragOver, setDragOver] = useState(false);
   const [name, setName] = useState(node.name);
   const icon = iconFor(node);
+  const Icon = icon.Icon;
 
   useEffect(() => {
     if (editing) setName(node.name);
@@ -150,95 +189,108 @@ function DriveColumnRow({
     }
   }
 
+  function openMenuAt(x: number, y: number) {
+    setMenuPosition({ x, y });
+    setMenuOpened(true);
+  }
+
   return (
-    <Menu opened={menuOpened} onChange={setMenuOpened} disabled={!menuOpened} shadow="md" width={190} withinPortal>
+    <>
+      <Box
+        draggable={canManage}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", node.id);
+          onDragStart(node);
+        }}
+        onDragOver={(event) => {
+          if (canManage && node.kind === "folder") {
+            event.preventDefault();
+            setDragOver(true);
+          }
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => onSelect(node)}
+        onDoubleClick={() => {
+          if (node.kind === "file") onOpenPreview(node);
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onSelect(node);
+          openMenuAt(event.clientX, event.clientY);
+        }}
+        style={{
+          height: 32,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 18px",
+          alignItems: "center",
+          padding: "0 8px",
+          background: selected ? "#228be6" : dropping || dragOver ? "#ecf5ff" : "transparent",
+          color: selected ? "#fff" : "#303133",
+          cursor: "default",
+          borderRadius: 3
+        }}
+      >
+        <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+          <ThemeIcon color={icon.color} variant={selected ? "filled" : "light"} radius="sm" size="sm" style={{ flexShrink: 0 }}>
+            <Icon />
+          </ThemeIcon>
+          {editing ? (
+            <TextInput
+              autoFocus
+              size="xs"
+              value={name}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => setName(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") submit();
+                if (event.key === "Escape") onCancelRename();
+              }}
+              styles={{ input: { minHeight: 24, height: 24 } }}
+            />
+          ) : (
+            <Text size="sm" truncate title={node.name}>
+              {node.name}
+            </Text>
+          )}
+        </Group>
+        {node.kind === "folder" ? (
+          <Text size="sm" ta="right" c={selected ? "white" : "dimmed"}>
+            &gt;
+          </Text>
+        ) : (
+          <Box />
+        )}
+        <input
+          ref={replaceInputRef}
+          type="file"
+          hidden
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) onReplace(node, file);
+          }}
+        />
+      </Box>
+      <Menu opened={menuOpened} onChange={setMenuOpened} shadow="md" width={190} withinPortal>
       <Menu.Target>
         <Box
-          draggable={canManage}
-          onDragStart={(event) => {
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", node.id);
-            onDragStart(node);
-          }}
-          onDragOver={(event) => {
-            if (canManage && node.kind === "folder") {
-              event.preventDefault();
-              setDragOver(true);
-            }
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => onSelect(node)}
-          onDoubleClick={() => {
-            if (node.kind === "file") onOpenPreview(node);
-          }}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            onSelect(node);
-            setMenuOpened(true);
-          }}
           style={{
-            height: 32,
-            display: "grid",
-            gridTemplateColumns: "1fr 18px",
-            alignItems: "center",
-            padding: "0 8px",
-            background: selected ? "#228be6" : dropping || dragOver ? "#ecf5ff" : "transparent",
-            color: selected ? "#fff" : "#303133",
-            cursor: "default",
-            borderRadius: 3
+            position: "fixed",
+            left: menuPosition.x,
+            top: menuPosition.y,
+            width: 0,
+            height: 0,
+            pointerEvents: "none"
           }}
-        >
-          <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
-            <ThemeIcon color={icon.color} variant={selected ? "filled" : "light"} radius="sm" size="sm" style={{ flexShrink: 0 }}>
-              <Text size="7px" fw={700}>
-                {icon.label}
-              </Text>
-            </ThemeIcon>
-            {editing ? (
-              <TextInput
-                autoFocus
-                size="xs"
-                value={name}
-                onClick={(event) => event.stopPropagation()}
-                onChange={(event) => setName(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") submit();
-                  if (event.key === "Escape") onCancelRename();
-                }}
-                styles={{ input: { minHeight: 24, height: 24 } }}
-              />
-            ) : (
-              <Text size="sm" truncate title={node.name}>
-                {node.name}
-              </Text>
-            )}
-          </Group>
-          {node.kind === "folder" ? (
-            <Text size="sm" ta="right" c={selected ? "white" : "dimmed"}>
-              &gt;
-            </Text>
-          ) : null}
-          <input
-            ref={replaceInputRef}
-            type="file"
-            hidden
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              if (file) onReplace(node, file);
-            }}
-          />
-        </Box>
+        />
       </Menu.Target>
       <Menu.Dropdown>
         {node.kind === "file" ? (
-          <>
-            <Menu.Item onClick={() => onOpenPreview(node)}>{t("drive.preview")}</Menu.Item>
-            <Menu.Item component="a" href={driveDownloadUrl(node.id)} target="_blank" rel="noreferrer">
-              {t("drive.download")}
-            </Menu.Item>
-          </>
+          <Menu.Item component="a" href={driveDownloadUrl(node.id)} target="_blank" rel="noreferrer">
+            {t("drive.download")}
+          </Menu.Item>
         ) : null}
         {node.kind === "folder" && canManage ? (
           <Menu.Item onClick={() => onCreateFolder(node)}>{t("drive.newChildFolder")}</Menu.Item>
@@ -256,6 +308,7 @@ function DriveColumnRow({
         ) : null}
       </Menu.Dropdown>
     </Menu>
+    </>
   );
 }
 
