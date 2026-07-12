@@ -139,6 +139,8 @@
   },
   "drive": {
     "title": "Files",
+    "root": "All",
+    "file": "File",
     "searchPlaceholder": "Search files or folders",
     "newFolder": "New folder",
     "newChildFolder": "New subfolder",
@@ -149,6 +151,7 @@
     "preview": "File preview",
     "previewUnsupported": "This file type cannot be previewed inline. Download it to view.",
     "empty": "No files yet",
+    "emptyColumn": "No items",
     "readonly": "Your account has view-only access.",
     "confirmDelete": "Delete \"{{name}}\"? Folders and their contents will be deleted together.",
     "parentFolder": "Parent folder: {{name}}",
@@ -160,7 +163,8 @@
       "updatedAt": "Modified"
     },
     "fields": {
-      "folderName": "Folder name"
+      "folderName": "Folder name",
+      "kind": "Type"
     },
     "validation": {
       "nameRequired": "Name is required"

@@ -139,6 +139,8 @@
   },
   "drive": {
     "title": "资料库(网盘)",
+    "root": "全部",
+    "file": "文件",
     "searchPlaceholder": "搜索文件或文件夹",
     "newFolder": "新建文件夹",
     "newChildFolder": "新建子文件夹",
@@ -149,6 +151,7 @@
     "preview": "文件预览",
     "previewUnsupported": "该文件类型不支持内嵌预览，请下载查看。",
     "empty": "暂无文件",
+    "emptyColumn": "暂无内容",
     "readonly": "当前账号只有查看权限。",
     "confirmDelete": "确认删除「{{name}}」？文件夹会连同子内容一起删除。",
     "parentFolder": "父文件夹：{{name}}",
@@ -160,7 +163,8 @@
       "updatedAt": "修改时间"
     },
     "fields": {
-      "folderName": "文件夹名称"
+      "folderName": "文件夹名称",
+      "kind": "类型"
     },
     "validation": {
       "nameRequired": "请填写名称"
