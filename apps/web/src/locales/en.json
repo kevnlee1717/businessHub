@@ -137,6 +137,35 @@
       "sortOrder": "Sort order"
     }
   },
+  "drive": {
+    "title": "Files",
+    "searchPlaceholder": "Search files or folders",
+    "newFolder": "New folder",
+    "newChildFolder": "New subfolder",
+    "uploadFiles": "Upload files",
+    "rename": "Rename",
+    "replaceFile": "Upload new version",
+    "download": "Download",
+    "preview": "File preview",
+    "previewUnsupported": "This file type cannot be previewed inline. Download it to view.",
+    "empty": "No files yet",
+    "readonly": "Your account has view-only access.",
+    "confirmDelete": "Delete \"{{name}}\"? Folders and their contents will be deleted together.",
+    "parentFolder": "Parent folder: {{name}}",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "columns": {
+      "name": "Name",
+      "size": "Size",
+      "updatedAt": "Modified"
+    },
+    "fields": {
+      "folderName": "Folder name"
+    },
+    "validation": {
+      "nameRequired": "Name is required"
+    }
+  },
   "ipadSlides": {
     "title": "iPad Display PDFs",
     "subtitle": "Manage the project PDFs shown on the sales iPad home screen.",
