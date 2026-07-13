@@ -145,6 +145,8 @@
     "newFolder": "新建文件夹",
     "newChildFolder": "新建子文件夹",
     "uploadFiles": "上传文件",
+    "uploadFolder": "上传文件夹",
+    "uploadFolderSuccess": "已新建 {{folders}} 个文件夹，上传 {{files}} 个文件。",
     "rename": "重命名",
     "replaceFile": "传新版本",
     "download": "下载",
