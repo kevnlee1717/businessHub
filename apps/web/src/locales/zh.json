@@ -168,6 +168,24 @@
       "folderName": "文件夹名称",
       "kind": "类型"
     },
+    "kind": {
+      "folder": "文件夹",
+      "file": "文件"
+    },
+    "trash": {
+      "title": "回收站",
+      "subtitle": "查看已删除的网盘项目，可还原或永久删除。",
+      "restore": "还原",
+      "purge": "永久删除",
+      "empty": "清空回收站",
+      "confirmPurge": "确认永久删除「{{name}}」？此操作不可恢复。",
+      "confirmEmpty": "确认清空回收站？此操作不可恢复。",
+      "originalPath": "原位置",
+      "typeSize": "类型/大小",
+      "deletedAt": "删除时间",
+      "emptyState": "回收站是空的",
+      "childCount": "包含 {{count}} 个子项目"
+    },
     "validation": {
       "nameRequired": "请填写名称"
     }

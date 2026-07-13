@@ -17,6 +17,7 @@ import {
 import { useAuth } from "../../../auth/AuthContext";
 import { DriveColumns } from "./DriveColumns";
 import { DrivePreviewModal } from "./DrivePreviewModal";
+import { DriveTrashModal } from "./DriveTrashModal";
 
 function ErrorAlert({ error }: { error: unknown }) {
   const { t } = useTranslation();
@@ -110,6 +111,7 @@ export function DrivePage() {
   const { t } = useTranslation();
   const { can } = useAuth();
   const canManage = can("brochure.manage");
+  const canAdmin = can("brochure.admin");
   const queryClient = useQueryClient();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const uploadFolderInputRef = useRef<HTMLInputElement | null>(null);
@@ -119,6 +121,7 @@ export function DrivePage() {
   const [folderModalOpened, setFolderModalOpened] = useState(false);
   const [folderParent, setFolderParent] = useState<DriveNode | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [trashOpened, setTrashOpened] = useState(false);
   const [operationError, setOperationError] = useState<unknown>(null);
   const [toast, setToast] = useState<{ color: "green" | "red"; message: string } | null>(null);
 
@@ -232,7 +235,7 @@ export function DrivePage() {
   }
 
   function removeNode(node: DriveNode) {
-    if (!canManage) return;
+    if (!canAdmin) return;
     if (!window.confirm(t("drive.confirmDelete", { name: node.name }))) return;
     if (node.kind === "folder") {
       const index = selectedPath.indexOf(node.id);
@@ -320,12 +323,19 @@ export function DrivePage() {
                   <Button variant="light" onClick={() => startRename(selectedNode)}>
                     {t("drive.rename")}
                   </Button>
-                  <Button color="red" variant="light" loading={deleteMutation.isPending} onClick={() => removeNode(selectedNode)}>
-                    {t("common.delete")}
-                  </Button>
+                  {canAdmin ? (
+                    <Button color="red" variant="light" loading={deleteMutation.isPending} onClick={() => removeNode(selectedNode)}>
+                      {t("common.delete")}
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
             </>
+          ) : null}
+          {canAdmin ? (
+            <Button variant="light" onClick={() => setTrashOpened(true)}>
+              {t("drive.trash.title")}
+            </Button>
           ) : null}
           <input
             ref={uploadInputRef}
@@ -374,6 +384,7 @@ export function DrivePage() {
               selectedPath={selectedPath}
               selectedFileId={selectedFileId}
               canManage={canManage}
+              canDelete={canAdmin}
               editingId={editingId}
               onSelectPath={setSelectedPath}
               onSelectFile={setSelectedFileId}
@@ -416,6 +427,7 @@ export function DrivePage() {
       />
 
       <DrivePreviewModal opened={previewFile !== null} file={previewFile} onClose={() => setPreviewFile(null)} />
+      {canAdmin ? <DriveTrashModal opened={trashOpened} onClose={() => setTrashOpened(false)} /> : null}
       {toast ? (
         <Box pos="fixed" top={16} right={16} w={320} style={{ zIndex: 4000 }}>
           <Notification color={toast.color} onClose={() => setToast(null)} withBorder>
