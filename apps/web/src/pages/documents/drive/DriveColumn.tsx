@@ -126,6 +126,7 @@ function DriveColumnRow({
   node,
   selected,
   canManage,
+  canDelete,
   editing,
   dropping,
   onSelect,
@@ -143,6 +144,7 @@ function DriveColumnRow({
   node: DriveNode;
   selected: boolean;
   canManage: boolean;
+  canDelete: boolean;
   editing: boolean;
   dropping: boolean;
   onSelect: DriveNodeAction;
@@ -301,10 +303,12 @@ function DriveColumnRow({
             {node.kind === "file" ? (
               <Menu.Item onClick={() => replaceInputRef.current?.click()}>{t("drive.replaceFile")}</Menu.Item>
             ) : null}
-            <Menu.Item color="red" onClick={() => onDelete(node)}>
-              {t("common.delete")}
-            </Menu.Item>
           </>
+        ) : null}
+        {canDelete ? (
+          <Menu.Item color="red" onClick={() => onDelete(node)}>
+            {t("common.delete")}
+          </Menu.Item>
         ) : null}
       </Menu.Dropdown>
     </Menu>
@@ -317,6 +321,7 @@ export function DriveColumn({
   items,
   selectedId,
   canManage,
+  canDelete,
   editingId,
   dropTargetId,
   onSelect,
@@ -335,6 +340,7 @@ export function DriveColumn({
   items: DriveNode[];
   selectedId: string | null;
   canManage: boolean;
+  canDelete: boolean;
   editingId: string | null;
   dropTargetId: string | null;
   onSelect: DriveNodeAction;
@@ -378,6 +384,7 @@ export function DriveColumn({
               node={node}
               selected={selectedId === node.id}
               canManage={canManage}
+              canDelete={canDelete}
               editing={editingId === node.id}
               dropping={dropTargetId === node.id}
               onSelect={onSelect}

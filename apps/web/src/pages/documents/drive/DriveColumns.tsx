@@ -36,6 +36,7 @@ export function DriveColumns({
   selectedPath,
   selectedFileId,
   canManage,
+  canDelete,
   editingId,
   onSelectPath,
   onSelectFile,
@@ -52,6 +53,7 @@ export function DriveColumns({
   selectedPath: string[];
   selectedFileId: string | null;
   canManage: boolean;
+  canDelete: boolean;
   editingId: string | null;
   onSelectPath: (path: string[]) => void;
   onSelectFile: (id: string | null) => void;
@@ -112,6 +114,7 @@ export function DriveColumns({
             items={childrenMap.get(key) ?? []}
             selectedId={selectedIdForColumn(columnIndex, selectedPath, selectedFileId)}
             canManage={canManage}
+            canDelete={canDelete}
             editingId={editingId}
             dropTargetId={null}
             onSelect={(node) => handleSelect(columnIndex, node)}

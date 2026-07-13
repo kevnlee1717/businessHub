@@ -168,6 +168,24 @@
       "folderName": "Folder name",
       "kind": "Type"
     },
+    "kind": {
+      "folder": "Folder",
+      "file": "File"
+    },
+    "trash": {
+      "title": "Trash",
+      "subtitle": "Review deleted drive items, restore them, or delete them permanently.",
+      "restore": "Restore",
+      "purge": "Delete forever",
+      "empty": "Empty trash",
+      "confirmPurge": "Permanently delete \"{{name}}\"? This cannot be undone.",
+      "confirmEmpty": "Empty the trash? This cannot be undone.",
+      "originalPath": "Original location",
+      "typeSize": "Type/size",
+      "deletedAt": "Deleted at",
+      "emptyState": "Trash is empty",
+      "childCount": "Contains {{count}} child items"
+    },
     "validation": {
       "nameRequired": "Name is required"
     }

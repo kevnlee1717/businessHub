@@ -2,7 +2,8 @@ import { ApiError, UnauthorizedError, api } from "./client";
 
 export const driveKeys = {
   all: ["drive"] as const,
-  tree: () => ["drive", "tree"] as const
+  tree: () => ["drive", "tree"] as const,
+  trash: () => ["drive", "trash"] as const
 };
 
 export type DriveNode = {
@@ -29,6 +30,26 @@ export type DriveFolderUploadResult = {
   created_folders: number;
   created_files: number;
   top_folders: unknown[];
+};
+
+export type TrashItem = {
+  id: string;
+  kind: "folder" | "file";
+  name: string;
+  size: number | null;
+  deleted_at: string;
+  original_path: string;
+  child_count?: number;
+};
+
+type TrashNodeResponse = {
+  id: string;
+  kind: "folder" | "file";
+  name: string;
+  size: number | null;
+  deleted_at: string;
+  path: string;
+  descendant_count?: number;
 };
 
 async function parseResponse(response: Response): Promise<unknown> {
@@ -74,6 +95,26 @@ async function postFormData<T>(path: string, formData: FormData): Promise<T> {
 
 export const getDriveTree = () => api<{ nodes: DriveNode[] }>("/drive/tree");
 
+export async function getTrash(): Promise<{ items: TrashItem[] }> {
+  const data = await api<{ nodes: TrashNodeResponse[] }>("/drive/trash");
+  return {
+    items: data.nodes.map((node) => {
+      const item: TrashItem = {
+        id: node.id,
+        kind: node.kind,
+        name: node.name,
+        size: node.size,
+        deleted_at: node.deleted_at,
+        original_path: node.path
+      };
+      if (typeof node.descendant_count === "number") {
+        item.child_count = node.descendant_count;
+      }
+      return item;
+    })
+  };
+}
+
 export const createFolder = (body: { parent_id: string | null; name: string }) =>
   api<{ node: DriveNode }>("/drive/folders", { method: "POST", body });
 
@@ -104,5 +145,11 @@ export function replaceFile(id: string, file: File) {
 }
 
 export const deleteNode = (id: string) => api<{ ok: true }>(`/drive/nodes/${id}`, { method: "DELETE" });
+
+export const restoreTrashItem = (id: string) => api<{ ok: true }>(`/drive/trash/${id}/restore`, { method: "POST" });
+
+export const purgeTrashItem = (id: string) => api<{ ok: true }>(`/drive/trash/${id}`, { method: "DELETE" });
+
+export const emptyTrash = () => api<{ ok: true }>("/drive/trash", { method: "DELETE" });
 
 export const driveDownloadUrl = (id: string) => `/api/drive/nodes/${id}/download`;

@@ -29,6 +29,7 @@ export const permissions = [
   "education.view",
   "franchise.manage",
   "franchise.view",
+  "brochure.admin",
   "brochure.manage",
   "brochure.view",
   "recruitment.manage",
@@ -71,6 +72,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "education.view",
     "franchise.manage",
     "franchise.view",
+    "brochure.admin",
     "brochure.manage",
     "brochure.view",
     "recruitment.manage",
@@ -273,6 +275,7 @@ export const permissionCatalog: {
     key: "brochure",
     label: "宣传册",
     permissions: [
+      { key: "brochure.admin", label: "管理网盘回收站" },
       { key: "brochure.manage", label: "管理宣传册" },
       { key: "brochure.view", label: "查看宣传册" }
     ]
