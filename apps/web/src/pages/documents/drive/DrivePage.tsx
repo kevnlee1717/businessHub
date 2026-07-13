@@ -1,4 +1,4 @@
-import { Alert, Anchor, Box, Breadcrumbs, Button, Group, Loader, Modal, Paper, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Anchor, Box, Breadcrumbs, Button, Group, Loader, Modal, Notification, Paper, Stack, Text, TextInput } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import {
   patchNode,
   replaceFile,
   uploadFiles,
+  uploadFolder,
   type DriveNode,
   type DrivePatchInput
 } from "../../../api/drive";
@@ -111,6 +112,7 @@ export function DrivePage() {
   const canManage = can("brochure.manage");
   const queryClient = useQueryClient();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadFolderInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedPath, setSelectedPath] = useState<string[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<DriveNode | null>(null);
@@ -118,6 +120,7 @@ export function DrivePage() {
   const [folderParent, setFolderParent] = useState<DriveNode | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<unknown>(null);
+  const [toast, setToast] = useState<{ color: "green" | "red"; message: string } | null>(null);
 
   const treeQuery = useQuery({
     queryKey: driveKeys.tree(),
@@ -143,6 +146,19 @@ export function DrivePage() {
     }
   }, [editingId, nodeById, selectedFileId, selectedPath]);
 
+  useEffect(() => {
+    const input = uploadFolderInputRef.current;
+    if (!input) return;
+    input.setAttribute("webkitdirectory", "");
+    input.setAttribute("directory", "");
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   async function invalidateTree() {
     await queryClient.invalidateQueries({ queryKey: driveKeys.tree() });
   }
@@ -155,6 +171,26 @@ export function DrivePage() {
   const uploadMutation = useMutation({
     mutationFn: uploadFiles,
     onSuccess: invalidateTree
+  });
+
+  const uploadFolderMutation = useMutation({
+    mutationFn: uploadFolder,
+    onSuccess: async (result) => {
+      await invalidateTree();
+      setToast({
+        color: "green",
+        message: t("drive.uploadFolderSuccess", {
+          folders: result.created_folders,
+          files: result.created_files
+        })
+      });
+    },
+    onError: (error) => {
+      setToast({
+        color: "red",
+        message: error instanceof Error ? error.message : t("common.unknown_error")
+      });
+    }
   });
 
   const patchMutation = useMutation({
@@ -175,6 +211,7 @@ export function DrivePage() {
   const busy =
     createFolderMutation.isPending ||
     uploadMutation.isPending ||
+    uploadFolderMutation.isPending ||
     patchMutation.isPending ||
     replaceMutation.isPending ||
     deleteMutation.isPending;
@@ -270,6 +307,14 @@ export function DrivePage() {
               <Button variant="light" loading={uploadMutation.isPending} onClick={() => uploadInputRef.current?.click()}>
                 {t("drive.uploadFiles")}
               </Button>
+              <Button
+                variant="light"
+                loading={uploadFolderMutation.isPending}
+                disabled={uploadFolderMutation.isPending}
+                onClick={() => uploadFolderInputRef.current?.click()}
+              >
+                {t("drive.uploadFolder")}
+              </Button>
               {selectedNode ? (
                 <>
                   <Button variant="light" onClick={() => startRename(selectedNode)}>
@@ -292,6 +337,25 @@ export function DrivePage() {
               event.currentTarget.value = "";
               if (files.length > 0) {
                 void runOperation(() => uploadMutation.mutateAsync({ parent_id: uploadTargetParentId(), files }));
+              }
+            }}
+          />
+          <input
+            ref={uploadFolderInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(event) => {
+              const input = event.currentTarget;
+              const files = Array.from(input.files ?? []);
+              if (files.length > 0) {
+                uploadFolderMutation.mutate({ parent_id: uploadTargetParentId(), files }, {
+                  onSettled: () => {
+                    input.value = "";
+                  }
+                });
+              } else {
+                input.value = "";
               }
             }}
           />
@@ -352,6 +416,13 @@ export function DrivePage() {
       />
 
       <DrivePreviewModal opened={previewFile !== null} file={previewFile} onClose={() => setPreviewFile(null)} />
+      {toast ? (
+        <Box pos="fixed" top={16} right={16} w={320} style={{ zIndex: 4000 }}>
+          <Notification color={toast.color} onClose={() => setToast(null)} withBorder>
+            {toast.message}
+          </Notification>
+        </Box>
+      ) : null}
     </Box>
   );
 }

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { db, driveNodes } from "@bh/db";
 import { driveTreeQuery, folderCreateSchema, idParams, nodePatchSchema } from "@bh/shared";
 import { type MultipartFile } from "@fastify/multipart";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
@@ -27,9 +27,13 @@ type UploadedFile = {
   mime: string;
   size: number;
 };
+type FolderUploadFile = UploadedFile & {
+  relPath: string;
+  segments: string[];
+};
 
 const parentIdSchema = z.preprocess(
-  (value) => (value === "" || value === undefined ? null : value),
+  (value) => (value === "" || value === "null" || value === undefined ? null : value),
   z.string().uuid().nullable()
 );
 
@@ -166,6 +170,41 @@ async function readMultipartWithFirstFile(request: FastifyRequest) {
   }
 
   return { fields, file };
+}
+
+async function readMultipartFolderUpload(request: FastifyRequest) {
+  const fields: MultipartFields = {};
+  const files: FolderUploadFile[] = [];
+
+  try {
+    for await (const part of request.parts({ limits: { fileSize: DRIVE_MAX_UPLOAD } })) {
+      if (part.type === "field") {
+        const value = fieldValue(part.value);
+        if (value !== "") {
+          fields[part.fieldname] = value;
+        }
+        continue;
+      }
+
+      const segments = part.fieldname.split("/").filter(Boolean);
+      if (segments.length === 0) {
+        await discardFile(part);
+        throw new Error("invalid_relative_path");
+      }
+
+      const file = await saveFile(part);
+      files.push({
+        ...file,
+        relPath: part.fieldname,
+        segments
+      });
+    }
+  } catch (error) {
+    await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+    throw error;
+  }
+
+  return { fields, files };
 }
 
 function isFileTooLargeError(error: unknown) {
@@ -312,6 +351,113 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
       await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
       if (isFileTooLargeError(error)) {
         return sendDriveFileTooLarge(reply);
+      }
+      throw error;
+    }
+  });
+
+  app.post("/drive/upload-folder", { preHandler: requirePerm("brochure.manage") }, async (request, reply) => {
+    let files: FolderUploadFile[] = [];
+
+    try {
+      const multipart = await readMultipartFolderUpload(request);
+      files = multipart.files;
+      if (files.length === 0) return reply.code(400).send({ error: "file_required" });
+
+      const body = parseWithSchema(multipartParentSchema, multipart.fields);
+      const parentId = parseParentId(body.parent_id);
+      if (!(await validateParentFolder(parentId, reply))) {
+        await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+        return;
+      }
+
+      const result = await db.transaction(async (tx) => {
+        const folderCache = new Map<string, string>();
+        const topFolders = new Map<string, DriveNodeRow>();
+        let createdFolders = 0;
+        let createdFiles = 0;
+
+        async function ensureFolder(currentParentId: string | null, name: string) {
+          const key = `${currentParentId ?? "root"}::${name}`;
+          const cached = folderCache.get(key);
+          if (cached) return cached;
+
+          const parentFilter = currentParentId ? eq(driveNodes.parentId, currentParentId) : isNull(driveNodes.parentId);
+          const [existing] = await tx
+            .select()
+            .from(driveNodes)
+            .where(and(parentFilter, eq(driveNodes.kind, "folder"), eq(driveNodes.name, name)))
+            .limit(1);
+          if (existing) {
+            folderCache.set(key, existing.id);
+            return existing.id;
+          }
+
+          const [folder] = await tx
+            .insert(driveNodes)
+            .values({
+              parentId: currentParentId,
+              kind: "folder",
+              name,
+              createdBy: request.user.id,
+              updatedAt: new Date()
+            })
+            .returning();
+          if (!folder) throw new Error("drive_folder_create_failed");
+
+          folderCache.set(key, folder.id);
+          createdFolders += 1;
+          if (currentParentId === parentId) {
+            topFolders.set(folder.id, folder);
+          }
+          return folder.id;
+        }
+
+        for (const file of files) {
+          const fileName = file.segments[file.segments.length - 1];
+          if (!fileName) throw new Error("invalid_relative_path");
+
+          let currentParentId = parentId;
+          for (const segment of file.segments.slice(0, -1)) {
+            currentParentId = await ensureFolder(currentParentId, segment);
+          }
+
+          const [row] = await tx
+            .insert(driveNodes)
+            .values({
+              parentId: currentParentId,
+              kind: "file",
+              name: fileName,
+              storagePath: file.storagePath,
+              mime: file.mime,
+              size: file.size,
+              createdBy: request.user.id,
+              updatedAt: new Date()
+            })
+            .returning({ id: driveNodes.id });
+          if (!row) throw new Error("drive_file_node_create_failed");
+          createdFiles += 1;
+        }
+
+        return {
+          createdFolders,
+          createdFiles,
+          topFolders: Array.from(topFolders.values())
+        };
+      });
+
+      return reply.code(201).send({
+        created_folders: result.createdFolders,
+        created_files: result.createdFiles,
+        top_folders: result.topFolders.map(serializeNode)
+      });
+    } catch (error) {
+      await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+      if (isFileTooLargeError(error)) {
+        return sendDriveFileTooLarge(reply);
+      }
+      if (error instanceof Error && error.message === "invalid_relative_path") {
+        return reply.code(400).send({ error: "invalid_relative_path" });
       }
       throw error;
     }

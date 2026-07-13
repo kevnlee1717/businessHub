@@ -25,6 +25,12 @@ export type DrivePatchInput = {
   sort_order?: number;
 };
 
+export type DriveFolderUploadResult = {
+  created_folders: number;
+  created_files: number;
+  top_folders: unknown[];
+};
+
 async function parseResponse(response: Response): Promise<unknown> {
   const text = await response.text();
 
@@ -76,6 +82,16 @@ export function uploadFiles(input: { parent_id: string | null; files: File[] }) 
   appendParentId(formData, input.parent_id);
   input.files.forEach((file) => formData.append("file", file));
   return postFormData<{ nodes: DriveNode[] }>("/drive/files", formData);
+}
+
+export function uploadFolder(input: { parent_id: string | null; files: File[] }) {
+  const formData = new FormData();
+  formData.append("parent_id", input.parent_id ?? "");
+  input.files.forEach((file) => {
+    const relativePath = "webkitRelativePath" in file && typeof file.webkitRelativePath === "string" ? file.webkitRelativePath : "";
+    formData.append(relativePath || file.name, file);
+  });
+  return postFormData<DriveFolderUploadResult>("/drive/upload-folder", formData);
 }
 
 export const patchNode = (id: string, body: DrivePatchInput) =>

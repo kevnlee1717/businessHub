@@ -145,6 +145,8 @@
     "newFolder": "New folder",
     "newChildFolder": "New subfolder",
     "uploadFiles": "Upload files",
+    "uploadFolder": "Upload folder",
+    "uploadFolderSuccess": "Created {{folders}} folders and uploaded {{files}} files.",
     "rename": "Rename",
     "replaceFile": "Upload new version",
     "download": "Download",
