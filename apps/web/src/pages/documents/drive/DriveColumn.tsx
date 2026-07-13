@@ -1,7 +1,8 @@
-import { Box, Button, Divider, Group, Menu, Stack, Text, TextInput, ThemeIcon } from "@mantine/core";
+import { Alert, Box, Button, Divider, Group, Loader, Menu, Stack, Tabs, Text, TextInput, ThemeIcon } from "@mantine/core";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { driveDownloadUrl, type DriveNode } from "../../../api/drive";
+import { previewKind } from "./preview";
 import { type DriveNodeAction } from "./types";
 
 function formatSize(size: number | null) {
@@ -68,12 +69,168 @@ function iconFor(node: DriveNode) {
   return { Icon: FileIcon, color: "transparent" };
 }
 
-function previewKind(file: DriveNode) {
-  const mime = file.mime ?? "";
-  const filename = file.name.toLowerCase();
-  if (mime === "application/pdf" || filename.endsWith(".pdf")) return "pdf";
-  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(filename)) return "image";
-  return "other";
+type InlineExcelPreview = {
+  names: string[];
+  htmlByName: Record<string, string>;
+};
+
+function InlineDocxPreview({ file }: { file: DriveNode }) {
+  const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!file.url || !container) return undefined;
+
+    let cancelled = false;
+    container.innerHTML = "";
+    setLoading(true);
+    setError(null);
+
+    async function renderDocx() {
+      try {
+        const response = await fetch(file.url ?? "", { credentials: "include" });
+        if (!response.ok) throw new Error(response.statusText || "Failed to load document");
+        const buffer = await response.arrayBuffer();
+        const { renderAsync } = await import("docx-preview");
+        if (cancelled || !containerRef.current) return;
+        containerRef.current.innerHTML = "";
+        await renderAsync(buffer, containerRef.current, undefined, {
+          className: "drive-inline-docx-preview",
+          inWrapper: true,
+          ignoreWidth: true,
+          ignoreHeight: true
+        });
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : t("drive.previewFailed"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void renderDocx();
+
+    return () => {
+      cancelled = true;
+      container.innerHTML = "";
+    };
+  }, [file.id, file.url, t]);
+
+  return (
+    <Box w="100%" h="100%" p="sm" style={{ overflow: "auto" }}>
+      {loading ? (
+        <Group justify="center" py="xl">
+          <Loader size="sm" />
+        </Group>
+      ) : null}
+      {error ? <Alert color="red">{t("drive.previewFailed")}</Alert> : null}
+      <Box ref={containerRef} />
+    </Box>
+  );
+}
+
+function InlineExcelPreview({ file }: { file: DriveNode }) {
+  const { t } = useTranslation();
+  const [preview, setPreview] = useState<InlineExcelPreview | null>(null);
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file.url) return undefined;
+
+    let cancelled = false;
+    setPreview(null);
+    setActiveSheet(null);
+    setLoading(true);
+    setError(null);
+
+    async function loadExcel() {
+      try {
+        const response = await fetch(file.url ?? "", { credentials: "include" });
+        if (!response.ok) throw new Error(response.statusText || "Failed to load spreadsheet");
+        const buffer = await response.arrayBuffer();
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+        const names = workbook.SheetNames;
+        const htmlByName: Record<string, string> = {};
+
+        names.forEach((name) => {
+          const worksheet = workbook.Sheets[name];
+          htmlByName[name] = worksheet ? XLSX.utils.sheet_to_html(worksheet) : "";
+        });
+
+        if (!cancelled) {
+          setPreview({ names, htmlByName });
+          setActiveSheet(names[0] ?? null);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : t("drive.previewFailed"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadExcel();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file.id, file.url, t]);
+
+  if (loading) {
+    return (
+      <Group justify="center" py="xl">
+        <Loader size="sm" />
+      </Group>
+    );
+  }
+
+  if (error) {
+    return <Alert color="red">{t("drive.previewFailed")}</Alert>;
+  }
+
+  if (!preview || preview.names.length === 0) {
+    return <Text c="dimmed">{t("drive.previewUnsupported")}</Text>;
+  }
+
+  const table = activeSheet ? preview.htmlByName[activeSheet] : "";
+
+  return (
+    <Box w="100%" h="100%" p="xs" style={{ overflow: "auto" }}>
+      <style>
+        {`
+          .drive-inline-excel-preview table {
+            border-collapse: collapse;
+            min-width: 100%;
+            font-size: 12px;
+          }
+          .drive-inline-excel-preview th,
+          .drive-inline-excel-preview td {
+            border: 1px solid #dcdfe6;
+            padding: 4px 6px;
+            white-space: nowrap;
+          }
+          .drive-inline-excel-preview th {
+            background: #f5f7fa;
+            font-weight: 600;
+          }
+        `}
+      </style>
+      <Tabs value={activeSheet} onChange={setActiveSheet}>
+        <Tabs.List>
+          {preview.names.map((name) => (
+            <Tabs.Tab key={name} value={name}>
+              {name}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        <Box mt="xs" className="drive-inline-excel-preview" style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: table ?? "" }} />
+      </Tabs>
+    </Box>
+  );
 }
 
 function DriveFilePreviewColumn({ file }: { file: DriveNode }) {
@@ -84,7 +241,7 @@ function DriveFilePreviewColumn({ file }: { file: DriveNode }) {
 
   return (
     <Box w={300} h={560} style={{ flex: "0 0 300px", borderLeft: "1px solid #dcdfe6", overflowY: "auto" }}>
-      <Stack gap="sm" p="md">
+      <Stack gap="sm" p="md" h="100%">
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon color={icon.color} variant="transparent" radius="sm" size="lg">
             <Icon />
@@ -93,11 +250,34 @@ function DriveFilePreviewColumn({ file }: { file: DriveNode }) {
             {file.name}
           </Text>
         </Group>
-        <Box h={220} bg="#f5f7fa" style={{ display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+        <Box
+          bg="#f5f7fa"
+          style={{
+            flex: 1,
+            minHeight: 320,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "auto"
+          }}
+        >
           {file.url && kind === "image" ? (
             <img src={file.url} alt={file.name} style={{ maxWidth: "100%", maxHeight: "100%", display: "block" }} />
           ) : file.url && kind === "pdf" ? (
             <iframe src={file.url} title={file.name} style={{ width: "100%", height: "100%", border: 0 }} />
+          ) : file.url && kind === "docx" ? (
+            <InlineDocxPreview file={file} />
+          ) : file.url && kind === "excel" ? (
+            <InlineExcelPreview file={file} />
+          ) : file.url ? (
+            <Stack gap="sm" align="center">
+              <ThemeIcon color={icon.color} variant="transparent" radius="sm" size={64}>
+                <Icon />
+              </ThemeIcon>
+              <Button component="a" href={driveDownloadUrl(file.id)} target="_blank" rel="noreferrer" variant="light">
+                {t("drive.download")}
+              </Button>
+            </Stack>
           ) : (
             <Text size="sm" c="dimmed" ta="center" px="sm">
               {t("drive.previewUnsupported")}
