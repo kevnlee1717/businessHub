@@ -151,6 +151,8 @@
     "replaceFile": "Upload new version",
     "download": "Download",
     "preview": "File preview",
+    "openPreview": "Open preview",
+    "previewFailed": "Preview failed. Download the file to view it.",
     "previewUnsupported": "This file type cannot be previewed inline. Download it to view.",
     "empty": "No files yet",
     "emptyColumn": "No items",
