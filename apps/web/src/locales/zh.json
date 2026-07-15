@@ -540,7 +540,6 @@
       "manage": "管理开课",
       "empty": "暂无开课",
       "placeholder": "选择或输入开课批次",
-      "selectCourseFirst": "请先选择课程",
       "selectCourseFirst": "请先选择课程"
     }
   },
@@ -805,7 +804,6 @@
       "currentStep": "当前步骤",
       "signedAt": "签约日期",
       "parentCase": "父案件",
-      "signedAt": "签约日期",
       "createdAt": "创建时间",
       "guarantor": "担保人",
       "guarantorName": "担保人姓名",
@@ -2223,6 +2221,33 @@
     "breakEvenText": "达到 {{target}} 利润需营业额 ≈ {{revenue}}",
     "breakEvenImpossible": "200k 内无法达标",
     "coupleDeducted": "夫妻实拿低于薪水",
+    "mgmtSubsidy": "管理公司补贴",
+    "showDetails": "展开明细",
+    "hideDetails": "收起明细",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "year1": "第 1 年",
+    "year2": "第 2 年",
+    "targetCol": "达标 P=5600",
+    "formula": {
+      "fixed": "清洁 + 维护 + POS + 订阅 + 银行 + 法务 + 其它"
+    },
+    "breakdown": {
+      "base": "基础",
+      "floor": "保底",
+      "excessShare": "超额分成",
+      "gross": "工资毛(封顶8000)",
+      "repay": "还管理公司",
+      "topup": "管理公司补",
+      "mgmtFee": "管理费(3%)",
+      "retain": "毛利留存",
+      "profitShare": "利润分成",
+      "floorMakeup": "保底补足",
+      "wage": "工资实到",
+      "topupInvestor": "贴给投资人",
+      "coupleRepay": "夫妻回款",
+      "total": "合计"
+    },
     "list": {
       "stallBrand": "档口/品牌",
       "healthAt30k": "3万档健康%",
@@ -2235,8 +2260,14 @@
       "revenueFees": "按营业额费用",
       "fixedFees": "固定月费",
       "entrance": "入场费",
-      "params": "参数",
-      "tiers": "三档营业额"
+      "params": "成本参数",
+      "payout": "分账参数",
+      "tiers": "营业档位"
+    },
+    "tabs": {
+      "identityRent": "身份·租金",
+      "fees": "费用",
+      "paramsTiers": "参数·档位"
     },
     "fields": {
       "name": "食阁名称",
@@ -2245,16 +2276,23 @@
       "notes": "备注",
       "rentPct": "抽成%",
       "minRent": "保底租金/月",
-      "advPct": "广告%",
-      "mdrPct": "刷卡综合%",
+      "advPct": "广告",
+      "mdrPct": "刷卡综合",
       "entranceTotal": "入场费总额",
       "entranceMonths": "摊销月数",
+      "entranceMonthly": "入场费/月",
+      "mgmtPct": "管理费%",
       "foodPct": "食材%",
       "gstPct": "GST%",
       "includeGst": "计入 GST",
-      "salary": "夫妻薪水",
+      "salary": "夫妻满额工资",
       "investorFloor": "投资人保底",
-      "profitTarget": "利润目标",
+      "investorSharePct": "投资人分成%",
+      "coupleFloor": "夫妻保底",
+      "coupleRepayCap": "还款封顶",
+      "profitTarget": "超额线",
+      "excessMgmtPct": "超额·管理%",
+      "excessCouplePct": "超额·夫妻%",
       "tier": "档 {{index}}"
     },
     "fixedFees": {
@@ -2267,20 +2305,24 @@
       "other": "其它"
     },
     "result": {
-      "item": "项目",
+      "item": "营业额",
       "rent": "租金",
       "adv": "广告",
       "mdr": "刷卡",
       "fixed": "固定费",
       "gst": "GST",
-      "entrance": "入场月摊",
+      "entrance": "入场费/月",
       "totalF": "食阁总费用 F",
       "healthPct": "F 健康%",
       "food": "食材",
-      "remainder": "剩余(人工池)",
+      "mgmt": "管理费",
+      "remainder": "人工前利润",
       "profit": "纯利润 P",
-      "couple": "夫妻实拿",
-      "investor": "投资人拿"
+      "investor": "投资人合计",
+      "couple": "夫妻实到",
+      "grossProfit": "毛利",
+      "excess": "多出来的利润",
+      "mgmtTotal": "管理公司合计"
     },
     "health": {
       "good": "健康",
@@ -2530,7 +2572,7 @@
       "nationalities": "国籍标签",
       "status": "状态",
       "priority": "紧急度",
-      "active": "在用",
+      "active": "启用",
       "inactive": "停用",
       "owner": "负责人",
       "inviteClerk": "邀约人",
@@ -2576,8 +2618,7 @@
       "interviewer": "面试官",
       "result": "结果",
       "rating": "评分",
-      "date": "日期",
-      "active": "启用"
+      "date": "日期"
     },
     "jobs": {
       "add": "新建岗位",

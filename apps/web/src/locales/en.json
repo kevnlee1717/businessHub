@@ -540,7 +540,6 @@
       "manage": "Manage intakes",
       "empty": "No intakes yet",
       "placeholder": "Select or create an intake",
-      "selectCourseFirst": "Select a course first",
       "selectCourseFirst": "Select a course first"
     }
   },
@@ -803,9 +802,8 @@
       "sales": "Sales",
       "status": "Status",
       "currentStep": "Current step",
-      "signedAt": "Signed date",
-      "parentCase": "Parent case",
       "signedAt": "Signed Date",
+      "parentCase": "Parent case",
       "createdAt": "Created at",
       "guarantor": "Guarantor",
       "guarantorName": "Guarantor name",
@@ -2223,6 +2221,33 @@
     "breakEvenText": "Revenue needed for {{target}} profit ≈ {{revenue}}",
     "breakEvenImpossible": "Cannot hit target within 200k",
     "coupleDeducted": "Couple payout below salary",
+    "mgmtSubsidy": "Mgmt subsidizing",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "year1": "Year 1",
+    "year2": "Year 2",
+    "targetCol": "Target P=5600",
+    "formula": {
+      "fixed": "Cleaning + maintenance + POS + subscription + bank + legal + other"
+    },
+    "breakdown": {
+      "base": "Base",
+      "floor": "Floor",
+      "excessShare": "Excess share",
+      "gross": "Gross salary (cap 8000)",
+      "repay": "Repay to mgmt",
+      "topup": "Mgmt top-up",
+      "mgmtFee": "Mgmt fee (3%)",
+      "retain": "Retained profit",
+      "profitShare": "Profit share",
+      "floorMakeup": "Floor top-up",
+      "wage": "Net salary",
+      "topupInvestor": "To investor",
+      "coupleRepay": "Couple repayment",
+      "total": "Total"
+    },
     "list": {
       "stallBrand": "Stall/brand",
       "healthAt30k": "Health % at 30k",
@@ -2235,8 +2260,14 @@
       "revenueFees": "Revenue-based fees",
       "fixedFees": "Fixed monthly fees",
       "entrance": "Entrance fee",
-      "params": "Parameters",
+      "params": "Cost parameters",
+      "payout": "Payout parameters",
       "tiers": "Revenue tiers"
+    },
+    "tabs": {
+      "identityRent": "Identity · Rent",
+      "fees": "Fees",
+      "paramsTiers": "Params · Tiers"
     },
     "fields": {
       "name": "Food court name",
@@ -2245,16 +2276,23 @@
       "notes": "Notes",
       "rentPct": "Rent %",
       "minRent": "Minimum rent/month",
-      "advPct": "Advertising %",
-      "mdrPct": "Card fee %",
+      "advPct": "Advertising",
+      "mdrPct": "Card fee",
       "entranceTotal": "Entrance total",
       "entranceMonths": "Amortization months",
+      "entranceMonthly": "Entrance fee/month",
+      "mgmtPct": "Management fee %",
       "foodPct": "Food cost %",
       "gstPct": "GST %",
       "includeGst": "Include GST",
-      "salary": "Couple salary",
+      "salary": "Couple full salary",
       "investorFloor": "Investor floor",
-      "profitTarget": "Profit target",
+      "investorSharePct": "Investor share %",
+      "coupleFloor": "Couple floor",
+      "coupleRepayCap": "Repay cap",
+      "profitTarget": "Excess threshold",
+      "excessMgmtPct": "Excess mgmt %",
+      "excessCouplePct": "Excess couple %",
       "tier": "Tier {{index}}"
     },
     "fixedFees": {
@@ -2267,20 +2305,24 @@
       "other": "Other"
     },
     "result": {
-      "item": "Item",
+      "item": "Revenue",
       "rent": "Rent",
       "adv": "Advertising",
       "mdr": "Card fee",
       "fixed": "Fixed fees",
       "gst": "GST",
-      "entrance": "Entrance amort.",
+      "entrance": "Entrance fee/month",
       "totalF": "Food court total F",
       "healthPct": "F health %",
       "food": "Food cost",
-      "remainder": "Remainder (labor pool)",
+      "mgmt": "Management fee",
+      "remainder": "Pre-labor profit",
       "profit": "Net profit P",
-      "couple": "Couple payout",
-      "investor": "Investor payout"
+      "investor": "Investor total",
+      "couple": "Couple take-home",
+      "grossProfit": "Gross profit",
+      "excess": "Excess profit",
+      "mgmtTotal": "Mgmt total"
     },
     "health": {
       "good": "Healthy",
@@ -2576,8 +2618,7 @@
       "interviewer": "Interviewer",
       "result": "Result",
       "rating": "Rating",
-      "date": "Date",
-      "active": "Active"
+      "date": "Date"
     },
     "jobs": {
       "add": "New job",
