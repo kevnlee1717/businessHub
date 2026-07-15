@@ -24,16 +24,23 @@ export type FoodCourtInput = {
   rent_pct: number;
   min_rent: number;
   adv_pct: number;
+  adv_mode: "pct" | "fixed";
   mdr_pct: number;
+  mdr_mode: "pct" | "fixed";
   fixed_fees: FoodCourtFixedFees;
-  entrance_total: number;
-  entrance_months: number;
+  entrance_monthly: number;
+  mgmt_pct: number;
   food_pct: number;
   gst_pct: number;
   include_gst: boolean;
   salary: number;
   investor_floor: number;
+  investor_share_pct: number;
+  couple_floor: number;
+  couple_repay_cap: number;
   profit_target: number;
+  excess_mgmt_pct: number;
+  excess_couple_pct: number;
   tiers: number[];
 };
 
@@ -52,7 +59,9 @@ export const foodCourtDefaults = (): FoodCourtInput => ({
   rent_pct: 24.5,
   min_rent: 0,
   adv_pct: 0.7,
+  adv_mode: "pct",
   mdr_pct: 1.5,
+  mdr_mode: "pct",
   fixed_fees: {
     cleaning: 0,
     maintenance: 0,
@@ -62,15 +71,20 @@ export const foodCourtDefaults = (): FoodCourtInput => ({
     legal: 0,
     other: 0
   },
-  entrance_total: 0,
-  entrance_months: 0,
+  entrance_monthly: 0,
+  mgmt_pct: 3,
   food_pct: 35,
   gst_pct: 9,
   include_gst: true,
   salary: 8000,
   investor_floor: 2800,
+  investor_share_pct: 51,
+  couple_floor: 3000,
+  couple_repay_cap: 4167,
   profit_target: 5600,
-  tiers: [25000, 30000, 35000]
+  excess_mgmt_pct: 50,
+  excess_couple_pct: 25,
+  tiers: [25000, 30000, 35000, 40000, 45000, 50000]
 });
 
 export const listFoodCourts = () => api<{ food_courts: FoodCourt[] }>("/fnb-food-courts");

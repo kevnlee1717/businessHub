@@ -3,7 +3,6 @@ import { z } from "zod";
 const uuidField = z.string().uuid();
 const nullableOptionalText = z.string().trim().min(1).nullable().optional();
 const nonNegativeNumber = z.coerce.number().nonnegative();
-const nonNegativeInteger = z.coerce.number().int().nonnegative();
 
 export const fnbFoodCourtFixedFeesSchema = z.object({
   cleaning: nonNegativeNumber.default(0),
@@ -23,7 +22,9 @@ const fnbFoodCourtBaseSchema = z.object({
   rent_pct: nonNegativeNumber.default(24.5),
   min_rent: nonNegativeNumber.default(0),
   adv_pct: nonNegativeNumber.default(0.7),
+  adv_mode: z.enum(["pct", "fixed"]).default("pct"),
   mdr_pct: nonNegativeNumber.default(1.5),
+  mdr_mode: z.enum(["pct", "fixed"]).default("pct"),
   fixed_fees: fnbFoodCourtFixedFeesSchema.nullable().default({
     cleaning: 0,
     maintenance: 0,
@@ -33,15 +34,20 @@ const fnbFoodCourtBaseSchema = z.object({
     legal: 0,
     other: 0
   }),
-  entrance_total: nonNegativeNumber.default(0),
-  entrance_months: nonNegativeInteger.default(0),
+  entrance_monthly: nonNegativeNumber.default(0),
+  mgmt_pct: nonNegativeNumber.default(3),
   food_pct: nonNegativeNumber.default(35),
   gst_pct: nonNegativeNumber.default(9),
   include_gst: z.boolean().default(true),
   salary: nonNegativeNumber.default(8000),
   investor_floor: nonNegativeNumber.default(2800),
+  investor_share_pct: nonNegativeNumber.default(51),
+  couple_floor: nonNegativeNumber.default(3000),
+  couple_repay_cap: nonNegativeNumber.default(4167),
   profit_target: nonNegativeNumber.default(5600),
-  tiers: z.array(nonNegativeNumber).default([25000, 30000, 35000])
+  excess_mgmt_pct: nonNegativeNumber.default(50),
+  excess_couple_pct: nonNegativeNumber.default(25),
+  tiers: z.array(nonNegativeNumber).default([25000, 30000, 35000, 40000, 45000, 50000])
 });
 
 export const fnbFoodCourtCreateSchema = fnbFoodCourtBaseSchema;
