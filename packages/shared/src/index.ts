@@ -18,6 +18,7 @@ export * from "./schemas/education";
 export * from "./schemas/epPackages";
 export * from "./schemas/external";
 export * from "./schemas/finance";
+export * from "./schemas/fnbFoodCourt";
 export * from "./schemas/franchise";
 export * from "./schemas/hr";
 export * from "./schemas/ipadSlides";

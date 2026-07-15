@@ -9,6 +9,8 @@ import { ContactDetailPage } from "./pages/franchise/ContactDetailPage";
 import { ContactsPage } from "./pages/franchise/ContactsPage";
 import { FnbSiteDetailPage } from "./pages/franchise/FnbSiteDetailPage";
 import { FnbSitesPage } from "./pages/franchise/FnbSitesPage";
+import { FoodCourtDetailPage } from "./pages/franchise/FoodCourtDetailPage";
+import { FoodCourtListPage } from "./pages/franchise/FoodCourtListPage";
 import { FranchiseFnbPlaceholder } from "./pages/franchise/FranchiseFnbPlaceholder";
 import { FranchisePropertyPlaceholder } from "./pages/franchise/FranchisePropertyPlaceholder";
 import { PropertiesPage } from "./pages/franchise/PropertiesPage";
@@ -102,7 +104,8 @@ export function App() {
             <Route path="visits" element={<VisitsPage />} />
           </Route>
           <Route path="franchise/property" element={<FranchisePropertyPlaceholder />} />
-          <Route path="franchise/fnb" element={<FranchiseFnbPlaceholder />} />
+          <Route path="franchise/fnb" element={<FoodCourtListPage />} />
+          <Route path="franchise/fnb/:id" element={<FoodCourtDetailPage />} />
           <Route path="hr" element={<HrLayout />}>
             <Route index element={<Navigate to="employees" replace />} />
             <Route path="employees" element={<EmployeesPage />} />
