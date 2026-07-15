@@ -2213,6 +2213,84 @@
     "monthly": "Monthly",
     "per_event": "Per event"
   },
+  "foodCourt": {
+    "title": "Food Court Assessment",
+    "detail": "Food court detail",
+    "new": "New food court",
+    "empty": "No food court assessments yet",
+    "saved": "Saved",
+    "confirmDelete": "Delete food court \"{{name}}\"?",
+    "breakEvenText": "Revenue needed for {{target}} profit ≈ {{revenue}}",
+    "breakEvenImpossible": "Cannot hit target within 200k",
+    "coupleDeducted": "Couple payout below salary",
+    "list": {
+      "stallBrand": "Stall/brand",
+      "healthAt30k": "Health % at 30k",
+      "coupleAt30k": "Couple payout at 30k",
+      "breakEven": "Target revenue"
+    },
+    "sections": {
+      "identity": "Identity",
+      "rent": "Rent",
+      "revenueFees": "Revenue-based fees",
+      "fixedFees": "Fixed monthly fees",
+      "entrance": "Entrance fee",
+      "params": "Parameters",
+      "tiers": "Revenue tiers"
+    },
+    "fields": {
+      "name": "Food court name",
+      "stall": "Stall no./name",
+      "brand": "Brand",
+      "notes": "Notes",
+      "rentPct": "Rent %",
+      "minRent": "Minimum rent/month",
+      "advPct": "Advertising %",
+      "mdrPct": "Card fee %",
+      "entranceTotal": "Entrance total",
+      "entranceMonths": "Amortization months",
+      "foodPct": "Food cost %",
+      "gstPct": "GST %",
+      "includeGst": "Include GST",
+      "salary": "Couple salary",
+      "investorFloor": "Investor floor",
+      "profitTarget": "Profit target",
+      "tier": "Tier {{index}}"
+    },
+    "fixedFees": {
+      "cleaning": "Cleaning/washing",
+      "maintenance": "Maintenance",
+      "pos": "POS",
+      "subscription": "Subscription",
+      "bank": "Bank",
+      "legal": "Legal",
+      "other": "Other"
+    },
+    "result": {
+      "item": "Item",
+      "rent": "Rent",
+      "adv": "Advertising",
+      "mdr": "Card fee",
+      "fixed": "Fixed fees",
+      "gst": "GST",
+      "entrance": "Entrance amort.",
+      "totalF": "Food court total F",
+      "healthPct": "F health %",
+      "food": "Food cost",
+      "remainder": "Remainder (labor pool)",
+      "profit": "Net profit P",
+      "couple": "Couple payout",
+      "investor": "Investor payout"
+    },
+    "health": {
+      "good": "Healthy",
+      "low": "Low",
+      "high": "High"
+    },
+    "validation": {
+      "nameRequired": "Food court name is required"
+    }
+  },
   "franchise": {
     "empty": "No data",
     "tabs": {

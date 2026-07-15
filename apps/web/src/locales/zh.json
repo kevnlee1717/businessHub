@@ -2213,6 +2213,84 @@
     "monthly": "每月",
     "per_event": "每次事件"
   },
+  "foodCourt": {
+    "title": "食阁测算",
+    "detail": "食阁详情",
+    "new": "新建食阁",
+    "empty": "暂无食阁测算",
+    "saved": "已保存",
+    "confirmDelete": "确认删除食阁「{{name}}」？",
+    "breakEvenText": "达到 {{target}} 利润需营业额 ≈ {{revenue}}",
+    "breakEvenImpossible": "200k 内无法达标",
+    "coupleDeducted": "夫妻实拿低于薪水",
+    "list": {
+      "stallBrand": "档口/品牌",
+      "healthAt30k": "3万档健康%",
+      "coupleAt30k": "3万档夫妻实拿",
+      "breakEven": "达标营业额"
+    },
+    "sections": {
+      "identity": "身份",
+      "rent": "租金",
+      "revenueFees": "按营业额费用",
+      "fixedFees": "固定月费",
+      "entrance": "入场费",
+      "params": "参数",
+      "tiers": "三档营业额"
+    },
+    "fields": {
+      "name": "食阁名称",
+      "stall": "档口号/名",
+      "brand": "品牌",
+      "notes": "备注",
+      "rentPct": "抽成%",
+      "minRent": "保底租金/月",
+      "advPct": "广告%",
+      "mdrPct": "刷卡综合%",
+      "entranceTotal": "入场费总额",
+      "entranceMonths": "摊销月数",
+      "foodPct": "食材%",
+      "gstPct": "GST%",
+      "includeGst": "计入 GST",
+      "salary": "夫妻薪水",
+      "investorFloor": "投资人保底",
+      "profitTarget": "利润目标",
+      "tier": "档 {{index}}"
+    },
+    "fixedFees": {
+      "cleaning": "清洁·洗碗",
+      "maintenance": "维护",
+      "pos": "POS",
+      "subscription": "订阅",
+      "bank": "银行",
+      "legal": "法务",
+      "other": "其它"
+    },
+    "result": {
+      "item": "项目",
+      "rent": "租金",
+      "adv": "广告",
+      "mdr": "刷卡",
+      "fixed": "固定费",
+      "gst": "GST",
+      "entrance": "入场月摊",
+      "totalF": "食阁总费用 F",
+      "healthPct": "F 健康%",
+      "food": "食材",
+      "remainder": "剩余(人工池)",
+      "profit": "纯利润 P",
+      "couple": "夫妻实拿",
+      "investor": "投资人拿"
+    },
+    "health": {
+      "good": "健康",
+      "low": "偏低",
+      "high": "超标"
+    },
+    "validation": {
+      "nameRequired": "请填写食阁名称"
+    }
+  },
   "franchise": {
     "empty": "暂无数据",
     "tabs": {
