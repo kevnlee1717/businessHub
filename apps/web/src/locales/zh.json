@@ -8,7 +8,8 @@
     "franchise": "加盟业务",
     "franchise_tracking": "拜访跟踪",
     "franchise_property": "综合物业",
-    "franchise_fnb": "餐饮",
+    "franchise_fnb": "食阁预测",
+    "franchise_mlk": "陆老师厨房",
     "business": "业务",
     "immigration": "移民业务",
     "ep": "EP",
@@ -2332,6 +2333,223 @@
     },
     "validation": {
       "nameRequired": "请填写食阁名称"
+    }
+  },
+  "mlk": {
+    "tabs": {
+      "stores": "门店",
+      "investors": "投资人",
+      "couples": "夫妻",
+      "revenue": "营业流水",
+      "settlements": "月结算",
+      "files": "文件"
+    },
+    "detail": {
+      "store": "门店详情",
+      "investor": "投资人详情",
+      "couple": "夫妻详情"
+    },
+    "fields": {
+      "name": "名称",
+      "company_name": "公司名称",
+      "uen": "UEN",
+      "id_no": "证件号",
+      "phone": "电话",
+      "wechat": "微信",
+      "address": "地址",
+      "service_tier": "服务档次",
+      "pr_status": "PR 状态",
+      "kyc_status": "KYC 状态",
+      "drive_folder_id": "网盘文件夹",
+      "notes": "备注",
+      "operator_company": "运营公司",
+      "operator_uen": "运营公司 UEN",
+      "husband_name": "丈夫",
+      "husband_short": "夫",
+      "husband_id_no": "丈夫证件号",
+      "husband_passport": "丈夫护照",
+      "wife_name": "妻子",
+      "wife_short": "妻",
+      "wife_id_no": "妻子证件号",
+      "wife_passport": "妻子护照",
+      "husband_ep": "丈夫 EP",
+      "wife_ep": "妻子 EP",
+      "ep_status": "EP 状态",
+      "mentor_id": "师傅",
+      "status": "状态",
+      "joined_at": "加入日期",
+      "exited_at": "离场日期",
+      "stall": "档口",
+      "spv_name": "SPV 公司",
+      "spv_uen": "SPV UEN",
+      "investor": "投资人",
+      "couple": "夫妻",
+      "food_court": "食阁",
+      "kitchen_store_id": "Kitchen 门店 ID",
+      "intent_signed_at": "签意向日期",
+      "selected_at": "选定日期",
+      "incorporated_at": "注册日期",
+      "lease_signed_at": "签租约日期",
+      "renovation_at": "装修日期",
+      "opened_at": "开业日期",
+      "closed_at": "关店日期",
+      "fc_deposit_amount": "食阁押金",
+      "store_count": "门店数",
+      "stores": "所属门店",
+      "kind": "类型",
+      "amount_due": "应付金额",
+      "amount_paid": "已付金额",
+      "paid_at": "付款日期",
+      "month": "月份",
+      "amount": "金额",
+      "date": "日期",
+      "turnover": "营业额",
+      "source": "来源",
+      "net_profit": "纯利润",
+      "investor_payout": "投资人分账",
+      "couple_payout": "夫妻分账",
+      "mgmt_payout": "管理分账",
+      "detail": "明细",
+      "store": "门店"
+    },
+    "status": {
+      "store": {
+        "intent": "意向",
+        "selected": "已选定",
+        "incorporated": "已注册",
+        "lease_signed": "已签租约",
+        "renovation": "装修中",
+        "open": "营业中",
+        "closed": "已关店"
+      },
+      "service_tier": {
+        "tier1": "档一",
+        "tier2": "档二"
+      },
+      "pr": {
+        "none": "未申请",
+        "applied": "已申请",
+        "granted": "已获批"
+      },
+      "kyc": {
+        "pending": "待完成",
+        "done": "已完成"
+      },
+      "couple": {
+        "candidate": "候选",
+        "active": "在营",
+        "exited": "已离场"
+      },
+      "payment": {
+        "pending": "待付款",
+        "paid": "已付款",
+        "refunded": "已退款"
+      }
+    },
+    "payments": {
+      "add": "添加付款",
+      "edit": "编辑付款",
+      "prHint": "PR 获批后支付",
+      "kind": {
+        "instalment1": "第一期(签意向)",
+        "instalment2": "第二期(选定门店)",
+        "instalment3": "第三期(签租约)",
+        "instalment4": "第四期(开业)",
+        "fc_deposit": "食阁押金",
+        "service_tier1": "服务费·档一",
+        "service_tier2_first": "服务费·档二首款",
+        "service_tier2_second": "服务费·档二尾款(PR)"
+      }
+    },
+    "ledger": {
+      "add": "记一笔",
+      "edit": "编辑台账",
+      "kind": {
+        "advance_repay": "还垫款",
+        "retention_hold": "分红保证金压存",
+        "retention_refund": "保证金退还",
+        "bond_paid": "入职保证金缴纳",
+        "bond_refund": "入职保证金退还",
+        "platform_fee": "平台服务费",
+        "mentor_income": "师徒分成"
+      }
+    },
+    "actions": {
+      "searchName": "名称搜索",
+      "newStore": "新建门店",
+      "newInvestor": "新建投资人",
+      "newCouple": "新建夫妻",
+      "viewFoodCourt": "查看测算"
+    },
+    "cards": {
+      "basic": "基本信息",
+      "equity": "股权三方",
+      "foodCourt": "食阁关联",
+      "payments": "付款进度",
+      "revenueOverview": "营业概览",
+      "profile": "资料",
+      "investorStores": "名下门店",
+      "servicePayments": "服务费付款记录",
+      "coupleProfile": "两人资料",
+      "operator": "运营公司",
+      "mentor": "师徒",
+      "ledger": "逐月流水台账",
+      "coupleStores": "所属门店"
+    },
+    "lifecycle": {
+      "title": "生命周期",
+      "advance": "推进状态",
+      "advanceTo": "推进到 {{status}} 并记录时间点"
+    },
+    "revenue": {
+      "add": "录入营业额",
+      "currentMonth": "本月营业额",
+      "previousMonth": "上月营业额"
+    },
+    "settlements": {
+      "generate": "生成月结算",
+      "confirm": "确认生成",
+      "detail": "构成",
+      "latest": "最近结算纯利",
+      "noRepay": "垫款已还清(第2年模式)",
+      "linkFoodCourtFirst": "先关联食阁"
+    },
+    "calc": {
+      "profit": "纯利润",
+      "investor": "投资人合计",
+      "couple": "夫妻实到",
+      "mgmtTotal": "管理公司合计",
+      "F": "食阁总费用 F",
+      "food": "食材",
+      "mgmt": "管理费"
+    },
+    "files": {
+      "root": "文件",
+      "saveFirst": "保存后可上传文件",
+      "newFolder": "新建文件夹",
+      "folderName": "文件夹名称",
+      "confirmDelete": "确认删除「{{name}}」？",
+      "empty": "暂无文件",
+      "icon": "图标",
+      "name": "名称",
+      "size": "大小",
+      "time": "时间"
+    },
+    "balances": {
+      "advanceRemaining": "垫款剩余",
+      "retention": "分红保证金池",
+      "bond": "入职保证金",
+      "paidOff": "已还清"
+    },
+    "mentor": {
+      "apprentices": "徒弟"
+    },
+    "messages": {
+      "empty": "暂无数据",
+      "saved": "已保存",
+      "nameRequired": "请填写名称",
+      "coupleNameRequired": "请填写丈夫和妻子姓名",
+      "confirmDelete": "确认删除这条记录？"
     }
   },
   "franchise": {

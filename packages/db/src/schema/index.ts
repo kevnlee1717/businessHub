@@ -87,6 +87,7 @@ export * from "./translations";
 export * from "./recruitment";
 export * from "./franchise";
 export * from "./fnbFoodCourts";
+export * from "./mlk";
 export * from "./brochures";
 export * from "./driveNodes";
 export * from "./ipadSlides";

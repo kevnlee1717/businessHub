@@ -8,7 +8,8 @@
     "franchise": "Franchise",
     "franchise_tracking": "Visit Tracking",
     "franchise_property": "Property",
-    "franchise_fnb": "F&B",
+    "franchise_fnb": "Food-court Forecast",
+    "franchise_mlk": "Mrs Lu Kitchen",
     "business": "Business",
     "immigration": "Immigration",
     "ep": "EP",
@@ -2332,6 +2333,223 @@
     },
     "validation": {
       "nameRequired": "Food court name is required"
+    }
+  },
+  "mlk": {
+    "tabs": {
+      "stores": "Stores",
+      "investors": "Investors",
+      "couples": "Couples",
+      "revenue": "Revenue",
+      "settlements": "Settlements",
+      "files": "Files"
+    },
+    "detail": {
+      "store": "Store detail",
+      "investor": "Investor detail",
+      "couple": "Couple detail"
+    },
+    "fields": {
+      "name": "Name",
+      "company_name": "Company name",
+      "uen": "UEN",
+      "id_no": "ID no.",
+      "phone": "Phone",
+      "wechat": "WeChat",
+      "address": "Address",
+      "service_tier": "Service tier",
+      "pr_status": "PR status",
+      "kyc_status": "KYC status",
+      "drive_folder_id": "Drive folder",
+      "notes": "Notes",
+      "operator_company": "Operator company",
+      "operator_uen": "Operator UEN",
+      "husband_name": "Husband",
+      "husband_short": "H",
+      "husband_id_no": "Husband ID no.",
+      "husband_passport": "Husband passport",
+      "wife_name": "Wife",
+      "wife_short": "W",
+      "wife_id_no": "Wife ID no.",
+      "wife_passport": "Wife passport",
+      "husband_ep": "Husband EP",
+      "wife_ep": "Wife EP",
+      "ep_status": "EP status",
+      "mentor_id": "Mentor",
+      "status": "Status",
+      "joined_at": "Joined at",
+      "exited_at": "Exited at",
+      "stall": "Stall",
+      "spv_name": "SPV company",
+      "spv_uen": "SPV UEN",
+      "investor": "Investor",
+      "couple": "Couple",
+      "food_court": "Food court",
+      "kitchen_store_id": "Kitchen store ID",
+      "intent_signed_at": "Intent signed at",
+      "selected_at": "Selected at",
+      "incorporated_at": "Incorporated at",
+      "lease_signed_at": "Lease signed at",
+      "renovation_at": "Renovation at",
+      "opened_at": "Opened at",
+      "closed_at": "Closed at",
+      "fc_deposit_amount": "Food-court deposit",
+      "store_count": "Store count",
+      "stores": "Stores",
+      "kind": "Kind",
+      "amount_due": "Amount due",
+      "amount_paid": "Amount paid",
+      "paid_at": "Paid at",
+      "month": "Month",
+      "amount": "Amount",
+      "date": "Date",
+      "turnover": "Turnover",
+      "source": "Source",
+      "net_profit": "Net profit",
+      "investor_payout": "Investor payout",
+      "couple_payout": "Couple payout",
+      "mgmt_payout": "Mgmt payout",
+      "detail": "Detail",
+      "store": "Store"
+    },
+    "status": {
+      "store": {
+        "intent": "Intent",
+        "selected": "Selected",
+        "incorporated": "Incorporated",
+        "lease_signed": "Lease signed",
+        "renovation": "Renovation",
+        "open": "Open",
+        "closed": "Closed"
+      },
+      "service_tier": {
+        "tier1": "Tier 1",
+        "tier2": "Tier 2"
+      },
+      "pr": {
+        "none": "Not applied",
+        "applied": "Applied",
+        "granted": "Granted"
+      },
+      "kyc": {
+        "pending": "Pending",
+        "done": "Done"
+      },
+      "couple": {
+        "candidate": "Candidate",
+        "active": "Active",
+        "exited": "Exited"
+      },
+      "payment": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "refunded": "Refunded"
+      }
+    },
+    "payments": {
+      "add": "Add payment",
+      "edit": "Edit payment",
+      "prHint": "Pay after PR is granted",
+      "kind": {
+        "instalment1": "Instalment 1 (intent)",
+        "instalment2": "Instalment 2 (store selected)",
+        "instalment3": "Instalment 3 (lease signed)",
+        "instalment4": "Instalment 4 (opening)",
+        "fc_deposit": "Food-court deposit",
+        "service_tier1": "Service fee · Tier 1",
+        "service_tier2_first": "Service fee · Tier 2 first payment",
+        "service_tier2_second": "Service fee · Tier 2 balance (PR)"
+      }
+    },
+    "ledger": {
+      "add": "Add ledger entry",
+      "edit": "Edit ledger entry",
+      "kind": {
+        "advance_repay": "Advance repayment",
+        "retention_hold": "Retention hold",
+        "retention_refund": "Retention refund",
+        "bond_paid": "Employment bond paid",
+        "bond_refund": "Employment bond refund",
+        "platform_fee": "Platform fee",
+        "mentor_income": "Mentor income"
+      }
+    },
+    "actions": {
+      "searchName": "Search name",
+      "newStore": "New store",
+      "newInvestor": "New investor",
+      "newCouple": "New couple",
+      "viewFoodCourt": "View forecast"
+    },
+    "cards": {
+      "basic": "Basic info",
+      "equity": "Equity parties",
+      "foodCourt": "Food court link",
+      "payments": "Payment progress",
+      "revenueOverview": "Revenue overview",
+      "profile": "Profile",
+      "investorStores": "Investor stores",
+      "servicePayments": "Service fee payments",
+      "coupleProfile": "Couple profile",
+      "operator": "Operator company",
+      "mentor": "Mentor tree",
+      "ledger": "Monthly ledger",
+      "coupleStores": "Stores"
+    },
+    "lifecycle": {
+      "title": "Lifecycle",
+      "advance": "Advance status",
+      "advanceTo": "Advance to {{status}} and record date"
+    },
+    "revenue": {
+      "add": "Add revenue",
+      "currentMonth": "Current month revenue",
+      "previousMonth": "Previous month revenue"
+    },
+    "settlements": {
+      "generate": "Generate settlement",
+      "confirm": "Confirm",
+      "detail": "Breakdown",
+      "latest": "Latest net profit",
+      "noRepay": "Advance paid off (year 2 mode)",
+      "linkFoodCourtFirst": "Link a food court first"
+    },
+    "calc": {
+      "profit": "Net profit",
+      "investor": "Investor total",
+      "couple": "Couple take-home",
+      "mgmtTotal": "Mgmt total",
+      "F": "Food court total F",
+      "food": "Food cost",
+      "mgmt": "Management fee"
+    },
+    "files": {
+      "root": "Files",
+      "saveFirst": "Save before uploading files",
+      "newFolder": "New folder",
+      "folderName": "Folder name",
+      "confirmDelete": "Delete \"{{name}}\"?",
+      "empty": "No files",
+      "icon": "Icon",
+      "name": "Name",
+      "size": "Size",
+      "time": "Time"
+    },
+    "balances": {
+      "advanceRemaining": "Advance remaining",
+      "retention": "Retention pool",
+      "bond": "Employment bond",
+      "paidOff": "Paid off"
+    },
+    "mentor": {
+      "apprentices": "Apprentices"
+    },
+    "messages": {
+      "empty": "No data",
+      "saved": "Saved",
+      "nameRequired": "Name is required",
+      "coupleNameRequired": "Husband and wife names are required",
+      "confirmDelete": "Delete this record?"
     }
   },
   "franchise": {
