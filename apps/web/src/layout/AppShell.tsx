@@ -65,7 +65,8 @@ const navItems: NavItem[] = [
     children: [
       { to: "/franchise/tracking", key: "nav.franchise_tracking", perm: "franchise.view" },
       { to: "/franchise/property", key: "nav.franchise_property", perm: "franchise.view" },
-      { to: "/franchise/fnb", key: "nav.franchise_fnb", perm: "franchise.view" }
+      { to: "/franchise/fnb", key: "nav.franchise_fnb", perm: "franchise.view" },
+      { to: "/franchise/mlk", key: "nav.franchise_mlk", perm: "mlk.view" }
     ]
   },
   {
@@ -136,7 +137,7 @@ export function AppShell() {
           if (item.children) {
             const children = item.children.filter((child) => !child.perm || can(child.perm));
 
-            if (children.length === 0 || (item.perm && !can(item.perm))) {
+            if (children.length === 0) {
               return null;
             }
 

@@ -13,6 +13,10 @@ import { FoodCourtDetailPage } from "./pages/franchise/FoodCourtDetailPage";
 import { FoodCourtListPage } from "./pages/franchise/FoodCourtListPage";
 import { FranchiseFnbPlaceholder } from "./pages/franchise/FranchiseFnbPlaceholder";
 import { FranchisePropertyPlaceholder } from "./pages/franchise/FranchisePropertyPlaceholder";
+import { MlkCoupleDetailPage } from "./pages/franchise/mlk/MlkCoupleDetailPage";
+import { MlkInvestorDetailPage } from "./pages/franchise/mlk/MlkInvestorDetailPage";
+import { MlkLayoutPage } from "./pages/franchise/mlk/MlkLayoutPage";
+import { MlkStoreDetailPage } from "./pages/franchise/mlk/MlkStoreDetailPage";
 import { PropertiesPage } from "./pages/franchise/PropertiesPage";
 import { PropertyDetailPage } from "./pages/franchise/PropertyDetailPage";
 import { TrackingDashboardPage } from "./pages/franchise/TrackingDashboardPage";
@@ -106,6 +110,10 @@ export function App() {
           <Route path="franchise/property" element={<FranchisePropertyPlaceholder />} />
           <Route path="franchise/fnb" element={<FoodCourtListPage />} />
           <Route path="franchise/fnb/:id" element={<FoodCourtDetailPage />} />
+          <Route path="franchise/mlk" element={<MlkLayoutPage />} />
+          <Route path="franchise/mlk/stores/:id" element={<MlkStoreDetailPage />} />
+          <Route path="franchise/mlk/investors/:id" element={<MlkInvestorDetailPage />} />
+          <Route path="franchise/mlk/couples/:id" element={<MlkCoupleDetailPage />} />
           <Route path="hr" element={<HrLayout />}>
             <Route index element={<Navigate to="employees" replace />} />
             <Route path="employees" element={<EmployeesPage />} />
