@@ -2338,7 +2338,10 @@
     "tabs": {
       "stores": "Stores",
       "investors": "Investors",
-      "couples": "Couples"
+      "couples": "Couples",
+      "revenue": "Revenue",
+      "settlements": "Settlements",
+      "files": "Files"
     },
     "detail": {
       "store": "Store detail",
@@ -2405,7 +2408,8 @@
       "investor_payout": "Investor payout",
       "couple_payout": "Couple payout",
       "mgmt_payout": "Mgmt payout",
-      "detail": "Detail"
+      "detail": "Detail",
+      "store": "Store"
     },
     "status": {
       "store": {
@@ -2442,6 +2446,9 @@
       }
     },
     "payments": {
+      "add": "Add payment",
+      "edit": "Edit payment",
+      "prHint": "Pay after PR is granted",
       "kind": {
         "instalment1": "Instalment 1 (intent)",
         "instalment2": "Instalment 2 (store selected)",
@@ -2454,6 +2461,8 @@
       }
     },
     "ledger": {
+      "add": "Add ledger entry",
+      "edit": "Edit ledger entry",
       "kind": {
         "advance_repay": "Advance repayment",
         "retention_hold": "Retention hold",
@@ -2468,7 +2477,71 @@
       "searchName": "Search name",
       "newStore": "New store",
       "newInvestor": "New investor",
-      "newCouple": "New couple"
+      "newCouple": "New couple",
+      "viewFoodCourt": "View forecast"
+    },
+    "cards": {
+      "basic": "Basic info",
+      "equity": "Equity parties",
+      "foodCourt": "Food court link",
+      "payments": "Payment progress",
+      "revenueOverview": "Revenue overview",
+      "profile": "Profile",
+      "investorStores": "Investor stores",
+      "servicePayments": "Service fee payments",
+      "coupleProfile": "Couple profile",
+      "operator": "Operator company",
+      "mentor": "Mentor tree",
+      "ledger": "Monthly ledger",
+      "coupleStores": "Stores"
+    },
+    "lifecycle": {
+      "title": "Lifecycle",
+      "advance": "Advance status",
+      "advanceTo": "Advance to {{status}} and record date"
+    },
+    "revenue": {
+      "add": "Add revenue",
+      "currentMonth": "Current month revenue",
+      "previousMonth": "Previous month revenue"
+    },
+    "settlements": {
+      "generate": "Generate settlement",
+      "confirm": "Confirm",
+      "detail": "Breakdown",
+      "latest": "Latest net profit",
+      "noRepay": "Advance paid off (year 2 mode)",
+      "linkFoodCourtFirst": "Link a food court first"
+    },
+    "calc": {
+      "profit": "Net profit",
+      "investor": "Investor total",
+      "couple": "Couple take-home",
+      "mgmtTotal": "Mgmt total",
+      "F": "Food court total F",
+      "food": "Food cost",
+      "mgmt": "Management fee"
+    },
+    "files": {
+      "root": "Files",
+      "saveFirst": "Save before uploading files",
+      "newFolder": "New folder",
+      "folderName": "Folder name",
+      "confirmDelete": "Delete \"{{name}}\"?",
+      "empty": "No files",
+      "icon": "Icon",
+      "name": "Name",
+      "size": "Size",
+      "time": "Time"
+    },
+    "balances": {
+      "advanceRemaining": "Advance remaining",
+      "retention": "Retention pool",
+      "bond": "Employment bond",
+      "paidOff": "Paid off"
+    },
+    "mentor": {
+      "apprentices": "Apprentices"
     },
     "messages": {
       "empty": "No data",
