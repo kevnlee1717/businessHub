@@ -455,6 +455,7 @@ export function listCases(params: {
   status_in?: string | undefined;
   client_id?: string | undefined;
   parent_case_id?: string | undefined;
+  signed_month?: string | undefined;
   order_by?: CaseOrderBy | undefined;
   order?: SortOrder | undefined;
   page?: number | undefined;
@@ -480,6 +481,10 @@ export function listCases(params: {
 
   if (params.parent_case_id) {
     searchParams.set("parent_case_id", params.parent_case_id);
+  }
+
+  if (params.signed_month) {
+    searchParams.set("signed_month", params.signed_month);
   }
 
   if (params.order_by) {

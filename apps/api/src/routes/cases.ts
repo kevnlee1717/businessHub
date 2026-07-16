@@ -472,6 +472,10 @@ const caseQuerySchema = z
     status_in: z.string().optional(),
     client_id: z.string().uuid().optional(),
     parent_case_id: z.string().uuid().optional(),
+    signed_month: z
+      .string()
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+      .optional(),
     order_by: z.enum(["signed_at", "created_at"]).optional().default("created_at"),
     order: z.enum(["asc", "desc"]).optional().default("desc")
   })
@@ -1095,6 +1099,15 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     }
     if (query.client_id) {
       filters.push(eq(cases.clientId, query.client_id));
+    }
+    if (query.signed_month) {
+      // signed_at 为 date 列,按 [当月1号, 下月1号) 区间过滤;signed_at 为空的行不命中
+      const year = Number(query.signed_month.slice(0, 4));
+      const month = Number(query.signed_month.slice(5, 7));
+      const start = `${query.signed_month}-01`;
+      const next =
+        month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      filters.push(gte(cases.signedAt, start), lt(cases.signedAt, next));
     }
     if (query.parent_case_id) {
       filters.push(eq(cases.parentCaseId, query.parent_case_id));

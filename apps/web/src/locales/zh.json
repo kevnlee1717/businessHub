@@ -804,7 +804,8 @@
     "filters": {
       "businessType": "业务类型",
       "status": "状态",
-      "client": "客户"
+      "client": "客户",
+      "signedMonth": "签约月份"
     },
     "fields": {
       "businessType": "业务类型",
