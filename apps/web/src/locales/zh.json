@@ -2386,7 +2386,10 @@
     "tabs": {
       "stores": "门店",
       "investors": "投资人",
-      "couples": "夫妻"
+      "couples": "夫妻",
+      "revenue": "营业流水",
+      "settlements": "月结算",
+      "files": "文件"
     },
     "detail": {
       "store": "门店详情",
@@ -2453,7 +2456,8 @@
       "investor_payout": "投资人分账",
       "couple_payout": "夫妻分账",
       "mgmt_payout": "管理分账",
-      "detail": "明细"
+      "detail": "明细",
+      "store": "门店"
     },
     "status": {
       "store": {
@@ -2490,6 +2494,9 @@
       }
     },
     "payments": {
+      "add": "添加付款",
+      "edit": "编辑付款",
+      "prHint": "PR 获批后支付",
       "kind": {
         "instalment1": "第一期(签意向)",
         "instalment2": "第二期(选定门店)",
@@ -2502,6 +2509,8 @@
       }
     },
     "ledger": {
+      "add": "记一笔",
+      "edit": "编辑台账",
       "kind": {
         "advance_repay": "还垫款",
         "retention_hold": "分红保证金压存",
@@ -2516,7 +2525,71 @@
       "searchName": "名称搜索",
       "newStore": "新建门店",
       "newInvestor": "新建投资人",
-      "newCouple": "新建夫妻"
+      "newCouple": "新建夫妻",
+      "viewFoodCourt": "查看测算"
+    },
+    "cards": {
+      "basic": "基本信息",
+      "equity": "股权三方",
+      "foodCourt": "食阁关联",
+      "payments": "付款进度",
+      "revenueOverview": "营业概览",
+      "profile": "资料",
+      "investorStores": "名下门店",
+      "servicePayments": "服务费付款记录",
+      "coupleProfile": "两人资料",
+      "operator": "运营公司",
+      "mentor": "师徒",
+      "ledger": "逐月流水台账",
+      "coupleStores": "所属门店"
+    },
+    "lifecycle": {
+      "title": "生命周期",
+      "advance": "推进状态",
+      "advanceTo": "推进到 {{status}} 并记录时间点"
+    },
+    "revenue": {
+      "add": "录入营业额",
+      "currentMonth": "本月营业额",
+      "previousMonth": "上月营业额"
+    },
+    "settlements": {
+      "generate": "生成月结算",
+      "confirm": "确认生成",
+      "detail": "构成",
+      "latest": "最近结算纯利",
+      "noRepay": "垫款已还清(第2年模式)",
+      "linkFoodCourtFirst": "先关联食阁"
+    },
+    "calc": {
+      "profit": "纯利润",
+      "investor": "投资人合计",
+      "couple": "夫妻实到",
+      "mgmtTotal": "管理公司合计",
+      "F": "食阁总费用 F",
+      "food": "食材",
+      "mgmt": "管理费"
+    },
+    "files": {
+      "root": "文件",
+      "saveFirst": "保存后可上传文件",
+      "newFolder": "新建文件夹",
+      "folderName": "文件夹名称",
+      "confirmDelete": "确认删除「{{name}}」？",
+      "empty": "暂无文件",
+      "icon": "图标",
+      "name": "名称",
+      "size": "大小",
+      "time": "时间"
+    },
+    "balances": {
+      "advanceRemaining": "垫款剩余",
+      "retention": "分红保证金池",
+      "bond": "入职保证金",
+      "paidOff": "已还清"
+    },
+    "mentor": {
+      "apprentices": "徒弟"
     },
     "messages": {
       "empty": "暂无数据",
