@@ -29,6 +29,8 @@ export const permissions = [
   "education.view",
   "franchise.manage",
   "franchise.view",
+  "mlk.manage",
+  "mlk.view",
   "brochure.admin",
   "brochure.manage",
   "brochure.view",
@@ -72,6 +74,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "education.view",
     "franchise.manage",
     "franchise.view",
+    "mlk.manage",
+    "mlk.view",
     "brochure.admin",
     "brochure.manage",
     "brochure.view",
@@ -269,6 +273,14 @@ export const permissionCatalog: {
     permissions: [
       { key: "franchise.manage", label: "管理加盟业务" },
       { key: "franchise.view", label: "查看加盟业务" }
+    ]
+  },
+  {
+    key: "mlk",
+    label: "陆老师厨房",
+    permissions: [
+      { key: "mlk.manage", label: "管理陆老师厨房" },
+      { key: "mlk.view", label: "查看陆老师厨房" }
     ]
   },
   {
