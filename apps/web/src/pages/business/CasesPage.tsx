@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  CloseButton,
   Group,
   Input,
   Loader,
@@ -107,6 +108,11 @@ function ReapplyBadge({ caseItem }: { caseItem: Case }) {
   return <Badge color={d <= 14 ? "red" : d <= 30 ? "yellow" : "gray"} variant="light">还差 {d} 天可再申请</Badge>;
 }
 
+function currentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
   return {
     business_type: businessType,
@@ -128,6 +134,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<CaseStatus | "active" | null>("active");
   const [clientFilter, setClientFilter] = useState<string | null>(null);
+  const [monthFilter, setMonthFilter] = useState<string>(currentMonth());
   const [onlyReapply, setOnlyReapply] = useState(false);
   const [signedAtOrder, setSignedAtOrder] = useState<"asc" | "desc" | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
@@ -143,6 +150,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
       businessType,
       statusFilter,
       clientFilter,
+      monthFilter,
       onlyReapply,
       signedAtOrder,
       page,
@@ -155,6 +163,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
         status: statusFilter && statusFilter !== "active" ? statusFilter : undefined,
         status_in: statusFilter === "active" ? "open,in_progress" : undefined,
         client_id: clientFilter ?? undefined,
+        signed_month: monthFilter || undefined,
         order_by: signedAtOrder ? "signed_at" : undefined,
         order: signedAtOrder ?? undefined,
         page: useFrontendPagination ? undefined : page,
@@ -314,6 +323,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
     setPage(1);
   }
 
+  function updateMonthFilter(value: string) {
+    setMonthFilter(value);
+    setPage(1);
+  }
+
   function updateOnlyReapply(checked: boolean) {
     setOnlyReapply(checked);
     setPage(1);
@@ -392,6 +406,16 @@ export function CasesPage({ businessType }: CasesPageProps) {
           onChange={updateClientFilter}
           searchable
           clearable
+        />
+        <TextInput
+          type="month"
+          label={t("case.filters.signedMonth")}
+          w={180}
+          value={monthFilter}
+          onChange={(event) => updateMonthFilter(event.currentTarget.value)}
+          rightSection={
+            monthFilter ? <CloseButton size="sm" onClick={() => updateMonthFilter("")} /> : null
+          }
         />
         {businessType === "ica" && (
           <Checkbox

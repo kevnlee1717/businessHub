@@ -792,7 +792,8 @@
     "filters": {
       "businessType": "Business type",
       "status": "Status",
-      "client": "Client"
+      "client": "Client",
+      "signedMonth": "Signed month"
     },
     "fields": {
       "businessType": "Business type",
