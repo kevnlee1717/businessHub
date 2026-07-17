@@ -1086,7 +1086,8 @@
       }
     },
     "duration": {
-      "sinceSigning": "签约至今 {{days}} 天 · 约{{target}}天"
+      "sinceSigning": "签约至今 {{days}} 天",
+      "stepGap": "{{days}} 天"
     }
   },
   "caseResubmission": {

@@ -1550,8 +1550,10 @@ function SectionNav({
           <Title order={4}>{t("case.nav.title")}</Title>
           <Group gap="md" justify="flex-end">
             {duration ? (
-              <Badge color={duration.days <= duration.typicalDays ? "green" : "orange"} variant="light">
-                {t("caseStep.duration.sinceSigning", { days: duration.days, target: duration.typicalDays })}
+              <Badge color={duration.days <= duration.typicalDays ? "green" : "orange"} variant="light" size="lg">
+                <Text span fw={700} size="sm">
+                  {t("caseStep.duration.sinceSigning", { days: duration.days })}
+                </Text>
               </Badge>
             ) : null}
             <StepLegendDot color="blue" label={t("caseStep.tone.progress")} />
