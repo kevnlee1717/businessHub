@@ -9,11 +9,11 @@ type ExcelPreview = {
   htmlByName: Record<string, string>;
 };
 
-function DownloadButton({ file }: { file: DriveNode }) {
+function DownloadButton({ file, downloadUrl }: { file: DriveNode; downloadUrl?: string | undefined }) {
   const { t } = useTranslation();
   return (
     <Group justify="flex-end" mt="sm">
-      <Button component="a" href={driveDownloadUrl(file.id)} target="_blank" rel="noreferrer" variant="light">
+      <Button component="a" href={downloadUrl ?? driveDownloadUrl(file.id)} target="_blank" rel="noreferrer" variant="light">
         {t("drive.download")}
       </Button>
     </Group>
@@ -195,10 +195,12 @@ function ExcelPreview({ file }: { file: DriveNode }) {
 export function DrivePreviewModal({
   opened,
   file,
+  downloadUrl,
   onClose
 }: {
   opened: boolean;
   file: DriveNode | null;
+  downloadUrl?: string | undefined;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -222,7 +224,7 @@ export function DrivePreviewModal({
           ) : (
             <Alert color="yellow">{t("drive.previewUnsupported")}</Alert>
           )}
-          <DownloadButton file={file} />
+          <DownloadButton file={file} downloadUrl={downloadUrl} />
         </Stack>
       ) : file ? (
         <Stack gap="sm">

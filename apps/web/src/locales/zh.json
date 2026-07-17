@@ -788,7 +788,17 @@
       "submissions": "提交记录",
       "charges": "收款计划",
       "addon": "增加服务",
-      "commission": "分成"
+      "commission": "分成",
+      "steps": "步骤",
+      "files": "文件"
+    },
+    "steps": {
+      "empty": "暂无步骤",
+      "markDone": "标记完成"
+    },
+    "files": {
+      "title": "案件文件",
+      "empty": "暂无文件"
     },
     "filters": {
       "businessType": "业务类型",

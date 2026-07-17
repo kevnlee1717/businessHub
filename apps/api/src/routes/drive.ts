@@ -1,65 +1,32 @@
-import { randomUUID } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
-import { access, mkdir, unlink } from "node:fs/promises";
-import { dirname, extname, join, posix } from "node:path";
-import { Transform, Writable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { fileURLToPath } from "node:url";
 import { db, driveNodes } from "@bh/db";
 import { driveTreeQuery, folderCreateSchema, idParams, nodePatchSchema } from "@bh/shared";
-import { type MultipartFile } from "@fastify/multipart";
 import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
-import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { z } from "zod";
+import { type FastifyInstance } from "fastify";
 import { requirePerm } from "../auth/jwt";
+import {
+  createFolder,
+  createFolderUploadTree,
+  findAnyNode,
+  findNode,
+  insertUploadedFiles,
+  isFileTooLargeError,
+  isFolderMoveCyclic,
+  multipartParentSchema,
+  parseParentId,
+  readMultipartFolderUpload,
+  readMultipartWithFiles,
+  readMultipartWithFirstFile,
+  sendDriveFileTooLarge,
+  sendDriveNodeDownload,
+  serializeNode,
+  softDeleteNodeTree,
+  unlinkStoragePath,
+  validateParentFolder,
+  type DriveNodeRow,
+  type FolderUploadFile,
+  type UploadedFile
+} from "./driveUtils";
 import { parseWithSchema, sendNotFound } from "./hrUtils";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const uploadRoot = join(__dirname, "../../../..", "uploads");
-const storageDirectory = "brochure";
-const DRIVE_MAX_UPLOAD = 300 * 1024 * 1024;
-
-type DriveNodeRow = typeof driveNodes.$inferSelect;
-type MultipartFields = Record<string, string>;
-type UploadedFile = {
-  filename: string;
-  storagePath: string;
-  mime: string;
-  size: number;
-};
-type FolderUploadFile = UploadedFile & {
-  relPath: string;
-  segments: string[];
-};
-
-const parentIdSchema = z.preprocess(
-  (value) => (value === "" || value === "null" || value === undefined ? null : value),
-  z.string().uuid().nullable()
-);
-
-const multipartParentSchema = z.object({
-  parent_id: parentIdSchema.default(null)
-});
-
-function urlForStoragePath(storagePath: string | null | undefined) {
-  return storagePath ? `/uploads/${storagePath}` : null;
-}
-
-function serializeNode(row: DriveNodeRow) {
-  return {
-    id: row.id,
-    parent_id: row.parentId,
-    kind: row.kind,
-    name: row.name,
-    storage_path: row.storagePath,
-    mime: row.mime,
-    size: row.size,
-    sort_order: row.sortOrder,
-    updated_at: row.updatedAt,
-    created_at: row.createdAt,
-    ...(row.kind === "file" ? { url: urlForStoragePath(row.storagePath) } : {})
-  };
-}
 
 function serializeTrashNode(row: DriveNodeRow, path: string, descendantCount: number) {
   return {
@@ -71,210 +38,6 @@ function serializeTrashNode(row: DriveNodeRow, path: string, descendantCount: nu
     path,
     descendant_count: descendantCount
   };
-}
-
-function fieldValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (Buffer.isBuffer(value)) return value.toString("utf8");
-  return String(value);
-}
-
-async function discardFile(part: MultipartFile): Promise<void> {
-  await pipeline(
-    part.file,
-    new Writable({
-      write(_chunk, _encoding, callback) {
-        callback();
-      }
-    })
-  );
-}
-
-async function unlinkStoragePath(storagePath: string | null | undefined) {
-  if (!storagePath) return;
-  try {
-    await unlink(join(uploadRoot, storagePath));
-  } catch {
-    // Best-effort cleanup only; stale files should not break API writes.
-  }
-}
-
-async function saveFile(part: MultipartFile) {
-  const directory = join(uploadRoot, storageDirectory);
-  await mkdir(directory, { recursive: true });
-
-  const extension = extname(part.filename);
-  const storedFilename = `${randomUUID()}${extension}`;
-  const absolutePath = join(directory, storedFilename);
-  const storagePath = posix.join(storageDirectory, storedFilename);
-  let size = 0;
-
-  const counter = new Transform({
-    transform(chunk: Buffer, _encoding, callback) {
-      size += chunk.length;
-      callback(null, chunk);
-    }
-  });
-
-  try {
-    await pipeline(part.file, counter, createWriteStream(absolutePath));
-  } catch (error) {
-    await unlinkStoragePath(storagePath);
-    throw error;
-  }
-
-  return {
-    filename: part.filename,
-    storagePath,
-    mime: part.mimetype,
-    size
-  };
-}
-
-async function readMultipartWithFiles(request: FastifyRequest) {
-  const fields: MultipartFields = {};
-  const files: UploadedFile[] = [];
-
-  try {
-    for await (const part of request.parts({ limits: { fileSize: DRIVE_MAX_UPLOAD } })) {
-      if (part.type === "field") {
-        const value = fieldValue(part.value);
-        if (value !== "") {
-          fields[part.fieldname] = value;
-        }
-        continue;
-      }
-
-      files.push(await saveFile(part));
-    }
-  } catch (error) {
-    await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
-    throw error;
-  }
-
-  return { fields, files };
-}
-
-async function readMultipartWithFirstFile(request: FastifyRequest) {
-  const fields: MultipartFields = {};
-  let file: UploadedFile | null = null;
-
-  try {
-    for await (const part of request.parts({ limits: { fileSize: DRIVE_MAX_UPLOAD } })) {
-      if (part.type === "field") {
-        const value = fieldValue(part.value);
-        if (value !== "") {
-          fields[part.fieldname] = value;
-        }
-        continue;
-      }
-
-      if (file) {
-        await discardFile(part);
-        continue;
-      }
-
-      file = await saveFile(part);
-    }
-  } catch (error) {
-    await unlinkStoragePath(file?.storagePath);
-    throw error;
-  }
-
-  return { fields, file };
-}
-
-async function readMultipartFolderUpload(request: FastifyRequest) {
-  const fields: MultipartFields = {};
-  const files: FolderUploadFile[] = [];
-
-  try {
-    for await (const part of request.parts({ limits: { fileSize: DRIVE_MAX_UPLOAD } })) {
-      if (part.type === "field") {
-        const value = fieldValue(part.value);
-        if (value !== "") {
-          fields[part.fieldname] = value;
-        }
-        continue;
-      }
-
-      const segments = part.fieldname.split("/").filter(Boolean);
-      if (segments.length === 0) {
-        await discardFile(part);
-        throw new Error("invalid_relative_path");
-      }
-
-      const file = await saveFile(part);
-      files.push({
-        ...file,
-        relPath: part.fieldname,
-        segments
-      });
-    }
-  } catch (error) {
-    await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
-    throw error;
-  }
-
-  return { fields, files };
-}
-
-function isFileTooLargeError(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "FST_REQ_FILE_TOO_LARGE"
-  );
-}
-
-function sendDriveFileTooLarge(reply: FastifyReply) {
-  return reply.code(413).send({
-    error: "file_too_large",
-    message: "文件超过 300MB 上限,请压缩后再传"
-  });
-}
-
-function parseParentId(value: unknown): string | null {
-  return parentIdSchema.parse(value);
-}
-
-async function findNode(id: string) {
-  const [node] = await db
-    .select()
-    .from(driveNodes)
-    .where(and(eq(driveNodes.id, id), isNull(driveNodes.deletedAt)))
-    .limit(1);
-  return node ?? null;
-}
-
-async function findAnyNode(id: string) {
-  const [node] = await db.select().from(driveNodes).where(eq(driveNodes.id, id)).limit(1);
-  return node ?? null;
-}
-
-async function validateParentFolder(parentId: string | null, reply: FastifyReply) {
-  if (!parentId) return true;
-  const parent = await findNode(parentId);
-  if (!parent || parent.kind !== "folder") {
-    reply.code(400).send({ error: "parent_folder_required" });
-    return false;
-  }
-  return true;
-}
-
-async function isFolderMoveCyclic(id: string, targetParentId: string | null) {
-  let currentId = targetParentId;
-  while (currentId) {
-    if (currentId === id) return true;
-    const [parent] = await db
-      .select({ parentId: driveNodes.parentId })
-      .from(driveNodes)
-      .where(and(eq(driveNodes.id, currentId), isNull(driveNodes.deletedAt)))
-      .limit(1);
-    currentId = parent?.parentId ?? null;
-  }
-  return false;
 }
 
 async function buildActiveParentPath(parentId: string | null) {
@@ -354,7 +117,7 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
       .where(isNull(driveNodes.deletedAt))
       .orderBy(sql`case when ${driveNodes.kind} = 'folder' then 0 else 1 end`, asc(driveNodes.name));
 
-    return { nodes: rows.map(serializeNode) };
+    return { nodes: rows.map((row) => serializeNode(row)) };
   });
 
   app.post("/drive/folders", { preHandler: requirePerm("brochure.manage") }, async (request, reply) => {
@@ -362,17 +125,7 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
     const parentId = parseParentId(body.parent_id);
     if (!(await validateParentFolder(parentId, reply))) return;
 
-    const [row] = await db
-      .insert(driveNodes)
-      .values({
-        parentId,
-        kind: "folder",
-        name: body.name,
-        createdBy: request.user.id,
-        updatedAt: new Date()
-      })
-      .returning();
-    if (!row) throw new Error("drive_folder_create_failed");
+    const row = await createFolder(parentId, body.name, request.user.id);
     return reply.code(201).send({ node: serializeNode(row) });
   });
 
@@ -391,23 +144,9 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
         return;
       }
 
-      const rows = await db
-        .insert(driveNodes)
-        .values(
-          files.map((file) => ({
-            parentId,
-            kind: "file",
-            name: file.filename,
-            storagePath: file.storagePath,
-            mime: file.mime,
-            size: file.size,
-            createdBy: request.user.id,
-            updatedAt: new Date()
-          }))
-        )
-        .returning();
+      const rows = await insertUploadedFiles(parentId, files, request.user.id);
 
-      return reply.code(201).send({ nodes: rows.map(serializeNode) });
+      return reply.code(201).send({ nodes: rows.map((row) => serializeNode(row)) });
     } catch (error) {
       await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
       if (isFileTooLargeError(error)) {
@@ -432,85 +171,12 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
         return;
       }
 
-      const result = await db.transaction(async (tx) => {
-        const folderCache = new Map<string, string>();
-        const topFolders = new Map<string, DriveNodeRow>();
-        let createdFolders = 0;
-        let createdFiles = 0;
-
-        async function ensureFolder(currentParentId: string | null, name: string) {
-          const key = `${currentParentId ?? "root"}::${name}`;
-          const cached = folderCache.get(key);
-          if (cached) return cached;
-
-          const parentFilter = currentParentId ? eq(driveNodes.parentId, currentParentId) : isNull(driveNodes.parentId);
-          const [existing] = await tx
-            .select()
-            .from(driveNodes)
-            .where(and(parentFilter, eq(driveNodes.kind, "folder"), eq(driveNodes.name, name), isNull(driveNodes.deletedAt)))
-            .limit(1);
-          if (existing) {
-            folderCache.set(key, existing.id);
-            return existing.id;
-          }
-
-          const [folder] = await tx
-            .insert(driveNodes)
-            .values({
-              parentId: currentParentId,
-              kind: "folder",
-              name,
-              createdBy: request.user.id,
-              updatedAt: new Date()
-            })
-            .returning();
-          if (!folder) throw new Error("drive_folder_create_failed");
-
-          folderCache.set(key, folder.id);
-          createdFolders += 1;
-          if (currentParentId === parentId) {
-            topFolders.set(folder.id, folder);
-          }
-          return folder.id;
-        }
-
-        for (const file of files) {
-          const fileName = file.segments[file.segments.length - 1];
-          if (!fileName) throw new Error("invalid_relative_path");
-
-          let currentParentId = parentId;
-          for (const segment of file.segments.slice(0, -1)) {
-            currentParentId = await ensureFolder(currentParentId, segment);
-          }
-
-          const [row] = await tx
-            .insert(driveNodes)
-            .values({
-              parentId: currentParentId,
-              kind: "file",
-              name: fileName,
-              storagePath: file.storagePath,
-              mime: file.mime,
-              size: file.size,
-              createdBy: request.user.id,
-              updatedAt: new Date()
-            })
-            .returning({ id: driveNodes.id });
-          if (!row) throw new Error("drive_file_node_create_failed");
-          createdFiles += 1;
-        }
-
-        return {
-          createdFolders,
-          createdFiles,
-          topFolders: Array.from(topFolders.values())
-        };
-      });
+      const result = await createFolderUploadTree(parentId, files, request.user.id);
 
       return reply.code(201).send({
         created_folders: result.createdFolders,
         created_files: result.createdFiles,
-        top_folders: result.topFolders.map(serializeNode)
+        top_folders: result.topFolders.map((row) => serializeNode(row))
       });
     } catch (error) {
       await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
@@ -680,45 +346,14 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
     const existing = await findNode(id);
     if (!existing) return sendNotFound(reply);
 
-    const deletedAt = new Date();
-    const deletedBatch = randomUUID();
-    const result = await db.execute(sql`
-      with recursive target as (
-        select id
-        from drive_nodes
-        where id = ${id} and deleted_at is null
-        union all
-        select child.id
-        from drive_nodes child
-        join target on child.parent_id = target.id
-        where child.deleted_at is null
-      )
-      update drive_nodes
-      set deleted_at = ${deletedAt},
-          deleted_batch = ${deletedBatch},
-          updated_at = ${deletedAt}
-      where id in (select id from target)
-      returning id
-    `);
-
-    if (result.rows.length === 0) return sendNotFound(reply);
+    const deletedCount = await softDeleteNodeTree(id);
+    if (deletedCount === 0) return sendNotFound(reply);
     return { ok: true };
   });
 
   app.get("/drive/nodes/:id/download", { preHandler: requirePerm("brochure.view") }, async (request, reply) => {
     const { id } = parseWithSchema(idParams, request.params);
-    const node = await findNode(id);
-    if (!node || node.kind !== "file" || !node.storagePath) return sendNotFound(reply);
-
-    const absolutePath = join(uploadRoot, node.storagePath);
-    try {
-      await access(absolutePath);
-    } catch {
-      return sendNotFound(reply);
-    }
-
-    reply.header("Content-Type", node.mime ?? "application/octet-stream");
-    reply.header("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(node.name)}`);
-    return reply.send(createReadStream(absolutePath));
+    const sent = await sendDriveNodeDownload(id, reply);
+    if (!sent) return sendNotFound(reply);
   });
 }

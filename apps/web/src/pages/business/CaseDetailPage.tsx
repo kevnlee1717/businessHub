@@ -75,6 +75,8 @@ import { AddonServicesPanel } from "../../components/AddonServicesPanel";
 import { CaseCommissionPanel } from "../../components/CaseCommissionPanel";
 import { ChargeSchedulePanel } from "../../components/ChargeSchedulePanel";
 import { type Charge } from "../../api/charges";
+import { CaseFilesPanel } from "./CaseFilesPanel";
+import { EpStepsPanel } from "./EpStepsPanel";
 
 type DocFormValues = {
   doc_name?: string | undefined;
@@ -1633,9 +1635,23 @@ export function CaseDetailPage() {
       items.push({ key: "addon", label: t("case.section.addon") });
       items.push({ key: "commission", label: t("case.section.commission") });
     }
-    steps.forEach((step, index) => {
-      items.push({ key: step.id, label: t("caseStep.stepNo", { n: index + 1 }), tone: stepTone(step) });
-    });
+    if (isEp) {
+      const doneCount = steps.filter((step) => step.status === "done").length;
+      const tones = steps.map(stepTone);
+      const aggregateTone: StepTone = tones.includes("problem")
+        ? "problem"
+        : steps.length > 0 && doneCount === steps.length
+          ? "done"
+          : tones.includes("progress")
+            ? "progress"
+            : "pending";
+      items.push({ key: "steps", label: `${t("case.section.steps")} ${doneCount}/${steps.length}`, tone: aggregateTone });
+      items.push({ key: "files", label: t("case.section.files") });
+    } else {
+      steps.forEach((step, index) => {
+        items.push({ key: step.id, label: t("caseStep.stepNo", { n: index + 1 }), tone: stepTone(step) });
+      });
+    }
     return items;
   }, [caseItem, steps, t]);
 
@@ -1644,8 +1660,8 @@ export function CaseDetailPage() {
     : navItems[0]?.key ?? "info";
 
   const selectedStep = useMemo(
-    () => steps.find((step) => step.id === effectiveSelected) ?? null,
-    [steps, effectiveSelected]
+    () => (caseItem?.business_type === "ep" ? null : steps.find((step) => step.id === effectiveSelected) ?? null),
+    [caseItem?.business_type, steps, effectiveSelected]
   );
   const clients = clientsQuery.data?.clients ?? [];
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
@@ -1759,6 +1775,14 @@ export function CaseDetailPage() {
               currentUserId={user?.id}
               documentCategories={documentCategories}
             />
+          ) : null}
+
+          {effectiveSelected === "steps" && caseItem.business_type === "ep" ? (
+            <EpStepsPanel steps={steps} caseId={caseItem.id} canManageCases={canManageCases} />
+          ) : null}
+
+          {effectiveSelected === "files" && caseItem.business_type === "ep" ? (
+            <CaseFilesPanel caseId={caseItem.id} canManage={canManageCases} />
           ) : null}
 
           {effectiveSelected === "info" ? (

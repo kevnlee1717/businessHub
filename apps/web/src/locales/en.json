@@ -788,7 +788,17 @@
       "submissions": "Submissions",
       "charges": "Charges",
       "addon": "Add services",
-      "commission": "Commission"
+      "commission": "Commission",
+      "steps": "Steps",
+      "files": "Files"
+    },
+    "steps": {
+      "empty": "No steps yet",
+      "markDone": "Mark done"
+    },
+    "files": {
+      "title": "Case files",
+      "empty": "No files yet"
     },
     "filters": {
       "businessType": "Business type",
