@@ -200,6 +200,15 @@ function daysSince(value?: string | null) {
   return Math.max(0, Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24)));
 }
 
+function parseDateTime(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
 function isImageFile(file: SubmissionFile) {
   return file.mime?.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.filename);
 }
@@ -1509,15 +1518,18 @@ function StepLegendDot({ color, label }: { color: string; label: string }) {
 // 顶部固定的案件导航卡:固定区(案件信息/担保人/提交周期/收款计划)+ 每步一个按钮,
 // 步骤按钮按健康度着色;点击切换下方显示的卡片。
 export type CaseNavItem = { key: string; label: string; tone?: StepTone };
+type SectionNavDuration = { days: number; typicalDays: number };
 
 function SectionNav({
   items,
   selected,
-  onSelect
+  onSelect,
+  duration
 }: {
   items: CaseNavItem[];
   selected: string;
   onSelect: (key: string) => void;
+  duration?: SectionNavDuration | null;
 }) {
   const { t } = useTranslation();
   return (
@@ -1536,7 +1548,12 @@ function SectionNav({
       <Stack gap="sm">
         <Group justify="space-between">
           <Title order={4}>{t("case.nav.title")}</Title>
-          <Group gap="md">
+          <Group gap="md" justify="flex-end">
+            {duration ? (
+              <Badge color={duration.days <= duration.typicalDays ? "green" : "orange"} variant="light">
+                {t("caseStep.duration.sinceSigning", { days: duration.days, target: duration.typicalDays })}
+              </Badge>
+            ) : null}
             <StepLegendDot color="blue" label={t("caseStep.tone.progress")} />
             <StepLegendDot color="red" label={t("caseStep.tone.problem")} />
             <StepLegendDot color="green" label={t("caseStep.tone.done")} />
@@ -1574,7 +1591,7 @@ export function CaseDetailPage() {
   const [signedAtDraft, setSignedAtDraft] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [caseCharges, setCaseCharges] = useState<Charge[]>([]);
-  const [selectedPanel, setSelectedPanel] = useState<string>("info");
+  const [selectedPanel, setSelectedPanel] = useState<string>("");
 
   const caseQuery = useQuery({
     queryKey: ["business", "case", id],
@@ -1618,8 +1635,26 @@ export function CaseDetailPage() {
     if (!caseItem) {
       return [];
     }
-    const isIca = caseItem.business_type === "ica";
     const isEp = caseItem.business_type === "ep";
+    const isIca = caseItem.business_type === "ica";
+    const epStepNavItems: CaseNavItem[] = [];
+    if (isEp) {
+      const doneCount = steps.filter((step) => step.status === "done").length;
+      const tones = steps.map(stepTone);
+      const aggregateTone: StepTone = tones.includes("problem")
+        ? "problem"
+        : steps.length > 0 && doneCount === steps.length
+          ? "done"
+          : tones.includes("progress")
+            ? "progress"
+            : "pending";
+      epStepNavItems.push({
+        key: "steps",
+        label: `${t("case.section.steps")} ${doneCount}/${steps.length}`,
+        tone: aggregateTone
+      });
+      epStepNavItems.push({ key: "files", label: t("case.section.files") });
+    }
     const items: CaseNavItem[] = [{ key: "info", label: t("case.section.info") }];
     if (isIca) {
       items.push({ key: "guarantor", label: t("case.section.guarantor") });
@@ -1637,17 +1672,7 @@ export function CaseDetailPage() {
       items.push({ key: "commission", label: t("case.section.commission") });
     }
     if (isEp) {
-      const doneCount = steps.filter((step) => step.status === "done").length;
-      const tones = steps.map(stepTone);
-      const aggregateTone: StepTone = tones.includes("problem")
-        ? "problem"
-        : steps.length > 0 && doneCount === steps.length
-          ? "done"
-          : tones.includes("progress")
-            ? "progress"
-            : "pending";
-      items.push({ key: "steps", label: `${t("case.section.steps")} ${doneCount}/${steps.length}`, tone: aggregateTone });
-      items.push({ key: "files", label: t("case.section.files") });
+      return [...epStepNavItems, ...items];
     } else {
       steps.forEach((step, index) => {
         items.push({ key: step.id, label: t("caseStep.stepNo", { n: index + 1 }), tone: stepTone(step) });
@@ -1664,6 +1689,32 @@ export function CaseDetailPage() {
     () => (caseItem?.business_type === "ep" ? null : steps.find((step) => step.id === effectiveSelected) ?? null),
     [caseItem?.business_type, steps, effectiveSelected]
   );
+  const epDuration = useMemo<SectionNavDuration | null>(() => {
+    if (caseItem?.business_type !== "ep") {
+      return null;
+    }
+
+    const signingStep = steps.find((step) => step.step_order === 1);
+    const start = parseDateTime(signingStep?.completed_at) ?? parseDateTime(caseItem.signed_at);
+    if (!start) {
+      return null;
+    }
+
+    const allDone = steps.length > 0 && steps.every((step) => step.status === "done");
+    const latestDone = allDone
+      ? Math.max(
+          ...steps
+            .filter((step) => step.status === "done")
+            .map((step) => parseDateTime(step.completed_at))
+            .filter((time): time is number => time !== null)
+        )
+      : Date.now();
+    if (!Number.isFinite(latestDone)) {
+      return null;
+    }
+
+    return { days: Math.max(0, Math.round((latestDone - start) / 86_400_000)), typicalDays: 21 };
+  }, [caseItem, steps]);
   const clients = clientsQuery.data?.clients ?? [];
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
   const employees = employeesQuery.data?.employees ?? [];
@@ -1763,7 +1814,7 @@ export function CaseDetailPage() {
         </Group>
       ) : caseItem ? (
         <>
-          <SectionNav items={navItems} selected={effectiveSelected} onSelect={setSelectedPanel} />
+          <SectionNav items={navItems} selected={effectiveSelected} onSelect={setSelectedPanel} duration={epDuration} />
 
           {selectedStep ? (
             <StepCard

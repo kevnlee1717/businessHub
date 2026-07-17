@@ -59,15 +59,13 @@ function resolveLogActor(log: CaseStepDateLog, employeeById: Map<string, Employe
   return employee ? displayName(employee.name, employee.name_en) : "-";
 }
 
-function StepDateHistory({
+function StepDateHistoryButton({
   step,
   opened,
-  employeeById,
   onToggle
 }: {
   step: CaseStep;
   opened: boolean;
-  employeeById: Map<string, Employee>;
   onToggle: () => void;
 }) {
   const { t } = useTranslation();
@@ -79,44 +77,63 @@ function StepDateHistory({
   const logs = logsQuery.data?.dateLogs ?? [];
 
   return (
-    <Stack gap={4} align="flex-start">
-      <Button variant="subtle" size="xs" onClick={onToggle}>
-        {logsQuery.data ? t("caseStep.date.historyCount", { n: logs.length }) : t("caseStep.date.history")}
-      </Button>
-      <Collapse in={opened}>
-        <Stack gap={6} mt="xs">
-          {logsQuery.isLoading ? (
-            <Group gap="xs">
-              <Loader size="xs" />
+    <Button variant="subtle" size="xs" onClick={onToggle}>
+      {logsQuery.data ? t("caseStep.date.historyCount", { n: logs.length }) : t("caseStep.date.history")}
+    </Button>
+  );
+}
+
+function StepDateHistoryCollapse({
+  step,
+  opened,
+  employeeById
+}: {
+  step: CaseStep;
+  opened: boolean;
+  employeeById: Map<string, Employee>;
+}) {
+  const { t } = useTranslation();
+  const logsQuery = useQuery({
+    queryKey: ["business", "case-step-date-logs", step.id],
+    queryFn: () => getStepDateLogs(step.id),
+    enabled: opened
+  });
+  const logs = logsQuery.data?.dateLogs ?? [];
+
+  return (
+    <Collapse in={opened}>
+      <Stack gap={6} mt="xs" pl="xs">
+        {logsQuery.isLoading ? (
+          <Group gap="xs">
+            <Loader size="xs" />
+            <Text size="sm" c="dimmed">
+              {t("common.loading")}
+            </Text>
+          </Group>
+        ) : logs.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            {t("caseStep.date.noHistory")}
+          </Text>
+        ) : (
+          logs.map((log) => (
+            <Group key={log.id} gap="xs" align="baseline" wrap="wrap">
+              <Text size="sm" fw={500}>
+                {t(`caseStep.date.action.${log.action}`)}
+              </Text>
               <Text size="sm" c="dimmed">
-                {t("common.loading")}
+                {resolveLogActor(log, employeeById)}
+              </Text>
+              <Text size="sm">
+                {formatDate(log.old_completed_at)} → {formatDate(log.new_completed_at)}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {formatDateTime(log.created_at)}
               </Text>
             </Group>
-          ) : logs.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              {t("caseStep.date.noHistory")}
-            </Text>
-          ) : (
-            logs.map((log) => (
-              <Group key={log.id} gap="xs" align="baseline" wrap="wrap">
-                <Text size="sm" fw={500}>
-                  {t(`caseStep.date.action.${log.action}`)}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  {resolveLogActor(log, employeeById)}
-                </Text>
-                <Text size="sm">
-                  {formatDate(log.old_completed_at)} → {formatDate(log.new_completed_at)}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {formatDateTime(log.created_at)}
-                </Text>
-              </Group>
-            ))
-          )}
-        </Stack>
-      </Collapse>
-    </Stack>
+          ))
+        )}
+      </Stack>
+    </Collapse>
   );
 }
 
@@ -190,20 +207,23 @@ export function EpStepsPanel({
               backgroundColor: checked ? "var(--mantine-color-green-0)" : undefined
             }}
           >
-            <Group justify="space-between" align="flex-start" wrap="nowrap">
-              <Stack gap={4}>
-                <Title order={4}>
-                  {index + 1}. {displayName(step.name, step.name_en)}
-                </Title>
-                {step.description ? (
-                  <Text size="sm" c="dimmed">
-                    {step.description}
-                  </Text>
-                ) : null}
-                {checked ? (
-                  <Stack gap={6} mt={4}>
-                    <Group gap="xs" align="center" wrap="wrap">
-                      <Text size="sm" c="dimmed">
+            <Stack gap={6}>
+              <Group justify="space-between" align="center" wrap="nowrap">
+                <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                  <Title order={5} lineClamp={1}>
+                    {index + 1}. {displayName(step.name, step.name_en)}
+                  </Title>
+                  {step.description ? (
+                    <Text size="xs" c="dimmed" truncate>
+                      {step.description}
+                    </Text>
+                  ) : null}
+                </Stack>
+
+                <Group gap="xs" justify="flex-end" align="center" wrap="wrap" style={{ flex: "0 1 auto" }}>
+                  {checked ? (
+                    <>
+                      <Text size="xs" c="dimmed">
                         {t("caseStep.date.completedAt")}: {formatDate(step.completed_at)}
                       </Text>
                       {canManageCases ? (
@@ -232,30 +252,30 @@ export function EpStepsPanel({
                           ) : null}
                         </>
                       ) : null}
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      {t("caseStep.date.checkedBy")}:{" "}
-                      {checker ? displayName(checker.name, checker.name_en) : t("common.not_available")}
-                    </Text>
-                    <StepDateHistory
-                      step={step}
-                      opened={historyOpened}
-                      employeeById={employeeById}
-                      onToggle={() =>
-                        setHistoryOpenByStepId((current) => ({ ...current, [step.id]: !(current[step.id] ?? false) }))
-                      }
-                    />
-                  </Stack>
-                ) : null}
-              </Stack>
-              <Checkbox
-                size="lg"
-                checked={checked}
-                disabled={!canManageCases || updateMutation.isPending}
-                aria-label={t("case.steps.markDone")}
-                onChange={(event) => updateMutation.mutate({ stepId: step.id, checked: event.currentTarget.checked })}
-              />
-            </Group>
+                      <Text size="xs" c="dimmed">
+                        {t("caseStep.date.checkedBy")}:{" "}
+                        {checker ? displayName(checker.name, checker.name_en) : t("common.not_available")}
+                      </Text>
+                    </>
+                  ) : null}
+                  <StepDateHistoryButton
+                    step={step}
+                    opened={historyOpened}
+                    onToggle={() =>
+                      setHistoryOpenByStepId((current) => ({ ...current, [step.id]: !(current[step.id] ?? false) }))
+                    }
+                  />
+                  <Checkbox
+                    size="lg"
+                    checked={checked}
+                    disabled={!canManageCases || updateMutation.isPending}
+                    aria-label={t("case.steps.markDone")}
+                    onChange={(event) => updateMutation.mutate({ stepId: step.id, checked: event.currentTarget.checked })}
+                  />
+                </Group>
+              </Group>
+              <StepDateHistoryCollapse step={step} opened={historyOpened} employeeById={employeeById} />
+            </Stack>
           </Paper>
         );
       })}
