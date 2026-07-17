@@ -49,7 +49,7 @@ import {
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
-import { companyFilter, getAccessibleCompanyIds } from "../auth/context";
+import { companyFilter } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { generateRecruitmentCopy } from "../lib/ai";
 import { saveUpload } from "../lib/files";
@@ -133,19 +133,16 @@ function isMultipartRequest(request: FastifyRequest) {
   return typeof (request as any).isMultipart === "function" && (request as any).isMultipart();
 }
 
-async function assertCompanyAccess(request: FastifyRequest, reply: FastifyReply, companyId: string | null | undefined) {
-  const companyIds = await getAccessibleCompanyIds(request);
-
-  if (companyIds !== "all" && (!companyId || !companyIds.includes(companyId))) {
-    reply.code(403).send({ error: "forbidden" });
-    return false;
-  }
-
+// 招聘模块为全局模块：不按用户的公司授权(employee_company_access)做数据隔离。
+// 任何拥有 recruitment.* 权限的人都可查看/新建/编辑全部公司的招聘数据。
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function assertCompanyAccess(_request: FastifyRequest, _reply: FastifyReply, _companyId: string | null | undefined) {
   return true;
 }
 
-async function getAccessibleFilter(request: FastifyRequest, column: any): Promise<SQL | undefined> {
-  return companyFilter(await getAccessibleCompanyIds(request), column);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function getAccessibleFilter(_request: FastifyRequest, _column: any): Promise<SQL | undefined> {
+  return undefined;
 }
 
 function serializeDocument(row: typeof documents.$inferSelect) {
@@ -1451,7 +1448,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
   app.get("/recruitment/candidates", { preHandler: requirePerm("recruitment.view") }, async (request) => {
     const query = parseWithSchema(recruitmentCandidateListQuerySchema, request.query);
     const filters: SQL[] = [];
-    const companyIds = await getAccessibleCompanyIds(request);
+    const companyIds = "all" as const; // 招聘全局:不按公司隔离
     const accessFilter = companyFilter(companyIds, recruitmentCandidates.companyId);
     if (accessFilter) filters.push(accessFilter);
     if (query.status) filters.push(eq(recruitmentCandidates.status, query.status));
@@ -1716,7 +1713,7 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
   });
 
   app.get("/recruitment/dashboard", { preHandler: requirePerm("recruitment.view") }, async (request) => {
-    const companyIds = await getAccessibleCompanyIds(request);
+    const companyIds = "all" as const; // 招聘全局:不按公司隔离
     const jobAccess = companyFilter(companyIds, recruitmentJobs.companyId);
     const candidateAccess = companyFilter(companyIds, recruitmentCandidates.companyId);
     const campaignAccess = companyFilter(companyIds, recruitmentCampaigns.companyId);
