@@ -78,6 +78,9 @@ export function MlkCouplesTab() {
                 <Table.Th>{t("mlk.fields.pr_status")}</Table.Th>
                 <Table.Th>{t("mlk.fields.status")}</Table.Th>
                 <Table.Th>{t("mlk.fields.stores")}</Table.Th>
+                <Table.Th w={120} ta="center">
+                  {t("mlk.fields.actions")}
+                </Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -111,6 +114,11 @@ export function MlkCouplesTab() {
                     </Badge>
                   </Table.Td>
                   <Table.Td>{(storeNamesByCouple.get(couple.id) ?? []).join(", ") || "-"}</Table.Td>
+                  <Table.Td ta="center">
+                    <Button size="xs" variant="subtle" onClick={() => navigate(`/franchise/mlk/couples/${couple.id}`)}>
+                      {canManage ? t("mlk.actions.edit") : t("mlk.actions.view")}
+                    </Button>
+                  </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

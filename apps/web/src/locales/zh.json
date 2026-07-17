@@ -2410,7 +2410,8 @@
       "couple_payout": "夫妻分账",
       "mgmt_payout": "管理分账",
       "detail": "明细",
-      "store": "门店"
+      "store": "门店",
+      "actions": "操作"
     },
     "status": {
       "store": {
@@ -2479,7 +2480,9 @@
       "newStore": "新建门店",
       "newInvestor": "新建投资人",
       "newCouple": "新建夫妻",
-      "viewFoodCourt": "查看测算"
+      "viewFoodCourt": "查看测算",
+      "edit": "编辑",
+      "view": "查看"
     },
     "cards": {
       "basic": "基本信息",
