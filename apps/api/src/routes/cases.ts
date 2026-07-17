@@ -7,9 +7,11 @@ import {
   caseSteps,
   caseSubmissions,
   cases,
+  clients,
   db,
   dealParties,
   documents,
+  driveNodes,
   externalCommissionEntries,
   externalParties,
   followUps,
@@ -38,11 +40,13 @@ import {
   stepReviewRequestSchema,
   computeIcaStats,
   computeCaseResultCounts,
+  folderCreateSchema,
+  nodePatchSchema,
   type CaseStatus,
   type IcaStatsCaseInput
 } from "@bh/shared";
-import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
-import { type FastifyInstance } from "fastify";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { type FastifyInstance, type FastifyReply } from "fastify";
 import { z } from "zod";
 import { getTranslations, saveTranslation, type TranslationValue } from "../lib/translationStore";
 import { ctxCan, getVisibleCaseIds, loadAuthContext } from "../auth/context";
@@ -53,6 +57,26 @@ import { generateCommissionEntries } from "./commissionUtils";
 import { refreshExternalCommissionEntries } from "./externalCommissionUtils";
 import { refreshBillingCharges } from "./billing";
 import { refreshPackageDealLineAmounts } from "./financeUtils";
+import {
+  createFolder,
+  createFolderUploadTree,
+  findNode,
+  findOrCreateFolder,
+  insertUploadedFiles,
+  isFileTooLargeError,
+  isFolderMoveCyclic,
+  multipartParentSchema,
+  parseParentId,
+  readMultipartFolderUpload,
+  readMultipartWithFiles,
+  readMultipartWithFirstFile,
+  sendDriveFileTooLarge,
+  sendDriveNodeDownload,
+  serializeNode,
+  softDeleteNodeTree,
+  unlinkStoragePath,
+  validateParentFolder
+} from "./driveUtils";
 import { idParamsSchema, parseWithSchema, sendNotFound, toNumeric } from "./hrUtils";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -79,6 +103,7 @@ function serializeCase(row: typeof cases.$inferSelect) {
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
     guarantor_contact: row.guarantorContact,
+    drive_folder_id: row.driveFolderId,
     signed_at: row.signedAt,
     created_at: row.createdAt,
     updated_at: row.updatedAt
@@ -458,6 +483,16 @@ const caseStatsQuerySchema = z.object({
   business_type: z.enum(businessTypes).optional()
 });
 
+const caseFileNodeParamsSchema = z.object({
+  id: z.string().uuid(),
+  nodeId: z.string().uuid()
+});
+
+type CaseDriveContext = {
+  caseRow: typeof cases.$inferSelect;
+  clientName: string | null;
+};
+
 function hasOwn(input: object, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(input, field);
 }
@@ -499,8 +534,347 @@ async function getReviewFilesById(reviewRows: (typeof stepReviews.$inferSelect)[
   return new Map(fileRows.map((file) => [file.id, file]));
 }
 
+function caseFolderName(row: CaseDriveContext): string {
+  const name = (row.clientName?.trim() || "案件").replace(/[\\/]/g, "-");
+  return `${name} (${row.caseRow.id.slice(0, 8)})`;
+}
+
+async function findCaseDriveContext(id: string, reply: FastifyReply): Promise<CaseDriveContext | null> {
+  const [row] = await db
+    .select({ caseRow: cases, clientName: clients.name })
+    .from(cases)
+    .leftJoin(clients, eq(cases.clientId, clients.id))
+    .where(eq(cases.id, id))
+    .limit(1);
+
+  if (!row) {
+    sendNotFound(reply);
+    return null;
+  }
+
+  return row;
+}
+
+async function ensureCaseDriveRoot(caseId: string, userId: string, reply: FastifyReply): Promise<string | null> {
+  const context = await findCaseDriveContext(caseId, reply);
+  if (!context) return null;
+
+  if (context.caseRow.driveFolderId) {
+    const existing = await findNode(context.caseRow.driveFolderId);
+    if (existing?.kind === "folder") {
+      return existing.id;
+    }
+  }
+
+  const epRootId = await findOrCreateFolder(null, "EP案件", userId);
+  const caseRootId = await findOrCreateFolder(epRootId, caseFolderName(context), userId);
+
+  await db
+    .update(cases)
+    .set({ driveFolderId: caseRootId, updatedAt: new Date() })
+    .where(eq(cases.id, caseId));
+
+  return caseRootId;
+}
+
+async function getExistingCaseDriveRoot(caseId: string, reply: FastifyReply): Promise<string | null> {
+  const context = await findCaseDriveContext(caseId, reply);
+  if (!context) return null;
+
+  const rootId = context.caseRow.driveFolderId;
+  if (!rootId) {
+    reply.code(400).send({ error: "case_drive_root_required" });
+    return null;
+  }
+
+  const root = await findNode(rootId);
+  if (!root || root.kind !== "folder") {
+    reply.code(400).send({ error: "case_drive_root_required" });
+    return null;
+  }
+
+  return root.id;
+}
+
+async function isNodeInCaseDriveTree(rootId: string, nodeId: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    with recursive ancestors as (
+      select id, parent_id
+      from drive_nodes
+      where id = ${nodeId} and deleted_at is null
+      union all
+      select parent.id, parent.parent_id
+      from drive_nodes parent
+      join ancestors on ancestors.parent_id = parent.id
+      where parent.deleted_at is null
+    )
+    select 1
+    from ancestors
+    where id = ${rootId}
+    limit 1
+  `);
+  return result.rows.length > 0;
+}
+
+async function resolveCaseDriveParent(rootId: string, parentId: string | null, reply: FastifyReply): Promise<string | null | undefined> {
+  if (!parentId) return rootId;
+  if (!(await validateParentFolder(parentId, reply))) return undefined;
+  if (!(await isNodeInCaseDriveTree(rootId, parentId))) {
+    reply.code(400).send({ error: "parent_outside_case_drive" });
+    return undefined;
+  }
+  return parentId;
+}
+
+async function getCaseDriveRows(rootId: string) {
+  const rows = await db
+    .select()
+    .from(driveNodes)
+    .where(isNull(driveNodes.deletedAt))
+    .orderBy(sql`case when ${driveNodes.kind} = 'folder' then 0 else 1 end`, asc(driveNodes.name));
+  const childrenByParent = new Map<string | null, (typeof rows)[number][]>();
+
+  for (const row of rows) {
+    const siblings = childrenByParent.get(row.parentId) ?? [];
+    siblings.push(row);
+    childrenByParent.set(row.parentId, siblings);
+  }
+
+  const scopedRows: (typeof rows)[number][] = [];
+  const pending = [...(childrenByParent.get(rootId) ?? [])];
+  while (pending.length > 0) {
+    const row = pending.shift();
+    if (!row) continue;
+    scopedRows.push(row);
+    pending.push(...(childrenByParent.get(row.id) ?? []));
+  }
+
+  return scopedRows;
+}
+
 export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
+
+  app.post("/cases/:id/files/ensure-root", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const driveFolderId = await ensureCaseDriveRoot(id, request.user.id, reply);
+    if (!driveFolderId) return;
+    return { drive_folder_id: driveFolderId };
+  });
+
+  app.get("/cases/:id/files/tree", { preHandler: requirePerm("case.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const rootId = await getExistingCaseDriveRoot(id, reply);
+    if (!rootId) return;
+
+    const rows = await getCaseDriveRows(rootId);
+    return {
+      nodes: rows.map((row) => serializeNode(row, row.parentId === rootId ? null : row.parentId))
+    };
+  });
+
+  app.post("/cases/:id/files/folders", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(folderCreateSchema, request.body);
+    const rootId = await getExistingCaseDriveRoot(id, reply);
+    if (!rootId) return;
+
+    const parentId = parseParentId(body.parent_id);
+    const resolvedParentId = await resolveCaseDriveParent(rootId, parentId, reply);
+    if (resolvedParentId === undefined) return;
+
+    const row = await createFolder(resolvedParentId, body.name, request.user.id);
+    return reply.code(201).send({ node: serializeNode(row, row.parentId === rootId ? null : row.parentId) });
+  });
+
+  app.post("/cases/:id/files/upload", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    let files: Awaited<ReturnType<typeof readMultipartWithFiles>>["files"] = [];
+
+    try {
+      const multipart = await readMultipartWithFiles(request);
+      files = multipart.files;
+      if (files.length === 0) return reply.code(400).send({ error: "file_required" });
+
+      const rootId = await getExistingCaseDriveRoot(id, reply);
+      if (!rootId) {
+        await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+        return;
+      }
+
+      const body = parseWithSchema(multipartParentSchema, multipart.fields);
+      const parentId = parseParentId(body.parent_id);
+      const resolvedParentId = await resolveCaseDriveParent(rootId, parentId, reply);
+      if (resolvedParentId === undefined) {
+        await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+        return;
+      }
+
+      const rows = await insertUploadedFiles(resolvedParentId, files, request.user.id);
+      return reply
+        .code(201)
+        .send({ nodes: rows.map((row) => serializeNode(row, row.parentId === rootId ? null : row.parentId)) });
+    } catch (error) {
+      await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+      if (isFileTooLargeError(error)) {
+        return sendDriveFileTooLarge(reply);
+      }
+      throw error;
+    }
+  });
+
+  app.post("/cases/:id/files/upload-folder", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    let files: Awaited<ReturnType<typeof readMultipartFolderUpload>>["files"] = [];
+
+    try {
+      const multipart = await readMultipartFolderUpload(request);
+      files = multipart.files;
+      if (files.length === 0) return reply.code(400).send({ error: "file_required" });
+
+      const rootId = await getExistingCaseDriveRoot(id, reply);
+      if (!rootId) {
+        await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+        return;
+      }
+
+      const body = parseWithSchema(multipartParentSchema, multipart.fields);
+      const parentId = parseParentId(body.parent_id);
+      const resolvedParentId = await resolveCaseDriveParent(rootId, parentId, reply);
+      if (resolvedParentId === undefined) {
+        await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+        return;
+      }
+
+      const result = await createFolderUploadTree(resolvedParentId, files, request.user.id);
+      return reply.code(201).send({
+        created_folders: result.createdFolders,
+        created_files: result.createdFiles,
+        top_folders: result.topFolders.map((row) => serializeNode(row, row.parentId === rootId ? null : row.parentId))
+      });
+    } catch (error) {
+      await Promise.all(files.map((file) => unlinkStoragePath(file.storagePath)));
+      if (isFileTooLargeError(error)) {
+        return sendDriveFileTooLarge(reply);
+      }
+      if (error instanceof Error && error.message === "invalid_relative_path") {
+        return reply.code(400).send({ error: "invalid_relative_path" });
+      }
+      throw error;
+    }
+  });
+
+  app.patch("/cases/:id/files/nodes/:nodeId", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id, nodeId } = parseWithSchema(caseFileNodeParamsSchema, request.params);
+    const body = parseWithSchema(nodePatchSchema, request.body);
+    const rootId = await getExistingCaseDriveRoot(id, reply);
+    if (!rootId) return;
+    if (nodeId === rootId) return reply.code(400).send({ error: "case_drive_root_readonly" });
+
+    const existing = await findNode(nodeId);
+    if (!existing || !(await isNodeInCaseDriveTree(rootId, nodeId))) return sendNotFound(reply);
+
+    const parentId = body.parent_id === undefined ? undefined : parseParentId(body.parent_id);
+    let resolvedMoveParentId: string | null | undefined;
+    if (parentId !== undefined) {
+      const resolvedParentId = await resolveCaseDriveParent(rootId, parentId, reply);
+      if (resolvedParentId === undefined) return;
+      if (existing.kind === "folder" && (await isFolderMoveCyclic(nodeId, resolvedParentId))) {
+        return reply.code(400).send({ error: "cyclic_parent" });
+      }
+      resolvedMoveParentId = resolvedParentId;
+    }
+
+    const [row] = await db
+      .update(driveNodes)
+      .set({
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(parentId !== undefined ? { parentId: resolvedMoveParentId } : {}),
+        ...(body.sort_order !== undefined ? { sortOrder: body.sort_order } : {}),
+        updatedAt: new Date()
+      })
+      .where(and(eq(driveNodes.id, nodeId), isNull(driveNodes.deletedAt)))
+      .returning();
+    if (!row) return sendNotFound(reply);
+    return { node: serializeNode(row, row.parentId === rootId ? null : row.parentId) };
+  });
+
+  app.put("/cases/:id/files/nodes/:nodeId/replace", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id, nodeId } = parseWithSchema(caseFileNodeParamsSchema, request.params);
+    let file: Awaited<ReturnType<typeof readMultipartWithFirstFile>>["file"] = null;
+
+    try {
+      const multipart = await readMultipartWithFirstFile(request);
+      file = multipart.file;
+      if (!file) return reply.code(400).send({ error: "file_required" });
+
+      const rootId = await getExistingCaseDriveRoot(id, reply);
+      if (!rootId) {
+        await unlinkStoragePath(file.storagePath);
+        return;
+      }
+
+      const existing = await findNode(nodeId);
+      if (!existing || !(await isNodeInCaseDriveTree(rootId, nodeId))) {
+        await unlinkStoragePath(file.storagePath);
+        return sendNotFound(reply);
+      }
+      if (existing.kind !== "file") {
+        await unlinkStoragePath(file.storagePath);
+        return reply.code(400).send({ error: "file_node_required" });
+      }
+
+      const [row] = await db
+        .update(driveNodes)
+        .set({
+          name: file.filename,
+          storagePath: file.storagePath,
+          mime: file.mime,
+          size: file.size,
+          updatedAt: new Date()
+        })
+        .where(and(eq(driveNodes.id, nodeId), isNull(driveNodes.deletedAt)))
+        .returning();
+      if (!row) {
+        await unlinkStoragePath(file.storagePath);
+        return sendNotFound(reply);
+      }
+
+      await unlinkStoragePath(existing.storagePath);
+      return { node: serializeNode(row, row.parentId === rootId ? null : row.parentId) };
+    } catch (error) {
+      await unlinkStoragePath(file?.storagePath);
+      if (isFileTooLargeError(error)) {
+        return sendDriveFileTooLarge(reply);
+      }
+      throw error;
+    }
+  });
+
+  app.delete("/cases/:id/files/nodes/:nodeId", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id, nodeId } = parseWithSchema(caseFileNodeParamsSchema, request.params);
+    const rootId = await getExistingCaseDriveRoot(id, reply);
+    if (!rootId) return;
+    if (nodeId === rootId) return reply.code(400).send({ error: "case_drive_root_readonly" });
+
+    const existing = await findNode(nodeId);
+    if (!existing || !(await isNodeInCaseDriveTree(rootId, nodeId))) return sendNotFound(reply);
+
+    const deletedCount = await softDeleteNodeTree(nodeId);
+    if (deletedCount === 0) return sendNotFound(reply);
+    return { ok: true };
+  });
+
+  app.get("/cases/:id/files/nodes/:nodeId/download", { preHandler: requirePerm("case.view") }, async (request, reply) => {
+    const { id, nodeId } = parseWithSchema(caseFileNodeParamsSchema, request.params);
+    const rootId = await getExistingCaseDriveRoot(id, reply);
+    if (!rootId) return;
+
+    const existing = await findNode(nodeId);
+    if (!existing || !(await isNodeInCaseDriveTree(rootId, nodeId))) return sendNotFound(reply);
+    const sent = await sendDriveNodeDownload(nodeId, reply);
+    if (!sent) return sendNotFound(reply);
+  });
 
   app.get("/cases", { preHandler: requirePerm("case.view") }, async (request) => {
     const query = parseWithSchema(caseQuerySchema, request.query);
@@ -1250,7 +1624,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseStepUpdateSchema, request.body);
 
-    if (body.status === "done") {
+    if (body.status === "done" && body.force !== true) {
       const requiredDocuments = await db
         .select()
         .from(caseStepDocuments)

@@ -82,6 +82,7 @@ export const caseStepUpdateSchema = z.object({
   description: nullableOptionalText,
   assignee_id: uuidField.nullable().optional(),
   status: z.enum(caseStepStatuses).optional(),
+  force: z.boolean().optional(),
   step_order: z.number().int().optional(),
   meta: z.record(z.string(), z.unknown()).optional()
 });
