@@ -1071,6 +1071,37 @@
     "fields": {
       "assignee": "负责人",
       "completedAt": "完成时间"
+    },
+    "date": {
+      "completedAt": "完成日期",
+      "editDate": "改日期",
+      "history": "历史",
+      "historyCount": "历史({{n}})",
+      "noHistory": "暂无修改历史",
+      "checkedBy": "谁 check 的",
+      "action": {
+        "check": "已勾选完成",
+        "uncheck": "取消完成",
+        "edit_date": "改日期"
+      }
+    }
+  },
+  "caseResubmission": {
+    "title": "政府补材料 / 重新提交",
+    "empty": "一次通过，暂无补材料要求",
+    "addRound": "记录补材料要求",
+    "editRound": "编辑补材料记录",
+    "round": "第 {{n}} 轮",
+    "requiredNote": "政府要求材料备注",
+    "noRequiredNote": "暂无材料备注",
+    "requestedAt": "要求日期",
+    "resubmittedAt": "重交日期",
+    "markResubmitted": "标记已重新提交",
+    "markApproved": "标记已通过",
+    "status": {
+      "awaiting": "待补 / 待重交",
+      "resubmitted": "已重交",
+      "approved": "已通过"
     }
   },
   "caseStepStatus": {

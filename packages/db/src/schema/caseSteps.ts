@@ -21,5 +21,6 @@ export const caseSteps = pgTable("case_steps", {
     required?: boolean;
   }[]>().notNull().default(sql`'[]'::jsonb`),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  completedBy: uuid("completed_by").references(() => employees.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });

@@ -1071,6 +1071,37 @@
     "fields": {
       "assignee": "Assignee",
       "completedAt": "Completed at"
+    },
+    "date": {
+      "completedAt": "Completed date",
+      "editDate": "Edit date",
+      "history": "History",
+      "historyCount": "History({{n}})",
+      "noHistory": "No date history yet",
+      "checkedBy": "Checked by",
+      "action": {
+        "check": "Checked complete",
+        "uncheck": "Unchecked complete",
+        "edit_date": "Edited date"
+      }
+    }
+  },
+  "caseResubmission": {
+    "title": "Government materials / resubmission",
+    "empty": "Approved in one pass. No material requests yet.",
+    "addRound": "Record material request",
+    "editRound": "Edit material request",
+    "round": "Round {{n}}",
+    "requiredNote": "Required materials note",
+    "noRequiredNote": "No material note",
+    "requestedAt": "Requested date",
+    "resubmittedAt": "Resubmitted date",
+    "markResubmitted": "Mark resubmitted",
+    "markApproved": "Mark approved",
+    "status": {
+      "awaiting": "Awaiting materials / resubmission",
+      "resubmitted": "Resubmitted",
+      "approved": "Approved"
     }
   },
   "caseStepStatus": {
