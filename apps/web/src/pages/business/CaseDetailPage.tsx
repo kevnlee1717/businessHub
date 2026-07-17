@@ -76,6 +76,7 @@ import { CaseCommissionPanel } from "../../components/CaseCommissionPanel";
 import { ChargeSchedulePanel } from "../../components/ChargeSchedulePanel";
 import { type Charge } from "../../api/charges";
 import { CaseFilesPanel } from "./CaseFilesPanel";
+import { CaseResubmissionsPanel } from "./CaseResubmissionsPanel";
 import { EpStepsPanel } from "./EpStepsPanel";
 
 type DocFormValues = {
@@ -1778,7 +1779,15 @@ export function CaseDetailPage() {
           ) : null}
 
           {effectiveSelected === "steps" && caseItem.business_type === "ep" ? (
-            <EpStepsPanel steps={steps} caseId={caseItem.id} canManageCases={canManageCases} />
+            <Stack gap="md">
+              <EpStepsPanel
+                steps={steps}
+                caseId={caseItem.id}
+                canManageCases={canManageCases}
+                employeeById={employeeById}
+              />
+              <CaseResubmissionsPanel caseId={caseItem.id} canManage={canManageCases} />
+            </Stack>
           ) : null}
 
           {effectiveSelected === "files" && caseItem.business_type === "ep" ? (

@@ -2,7 +2,9 @@ import {
   billing,
   billingCharges,
   businesses,
+  caseResubmissions,
   caseServices,
+  caseStepDateLogs,
   caseStepDocuments,
   caseSteps,
   caseSubmissions,
@@ -12,6 +14,7 @@ import {
   dealParties,
   documents,
   driveNodes,
+  employees,
   externalCommissionEntries,
   externalParties,
   followUps,
@@ -28,6 +31,8 @@ import { randomUUID } from "node:crypto";
 import {
   businessTypes,
   caseCreateSchema,
+  caseResubmissionCreateSchema,
+  caseResubmissionUpdateSchema,
   caseSubmissionCreateSchema,
   caseSubmissionUpdateSchema,
   caseStatuses,
@@ -86,6 +91,10 @@ type CaseCreateTransactionResult =
 
 const caseCommissionParamsSchema = z.object({
   caseId: z.string().uuid()
+});
+const caseResubmissionParamsSchema = z.object({
+  id: z.string().uuid(),
+  rid: z.string().uuid()
 });
 
 function serializeCase(row: typeof cases.$inferSelect) {
@@ -264,7 +273,49 @@ function serializeCaseStep(row: typeof caseSteps.$inferSelect) {
     meta: row.meta,
     collections: row.collections,
     completed_at: row.completedAt,
+    completed_by: row.completedBy,
     created_at: row.createdAt
+  };
+}
+
+type CaseStepDateLogWithActor = typeof caseStepDateLogs.$inferSelect & {
+  actorName?: string | null;
+  actorNameEn?: string | null;
+};
+
+function serializeCaseStepDateLog(row: CaseStepDateLogWithActor) {
+  return {
+    id: row.id,
+    case_step_id: row.caseStepId,
+    actor_id: row.actorId,
+    actor_name: row.actorName ?? null,
+    actor_name_en: row.actorNameEn ?? null,
+    action: row.action,
+    old_completed_at: row.oldCompletedAt,
+    new_completed_at: row.newCompletedAt,
+    created_at: row.createdAt
+  };
+}
+
+type CaseResubmissionWithCreator = typeof caseResubmissions.$inferSelect & {
+  createdByName?: string | null;
+  createdByNameEn?: string | null;
+};
+
+function serializeCaseResubmission(row: CaseResubmissionWithCreator) {
+  return {
+    id: row.id,
+    case_id: row.caseId,
+    round_no: row.roundNo,
+    required_note: row.requiredNote,
+    status: row.status,
+    requested_at: row.requestedAt,
+    resubmitted_at: row.resubmittedAt,
+    created_by: row.createdBy,
+    created_by_name: row.createdByName ?? null,
+    created_by_name_en: row.createdByNameEn ?? null,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
   };
 }
 
@@ -1424,6 +1475,104 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     return { submissions: submissionRows.map((submission) => serializeSubmission(submission, submissionFilesById)) };
   });
 
+  app.get("/cases/:id/resubmissions", { preHandler: requirePerm("case.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const rows = await db
+      .select({
+        resubmission: caseResubmissions,
+        createdByName: employees.name,
+        createdByNameEn: employees.nameEn
+      })
+      .from(caseResubmissions)
+      .leftJoin(employees, eq(caseResubmissions.createdBy, employees.id))
+      .where(eq(caseResubmissions.caseId, id))
+      .orderBy(asc(caseResubmissions.roundNo));
+
+    return {
+      resubmissions: rows.map((row) =>
+        serializeCaseResubmission({
+          ...row.resubmission,
+          createdByName: row.createdByName,
+          createdByNameEn: row.createdByNameEn
+        })
+      )
+    };
+  });
+
+  app.post("/cases/:id/resubmissions", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(caseResubmissionCreateSchema, request.body);
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+
+    if (!caseRow) {
+      return sendNotFound(reply);
+    }
+
+    const [roundRow] = await db
+      .select({ maxRoundNo: sql<number>`coalesce(max(${caseResubmissions.roundNo}), 0)::int` })
+      .from(caseResubmissions)
+      .where(eq(caseResubmissions.caseId, id));
+    const [resubmission] = await db
+      .insert(caseResubmissions)
+      .values({
+        caseId: id,
+        roundNo: (roundRow?.maxRoundNo ?? 0) + 1,
+        requiredNote: body.required_note,
+        status: "awaiting",
+        requestedAt: body.requested_at,
+        createdBy: request.user.id
+      })
+      .returning();
+
+    if (!resubmission) {
+      throw new Error("case_resubmission_create_failed");
+    }
+
+    return reply.code(201).send({ resubmission: serializeCaseResubmission(resubmission) });
+  });
+
+  app.patch("/cases/:id/resubmissions/:rid", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id, rid } = parseWithSchema(caseResubmissionParamsSchema, request.params);
+    const body = parseWithSchema(caseResubmissionUpdateSchema, request.body);
+    const [resubmission] = await db
+      .update(caseResubmissions)
+      .set({
+        requiredNote: body.required_note,
+        status: body.status,
+        requestedAt: body.requested_at,
+        resubmittedAt: body.resubmitted_at,
+        updatedAt: new Date()
+      })
+      .where(and(eq(caseResubmissions.id, rid), eq(caseResubmissions.caseId, id)))
+      .returning();
+
+    if (!resubmission) {
+      return sendNotFound(reply);
+    }
+
+    return { resubmission: serializeCaseResubmission(resubmission) };
+  });
+
+  app.delete("/cases/:id/resubmissions/:rid", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
+    const { id, rid } = parseWithSchema(caseResubmissionParamsSchema, request.params);
+    const [resubmission] = await db
+      .delete(caseResubmissions)
+      .where(and(eq(caseResubmissions.id, rid), eq(caseResubmissions.caseId, id)))
+      .returning();
+
+    if (!resubmission) {
+      return sendNotFound(reply);
+    }
+
+    return { ok: true };
+  });
+
   app.patch("/case-submissions/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseSubmissionUpdateSchema, request.body);
@@ -1623,6 +1772,11 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   app.patch("/case-steps/:id", { preHandler: requirePerm("case.manage") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const body = parseWithSchema(caseStepUpdateSchema, request.body);
+    const [existingStep] = await db.select().from(caseSteps).where(eq(caseSteps.id, id)).limit(1);
+
+    if (!existingStep) {
+      return sendNotFound(reply);
+    }
 
     if (body.status === "done" && body.force !== true) {
       const requiredDocuments = await db
@@ -1636,6 +1790,19 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    const statusChanged = body.status !== undefined && body.status !== existingStep.status;
+    const nextCompletedAt =
+      body.completed_at !== undefined
+        ? body.completed_at === null
+          ? null
+          : new Date(body.completed_at)
+        : statusChanged
+          ? body.status === "done"
+            ? new Date()
+            : null
+          : undefined;
+    const nextCompletedBy = statusChanged ? (body.status === "done" ? request.user.id : null) : undefined;
+
     const [step] = await db
       .update(caseSteps)
       .set({
@@ -1646,13 +1813,35 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
         status: body.status,
         stepOrder: body.step_order,
         meta: body.meta,
-        completedAt: body.status === undefined ? undefined : body.status === "done" ? new Date() : null
+        completedAt: nextCompletedAt,
+        completedBy: nextCompletedBy
       })
       .where(eq(caseSteps.id, id))
       .returning();
 
     if (!step) {
       return sendNotFound(reply);
+    }
+
+    const completedAtChanged =
+      nextCompletedAt !== undefined && existingStep.completedAt?.getTime() !== nextCompletedAt?.getTime();
+    const action =
+      existingStep.status !== "done" && step.status === "done"
+        ? "check"
+        : existingStep.status === "done" && step.status !== "done"
+          ? "uncheck"
+          : !statusChanged && completedAtChanged
+            ? "edit_date"
+            : null;
+
+    if (action) {
+      await db.insert(caseStepDateLogs).values({
+        caseStepId: id,
+        actorId: request.user.id,
+        action,
+        oldCompletedAt: existingStep.completedAt,
+        newCompletedAt: step.completedAt
+      });
     }
 
     await recalculateCurrentStep(step.caseId);
@@ -1969,6 +2158,30 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
             .map((documentId) => filesById.get(documentId))
             .filter((file): file is NonNullable<ReturnType<typeof filesById.get>> => Boolean(file))
         )
+      )
+    };
+  });
+
+  app.get("/case-steps/:id/date-logs", { preHandler: requirePerm("case.view") }, async (request) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const rows = await db
+      .select({
+        log: caseStepDateLogs,
+        actorName: employees.name,
+        actorNameEn: employees.nameEn
+      })
+      .from(caseStepDateLogs)
+      .leftJoin(employees, eq(caseStepDateLogs.actorId, employees.id))
+      .where(eq(caseStepDateLogs.caseStepId, id))
+      .orderBy(desc(caseStepDateLogs.createdAt));
+
+    return {
+      dateLogs: rows.map((row) =>
+        serializeCaseStepDateLog({
+          ...row.log,
+          actorName: row.actorName,
+          actorNameEn: row.actorNameEn
+        })
       )
     };
   });

@@ -26,6 +26,8 @@ export * from "./dealLineAmounts";
 export * from "./guarantors";
 export * from "./cases";
 export * from "./caseSteps";
+export * from "./caseStepDateLogs";
+export * from "./caseResubmissions";
 export * from "./caseSubmissions";
 export * from "./caseStepDocuments";
 export * from "./stepReviews";

@@ -82,6 +82,7 @@ export const caseStepUpdateSchema = z.object({
   description: nullableOptionalText,
   assignee_id: uuidField.nullable().optional(),
   status: z.enum(caseStepStatuses).optional(),
+  completed_at: z.string().datetime().nullable().optional(),
   force: z.boolean().optional(),
   step_order: z.number().int().optional(),
   meta: z.record(z.string(), z.unknown()).optional()
@@ -108,6 +109,18 @@ export const caseSubmissionUpdateSchema = z.object({
   rejected_at: z.string().datetime().nullable().optional(),
   submitted_at: z.string().datetime().nullable().optional(),
   note: nullableOptionalText
+});
+
+export const caseResubmissionCreateSchema = z.object({
+  required_note: z.string().optional(),
+  requested_at: z.string().optional()
+});
+
+export const caseResubmissionUpdateSchema = z.object({
+  required_note: z.string().optional(),
+  status: z.enum(["awaiting", "resubmitted", "approved"]).optional(),
+  requested_at: z.string().nullable().optional(),
+  resubmitted_at: z.string().nullable().optional()
 });
 
 export const caseStepDocCreateSchema = z.object({
@@ -155,6 +168,8 @@ export type GuarantorCreateInput = z.infer<typeof guarantorCreateSchema>;
 export type GuarantorUpdateInput = z.infer<typeof guarantorUpdateSchema>;
 export type CaseSubmissionCreateInput = z.infer<typeof caseSubmissionCreateSchema>;
 export type CaseSubmissionUpdateInput = z.infer<typeof caseSubmissionUpdateSchema>;
+export type CaseResubmissionCreateInput = z.infer<typeof caseResubmissionCreateSchema>;
+export type CaseResubmissionUpdateInput = z.infer<typeof caseResubmissionUpdateSchema>;
 export type CaseStepDocCreateInput = z.infer<typeof caseStepDocCreateSchema>;
 export type CaseStepDocUpdateInput = z.infer<typeof caseStepDocUpdateSchema>;
 export type StepReviewRequestInput = z.infer<typeof stepReviewRequestSchema>;

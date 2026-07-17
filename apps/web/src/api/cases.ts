@@ -5,6 +5,8 @@ import {
   type CaseSubmissionCreateInput,
   type CaseSubmissionResult,
   type CaseSubmissionUpdateInput,
+  type CaseResubmissionCreateInput,
+  type CaseResubmissionUpdateInput,
   type CaseStatus,
   type CaseStepDocCreateInput,
   type CaseStepDocStatus,
@@ -174,10 +176,23 @@ export type CaseStep = {
   review_status: StepReviewStatus;
   meta?: Record<string, unknown> | null;
   completed_at?: string | null;
+  completed_by?: string | null;
   documents: CaseStepDoc[];
   reviews?: StepReview[];
   created_at?: string;
   updated_at?: string;
+};
+
+export type CaseStepDateLog = {
+  id: string;
+  case_step_id: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  actor_name_en?: string | null;
+  action: "check" | "uncheck" | "edit_date";
+  old_completed_at?: string | null;
+  new_completed_at?: string | null;
+  created_at: string;
 };
 
 export type StepReview = {
@@ -200,6 +215,21 @@ export type FollowUp = {
   content_en?: string | null;
   source_lang?: "zh" | "en" | null;
   created_at: string;
+};
+
+export type CaseResubmission = {
+  id: string;
+  case_id: string;
+  round_no: number;
+  required_note?: string | null;
+  status: "awaiting" | "resubmitted" | "approved";
+  requested_at?: string | null;
+  resubmitted_at?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_name_en?: string | null;
+  created_at: string;
+  updated_at?: string;
 };
 
 type PaginationParams = {
@@ -681,12 +711,47 @@ export function listFollowUps(stepId: string): Promise<{ followUps: FollowUp[] }
   return api<{ followUps: FollowUp[] }>(`/case-steps/${stepId}/follow-ups`);
 }
 
+export function getStepDateLogs(stepId: string): Promise<{ dateLogs: CaseStepDateLog[] }> {
+  return api<{ dateLogs: CaseStepDateLog[] }>(`/case-steps/${stepId}/date-logs`);
+}
+
 export function createFollowUp(stepId: string, content: string): Promise<{ followUp: FollowUp }> {
   const body: FollowUpCreateInput = { content };
 
   return api<{ followUp: FollowUp }>(`/case-steps/${stepId}/follow-ups`, {
     method: "POST",
     body
+  });
+}
+
+export function listResubmissions(caseId: string): Promise<{ resubmissions: CaseResubmission[] }> {
+  return api<{ resubmissions: CaseResubmission[] }>(`/cases/${caseId}/resubmissions`);
+}
+
+export function createResubmission(
+  caseId: string,
+  body: CaseResubmissionCreateInput
+): Promise<{ resubmission: CaseResubmission }> {
+  return api<{ resubmission: CaseResubmission }>(`/cases/${caseId}/resubmissions`, {
+    method: "POST",
+    body
+  });
+}
+
+export function updateResubmission(
+  caseId: string,
+  rid: string,
+  body: CaseResubmissionUpdateInput
+): Promise<{ resubmission: CaseResubmission }> {
+  return api<{ resubmission: CaseResubmission }>(`/cases/${caseId}/resubmissions/${rid}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+export function deleteResubmission(caseId: string, rid: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/cases/${caseId}/resubmissions/${rid}`, {
+    method: "DELETE"
   });
 }
 
