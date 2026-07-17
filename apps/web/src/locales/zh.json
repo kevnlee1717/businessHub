@@ -1082,6 +1082,9 @@
         "uncheck": "取消完成",
         "edit_date": "改日期"
       }
+    },
+    "duration": {
+      "sinceSigning": "签约至今 {{days}} 天 · 约{{target}}天"
     }
   },
   "caseResubmission": {

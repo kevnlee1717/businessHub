@@ -1082,6 +1082,9 @@
         "uncheck": "Unchecked complete",
         "edit_date": "Edited date"
       }
+    },
+    "duration": {
+      "sinceSigning": "{{days}} days since signing · ~{{target}} target"
     }
   },
   "caseResubmission": {
