@@ -295,6 +295,125 @@ export function MlkCoupleDetailPage() {
   const storeOptions = allStores.map((store) => ({ value: store.id, label: store.name }));
   const storeNameById = useMemo(() => new Map(allStores.map((store) => [store.id, store.name] as const)), [allStores]);
 
+  const profileCard = (
+    <Grid gutter="md">
+      <Grid.Col span={{ base: 12, lg: 6 }}>
+        <Card withBorder shadow="xs" p="sm" h="100%">
+          <Text fw={600} mb="sm">{t("mlk.cards.coupleProfile")}</Text>
+          <Grid gutter="sm">
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_name")} value={form.husband_name} disabled={disabled} onChange={(event) => setField("husband_name", event.currentTarget.value)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_name")} value={form.wife_name} disabled={disabled} onChange={(event) => setField("wife_name", event.currentTarget.value)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_id_no")} value={form.husband_id_no ?? ""} disabled={disabled} onChange={(event) => setField("husband_id_no", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_id_no")} value={form.wife_id_no ?? ""} disabled={disabled} onChange={(event) => setField("wife_id_no", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_passport")} value={form.husband_passport ?? ""} disabled={disabled} onChange={(event) => setField("husband_passport", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_passport")} value={form.wife_passport ?? ""} disabled={disabled} onChange={(event) => setField("wife_passport", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><Select label={t("mlk.fields.husband_ep")} data={epStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.husband_ep} disabled={disabled} onChange={(value) => setField("husband_ep", (value ?? "none") as MlkEpStatus)} /></Grid.Col>
+            <Grid.Col span={6}><Select label={t("mlk.fields.wife_ep")} data={epStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.wife_ep} disabled={disabled} onChange={(value) => setField("wife_ep", (value ?? "none") as MlkEpStatus)} /></Grid.Col>
+          </Grid>
+        </Card>
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, lg: 6 }}>
+        <Card withBorder shadow="xs" p="sm" h="100%">
+          <Text fw={600} mb="sm">{t("mlk.cards.operator")}</Text>
+          <Grid gutter="sm">
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.operator_company")} value={form.operator_company ?? ""} disabled={disabled} onChange={(event) => setField("operator_company", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.operator_uen")} value={form.operator_uen ?? ""} disabled={disabled} onChange={(event) => setField("operator_uen", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} disabled={disabled} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} disabled={disabled} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={4}><Select label={t("mlk.fields.pr_status")} data={prStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.pr_status} disabled={disabled} onChange={(value) => setField("pr_status", (value ?? "none") as MlkPrStatus)} /></Grid.Col>
+            <Grid.Col span={4}><Select label={t("mlk.fields.status")} data={coupleStatuses.map((value) => ({ value, label: t(`mlk.status.couple.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "candidate") as MlkCoupleStatus)} /></Grid.Col>
+            <Grid.Col span={4}><Select label={t("mlk.fields.mentor_id")} data={mentorOptions} value={form.mentor_id ?? null} disabled={disabled} onChange={(value) => setField("mentor_id", value)} clearable searchable /></Grid.Col>
+            <Grid.Col span={6}><TextInput type="date" label={t("mlk.fields.joined_at")} value={dateInputValue(form.joined_at)} disabled={disabled} onChange={(event) => setField("joined_at", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput type="date" label={t("mlk.fields.exited_at")} value={dateInputValue(form.exited_at)} disabled={disabled} onChange={(event) => setField("exited_at", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={12}><Textarea label={t("mlk.fields.notes")} value={form.notes ?? ""} disabled={disabled} minRows={2} onChange={(event) => setField("notes", event.currentTarget.value || null)} /></Grid.Col>
+          </Grid>
+        </Card>
+      </Grid.Col>
+    </Grid>
+  );
+
+  const mentorCard = (
+    <Card withBorder shadow="xs" p="sm">
+      <Text fw={600} mb="sm">{t("mlk.cards.mentor")}</Text>
+      <Stack gap="xs">
+        <Group gap="xs">
+          <Text c="dimmed">{t("mlk.fields.mentor_id")}:</Text>
+          {mentor ? <Anchor onClick={() => navigate(`/franchise/mlk/couples/${mentor.id}`)}>{mentor.husband_name} / {mentor.wife_name}</Anchor> : <Text>-</Text>}
+        </Group>
+        <Text c="dimmed" size="sm">{t("mlk.mentor.apprentices")}</Text>
+        {apprentices.length === 0 ? <Text size="sm">-</Text> : apprentices.map((couple) => (
+          <Anchor key={couple.id} onClick={() => navigate(`/franchise/mlk/couples/${couple.id}`)}>{couple.husband_name} / {couple.wife_name}</Anchor>
+        ))}
+      </Stack>
+    </Card>
+  );
+
+  const ledgerCard = (
+    <Stack gap="md">
+      <Grid gutter="sm">
+        <Grid.Col span={{ base: 12, md: 4 }}><Card withBorder p="sm"><Text c="dimmed" size="sm">{t("mlk.balances.advanceRemaining")}</Text><Text fw={700}>{formatSgd(balances.advanceRemaining)}</Text>{balances.advanceRemaining <= 0 ? <Badge color="green">{t("mlk.balances.paidOff")}</Badge> : null}</Card></Grid.Col>
+        <Grid.Col span={{ base: 12, md: 4 }}><Card withBorder p="sm"><Text c="dimmed" size="sm">{t("mlk.balances.retention")}</Text><Text fw={700}>{formatSgd(balances.retention)}</Text></Card></Grid.Col>
+        <Grid.Col span={{ base: 12, md: 4 }}><Card withBorder p="sm"><Text c="dimmed" size="sm">{t("mlk.balances.bond")}</Text><Text fw={700}>{formatSgd(balances.bond)}</Text></Card></Grid.Col>
+      </Grid>
+      <Card withBorder shadow="xs" p="sm">
+        <Group justify="space-between" mb="sm">
+          <Text fw={600}>{t("mlk.cards.ledger")}</Text>
+          {canManage && !isNew ? <Button size="xs" onClick={() => openLedger()}>{t("mlk.ledger.add")}</Button> : null}
+        </Group>
+        <Table withTableBorder withColumnBorders highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t("mlk.fields.month")}</Table.Th>
+              <Table.Th>{t("mlk.fields.kind")}</Table.Th>
+              <Table.Th>{t("mlk.fields.amount")}</Table.Th>
+              <Table.Th>{t("mlk.fields.store")}</Table.Th>
+              <Table.Th>{t("mlk.fields.notes")}</Table.Th>
+              <Table.Th>{t("common.actions")}</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {ledger.map((entry) => (
+              <Table.Tr key={entry.id}>
+                <Table.Td>{entry.month}</Table.Td>
+                <Table.Td><Badge color={ledgerColor(entry.kind)} variant="light">{t(`mlk.ledger.kind.${entry.kind}`)}</Badge></Table.Td>
+                <Table.Td>{formatSgd(entry.amount)}</Table.Td>
+                <Table.Td>{entry.store_id ? storeNameById.get(entry.store_id) ?? "-" : "-"}</Table.Td>
+                <Table.Td>{entry.notes || "-"}</Table.Td>
+                <Table.Td>
+                  {canManage ? (
+                    <Group gap={4}>
+                      <Button size="xs" variant="subtle" onClick={() => openLedger(entry)}>{t("common.edit")}</Button>
+                      <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deleteLedgerMutation.mutate(entry.id)}>{t("common.delete")}</Button>
+                    </Group>
+                  ) : null}
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Card>
+    </Stack>
+  );
+
+  const storesCard = (
+    <Card withBorder shadow="xs" p="sm">
+      <Text fw={600} mb="sm">{t("mlk.cards.coupleStores")}</Text>
+      <Grid gutter="sm">
+        {stores.map((store) => (
+          <Grid.Col key={store.id} span={{ base: 12, md: 4 }}>
+            <Card withBorder p="sm">
+              <Group justify="space-between">
+                <Anchor onClick={() => navigate(`/franchise/mlk/stores/${store.id}`)}>{store.name}</Anchor>
+                <Badge color={storeStatusColor(store.status)}>{t(`mlk.status.store.${store.status}`)}</Badge>
+              </Group>
+            </Card>
+          </Grid.Col>
+        ))}
+        {stores.length === 0 ? <Grid.Col span={12}><Text c="dimmed">{t("mlk.messages.empty")}</Text></Grid.Col> : null}
+      </Grid>
+    </Card>
+  );
+
   return (
     <Box mt={-16}>
       <Paper px="sm" py={6} mb="sm" style={{ position: "sticky", top: 0, zIndex: 10 }}>
@@ -346,133 +465,26 @@ export function MlkCoupleDetailPage() {
           <Loader size="sm" />
         </Group>
       ) : (
-        <Stack gap="md">
-          <Grid gutter="md">
-            <Grid.Col span={{ base: 12, lg: 5 }}>
-              <Stack gap="md">
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.coupleProfile")}</Text>
-                  <Grid gutter="sm">
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_name")} value={form.husband_name} disabled={disabled} onChange={(event) => setField("husband_name", event.currentTarget.value)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_name")} value={form.wife_name} disabled={disabled} onChange={(event) => setField("wife_name", event.currentTarget.value)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_id_no")} value={form.husband_id_no ?? ""} disabled={disabled} onChange={(event) => setField("husband_id_no", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_id_no")} value={form.wife_id_no ?? ""} disabled={disabled} onChange={(event) => setField("wife_id_no", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_passport")} value={form.husband_passport ?? ""} disabled={disabled} onChange={(event) => setField("husband_passport", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_passport")} value={form.wife_passport ?? ""} disabled={disabled} onChange={(event) => setField("wife_passport", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><Select label={t("mlk.fields.husband_ep")} data={epStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.husband_ep} disabled={disabled} onChange={(value) => setField("husband_ep", (value ?? "none") as MlkEpStatus)} /></Grid.Col>
-                    <Grid.Col span={6}><Select label={t("mlk.fields.wife_ep")} data={epStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.wife_ep} disabled={disabled} onChange={(value) => setField("wife_ep", (value ?? "none") as MlkEpStatus)} /></Grid.Col>
-                  </Grid>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.operator")}</Text>
-                  <Grid gutter="sm">
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.operator_company")} value={form.operator_company ?? ""} disabled={disabled} onChange={(event) => setField("operator_company", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.operator_uen")} value={form.operator_uen ?? ""} disabled={disabled} onChange={(event) => setField("operator_uen", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} disabled={disabled} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} disabled={disabled} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={4}><Select label={t("mlk.fields.pr_status")} data={prStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.pr_status} disabled={disabled} onChange={(value) => setField("pr_status", (value ?? "none") as MlkPrStatus)} /></Grid.Col>
-                    <Grid.Col span={4}><Select label={t("mlk.fields.status")} data={coupleStatuses.map((value) => ({ value, label: t(`mlk.status.couple.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "candidate") as MlkCoupleStatus)} /></Grid.Col>
-                    <Grid.Col span={4}><Select label={t("mlk.fields.mentor_id")} data={mentorOptions} value={form.mentor_id ?? null} disabled={disabled} onChange={(value) => setField("mentor_id", value)} clearable searchable /></Grid.Col>
-                    <Grid.Col span={6}><TextInput type="date" label={t("mlk.fields.joined_at")} value={dateInputValue(form.joined_at)} disabled={disabled} onChange={(event) => setField("joined_at", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput type="date" label={t("mlk.fields.exited_at")} value={dateInputValue(form.exited_at)} disabled={disabled} onChange={(event) => setField("exited_at", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={12}><Textarea label={t("mlk.fields.notes")} value={form.notes ?? ""} disabled={disabled} minRows={2} onChange={(event) => setField("notes", event.currentTarget.value || null)} /></Grid.Col>
-                  </Grid>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.mentor")}</Text>
-                  <Stack gap="xs">
-                    <Group gap="xs">
-                      <Text c="dimmed">{t("mlk.fields.mentor_id")}:</Text>
-                      {mentor ? <Anchor onClick={() => navigate(`/franchise/mlk/couples/${mentor.id}`)}>{mentor.husband_name} / {mentor.wife_name}</Anchor> : <Text>-</Text>}
-                    </Group>
-                    <Text c="dimmed" size="sm">{t("mlk.mentor.apprentices")}</Text>
-                    {apprentices.length === 0 ? <Text size="sm">-</Text> : apprentices.map((couple) => (
-                      <Anchor key={couple.id} onClick={() => navigate(`/franchise/mlk/couples/${couple.id}`)}>{couple.husband_name} / {couple.wife_name}</Anchor>
-                    ))}
-                  </Stack>
-                </Card>
-              </Stack>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, lg: 7 }}>
-              <Stack gap="md">
-                <Grid gutter="sm">
-                  <Grid.Col span={{ base: 12, md: 4 }}><Card withBorder p="sm"><Text c="dimmed" size="sm">{t("mlk.balances.advanceRemaining")}</Text><Text fw={700}>{formatSgd(balances.advanceRemaining)}</Text>{balances.advanceRemaining <= 0 ? <Badge color="green">{t("mlk.balances.paidOff")}</Badge> : null}</Card></Grid.Col>
-                  <Grid.Col span={{ base: 12, md: 4 }}><Card withBorder p="sm"><Text c="dimmed" size="sm">{t("mlk.balances.retention")}</Text><Text fw={700}>{formatSgd(balances.retention)}</Text></Card></Grid.Col>
-                  <Grid.Col span={{ base: 12, md: 4 }}><Card withBorder p="sm"><Text c="dimmed" size="sm">{t("mlk.balances.bond")}</Text><Text fw={700}>{formatSgd(balances.bond)}</Text></Card></Grid.Col>
-                </Grid>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Group justify="space-between" mb="sm">
-                    <Text fw={600}>{t("mlk.cards.ledger")}</Text>
-                    {canManage && !isNew ? <Button size="xs" onClick={() => openLedger()}>{t("mlk.ledger.add")}</Button> : null}
-                  </Group>
-                  <Table withTableBorder withColumnBorders highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>{t("mlk.fields.month")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.kind")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.amount")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.store")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.notes")}</Table.Th>
-                        <Table.Th>{t("common.actions")}</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {ledger.map((entry) => (
-                        <Table.Tr key={entry.id}>
-                          <Table.Td>{entry.month}</Table.Td>
-                          <Table.Td><Badge color={ledgerColor(entry.kind)} variant="light">{t(`mlk.ledger.kind.${entry.kind}`)}</Badge></Table.Td>
-                          <Table.Td>{formatSgd(entry.amount)}</Table.Td>
-                          <Table.Td>{entry.store_id ? storeNameById.get(entry.store_id) ?? "-" : "-"}</Table.Td>
-                          <Table.Td>{entry.notes || "-"}</Table.Td>
-                          <Table.Td>
-                            {canManage ? (
-                              <Group gap={4}>
-                                <Button size="xs" variant="subtle" onClick={() => openLedger(entry)}>{t("common.edit")}</Button>
-                                <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deleteLedgerMutation.mutate(entry.id)}>{t("common.delete")}</Button>
-                              </Group>
-                            ) : null}
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.coupleStores")}</Text>
-                  <Grid gutter="sm">
-                    {stores.map((store) => (
-                      <Grid.Col key={store.id} span={{ base: 12, md: 6 }}>
-                        <Card withBorder p="sm">
-                          <Group justify="space-between">
-                            <Anchor onClick={() => navigate(`/franchise/mlk/stores/${store.id}`)}>{store.name}</Anchor>
-                            <Badge color={storeStatusColor(store.status)}>{t(`mlk.status.store.${store.status}`)}</Badge>
-                          </Group>
-                        </Card>
-                      </Grid.Col>
-                    ))}
-                    {stores.length === 0 ? <Grid.Col span={12}><Text c="dimmed">{t("mlk.messages.empty")}</Text></Grid.Col> : null}
-                  </Grid>
-                </Card>
-              </Stack>
-            </Grid.Col>
-          </Grid>
-
-          {!isNew ? (
-            <Tabs defaultValue="files" keepMounted={false}>
-              <Tabs.List mb="md">
-                <Tabs.Tab value="files">{t("mlk.tabs.files")}</Tabs.Tab>
-              </Tabs.List>
-              <Tabs.Panel value="files">
-                <MlkFilePanel folderId={form.drive_folder_id} canManage={canManage} />
-              </Tabs.Panel>
-            </Tabs>
-          ) : null}
-        </Stack>
+        isNew ? (
+          profileCard
+        ) : (
+          <Tabs defaultValue="profile" keepMounted={false}>
+            <Tabs.List mb="md">
+              <Tabs.Tab value="profile">{t("mlk.tabs.profile")}</Tabs.Tab>
+              <Tabs.Tab value="mentor">{t("mlk.tabs.mentor")}</Tabs.Tab>
+              <Tabs.Tab value="ledger">{t("mlk.tabs.ledger")}</Tabs.Tab>
+              <Tabs.Tab value="stores">{t("mlk.cards.coupleStores")}</Tabs.Tab>
+              <Tabs.Tab value="files">{t("mlk.tabs.files")}</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="profile">{profileCard}</Tabs.Panel>
+            <Tabs.Panel value="mentor">{mentorCard}</Tabs.Panel>
+            <Tabs.Panel value="ledger">{ledgerCard}</Tabs.Panel>
+            <Tabs.Panel value="stores">{storesCard}</Tabs.Panel>
+            <Tabs.Panel value="files">
+              <MlkFilePanel folderId={form.drive_folder_id} canManage={canManage} />
+            </Tabs.Panel>
+          </Tabs>
+        )
       )}
     </Box>
   );

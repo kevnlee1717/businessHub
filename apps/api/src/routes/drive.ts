@@ -40,6 +40,25 @@ function serializeTrashNode(row: DriveNodeRow, path: string, descendantCount: nu
   };
 }
 
+// 计算所有"带 scope 的 root 及其后代"的 id 集合(宣传册要排除这些模块子树)
+function collectScopedExclusion(rows: { id: string; parentId: string | null; scope: string | null }[]) {
+  const childrenByParent = new Map<string | null, string[]>();
+  for (const row of rows) {
+    const siblings = childrenByParent.get(row.parentId) ?? [];
+    siblings.push(row.id);
+    childrenByParent.set(row.parentId, siblings);
+  }
+  const excluded = new Set<string>();
+  const stack = rows.filter((row) => row.scope).map((row) => row.id);
+  while (stack.length > 0) {
+    const id = stack.pop();
+    if (!id || excluded.has(id)) continue;
+    excluded.add(id);
+    for (const childId of childrenByParent.get(id) ?? []) stack.push(childId);
+  }
+  return excluded;
+}
+
 async function buildActiveParentPath(parentId: string | null) {
   const names: string[] = [];
   let currentId = parentId;
@@ -117,7 +136,9 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
       .where(isNull(driveNodes.deletedAt))
       .orderBy(sql`case when ${driveNodes.kind} = 'folder' then 0 else 1 end`, asc(driveNodes.name));
 
-    return { nodes: rows.map((row) => serializeNode(row)) };
+    // 模块隔离:排除带 scope 的 root(EP案件/ICA案件/陆老师厨房 等)及其整棵子树,宣传册只看通用池
+    const excluded = collectScopedExclusion(rows);
+    return { nodes: rows.filter((row) => !excluded.has(row.id)).map((row) => serializeNode(row)) };
   });
 
   app.post("/drive/folders", { preHandler: requirePerm("brochure.manage") }, async (request, reply) => {
@@ -281,8 +302,15 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
       )
       .orderBy(sql`${driveNodes.deletedAt} desc`, asc(driveNodes.name));
 
+    // 模块隔离:回收站也排除带 scope 的模块子树(用全表 scope 闭包判断)
+    const allRows = await db
+      .select({ id: driveNodes.id, parentId: driveNodes.parentId, scope: driveNodes.scope })
+      .from(driveNodes);
+    const excluded = collectScopedExclusion(allRows);
+    const visibleRows = rows.filter((row) => !excluded.has(row.id));
+
     const nodes = await Promise.all(
-      rows.map(async (row) => {
+      visibleRows.map(async (row) => {
         const path = await buildActiveParentPath(row.parentId);
         const descendantCount = row.kind === "folder" ? await countDeletedDescendants(row.id) : 0;
         return serializeTrashNode(row, path, descendantCount);

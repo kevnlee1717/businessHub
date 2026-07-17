@@ -2389,7 +2389,13 @@
       "couples": "Couples",
       "revenue": "Revenue",
       "settlements": "Settlements",
-      "files": "Files"
+      "files": "Files",
+      "info": "Info",
+      "payments": "Payments",
+      "profile": "Profile",
+      "mentor": "Mentor",
+      "ledger": "Ledger",
+      "steps": "Steps"
     },
     "detail": {
       "store": "Store detail",
@@ -2427,6 +2433,7 @@
       "joined_at": "Joined at",
       "exited_at": "Exited at",
       "stall": "Stall",
+      "cuisine": "Cuisine",
       "spv_name": "SPV company",
       "spv_uen": "SPV UEN",
       "investor": "Investor",
@@ -2599,7 +2606,8 @@
       "saved": "Saved",
       "nameRequired": "Name is required",
       "coupleNameRequired": "Husband and wife names are required",
-      "confirmDelete": "Delete this record?"
+      "confirmDelete": "Delete this record?",
+      "coupleAlreadyAssigned": "This couple already belongs to another store; a couple can only belong to one store"
     }
   },
   "franchise": {

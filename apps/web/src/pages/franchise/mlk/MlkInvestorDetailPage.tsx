@@ -259,6 +259,95 @@ export function MlkInvestorDetailPage() {
     return map;
   }, [allPayments]);
 
+  const profileCard = (
+    <Card withBorder shadow="xs" p="sm">
+      <Text fw={600} mb="sm">{t("mlk.cards.profile")}</Text>
+      <Grid gutter="sm">
+        <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.name")} value={form.name} disabled={disabled} onChange={(event) => setField("name", event.currentTarget.value)} /></Grid.Col>
+        <Grid.Col span={{ base: 12, md: 6 }}><SegmentedControl fullWidth data={(["tier1", "tier2"] as MlkServiceTier[]).map((tier) => ({ value: tier, label: t(`mlk.status.service_tier.${tier}`) }))} value={form.service_tier} disabled={disabled} onChange={(value) => setField("service_tier", value as MlkServiceTier)} mt={24} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><Select label={t("mlk.fields.pr_status")} data={prStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.pr_status} disabled={disabled} onChange={(value) => setField("pr_status", (value ?? "none") as MlkPrStatus)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><Select label={t("mlk.fields.kyc_status")} data={kycStatuses.map((value) => ({ value, label: t(`mlk.status.kyc.${value}`) }))} value={form.kyc_status} disabled={disabled} onChange={(value) => setField("kyc_status", (value ?? "pending") as MlkKycStatus)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><TextInput label={t("mlk.fields.company_name")} value={form.company_name ?? ""} disabled={disabled} onChange={(event) => setField("company_name", event.currentTarget.value || null)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><TextInput label={t("mlk.fields.uen")} value={form.uen ?? ""} disabled={disabled} onChange={(event) => setField("uen", event.currentTarget.value || null)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><TextInput label={t("mlk.fields.id_no")} value={form.id_no ?? ""} disabled={disabled} onChange={(event) => setField("id_no", event.currentTarget.value || null)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} disabled={disabled} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} disabled={disabled} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
+        <Grid.Col span={{ base: 6, md: 3 }}><TextInput label={t("mlk.fields.drive_folder_id")} value={form.drive_folder_id ?? ""} disabled /></Grid.Col>
+        <Grid.Col span={12}><TextInput label={t("mlk.fields.address")} value={form.address ?? ""} disabled={disabled} onChange={(event) => setField("address", event.currentTarget.value || null)} /></Grid.Col>
+        <Grid.Col span={12}><Textarea label={t("mlk.fields.notes")} value={form.notes ?? ""} disabled={disabled} minRows={3} onChange={(event) => setField("notes", event.currentTarget.value || null)} /></Grid.Col>
+      </Grid>
+    </Card>
+  );
+
+  const storesCard = (
+    <Card withBorder shadow="xs" p="sm">
+      <Text fw={600} mb="sm">{t("mlk.cards.investorStores")}</Text>
+      <Grid gutter="sm">
+        {stores.map((store) => {
+          const progress = paymentProgress(paymentByStoreId.get(store.id) ?? []);
+          return (
+            <Grid.Col key={store.id} span={{ base: 12, md: 4 }}>
+              <Card withBorder p="sm">
+                <Group justify="space-between" mb="xs">
+                  <Anchor onClick={() => navigate(`/franchise/mlk/stores/${store.id}`)}>{store.name}</Anchor>
+                  <Badge color={storeStatusColor(store.status)}>{t(`mlk.status.store.${store.status}`)}</Badge>
+                </Group>
+                <Progress value={progress.pct} mb={4} />
+                <Text size="sm" c="dimmed">{formatSgd(progress.paid)} / {formatSgd(progress.due)}</Text>
+              </Card>
+            </Grid.Col>
+          );
+        })}
+        {stores.length === 0 ? <Grid.Col span={12}><Text c="dimmed">{t("mlk.messages.empty")}</Text></Grid.Col> : null}
+      </Grid>
+    </Card>
+  );
+
+  const paymentsCard = (
+    <Card withBorder shadow="xs" p="sm">
+      <Group justify="space-between" mb="sm">
+        <Text fw={600}>{t("mlk.cards.servicePayments")}</Text>
+        {canManage && !isNew ? <Button size="xs" onClick={() => openPayment()}>{t("mlk.payments.add")}</Button> : null}
+      </Group>
+      <Table withTableBorder withColumnBorders highlightOnHover>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>{t("mlk.fields.kind")}</Table.Th>
+            <Table.Th>{t("mlk.fields.amount_due")}</Table.Th>
+            <Table.Th>{t("mlk.fields.amount_paid")}</Table.Th>
+            <Table.Th>{t("mlk.fields.paid_at")}</Table.Th>
+            <Table.Th>{t("mlk.fields.status")}</Table.Th>
+            <Table.Th>{t("common.actions")}</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {payments.map((payment) => (
+            <Table.Tr key={payment.id}>
+              <Table.Td>
+                <Stack gap={2}>
+                  <Text size="sm">{t(`mlk.payments.kind.${payment.kind}`)}</Text>
+                  {payment.kind === "service_tier2_second" && form.pr_status !== "granted" ? <Text size="xs" c="dimmed">{t("mlk.payments.prHint")}</Text> : null}
+                </Stack>
+              </Table.Td>
+              <Table.Td>{formatSgd(payment.amount_due)}</Table.Td>
+              <Table.Td>{formatSgd(payment.amount_paid)}</Table.Td>
+              <Table.Td>{formatDate(payment.paid_at)}</Table.Td>
+              <Table.Td><Badge color={payment.status === "paid" ? "green" : payment.status === "refunded" ? "gray" : "yellow"} variant="light">{t(`mlk.status.payment.${payment.status}`)}</Badge></Table.Td>
+              <Table.Td>
+                {canManage ? (
+                  <Group gap={4}>
+                    <Button size="xs" variant="subtle" onClick={() => openPayment(payment)}>{t("common.edit")}</Button>
+                    <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deletePaymentMutation.mutate(payment.id)}>{t("common.delete")}</Button>
+                  </Group>
+                ) : null}
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Card>
+  );
+
   return (
     <Box mt={-16}>
       <Paper px="sm" py={6} mb="sm" style={{ position: "sticky", top: 0, zIndex: 10 }}>
@@ -312,109 +401,24 @@ export function MlkInvestorDetailPage() {
           <Loader size="sm" />
         </Group>
       ) : (
-        <Stack gap="md">
-          <Grid gutter="md">
-            <Grid.Col span={{ base: 12, lg: 5 }}>
-              <Card withBorder shadow="xs" p="sm">
-                <Text fw={600} mb="sm">{t("mlk.cards.profile")}</Text>
-                <Grid gutter="sm">
-                  <Grid.Col span={12}><TextInput label={t("mlk.fields.name")} value={form.name} disabled={disabled} onChange={(event) => setField("name", event.currentTarget.value)} /></Grid.Col>
-                  <Grid.Col span={12}><SegmentedControl fullWidth data={(["tier1", "tier2"] as MlkServiceTier[]).map((tier) => ({ value: tier, label: t(`mlk.status.service_tier.${tier}`) }))} value={form.service_tier} disabled={disabled} onChange={(value) => setField("service_tier", value as MlkServiceTier)} /></Grid.Col>
-                  <Grid.Col span={6}><Select label={t("mlk.fields.pr_status")} data={prStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.pr_status} disabled={disabled} onChange={(value) => setField("pr_status", (value ?? "none") as MlkPrStatus)} /></Grid.Col>
-                  <Grid.Col span={6}><Select label={t("mlk.fields.kyc_status")} data={kycStatuses.map((value) => ({ value, label: t(`mlk.status.kyc.${value}`) }))} value={form.kyc_status} disabled={disabled} onChange={(value) => setField("kyc_status", (value ?? "pending") as MlkKycStatus)} /></Grid.Col>
-                  <Grid.Col span={6}><TextInput label={t("mlk.fields.company_name")} value={form.company_name ?? ""} disabled={disabled} onChange={(event) => setField("company_name", event.currentTarget.value || null)} /></Grid.Col>
-                  <Grid.Col span={6}><TextInput label={t("mlk.fields.uen")} value={form.uen ?? ""} disabled={disabled} onChange={(event) => setField("uen", event.currentTarget.value || null)} /></Grid.Col>
-                  <Grid.Col span={6}><TextInput label={t("mlk.fields.id_no")} value={form.id_no ?? ""} disabled={disabled} onChange={(event) => setField("id_no", event.currentTarget.value || null)} /></Grid.Col>
-                  <Grid.Col span={6}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} disabled={disabled} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
-                  <Grid.Col span={6}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} disabled={disabled} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
-                  <Grid.Col span={6}><TextInput label={t("mlk.fields.drive_folder_id")} value={form.drive_folder_id ?? ""} disabled /></Grid.Col>
-                  <Grid.Col span={12}><TextInput label={t("mlk.fields.address")} value={form.address ?? ""} disabled={disabled} onChange={(event) => setField("address", event.currentTarget.value || null)} /></Grid.Col>
-                  <Grid.Col span={12}><Textarea label={t("mlk.fields.notes")} value={form.notes ?? ""} disabled={disabled} minRows={3} onChange={(event) => setField("notes", event.currentTarget.value || null)} /></Grid.Col>
-                </Grid>
-              </Card>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, lg: 7 }}>
-              <Stack gap="md">
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.investorStores")}</Text>
-                  <Grid gutter="sm">
-                    {stores.map((store) => {
-                      const progress = paymentProgress(paymentByStoreId.get(store.id) ?? []);
-                      return (
-                        <Grid.Col key={store.id} span={{ base: 12, md: 6 }}>
-                          <Card withBorder p="sm">
-                            <Group justify="space-between" mb="xs">
-                              <Anchor onClick={() => navigate(`/franchise/mlk/stores/${store.id}`)}>{store.name}</Anchor>
-                              <Badge color={storeStatusColor(store.status)}>{t(`mlk.status.store.${store.status}`)}</Badge>
-                            </Group>
-                            <Progress value={progress.pct} mb={4} />
-                            <Text size="sm" c="dimmed">{formatSgd(progress.paid)} / {formatSgd(progress.due)}</Text>
-                          </Card>
-                        </Grid.Col>
-                      );
-                    })}
-                    {stores.length === 0 ? <Grid.Col span={12}><Text c="dimmed">{t("mlk.messages.empty")}</Text></Grid.Col> : null}
-                  </Grid>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Group justify="space-between" mb="sm">
-                    <Text fw={600}>{t("mlk.cards.servicePayments")}</Text>
-                    {canManage && !isNew ? <Button size="xs" onClick={() => openPayment()}>{t("mlk.payments.add")}</Button> : null}
-                  </Group>
-                  <Table withTableBorder withColumnBorders highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>{t("mlk.fields.kind")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.amount_due")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.amount_paid")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.paid_at")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.status")}</Table.Th>
-                        <Table.Th>{t("common.actions")}</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {payments.map((payment) => (
-                        <Table.Tr key={payment.id}>
-                          <Table.Td>
-                            <Stack gap={2}>
-                              <Text size="sm">{t(`mlk.payments.kind.${payment.kind}`)}</Text>
-                              {payment.kind === "service_tier2_second" && form.pr_status !== "granted" ? <Text size="xs" c="dimmed">{t("mlk.payments.prHint")}</Text> : null}
-                            </Stack>
-                          </Table.Td>
-                          <Table.Td>{formatSgd(payment.amount_due)}</Table.Td>
-                          <Table.Td>{formatSgd(payment.amount_paid)}</Table.Td>
-                          <Table.Td>{formatDate(payment.paid_at)}</Table.Td>
-                          <Table.Td><Badge color={payment.status === "paid" ? "green" : payment.status === "refunded" ? "gray" : "yellow"} variant="light">{t(`mlk.status.payment.${payment.status}`)}</Badge></Table.Td>
-                          <Table.Td>
-                            {canManage ? (
-                              <Group gap={4}>
-                                <Button size="xs" variant="subtle" onClick={() => openPayment(payment)}>{t("common.edit")}</Button>
-                                <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deletePaymentMutation.mutate(payment.id)}>{t("common.delete")}</Button>
-                              </Group>
-                            ) : null}
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Card>
-              </Stack>
-            </Grid.Col>
-          </Grid>
-
-          {!isNew ? (
-            <Tabs defaultValue="files" keepMounted={false}>
-              <Tabs.List mb="md">
-                <Tabs.Tab value="files">{t("mlk.tabs.files")}</Tabs.Tab>
-              </Tabs.List>
-              <Tabs.Panel value="files">
-                <MlkFilePanel folderId={form.drive_folder_id} canManage={canManage} />
-              </Tabs.Panel>
-            </Tabs>
-          ) : null}
-        </Stack>
+        isNew ? (
+          profileCard
+        ) : (
+          <Tabs defaultValue="profile" keepMounted={false}>
+            <Tabs.List mb="md">
+              <Tabs.Tab value="profile">{t("mlk.tabs.profile")}</Tabs.Tab>
+              <Tabs.Tab value="stores">{t("mlk.cards.investorStores")}</Tabs.Tab>
+              <Tabs.Tab value="payments">{t("mlk.cards.servicePayments")}</Tabs.Tab>
+              <Tabs.Tab value="files">{t("mlk.tabs.files")}</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="profile">{profileCard}</Tabs.Panel>
+            <Tabs.Panel value="stores">{storesCard}</Tabs.Panel>
+            <Tabs.Panel value="payments">{paymentsCard}</Tabs.Panel>
+            <Tabs.Panel value="files">
+              <MlkFilePanel folderId={form.drive_folder_id} canManage={canManage} />
+            </Tabs.Panel>
+          </Tabs>
+        )
       )}
     </Box>
   );

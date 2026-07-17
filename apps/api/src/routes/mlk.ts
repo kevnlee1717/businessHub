@@ -46,10 +46,20 @@ import {
   type MlkStoreUpdateInput
 } from "@bh/shared";
 import { type MultipartFile } from "@fastify/multipart";
-import { and, asc, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
 import { parseWithSchema, sendNotFound } from "./hrUtils";
+
+const mlkFileNodeParams = z.object({ folderId: z.string().uuid(), id: z.string().uuid() });
+const mlkFileNodePatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255).optional(),
+    parent_id: z.string().uuid().nullable().optional(),
+    sort_order: z.number().int().optional()
+  })
+  .refine((body) => Object.keys(body).length > 0, { message: "empty_patch" });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const uploadRoot = join(__dirname, "../../../..", "uploads");
@@ -143,6 +153,7 @@ function serializeStore(row: StoreRow) {
     id: row.id,
     name: row.name,
     stall: row.stall,
+    cuisine: row.cuisine,
     address: row.address,
     spv_name: row.spvName,
     spv_uen: row.spvUen,
@@ -294,6 +305,7 @@ function storeValues(body: MlkStoreCreateInput | MlkStoreUpdateInput) {
   return {
     ...(body.name !== undefined ? { name: body.name } : {}),
     ...(body.stall !== undefined ? { stall: body.stall } : {}),
+    ...(body.cuisine !== undefined ? { cuisine: body.cuisine } : {}),
     ...(body.address !== undefined ? { address: body.address } : {}),
     ...(body.spv_name !== undefined ? { spvName: body.spv_name } : {}),
     ...(body.spv_uen !== undefined ? { spvUen: body.spv_uen } : {}),
@@ -489,6 +501,35 @@ async function findActiveNode(id: string) {
   return node ?? null;
 }
 
+// 取 rootId 下的整棵子树(不含 root 自身),用于多列 Finder。root 的直接子节点在结果里,
+// 但 parent_id 归一化交给调用方(root 的直接子 → null,便于前端 DriveColumns 当作顶层列)。
+async function getMlkSubtreeRows(rootId: string) {
+  const rows = await db
+    .select()
+    .from(driveNodes)
+    .where(isNull(driveNodes.deletedAt))
+    .orderBy(sql`case when ${driveNodes.kind} = 'folder' then 0 else 1 end`, asc(driveNodes.name));
+  const childrenByParent = new Map<string | null, DriveNodeRow[]>();
+  for (const row of rows) {
+    const siblings = childrenByParent.get(row.parentId) ?? [];
+    siblings.push(row);
+    childrenByParent.set(row.parentId, siblings);
+  }
+  const scoped: DriveNodeRow[] = [];
+  const pending = [...(childrenByParent.get(rootId) ?? [])];
+  while (pending.length > 0) {
+    const row = pending.shift();
+    if (!row) continue;
+    scoped.push(row);
+    pending.push(...(childrenByParent.get(row.id) ?? []));
+  }
+  return scoped;
+}
+
+function serializeScopedNode(row: DriveNodeRow, rootId: string) {
+  return { ...serializeNode(row), parent_id: row.parentId === rootId ? null : row.parentId };
+}
+
 async function ensureMlkFolder(kind: MlkFolderKind, name: string, userId: string) {
   const kindLabels: Record<MlkFolderKind, string> = {
     stores: "门店",
@@ -520,6 +561,8 @@ async function ensureMlkFolder(kind: MlkFolderKind, name: string, userId: string
   }
 
   const rootId = await findOrCreateFolder(null, "陆老师厨房");
+  // 模块隔离:陆老师厨房 root 打 scope='mlk',对宣传册 drive 隐藏
+  await db.update(driveNodes).set({ scope: "mlk" }).where(and(eq(driveNodes.id, rootId), isNull(driveNodes.scope)));
   const sectionId = await findOrCreateFolder(rootId, kindLabels[kind]);
   return findOrCreateFolder(sectionId, name);
 }
@@ -530,6 +573,14 @@ async function renameMlkFolder(folderId: string | null, name: string) {
     .update(driveNodes)
     .set({ name, updatedAt: new Date() })
     .where(and(eq(driveNodes.id, folderId), eq(driveNodes.kind, "folder"), isNull(driveNodes.deletedAt)));
+}
+
+// 夫妻只能属于一家门店:检查该 couple 是否已被"另一家"门店占用
+async function coupleTakenByAnotherStore(coupleId: string, exceptStoreId?: string) {
+  const filters = [eq(mlkStores.coupleId, coupleId)];
+  if (exceptStoreId) filters.push(ne(mlkStores.id, exceptStoreId));
+  const [row] = await db.select({ id: mlkStores.id }).from(mlkStores).where(and(...filters)).limit(1);
+  return row ?? null;
 }
 
 async function findStoreOr404(storeId: string, reply: FastifyReply) {
@@ -717,6 +768,9 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/mlk/stores", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
     const body = parseWithSchema(mlkStoreCreateSchema, request.body);
+    if (body.couple_id && (await coupleTakenByAnotherStore(body.couple_id))) {
+      return reply.code(400).send({ error: "couple_already_assigned" });
+    }
     const driveFolderId = body.drive_folder_id ?? (await ensureMlkFolder("stores", body.name, request.user.id));
     const [row] = await db
       .insert(mlkStores)
@@ -737,6 +791,9 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
     const body = parseWithSchema(mlkStoreUpdateSchema, request.body);
     const [existing] = await db.select().from(mlkStores).where(eq(mlkStores.id, id)).limit(1);
     if (!existing) return sendNotFound(reply);
+    if (body.couple_id && (await coupleTakenByAnotherStore(body.couple_id, id))) {
+      return reply.code(400).send({ error: "couple_already_assigned" });
+    }
     const [row] = await db
       .update(mlkStores)
       .set({ ...storeValues(body), updatedAt: new Date() })
@@ -907,6 +964,118 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
       .where(and(eq(driveNodes.parentId, folderId), isNull(driveNodes.deletedAt)))
       .orderBy(sql`case when ${driveNodes.kind} = 'folder' then 0 else 1 end`, asc(driveNodes.name));
     return { nodes: rows.map(serializeNode) };
+  });
+
+  // 多列 Finder 用:返回 root 文件夹下的整棵子树(root 直接子的 parent_id 归一化为 null)
+  app.get("/mlk/files/:folderId/tree", { preHandler: requirePerm("mlk.view") }, async (request, reply) => {
+    const { folderId } = parseWithSchema(mlkFolderIdParams, request.params);
+    const root = await findActiveNode(folderId);
+    if (!root || root.kind !== "folder") return sendNotFound(reply);
+    const scoped = await getMlkSubtreeRows(folderId);
+    return { nodes: scoped.map((row) => serializeScopedNode(row, folderId)) };
+  });
+
+  // 重命名 / 移动(拖拽换父文件夹)。parent_id 为 null 表示移到 root 根层。
+  app.patch("/mlk/files/:folderId/node/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { folderId, id } = parseWithSchema(mlkFileNodeParams, request.params);
+    const body = parseWithSchema(mlkFileNodePatchSchema, request.body);
+    const root = await findActiveNode(folderId);
+    if (!root || root.kind !== "folder") return sendNotFound(reply);
+    if (id === folderId) return reply.code(400).send({ error: "mlk_drive_root_readonly" });
+
+    const subtree = await getMlkSubtreeRows(folderId);
+    const target = subtree.find((row) => row.id === id);
+    if (!target) return sendNotFound(reply);
+
+    let resolvedParentId: string | null | undefined;
+    if (body.parent_id !== undefined) {
+      if (body.parent_id === null) {
+        resolvedParentId = folderId;
+      } else {
+        const parentNode = subtree.find((row) => row.id === body.parent_id);
+        if (!parentNode || parentNode.kind !== "folder") {
+          return reply.code(400).send({ error: "parent_outside_mlk_drive" });
+        }
+        // 防环:目标父不能是自己或自己的后代
+        const childrenByParent = new Map<string, DriveNodeRow[]>();
+        for (const row of subtree) {
+          if (!row.parentId) continue;
+          const siblings = childrenByParent.get(row.parentId) ?? [];
+          siblings.push(row);
+          childrenByParent.set(row.parentId, siblings);
+        }
+        const descendants = new Set<string>();
+        const stack = [id];
+        while (stack.length > 0) {
+          const current = stack.pop();
+          if (!current) continue;
+          for (const child of childrenByParent.get(current) ?? []) {
+            descendants.add(child.id);
+            stack.push(child.id);
+          }
+        }
+        if (body.parent_id === id || descendants.has(body.parent_id)) {
+          return reply.code(400).send({ error: "cyclic_parent" });
+        }
+        resolvedParentId = body.parent_id;
+      }
+    }
+
+    const [row] = await db
+      .update(driveNodes)
+      .set({
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.parent_id !== undefined ? { parentId: resolvedParentId } : {}),
+        ...(body.sort_order !== undefined ? { sortOrder: body.sort_order } : {}),
+        updatedAt: new Date()
+      })
+      .where(and(eq(driveNodes.id, id), isNull(driveNodes.deletedAt)))
+      .returning();
+    if (!row) return sendNotFound(reply);
+    return { node: serializeScopedNode(row, folderId) };
+  });
+
+  // 替换文件内容(保留节点位置)
+  app.put("/mlk/files/:folderId/node/:id/replace", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { folderId, id } = parseWithSchema(mlkFileNodeParams, request.params);
+    let file: UploadedFile | null = null;
+
+    try {
+      const root = await findActiveNode(folderId);
+      if (!root || root.kind !== "folder") return sendNotFound(reply);
+      const subtree = await getMlkSubtreeRows(folderId);
+      const target = subtree.find((row) => row.id === id);
+      if (!target) return sendNotFound(reply);
+      if (target.kind !== "file") return reply.code(400).send({ error: "file_node_required" });
+
+      const multipart = await readMultipartWithFirstFile(request);
+      file = multipart.file;
+      if (!file) return reply.code(400).send({ error: "file_required" });
+
+      const [row] = await db
+        .update(driveNodes)
+        .set({
+          name: file.filename,
+          storagePath: file.storagePath,
+          mime: file.mime,
+          size: file.size,
+          updatedAt: new Date()
+        })
+        .where(and(eq(driveNodes.id, id), isNull(driveNodes.deletedAt)))
+        .returning();
+      if (!row) {
+        await unlinkStoragePath(file.storagePath);
+        return sendNotFound(reply);
+      }
+      await unlinkStoragePath(target.storagePath);
+      return { node: serializeScopedNode(row, folderId) };
+    } catch (error) {
+      await unlinkStoragePath(file?.storagePath);
+      if (isFileTooLargeError(error)) {
+        return sendDriveFileTooLarge(reply);
+      }
+      throw error;
+    }
   });
 
   app.post("/mlk/files/:folderId", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {

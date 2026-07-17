@@ -1,6 +1,7 @@
 import {
   Alert,
   Anchor,
+  Autocomplete,
   Badge,
   Box,
   Button,
@@ -37,6 +38,7 @@ import {
   listMlkCouples,
   listMlkInvestors,
   listMlkRevenue,
+  listMlkStores,
   mlkKeys,
   mlkStoreDefaults,
   updateMlkPayment,
@@ -128,6 +130,7 @@ function normalizeStore(store: MlkStore): MlkStoreInput {
   return {
     name: store.name ?? "",
     stall: store.stall ?? null,
+    cuisine: store.cuisine ?? null,
     address: store.address ?? null,
     spv_name: store.spv_name ?? null,
     spv_uen: store.spv_uen ?? null,
@@ -158,6 +161,7 @@ function toStoreBody(form: MlkStoreInput): MlkStoreInput {
     ...form,
     name: form.name.trim(),
     stall: cleanText(form.stall),
+    cuisine: cleanText(form.cuisine),
     address: cleanText(form.address),
     spv_name: cleanText(form.spv_name),
     spv_uen: cleanText(form.spv_uen),
@@ -243,6 +247,7 @@ export function MlkStoreDetailPage() {
   });
   const investorsQuery = useQuery({ queryKey: mlkKeys.investors(), queryFn: listMlkInvestors });
   const couplesQuery = useQuery({ queryKey: mlkKeys.couples(), queryFn: listMlkCouples });
+  const storesQuery = useQuery({ queryKey: mlkKeys.stores(), queryFn: listMlkStores });
   const foodCourtsQuery = useQuery({ queryKey: fnbFoodCourtKeys.list(), queryFn: listFoodCourts });
   const linkedFoodCourtQuery = useQuery({
     queryKey: form.food_court_id ? fnbFoodCourtKeys.detail(form.food_court_id) : ["fnb-food-courts", null],
@@ -297,6 +302,11 @@ export function MlkStoreDetailPage() {
     setNoRepay(repaid >= 50000);
   }, [ledgerQuery.data?.ledger]);
 
+  function errorText(error: unknown) {
+    if (error instanceof Error && error.message === "couple_already_assigned") return t("mlk.messages.coupleAlreadyAssigned");
+    return error instanceof Error ? error.message : t("common.unknown_error");
+  }
+
   const createMutation = useMutation({
     mutationFn: createMlkStore,
     onSuccess: async (data) => {
@@ -320,7 +330,7 @@ export function MlkStoreDetailPage() {
       setToast({ color: "green", message: t("mlk.messages.saved") });
       navigate(`/franchise/mlk/stores/${data.store.id}`, { replace: true });
     },
-    onError: (error) => setToast({ color: "red", message: error instanceof Error ? error.message : t("common.unknown_error") })
+    onError: (error) => setToast({ color: "red", message: errorText(error) })
   });
   const updateMutation = useMutation({
     mutationFn: (body: Partial<MlkStoreInput>) => updateMlkStore(id, body),
@@ -330,7 +340,7 @@ export function MlkStoreDetailPage() {
       setForm(normalizeStore(data.store));
       setToast({ color: "green", message: t("mlk.messages.saved") });
     },
-    onError: (error) => setToast({ color: "red", message: error instanceof Error ? error.message : t("common.unknown_error") })
+    onError: (error) => setToast({ color: "red", message: errorText(error) })
   });
   const deleteMutation = useMutation({
     mutationFn: deleteMlkStore,
@@ -453,14 +463,222 @@ export function MlkStoreDetailPage() {
   const progress = paymentProgress(payments);
   const latestSettlement = settlements[0];
   const activeStep = form.status === "closed" ? -1 : Math.max(0, stepStatuses.indexOf(form.status));
+  const allStores = storesQuery.data?.stores ?? [];
+  // 夫妻只能属于一家门店:排除已被"其它门店"占用的夫妻(保留当前门店已选的那对)
+  const takenCoupleIds = new Set(
+    allStores.filter((store) => store.id !== id && store.couple_id).map((store) => store.couple_id as string)
+  );
   const investorOptions = (investorsQuery.data?.investors ?? []).map((investor) => ({ value: investor.id, label: investor.name }));
-  const coupleOptions = (couplesQuery.data?.couples ?? []).map((couple) => ({ value: couple.id, label: `${couple.husband_name} / ${couple.wife_name}` }));
+  const coupleOptions = (couplesQuery.data?.couples ?? [])
+    .filter((couple) => !takenCoupleIds.has(couple.id) || couple.id === form.couple_id)
+    .map((couple) => ({ value: couple.id, label: `${couple.husband_name} / ${couple.wife_name}` }));
+  // 菜系:可搜索可新增下拉,选项来自所有门店已用过的菜系(去重)+ 当前值
+  const cuisineOptions = Array.from(
+    new Set([...allStores.map((store) => store.cuisine).filter((value): value is string => Boolean(value)), ...(form.cuisine ? [form.cuisine] : [])])
+  ).map((value) => ({ value, label: value }));
   const foodCourtOptions = (foodCourtsQuery.data?.food_courts ?? []).map((court) => ({ value: court.id, label: court.name }));
   const selectedInvestor = (investorsQuery.data?.investors ?? []).find((investor) => investor.id === form.investor_id);
   const selectedCouple = (couplesQuery.data?.couples ?? []).find((couple) => couple.id === form.couple_id);
   const selectedFoodCourt = (foodCourtsQuery.data?.food_courts ?? []).find((court) => court.id === form.food_court_id);
   const foodCourt = linkedFoodCourtQuery.data?.food_court as FoodCourt | undefined;
   const settlementCalc = foodCourt ? calcAtRevenue(foodCourt, settlementTurnover, { noRepay }) : null;
+
+  const stepperSection = (
+    <Card withBorder shadow="xs" p="md">
+      {form.status === "closed" ? (
+        <Group justify="space-between">
+          <Text fw={600}>{t("mlk.lifecycle.title")}</Text>
+          <Badge color="red">{t("mlk.status.store.closed")}</Badge>
+        </Group>
+      ) : (
+        <Stepper active={activeStep} size="xs">
+          {stepStatuses.map((status) => {
+            const dateKey = dateFieldByStatus[status];
+            return (
+              <Stepper.Step
+                key={status}
+                label={t(`mlk.status.store.${status}`)}
+                description={dateKey ? formatDate(form[dateKey] as string | null | undefined) : "-"}
+                onClick={() => canManage && setStepModal({ status, date: dateInputValue(dateKey ? (form[dateKey] as string | null | undefined) : null) || todayDate() })}
+              />
+            );
+          })}
+        </Stepper>
+      )}
+    </Card>
+  );
+
+  const infoSection = (
+    <Grid gutter="md">
+      <Grid.Col span={{ base: 12, lg: 6 }}>
+        <Card withBorder shadow="xs" p="sm" h="100%">
+          <Text fw={600} mb="sm">{t("mlk.cards.basic")}</Text>
+          <Grid gutter="sm">
+            <Grid.Col span={12}><TextInput label={t("mlk.fields.name")} value={form.name} disabled={disabled} onChange={(event) => setField("name", event.currentTarget.value)} /></Grid.Col>
+            <Grid.Col span={4}><TextInput label={t("mlk.fields.stall")} value={form.stall ?? ""} disabled={disabled} onChange={(event) => setField("stall", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={4}><Autocomplete label={t("mlk.fields.cuisine")} data={cuisineOptions.map((option) => option.value)} value={form.cuisine ?? ""} disabled={disabled} clearable onChange={(value) => setField("cuisine", value || null)} /></Grid.Col>
+            <Grid.Col span={4}><Select label={t("mlk.fields.status")} data={storeStatuses.map((value) => ({ value, label: t(`mlk.status.store.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "intent") as MlkStatus)} /></Grid.Col>
+            <Grid.Col span={12}><TextInput label={t("mlk.fields.address")} value={form.address ?? ""} disabled={disabled} onChange={(event) => setField("address", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_name")} value={form.spv_name ?? ""} disabled={disabled} onChange={(event) => setField("spv_name", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_uen")} value={form.spv_uen ?? ""} disabled={disabled} onChange={(event) => setField("spv_uen", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={12}><TextInput label={t("mlk.fields.kitchen_store_id")} value={form.kitchen_store_id ?? ""} disabled={disabled} onChange={(event) => setField("kitchen_store_id", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={12}><Textarea label={t("mlk.fields.notes")} value={form.notes ?? ""} disabled={disabled} minRows={2} onChange={(event) => setField("notes", event.currentTarget.value || null)} /></Grid.Col>
+          </Grid>
+        </Card>
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, lg: 6 }}>
+        <Stack gap="md">
+          <Card withBorder shadow="xs" p="sm">
+            <Text fw={600} mb="sm">{t("mlk.cards.equity")}</Text>
+            <Stack gap="sm">
+              <Group align="flex-end" wrap="nowrap">
+                <Select w="100%" label={t("mlk.fields.investor")} data={investorOptions} value={form.investor_id ?? null} disabled={disabled} onChange={(value) => setField("investor_id", value)} clearable searchable />
+                {selectedInvestor ? <Anchor onClick={() => navigate(`/franchise/mlk/investors/${selectedInvestor.id}`)}>51%</Anchor> : <Text>51%</Text>}
+              </Group>
+              <Group align="flex-end" wrap="nowrap">
+                <Select w="100%" label={t("mlk.fields.couple")} data={coupleOptions} value={form.couple_id ?? null} disabled={disabled} onChange={(value) => setField("couple_id", value)} clearable searchable />
+                {selectedCouple ? <Anchor onClick={() => navigate(`/franchise/mlk/couples/${selectedCouple.id}`)}>48%</Anchor> : <Text>48%</Text>}
+              </Group>
+              <Group justify="space-between">
+                <Text>Kaider Management</Text>
+                <Text fw={600}>1%</Text>
+              </Group>
+            </Stack>
+          </Card>
+
+          <Card withBorder shadow="xs" p="sm">
+            <Text fw={600} mb="sm">{t("mlk.cards.foodCourt")}</Text>
+            <Stack gap="sm">
+              <Select label={t("mlk.fields.food_court")} data={foodCourtOptions} value={form.food_court_id ?? null} disabled={disabled} onChange={(value) => setField("food_court_id", value)} clearable searchable />
+              {selectedFoodCourt ? <Anchor onClick={() => navigate(`/franchise/fnb/${selectedFoodCourt.id}`)}>{t("mlk.actions.viewFoodCourt")}</Anchor> : null}
+              <NumberInput label={t("mlk.fields.fc_deposit_amount")} value={form.fc_deposit_amount ?? ""} min={0} thousandSeparator="," disabled={disabled} onChange={(value) => setField("fc_deposit_amount", typeof value === "number" ? value : null)} />
+            </Stack>
+          </Card>
+        </Stack>
+      </Grid.Col>
+    </Grid>
+  );
+
+  const paymentsSection = (
+    <Card withBorder shadow="xs" p="sm">
+      <Group justify="space-between" mb="sm">
+        <Text fw={600}>{t("mlk.cards.payments")}</Text>
+        {canManage && !isNew ? <Button size="xs" onClick={() => openPayment()} disabled={!form.investor_id}>{t("mlk.payments.add")}</Button> : null}
+      </Group>
+      <Progress value={progress.pct} mb="xs" />
+      <Text size="sm" c="dimmed" mb="sm">{formatSgd(progress.paid)} / {formatSgd(progress.due)}</Text>
+      <Table withTableBorder withColumnBorders highlightOnHover>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>{t("mlk.fields.kind")}</Table.Th>
+            <Table.Th>{t("mlk.fields.amount_due")}</Table.Th>
+            <Table.Th>{t("mlk.fields.amount_paid")}</Table.Th>
+            <Table.Th>{t("mlk.fields.paid_at")}</Table.Th>
+            <Table.Th>{t("mlk.fields.status")}</Table.Th>
+            <Table.Th>{t("common.actions")}</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {payments.map((payment) => (
+            <Table.Tr key={payment.id}>
+              <Table.Td>{t(`mlk.payments.kind.${payment.kind}`)}</Table.Td>
+              <Table.Td>{formatSgd(payment.amount_due)}</Table.Td>
+              <Table.Td>{formatSgd(payment.amount_paid)}</Table.Td>
+              <Table.Td>{formatDate(payment.paid_at)}</Table.Td>
+              <Table.Td><Badge color={payment.status === "paid" ? "green" : payment.status === "refunded" ? "gray" : "yellow"} variant="light">{t(`mlk.status.payment.${payment.status}`)}</Badge></Table.Td>
+              <Table.Td>
+                {canManage ? (
+                  <Group gap={4}>
+                    <Button size="xs" variant="subtle" onClick={() => openPayment(payment)}>{t("common.edit")}</Button>
+                    <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deletePaymentMutation.mutate(payment.id)}>{t("common.delete")}</Button>
+                  </Group>
+                ) : null}
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Card>
+  );
+
+  const revenueSection = (
+    <Stack gap="md">
+      <Card withBorder shadow="xs" p="sm">
+        <Text fw={600} mb="sm">{t("mlk.cards.revenueOverview")}</Text>
+        <Grid>
+          <Grid.Col span={4}><Text c="dimmed" size="sm">{t("mlk.revenue.currentMonth")}</Text><MlkMoneyText value={sumRevenue(currentRevenueQuery.data?.revenue ?? [])} fw={700} /></Grid.Col>
+          <Grid.Col span={4}><Text c="dimmed" size="sm">{t("mlk.revenue.previousMonth")}</Text><MlkMoneyText value={sumRevenue(previousRevenueQuery.data?.revenue ?? [])} fw={700} /></Grid.Col>
+          <Grid.Col span={4}><Text c="dimmed" size="sm">{t("mlk.settlements.latest")}</Text><MlkMoneyText value={latestSettlement?.net_profit ?? null} fw={700} /></Grid.Col>
+        </Grid>
+      </Card>
+      <Card withBorder shadow="xs" p="sm">
+        <Group justify="space-between" mb="sm">
+          <TextInput type="month" label={t("mlk.fields.month")} value={revenueMonth} onChange={(event) => setRevenueMonth(event.currentTarget.value)} />
+          {canManage ? <Button onClick={() => setRevenueModalOpen(true)}>{t("mlk.revenue.add")}</Button> : null}
+        </Group>
+        <Table withTableBorder withColumnBorders highlightOnHover>
+          <Table.Thead>
+            <Table.Tr><Table.Th>{t("mlk.fields.date")}</Table.Th><Table.Th>{t("mlk.fields.turnover")}</Table.Th><Table.Th>{t("mlk.fields.source")}</Table.Th></Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {(revenueQuery.data?.revenue ?? []).map((row) => (
+              <Table.Tr key={row.id}>
+                <Table.Td>{row.date}</Table.Td>
+                <Table.Td>{formatSgd(row.turnover)}</Table.Td>
+                <Table.Td><Badge color={row.source === "kitchen" ? "blue" : "gray"}>{row.source}</Badge></Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Card>
+    </Stack>
+  );
+
+  const settlementsSection = (
+    <Card withBorder shadow="xs" p="sm">
+      <Group justify="space-between" mb="sm">
+        <Group gap="xs">
+          <Text fw={600}>{t("mlk.tabs.settlements")}</Text>
+          {!form.food_court_id ? <Badge color="yellow">{t("mlk.settlements.linkFoodCourtFirst")}</Badge> : null}
+        </Group>
+        {canManage ? <Button disabled={!form.food_court_id} onClick={() => setSettlementModalOpen(true)}>{t("mlk.settlements.generate")}</Button> : null}
+      </Group>
+      <Table withTableBorder withColumnBorders highlightOnHover>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>{t("mlk.fields.month")}</Table.Th>
+            <Table.Th>{t("mlk.fields.turnover")}</Table.Th>
+            <Table.Th>{t("mlk.fields.net_profit")}</Table.Th>
+            <Table.Th>{t("mlk.fields.investor_payout")}</Table.Th>
+            <Table.Th>{t("mlk.fields.couple_payout")}</Table.Th>
+            <Table.Th>{t("mlk.fields.mgmt_payout")}</Table.Th>
+            <Table.Th>{t("common.actions")}</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {settlements.map((settlement) => (
+            <Table.Tr key={settlement.id}>
+              <Table.Td>{settlement.month}</Table.Td>
+              <Table.Td>{formatSgd(settlement.turnover)}</Table.Td>
+              <Table.Td>{formatSgd(settlement.net_profit)}</Table.Td>
+              <Table.Td>{formatSgd(settlement.investor_payout)}</Table.Td>
+              <Table.Td>{formatSgd(settlement.couple_payout)}</Table.Td>
+              <Table.Td>{formatSgd(settlement.mgmt_payout)}</Table.Td>
+              <Table.Td>
+                <Group gap={4}>
+                  <Popover width={300} withArrow shadow="md">
+                    <Popover.Target><Button size="xs" variant="subtle">{t("mlk.settlements.detail")}</Button></Popover.Target>
+                    <Popover.Dropdown><Text size="xs" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(settlement.detail ?? {}, null, 2)}</Text></Popover.Dropdown>
+                  </Popover>
+                  {canManage ? <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deleteSettlementMutation.mutate(settlement.id)}>{t("common.delete")}</Button> : null}
+                </Group>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Card>
+  );
 
   return (
     <Box mt={-16}>
@@ -473,7 +691,11 @@ export function MlkStoreDetailPage() {
             <Text size="md" fw={500}>
               {isNew ? t("mlk.actions.newStore") : form.name || t("mlk.detail.store")}
             </Text>
-            {form.status === "closed" ? <Badge color="red">{t("mlk.status.store.closed")}</Badge> : null}
+            {!isNew ? (
+              <Badge color={storeStatusColor(form.status)} variant={form.status === "closed" ? "filled" : "light"}>
+                {t(`mlk.status.store.${form.status}`)}
+              </Badge>
+            ) : null}
           </Group>
           {canManage ? (
             <Group gap="xs">
@@ -554,210 +776,28 @@ export function MlkStoreDetailPage() {
         </Group>
       ) : (
         <Stack gap="md">
-          {!isNew ? (
-            <Card withBorder shadow="xs" p="sm">
-              {form.status === "closed" ? (
-                <Group justify="space-between">
-                  <Text fw={600}>{t("mlk.lifecycle.title")}</Text>
-                  <Badge color="red">{t("mlk.status.store.closed")}</Badge>
-                </Group>
-              ) : (
-                <Stepper active={activeStep} size="xs">
-                  {stepStatuses.map((status) => {
-                    const dateKey = dateFieldByStatus[status];
-                    return (
-                      <Stepper.Step
-                        key={status}
-                        label={t(`mlk.status.store.${status}`)}
-                        description={dateKey ? formatDate(form[dateKey] as string | null | undefined) : "-"}
-                        onClick={() => canManage && setStepModal({ status, date: dateInputValue(dateKey ? (form[dateKey] as string | null | undefined) : null) || todayDate() })}
-                      />
-                    );
-                  })}
-                </Stepper>
-              )}
-            </Card>
-          ) : null}
-
-          <Grid gutter="md">
-            <Grid.Col span={{ base: 12, lg: 5 }}>
-              <Stack gap="md">
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.basic")}</Text>
-                  <Grid gutter="sm">
-                    <Grid.Col span={12}><TextInput label={t("mlk.fields.name")} value={form.name} disabled={disabled} onChange={(event) => setField("name", event.currentTarget.value)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.stall")} value={form.stall ?? ""} disabled={disabled} onChange={(event) => setField("stall", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><Select label={t("mlk.fields.status")} data={storeStatuses.map((value) => ({ value, label: t(`mlk.status.store.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "intent") as MlkStatus)} /></Grid.Col>
-                    <Grid.Col span={12}><TextInput label={t("mlk.fields.address")} value={form.address ?? ""} disabled={disabled} onChange={(event) => setField("address", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_name")} value={form.spv_name ?? ""} disabled={disabled} onChange={(event) => setField("spv_name", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_uen")} value={form.spv_uen ?? ""} disabled={disabled} onChange={(event) => setField("spv_uen", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={12}><TextInput label={t("mlk.fields.kitchen_store_id")} value={form.kitchen_store_id ?? ""} disabled={disabled} onChange={(event) => setField("kitchen_store_id", event.currentTarget.value || null)} /></Grid.Col>
-                    <Grid.Col span={12}><Textarea label={t("mlk.fields.notes")} value={form.notes ?? ""} disabled={disabled} minRows={2} onChange={(event) => setField("notes", event.currentTarget.value || null)} /></Grid.Col>
-                  </Grid>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.equity")}</Text>
-                  <Stack gap="sm">
-                    <Group align="flex-end" wrap="nowrap">
-                      <Select w="100%" label={t("mlk.fields.investor")} data={investorOptions} value={form.investor_id ?? null} disabled={disabled} onChange={(value) => setField("investor_id", value)} clearable searchable />
-                      {selectedInvestor ? <Anchor onClick={() => navigate(`/franchise/mlk/investors/${selectedInvestor.id}`)}>51%</Anchor> : <Text>51%</Text>}
-                    </Group>
-                    <Group align="flex-end" wrap="nowrap">
-                      <Select w="100%" label={t("mlk.fields.couple")} data={coupleOptions} value={form.couple_id ?? null} disabled={disabled} onChange={(value) => setField("couple_id", value)} clearable searchable />
-                      {selectedCouple ? <Anchor onClick={() => navigate(`/franchise/mlk/couples/${selectedCouple.id}`)}>48%</Anchor> : <Text>48%</Text>}
-                    </Group>
-                    <Group justify="space-between">
-                      <Text>Kaider Management</Text>
-                      <Text fw={600}>1%</Text>
-                    </Group>
-                  </Stack>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.foodCourt")}</Text>
-                  <Stack gap="sm">
-                    <Select label={t("mlk.fields.food_court")} data={foodCourtOptions} value={form.food_court_id ?? null} disabled={disabled} onChange={(value) => setField("food_court_id", value)} clearable searchable />
-                    {selectedFoodCourt ? <Anchor onClick={() => navigate(`/franchise/fnb/${selectedFoodCourt.id}`)}>{t("mlk.actions.viewFoodCourt")}</Anchor> : null}
-                    <NumberInput label={t("mlk.fields.fc_deposit_amount")} value={form.fc_deposit_amount ?? ""} min={0} thousandSeparator="," disabled={disabled} onChange={(value) => setField("fc_deposit_amount", typeof value === "number" ? value : null)} />
-                  </Stack>
-                </Card>
-              </Stack>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, lg: 7 }}>
-              <Stack gap="md">
-                <Card withBorder shadow="xs" p="sm">
-                  <Group justify="space-between" mb="sm">
-                    <Text fw={600}>{t("mlk.cards.payments")}</Text>
-                    {canManage && !isNew ? <Button size="xs" onClick={() => openPayment()} disabled={!form.investor_id}>{t("mlk.payments.add")}</Button> : null}
-                  </Group>
-                  <Progress value={progress.pct} mb="xs" />
-                  <Text size="sm" c="dimmed" mb="sm">{formatSgd(progress.paid)} / {formatSgd(progress.due)}</Text>
-                  <Table withTableBorder withColumnBorders highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>{t("mlk.fields.kind")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.amount_due")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.amount_paid")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.paid_at")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.status")}</Table.Th>
-                        <Table.Th>{t("common.actions")}</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {payments.map((payment) => (
-                        <Table.Tr key={payment.id}>
-                          <Table.Td>{t(`mlk.payments.kind.${payment.kind}`)}</Table.Td>
-                          <Table.Td>{formatSgd(payment.amount_due)}</Table.Td>
-                          <Table.Td>{formatSgd(payment.amount_paid)}</Table.Td>
-                          <Table.Td>{formatDate(payment.paid_at)}</Table.Td>
-                          <Table.Td><Badge color={payment.status === "paid" ? "green" : payment.status === "refunded" ? "gray" : "yellow"} variant="light">{t(`mlk.status.payment.${payment.status}`)}</Badge></Table.Td>
-                          <Table.Td>
-                            {canManage ? (
-                              <Group gap={4}>
-                                <Button size="xs" variant="subtle" onClick={() => openPayment(payment)}>{t("common.edit")}</Button>
-                                <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deletePaymentMutation.mutate(payment.id)}>{t("common.delete")}</Button>
-                              </Group>
-                            ) : null}
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Card>
-
-                <Card withBorder shadow="xs" p="sm">
-                  <Text fw={600} mb="sm">{t("mlk.cards.revenueOverview")}</Text>
-                  <Grid>
-                    <Grid.Col span={4}><Text c="dimmed" size="sm">{t("mlk.revenue.currentMonth")}</Text><MlkMoneyText value={sumRevenue(currentRevenueQuery.data?.revenue ?? [])} fw={700} /></Grid.Col>
-                    <Grid.Col span={4}><Text c="dimmed" size="sm">{t("mlk.revenue.previousMonth")}</Text><MlkMoneyText value={sumRevenue(previousRevenueQuery.data?.revenue ?? [])} fw={700} /></Grid.Col>
-                    <Grid.Col span={4}><Text c="dimmed" size="sm">{t("mlk.settlements.latest")}</Text><MlkMoneyText value={latestSettlement?.net_profit ?? null} fw={700} /></Grid.Col>
-                  </Grid>
-                </Card>
-              </Stack>
-            </Grid.Col>
-          </Grid>
-
-          {!isNew ? (
-            <Tabs defaultValue="revenue" keepMounted={false}>
+          {isNew ? (
+            infoSection
+          ) : (
+            <Tabs defaultValue="info" keepMounted={false}>
               <Tabs.List mb="md">
+                <Tabs.Tab value="steps">{t("mlk.tabs.steps")}</Tabs.Tab>
+                <Tabs.Tab value="info">{t("mlk.tabs.info")}</Tabs.Tab>
+                <Tabs.Tab value="payments">{t("mlk.tabs.payments")}</Tabs.Tab>
                 <Tabs.Tab value="revenue">{t("mlk.tabs.revenue")}</Tabs.Tab>
                 <Tabs.Tab value="settlements">{t("mlk.tabs.settlements")}</Tabs.Tab>
                 <Tabs.Tab value="files">{t("mlk.tabs.files")}</Tabs.Tab>
               </Tabs.List>
-              <Tabs.Panel value="revenue">
-                <Card withBorder shadow="xs" p="sm">
-                  <Group justify="space-between" mb="sm">
-                    <TextInput type="month" label={t("mlk.fields.month")} value={revenueMonth} onChange={(event) => setRevenueMonth(event.currentTarget.value)} />
-                    {canManage ? <Button onClick={() => setRevenueModalOpen(true)}>{t("mlk.revenue.add")}</Button> : null}
-                  </Group>
-                  <Table withTableBorder withColumnBorders highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr><Table.Th>{t("mlk.fields.date")}</Table.Th><Table.Th>{t("mlk.fields.turnover")}</Table.Th><Table.Th>{t("mlk.fields.source")}</Table.Th></Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {(revenueQuery.data?.revenue ?? []).map((row) => (
-                        <Table.Tr key={row.id}>
-                          <Table.Td>{row.date}</Table.Td>
-                          <Table.Td>{formatSgd(row.turnover)}</Table.Td>
-                          <Table.Td><Badge color={row.source === "kitchen" ? "blue" : "gray"}>{row.source}</Badge></Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Card>
-              </Tabs.Panel>
-              <Tabs.Panel value="settlements">
-                <Card withBorder shadow="xs" p="sm">
-                  <Group justify="space-between" mb="sm">
-                    <Group gap="xs">
-                      <Text fw={600}>{t("mlk.tabs.settlements")}</Text>
-                      {!form.food_court_id ? <Badge color="yellow">{t("mlk.settlements.linkFoodCourtFirst")}</Badge> : null}
-                    </Group>
-                    {canManage ? <Button disabled={!form.food_court_id} onClick={() => setSettlementModalOpen(true)}>{t("mlk.settlements.generate")}</Button> : null}
-                  </Group>
-                  <Table withTableBorder withColumnBorders highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>{t("mlk.fields.month")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.turnover")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.net_profit")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.investor_payout")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.couple_payout")}</Table.Th>
-                        <Table.Th>{t("mlk.fields.mgmt_payout")}</Table.Th>
-                        <Table.Th>{t("common.actions")}</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {settlements.map((settlement) => (
-                        <Table.Tr key={settlement.id}>
-                          <Table.Td>{settlement.month}</Table.Td>
-                          <Table.Td>{formatSgd(settlement.turnover)}</Table.Td>
-                          <Table.Td>{formatSgd(settlement.net_profit)}</Table.Td>
-                          <Table.Td>{formatSgd(settlement.investor_payout)}</Table.Td>
-                          <Table.Td>{formatSgd(settlement.couple_payout)}</Table.Td>
-                          <Table.Td>{formatSgd(settlement.mgmt_payout)}</Table.Td>
-                          <Table.Td>
-                            <Group gap={4}>
-                              <Popover width={300} withArrow shadow="md">
-                                <Popover.Target><Button size="xs" variant="subtle">{t("mlk.settlements.detail")}</Button></Popover.Target>
-                                <Popover.Dropdown><Text size="xs" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(settlement.detail ?? {}, null, 2)}</Text></Popover.Dropdown>
-                              </Popover>
-                              {canManage ? <Button size="xs" color="red" variant="subtle" onClick={() => window.confirm(t("mlk.messages.confirmDelete")) && deleteSettlementMutation.mutate(settlement.id)}>{t("common.delete")}</Button> : null}
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Card>
-              </Tabs.Panel>
+              <Tabs.Panel value="steps">{stepperSection}</Tabs.Panel>
+              <Tabs.Panel value="info">{infoSection}</Tabs.Panel>
+              <Tabs.Panel value="payments">{paymentsSection}</Tabs.Panel>
+              <Tabs.Panel value="revenue">{revenueSection}</Tabs.Panel>
+              <Tabs.Panel value="settlements">{settlementsSection}</Tabs.Panel>
               <Tabs.Panel value="files">
                 <MlkFilePanel folderId={form.drive_folder_id} canManage={canManage} />
               </Tabs.Panel>
             </Tabs>
-          ) : null}
+          )}
         </Stack>
       )}
     </Box>

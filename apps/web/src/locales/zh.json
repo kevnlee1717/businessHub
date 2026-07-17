@@ -2389,7 +2389,13 @@
       "couples": "夫妻",
       "revenue": "营业流水",
       "settlements": "月结算",
-      "files": "文件"
+      "files": "文件",
+      "info": "基本信息",
+      "payments": "付款",
+      "profile": "资料",
+      "mentor": "师徒",
+      "ledger": "台账",
+      "steps": "步骤"
     },
     "detail": {
       "store": "门店详情",
@@ -2427,6 +2433,7 @@
       "joined_at": "加入日期",
       "exited_at": "离场日期",
       "stall": "档口",
+      "cuisine": "菜系",
       "spv_name": "SPV 公司",
       "spv_uen": "SPV UEN",
       "investor": "投资人",
@@ -2599,7 +2606,8 @@
       "saved": "已保存",
       "nameRequired": "请填写名称",
       "coupleNameRequired": "请填写丈夫和妻子姓名",
-      "confirmDelete": "确认删除这条记录？"
+      "confirmDelete": "确认删除这条记录？",
+      "coupleAlreadyAssigned": "这对夫妻已属于另一家门店，一对夫妻只能属于一家门店"
     }
   },
   "franchise": {
