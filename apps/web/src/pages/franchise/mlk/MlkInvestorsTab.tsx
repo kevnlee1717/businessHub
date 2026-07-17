@@ -76,6 +76,9 @@ export function MlkInvestorsTab() {
                 <Table.Th>{t("mlk.fields.pr_status")}</Table.Th>
                 <Table.Th>{t("mlk.fields.kyc_status")}</Table.Th>
                 <Table.Th>{t("mlk.fields.store_count")}</Table.Th>
+                <Table.Th w={120} ta="center">
+                  {t("mlk.fields.actions")}
+                </Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -101,6 +104,11 @@ export function MlkInvestorsTab() {
                     </Badge>
                   </Table.Td>
                   <Table.Td>{storeCountByInvestor.get(investor.id) ?? 0}</Table.Td>
+                  <Table.Td ta="center">
+                    <Button size="xs" variant="subtle" onClick={() => navigate(`/franchise/mlk/investors/${investor.id}`)}>
+                      {canManage ? t("mlk.actions.edit") : t("mlk.actions.view")}
+                    </Button>
+                  </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

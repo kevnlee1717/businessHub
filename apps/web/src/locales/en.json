@@ -2457,7 +2457,8 @@
       "couple_payout": "Couple payout",
       "mgmt_payout": "Mgmt payout",
       "detail": "Detail",
-      "store": "Store"
+      "store": "Store",
+      "actions": "Actions"
     },
     "status": {
       "store": {
@@ -2526,7 +2527,9 @@
       "newStore": "New store",
       "newInvestor": "New investor",
       "newCouple": "New couple",
-      "viewFoodCourt": "View forecast"
+      "viewFoodCourt": "View forecast",
+      "edit": "Edit",
+      "view": "View"
     },
     "cards": {
       "basic": "Basic info",
