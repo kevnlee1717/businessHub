@@ -8,6 +8,9 @@ export const driveNodes = pgTable(
     parentId: uuid("parent_id").references((): AnyPgColumn => driveNodes.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
     name: text("name").notNull(),
+    // 模块隔离:模块自建的顶层 root 打 scope(如 'case'/'mlk');宣传册(通用池)为 null。
+    // 宣传册 drive 只显示 scope 为 null 的子树,模块 root 及其子树对宣传册不可见。
+    scope: text("scope"),
     storagePath: text("storage_path"),
     mime: text("mime"),
     size: integer("size"),

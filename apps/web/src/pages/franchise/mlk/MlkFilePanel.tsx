@@ -1,58 +1,198 @@
-import { Anchor, Button, FileButton, Group, Loader, Modal, Paper, Stack, Table, Text, TextInput } from "@mantine/core";
+import { Alert, Anchor, Box, Breadcrumbs, Button, Group, Loader, Modal, Notification, Paper, Stack, Text, TextInput } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { createMlkFolder, deleteMlkFileNode, listMlkFiles, mlkFileDownloadUrl, mlkKeys, uploadMlkFile, type MlkFileNode } from "../../../api/mlk";
-import { ErrorAlert, formatDate } from "./shared";
+import {
+  createMlkFolder,
+  deleteMlkFileNode,
+  getMlkFilesTree,
+  mlkFileDownloadUrl,
+  mlkKeys,
+  patchMlkFileNode,
+  replaceMlkFile,
+  uploadMlkFile
+} from "../../../api/mlk";
+import { type DriveNode, type DrivePatchInput } from "../../../api/drive";
+import { DriveColumns } from "../../documents/drive/DriveColumns";
+import { DrivePreviewModal } from "../../documents/drive/DrivePreviewModal";
 
-function fileSize(size: number | null) {
-  if (size === null) return "-";
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+function ErrorAlert({ error }: { error: unknown }) {
+  const { t } = useTranslation();
+  return error ? (
+    <Alert color="red" variant="light">
+      {error instanceof Error ? error.message : t("common.unknown_error")}
+    </Alert>
+  ) : null;
 }
 
-function nodeIcon(node: MlkFileNode) {
-  return node.kind === "folder" ? "📁" : "📄";
+function CreateFolderModal({
+  opened,
+  parentName,
+  saving,
+  onClose,
+  onSubmit
+}: {
+  opened: boolean;
+  parentName: string | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (name: string) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    const next = name.trim();
+    if (!next) {
+      setError(t("drive.validation.nameRequired"));
+      return;
+    }
+    setError(null);
+    await onSubmit(next);
+    setName("");
+  }
+
+  function close() {
+    setName("");
+    setError(null);
+    onClose();
+  }
+
+  return (
+    <Modal opened={opened} onClose={close} title={t("drive.newFolder")}>
+      <Stack gap="sm">
+        {parentName ? (
+          <Text size="sm" c="dimmed">
+            {t("drive.parentFolder", { name: parentName })}
+          </Text>
+        ) : null}
+        <TextInput
+          label={t("drive.fields.folderName")}
+          value={name}
+          error={error}
+          autoFocus
+          onChange={(event) => setName(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void submit();
+          }}
+        />
+        <Group justify="flex-end">
+          <Button variant="subtle" onClick={close}>
+            {t("common.cancel")}
+          </Button>
+          <Button loading={saving} onClick={() => void submit()}>
+            {t("common.save")}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function sanitizePath(path: string[], nodeById: Map<string, DriveNode>) {
+  const next: string[] = [];
+  let parentId: string | null = null;
+
+  for (const id of path) {
+    const node = nodeById.get(id);
+    if (!node || node.kind !== "folder" || node.parent_id !== parentId) break;
+    next.push(id);
+    parentId = id;
+  }
+
+  return next;
 }
 
 export function MlkFilePanel({ folderId, canManage }: { folderId: string | null | undefined; canManage: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [stack, setStack] = useState<{ id: string; name: string }[]>([]);
-  const [folderModalOpen, setFolderModalOpen] = useState(false);
-  const [folderName, setFolderName] = useState("");
-  const currentFolderId = stack[stack.length - 1]?.id ?? folderId ?? null;
-  const breadcrumbs = useMemo(() => [{ id: folderId ?? "", name: t("mlk.files.root") }, ...stack], [folderId, stack, t]);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string[]>([]);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<DriveNode | null>(null);
+  const [folderModalOpened, setFolderModalOpened] = useState(false);
+  const [folderParent, setFolderParent] = useState<DriveNode | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<unknown>(null);
+  const [toast, setToast] = useState<{ color: "green" | "red"; message: string } | null>(null);
 
-  const filesQuery = useQuery({
-    queryKey: currentFolderId ? mlkKeys.files(currentFolderId) : ["mlk", "files", null],
-    queryFn: () => listMlkFiles(currentFolderId || ""),
-    enabled: Boolean(currentFolderId)
+  const rootId = folderId ?? "";
+
+  const treeQuery = useQuery({
+    queryKey: mlkKeys.fileTree(rootId),
+    queryFn: () => getMlkFilesTree(rootId),
+    enabled: Boolean(folderId)
+  });
+
+  const nodes = useMemo<DriveNode[]>(
+    () => (treeQuery.data?.nodes ?? []).map((node) => ({ ...node, url: node.url ?? null })),
+    [treeQuery.data?.nodes]
+  );
+  const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+  const currentFolderId = selectedPath[selectedPath.length - 1] ?? null;
+  const currentFolder = currentFolderId ? nodeById.get(currentFolderId) ?? null : null;
+  const selectedNode = selectedFileId ? nodeById.get(selectedFileId) ?? null : currentFolder;
+
+  useEffect(() => {
+    const nextPath = sanitizePath(selectedPath, nodeById);
+    if (nextPath.length !== selectedPath.length || nextPath.some((id, index) => id !== selectedPath[index])) {
+      setSelectedPath(nextPath);
+    }
+    if (selectedFileId && !nodeById.has(selectedFileId)) {
+      setSelectedFileId(null);
+    }
+    if (editingId && !nodeById.has(editingId)) {
+      setEditingId(null);
+    }
+  }, [editingId, nodeById, selectedFileId, selectedPath]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  async function invalidateTree() {
+    if (folderId) await queryClient.invalidateQueries({ queryKey: mlkKeys.fileTree(folderId) });
+  }
+
+  const createFolderMutation = useMutation({
+    mutationFn: ({ parent_id, name }: { parent_id: string | null; name: string }) =>
+      createMlkFolder(parent_id ?? rootId, { name }),
+    onSuccess: invalidateTree
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => uploadMlkFile(currentFolderId || "", file),
-    onSuccess: async () => {
-      if (currentFolderId) await queryClient.invalidateQueries({ queryKey: mlkKeys.files(currentFolderId) });
-    }
+    mutationFn: async ({ parent_id, files }: { parent_id: string | null; files: File[] }) => {
+      for (const file of files) {
+        await uploadMlkFile(parent_id ?? rootId, file);
+      }
+    },
+    onSuccess: invalidateTree
   });
 
-  const createFolderMutation = useMutation({
-    mutationFn: (name: string) => createMlkFolder(currentFolderId || "", { name }),
-    onSuccess: async () => {
-      setFolderModalOpen(false);
-      setFolderName("");
-      if (currentFolderId) await queryClient.invalidateQueries({ queryKey: mlkKeys.files(currentFolderId) });
-    }
+  const patchMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: DrivePatchInput }) => patchMlkFileNode(rootId, id, body),
+    onSuccess: invalidateTree
+  });
+
+  const replaceMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => replaceMlkFile(rootId, id, file),
+    onSuccess: invalidateTree
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteMlkFileNode,
-    onSuccess: async () => {
-      if (currentFolderId) await queryClient.invalidateQueries({ queryKey: mlkKeys.files(currentFolderId) });
-    }
+    mutationFn: (nodeId: string) => deleteMlkFileNode(nodeId),
+    onSuccess: invalidateTree
   });
+
+  const busy =
+    createFolderMutation.isPending ||
+    uploadMutation.isPending ||
+    patchMutation.isPending ||
+    replaceMutation.isPending ||
+    deleteMutation.isPending;
 
   if (!folderId) {
     return (
@@ -62,115 +202,190 @@ export function MlkFilePanel({ folderId, canManage }: { folderId: string | null 
     );
   }
 
-  function openFolder(node: MlkFileNode) {
-    setStack((current) => [...current, { id: node.id, name: node.name }]);
-  }
-
-  function jumpTo(index: number) {
-    if (index <= 0) {
-      setStack([]);
-      return;
+  async function runOperation(operation: () => Promise<unknown>) {
+    setOperationError(null);
+    try {
+      await operation();
+    } catch (error) {
+      setOperationError(error);
     }
-    setStack((current) => current.slice(0, index));
   }
 
-  function remove(node: MlkFileNode) {
-    if (!window.confirm(t("mlk.files.confirmDelete", { name: node.name }))) return;
-    deleteMutation.mutate(node.id);
+  function openCreateFolder(parent: DriveNode | null) {
+    if (!canManage) return;
+    setFolderParent(parent);
+    setFolderModalOpened(true);
   }
+
+  function removeNode(node: DriveNode) {
+    if (!canManage) return;
+    if (!window.confirm(t("drive.confirmDelete", { name: node.name }))) return;
+    if (node.kind === "folder") {
+      const index = selectedPath.indexOf(node.id);
+      if (index >= 0) setSelectedPath(selectedPath.slice(0, index));
+    }
+    if (selectedFileId === node.id) setSelectedFileId(null);
+    if (editingId === node.id) setEditingId(null);
+    void runOperation(() => deleteMutation.mutateAsync(node.id));
+  }
+
+  function uploadTargetParentId() {
+    return currentFolder?.kind === "folder" ? currentFolder.id : null;
+  }
+
+  function startRename(node: DriveNode) {
+    if (canManage) setEditingId(node.id);
+  }
+
+  function submitRename(node: DriveNode, name: string) {
+    if (!canManage) return;
+    void runOperation(async () => {
+      await patchMutation.mutateAsync({ id: node.id, body: { name } });
+      setEditingId(null);
+    });
+  }
+
+  const breadcrumbs = [
+    <Anchor
+      key="root"
+      size="sm"
+      onClick={() => {
+        setSelectedPath([]);
+        setSelectedFileId(null);
+      }}
+    >
+      {t("mlk.files.root")}
+    </Anchor>,
+    ...selectedPath.map((id, index) => {
+      const folder = nodeById.get(id);
+      return (
+        <Anchor
+          key={id}
+          size="sm"
+          onClick={() => {
+            setSelectedPath(selectedPath.slice(0, index + 1));
+            setSelectedFileId(null);
+          }}
+        >
+          {folder?.name ?? id}
+        </Anchor>
+      );
+    })
+  ];
 
   return (
-    <Stack gap="md">
-      <Modal opened={folderModalOpen} onClose={() => setFolderModalOpen(false)} title={t("mlk.files.newFolder")}>
-        <Stack gap="md">
-          <TextInput label={t("mlk.files.folderName")} value={folderName} onChange={(event) => setFolderName(event.currentTarget.value)} />
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setFolderModalOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button loading={createFolderMutation.isPending} onClick={() => folderName.trim() && createFolderMutation.mutate(folderName.trim())}>
-              {t("common.save")}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Group justify="space-between" gap="sm" wrap="wrap">
-        <Group gap={4}>
-          {breadcrumbs.map((crumb, index) => (
-            <Group key={`${crumb.id}-${index}`} gap={4}>
-              {index > 0 ? <Text c="dimmed">/</Text> : null}
-              <Anchor size="sm" onClick={() => jumpTo(index)}>
-                {crumb.name}
-              </Anchor>
+    <Box>
+      <Stack gap="md">
+        <Group gap="sm" wrap="wrap">
+          <Breadcrumbs separator="/">{breadcrumbs}</Breadcrumbs>
+          {busy ? <Loader size="sm" /> : null}
+          {canManage ? (
+            <Group gap="xs" ml="auto">
+              <Button size="xs" onClick={() => openCreateFolder(currentFolder?.kind === "folder" ? currentFolder : null)}>
+                {t("drive.newFolder")}
+              </Button>
+              <Button size="xs" variant="light" loading={uploadMutation.isPending} onClick={() => uploadInputRef.current?.click()}>
+                {t("drive.uploadFiles")}
+              </Button>
+              {selectedNode ? (
+                <>
+                  <Button size="xs" variant="light" onClick={() => startRename(selectedNode)}>
+                    {t("drive.rename")}
+                  </Button>
+                  <Button size="xs" color="red" variant="light" loading={deleteMutation.isPending} onClick={() => removeNode(selectedNode)}>
+                    {t("common.delete")}
+                  </Button>
+                </>
+              ) : null}
             </Group>
-          ))}
+          ) : null}
+          <input
+            ref={uploadInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(event) => {
+              const files = Array.from(event.currentTarget.files ?? []);
+              event.currentTarget.value = "";
+              if (files.length > 0) {
+                void runOperation(() => uploadMutation.mutateAsync({ parent_id: uploadTargetParentId(), files }));
+              }
+            }}
+          />
         </Group>
-        {canManage ? (
-          <Group gap="xs">
-            <FileButton onChange={(file) => file && uploadMutation.mutate(file)}>
-              {(props) => (
-                <Button size="xs" loading={uploadMutation.isPending} {...props}>
-                  {t("common.upload")}
-                </Button>
-              )}
-            </FileButton>
-            <Button size="xs" variant="light" onClick={() => setFolderModalOpen(true)}>
-              {t("mlk.files.newFolder")}
-            </Button>
-          </Group>
-        ) : null}
-      </Group>
 
-      <ErrorAlert error={filesQuery.error ?? uploadMutation.error ?? createFolderMutation.error ?? deleteMutation.error} />
-      <Paper p={0}>
-        {filesQuery.isLoading ? (
-          <Group justify="center" py="xl">
-            <Loader size="sm" />
-          </Group>
-        ) : (filesQuery.data?.nodes ?? []).length === 0 ? (
-          <Text c="dimmed" ta="center" py="xl">
-            {t("mlk.files.empty")}
-          </Text>
-        ) : (
-          <Table withTableBorder withColumnBorders highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={60}>{t("mlk.files.icon")}</Table.Th>
-                <Table.Th>{t("mlk.files.name")}</Table.Th>
-                <Table.Th w={120}>{t("mlk.files.size")}</Table.Th>
-                <Table.Th w={160}>{t("mlk.files.time")}</Table.Th>
-                <Table.Th w={140}>{t("common.actions")}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {(filesQuery.data?.nodes ?? []).map((node) => (
-                <Table.Tr key={node.id}>
-                  <Table.Td>{nodeIcon(node)}</Table.Td>
-                  <Table.Td>
-                    {node.kind === "folder" ? (
-                      <Anchor onClick={() => openFolder(node)}>{node.name}</Anchor>
-                    ) : (
-                      <Anchor href={mlkFileDownloadUrl(node.id)} target="_blank" rel="noreferrer">
-                        {node.name}
-                      </Anchor>
-                    )}
-                  </Table.Td>
-                  <Table.Td>{fileSize(node.size)}</Table.Td>
-                  <Table.Td>{formatDate(node.updated_at)}</Table.Td>
-                  <Table.Td>
-                    {canManage ? (
-                      <Button size="xs" color="red" variant="subtle" loading={deleteMutation.isPending} onClick={() => remove(node)}>
-                        {t("common.delete")}
-                      </Button>
-                    ) : null}
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Paper>
-    </Stack>
+        <ErrorAlert error={treeQuery.error ?? operationError} />
+
+        <Paper p={0}>
+          {treeQuery.isLoading ? (
+            <Group justify="center" py="xl">
+              <Loader size="sm" />
+            </Group>
+          ) : nodes.length === 0 ? (
+            <Group justify="center" py="xl">
+              <Text c="dimmed">{t("mlk.files.empty")}</Text>
+            </Group>
+          ) : (
+            <DriveColumns
+              nodes={nodes}
+              selectedPath={selectedPath}
+              selectedFileId={selectedFileId}
+              canManage={canManage}
+              canDelete={canManage}
+              editingId={editingId}
+              onSelectPath={setSelectedPath}
+              onSelectFile={setSelectedFileId}
+              onOpenPreview={(node) => setPreviewFile(node)}
+              onStartRename={startRename}
+              onCancelRename={() => setEditingId(null)}
+              onSubmitRename={submitRename}
+              onDelete={removeNode}
+              onReplace={(node, file) => {
+                if (canManage) void runOperation(() => replaceMutation.mutateAsync({ id: node.id, file }));
+              }}
+              onCreateFolder={(node) => openCreateFolder(node)}
+              onMove={(id, body) => runOperation(() => patchMutation.mutateAsync({ id, body }))}
+            />
+          )}
+        </Paper>
+
+        {!canManage ? (
+          <Alert color="blue" variant="light">
+            {t("drive.readonly")}
+          </Alert>
+        ) : null}
+      </Stack>
+
+      <CreateFolderModal
+        opened={folderModalOpened}
+        parentName={folderParent?.name ?? null}
+        saving={createFolderMutation.isPending}
+        onClose={() => {
+          setFolderModalOpened(false);
+          setFolderParent(null);
+          createFolderMutation.reset();
+        }}
+        onSubmit={async (name) => {
+          const parentId = folderParent?.id ?? uploadTargetParentId();
+          await runOperation(() => createFolderMutation.mutateAsync({ parent_id: parentId, name }));
+          setFolderModalOpened(false);
+          setFolderParent(null);
+        }}
+      />
+
+      <DrivePreviewModal
+        opened={previewFile !== null}
+        file={previewFile}
+        downloadUrl={previewFile ? mlkFileDownloadUrl(previewFile.id) : undefined}
+        onClose={() => setPreviewFile(null)}
+      />
+      {toast ? (
+        <Box pos="fixed" top={16} right={16} w={320} style={{ zIndex: 4000 }}>
+          <Notification color={toast.color} onClose={() => setToast(null)} withBorder>
+            {toast.message}
+          </Notification>
+        </Box>
+      ) : null}
+    </Box>
   );
 }

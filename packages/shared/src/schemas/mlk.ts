@@ -63,6 +63,7 @@ export const mlkCoupleUpdateSchema = mlkCoupleBaseSchema.partial();
 export const mlkStoreBaseSchema = z.object({
   name: z.string().trim().min(1),
   stall: nullableOptionalText,
+  cuisine: nullableOptionalText,
   address: nullableOptionalText,
   spv_name: nullableOptionalText,
   spv_uen: nullableOptionalText,

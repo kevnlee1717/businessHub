@@ -12,7 +12,8 @@ export const mlkKeys = {
   coupleLedger: (id: string) => ["mlk", "couples", id, "ledger"] as const,
   revenue: (storeId: string, from?: string, to?: string) => ["mlk", "stores", storeId, "revenue", from ?? null, to ?? null] as const,
   settlements: (storeId: string) => ["mlk", "stores", storeId, "settlements"] as const,
-  files: (folderId: string) => ["mlk", "files", folderId] as const
+  files: (folderId: string) => ["mlk", "files", folderId] as const,
+  fileTree: (rootId: string) => ["mlk", "files", rootId, "tree"] as const
 };
 
 export type MlkStatus = "intent" | "selected" | "incorporated" | "lease_signed" | "renovation" | "open" | "closed";
@@ -94,6 +95,7 @@ export type MlkCouple = MlkCoupleInput & {
 export type MlkStoreInput = {
   name: string;
   stall?: string | null;
+  cuisine?: string | null;
   address?: string | null;
   spv_name?: string | null;
   spv_uen?: string | null;
@@ -247,6 +249,7 @@ export const mlkCoupleDefaults = (): MlkCoupleInput => ({
 export const mlkStoreDefaults = (): MlkStoreInput => ({
   name: "",
   stall: null,
+  cuisine: null,
   address: null,
   spv_name: null,
   spv_uen: null,
@@ -278,9 +281,9 @@ function errorMessage(data: unknown, fallback: string) {
     : fallback;
 }
 
-async function postFormData<T>(path: string, formData: FormData): Promise<T> {
+async function postFormData<T>(path: string, formData: FormData, method: "POST" | "PUT" = "POST"): Promise<T> {
   const response = await fetch(`/api${path}`, {
-    method: "POST",
+    method,
     body: formData,
     credentials: "include"
   });
@@ -339,12 +342,20 @@ export const upsertMlkSettlement = (storeId: string, body: MlkSettlementInput) =
 export const deleteMlkSettlement = (id: string) => api<{ ok: true }>(`/mlk/settlements/${id}`, { method: "DELETE" });
 
 export const listMlkFiles = (folderId: string) => api<{ nodes: MlkFileNode[] }>(`/mlk/files/${folderId}`);
+export const getMlkFilesTree = (rootId: string) => api<{ nodes: MlkFileNode[] }>(`/mlk/files/${rootId}/tree`);
 export const createMlkFolder = (folderId: string, body: { name: string }) =>
   api<{ node: MlkFileNode }>(`/mlk/files/${folderId}/folder`, { method: "POST", body });
 export function uploadMlkFile(folderId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);
   return postFormData<{ node: MlkFileNode }>(`/mlk/files/${folderId}`, formData);
+}
+export const patchMlkFileNode = (rootId: string, id: string, body: { name?: string; parent_id?: string | null; sort_order?: number }) =>
+  api<{ node: MlkFileNode }>(`/mlk/files/${rootId}/node/${id}`, { method: "PATCH", body });
+export function replaceMlkFile(rootId: string, id: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return postFormData<{ node: MlkFileNode }>(`/mlk/files/${rootId}/node/${id}/replace`, formData, "PUT");
 }
 export const deleteMlkFileNode = (id: string) => api<{ ok: true }>(`/mlk/files/node/${id}`, { method: "DELETE" });
 export const mlkFileDownloadUrl = (id: string) => `/api/mlk/files/node/${id}/download`;

@@ -621,8 +621,15 @@ async function ensureCaseDriveRoot(caseId: string, userId: string, reply: Fastif
     }
   }
 
-  const epRootId = await findOrCreateFolder(null, "EP案件", userId);
-  const caseRootId = await findOrCreateFolder(epRootId, caseFolderName(context), userId);
+  // 案件盘按业务类型独立成不同 root(各自 scope='case',对宣传册隔离)
+  const caseRootName =
+    context.caseRow.businessType === "ica" ? "ICA案件" : context.caseRow.businessType === "dp" ? "DP案件" : "EP案件";
+  const moduleRootId = await findOrCreateFolder(null, caseRootName, userId);
+  await db
+    .update(driveNodes)
+    .set({ scope: "case" })
+    .where(and(eq(driveNodes.id, moduleRootId), isNull(driveNodes.scope)));
+  const caseRootId = await findOrCreateFolder(moduleRootId, caseFolderName(context), userId);
 
   await db
     .update(cases)

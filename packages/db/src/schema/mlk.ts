@@ -53,6 +53,7 @@ export const mlkStores = pgTable("mlk_stores", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   stall: text("stall"),
+  cuisine: text("cuisine"),
   address: text("address"),
   spvName: text("spv_name"),
   spvUen: text("spv_uen"),
