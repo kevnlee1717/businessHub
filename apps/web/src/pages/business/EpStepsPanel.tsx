@@ -134,6 +134,7 @@ export function EpStepsPanel({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [historyOpenByStepId, setHistoryOpenByStepId] = useState<Record<string, boolean>>({});
+  const [dateDraftByStepId, setDateDraftByStepId] = useState<Record<string, string>>({});
   const sortedSteps = useMemo(() => [...steps].sort((a, b) => a.step_order - b.step_order), [steps]);
   const updateMutation = useMutation({
     mutationFn: ({ stepId, checked }: { stepId: string; checked: boolean }) =>
@@ -153,6 +154,11 @@ export function EpStepsPanel({
         queryClient.invalidateQueries({ queryKey: ["business", "case", caseId] }),
         queryClient.invalidateQueries({ queryKey: ["business", "case-step-date-logs", variables.stepId] })
       ]);
+      setDateDraftByStepId((current) => {
+        const next = { ...current };
+        delete next[variables.stepId];
+        return next;
+      });
     }
   });
 
@@ -170,6 +176,9 @@ export function EpStepsPanel({
         const checked = step.status === "done";
         const checker = step.completed_by ? employeeById.get(step.completed_by) : undefined;
         const historyOpened = historyOpenByStepId[step.id] ?? false;
+        const savedDateValue = toDateInputValue(step.completed_at);
+        const dateDraft = dateDraftByStepId[step.id];
+        const hasDateDraft = dateDraft !== undefined && dateDraft !== savedDateValue;
         return (
           <Paper
             key={step.id}
@@ -198,16 +207,30 @@ export function EpStepsPanel({
                         {t("caseStep.date.completedAt")}: {formatDate(step.completed_at)}
                       </Text>
                       {canManageCases ? (
-                        <TextInput
-                          type="date"
-                          size="xs"
-                          aria-label={t("caseStep.date.editDate")}
-                          value={toDateInputValue(step.completed_at)}
-                          disabled={dateMutation.isPending}
-                          onChange={(event) =>
-                            dateMutation.mutate({ stepId: step.id, completedAt: event.currentTarget.value })
-                          }
-                        />
+                        <>
+                          <TextInput
+                            type="date"
+                            size="xs"
+                            aria-label={t("caseStep.date.editDate")}
+                            value={dateDraft ?? savedDateValue}
+                            disabled={dateMutation.isPending}
+                            onChange={(event) =>
+                              setDateDraftByStepId((current) => ({
+                                ...current,
+                                [step.id]: event.currentTarget.value
+                              }))
+                            }
+                          />
+                          {hasDateDraft ? (
+                            <Button
+                              size="xs"
+                              loading={dateMutation.isPending}
+                              onClick={() => dateMutation.mutate({ stepId: step.id, completedAt: dateDraft })}
+                            >
+                              {t("common.save")}
+                            </Button>
+                          ) : null}
+                        </>
                       ) : null}
                     </Group>
                     <Text size="sm" c="dimmed">
