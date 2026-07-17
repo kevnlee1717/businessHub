@@ -46,6 +46,15 @@ function toDateInputValue(value?: string | null) {
   return localDate.toISOString().slice(0, 10);
 }
 
+function parseDate(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
 function toIsoDate(value: string) {
   return value ? new Date(`${value}T00:00:00`).toISOString() : null;
 }
@@ -196,6 +205,10 @@ export function EpStepsPanel({
         const savedDateValue = toDateInputValue(step.completed_at);
         const dateDraft = dateDraftByStepId[step.id];
         const hasDateDraft = dateDraft !== undefined && dateDraft !== savedDateValue;
+        const previousCompletedAt = index > 0 ? parseDate(sortedSteps[index - 1]?.completed_at) : null;
+        const currentCompletedAt = parseDate(step.completed_at) ?? Date.now();
+        const stepGapDays =
+          previousCompletedAt === null ? null : Math.max(0, Math.round((currentCompletedAt - previousCompletedAt) / 86_400_000));
         return (
           <Paper
             key={step.id}
@@ -212,6 +225,11 @@ export function EpStepsPanel({
                 <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
                   <Title order={5} lineClamp={1}>
                     {index + 1}. {displayName(step.name, step.name_en)}
+                    {stepGapDays !== null ? (
+                      <Text span size="xl" fw={700} c="blue" ml="sm">
+                        {t("caseStep.duration.stepGap", { days: stepGapDays })}
+                      </Text>
+                    ) : null}
                   </Title>
                   {step.description ? (
                     <Text size="xs" c="dimmed" truncate>

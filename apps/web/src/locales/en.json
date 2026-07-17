@@ -1084,7 +1084,8 @@
       }
     },
     "duration": {
-      "sinceSigning": "{{days}} days since signing · ~{{target}} target"
+      "sinceSigning": "{{days}} days since signing",
+      "stepGap": "{{days}} days"
     }
   },
   "caseResubmission": {
