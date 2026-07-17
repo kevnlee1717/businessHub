@@ -1547,15 +1547,20 @@ function SectionNav({
     >
       <Stack gap="sm">
         <Group justify="space-between">
-          <Title order={4}>{t("case.nav.title")}</Title>
-          <Group gap="md" justify="flex-end">
+          <Group gap="sm" align="baseline">
+            <Title order={4}>{t("case.nav.title")}</Title>
             {duration ? (
-              <Badge color={duration.days <= duration.typicalDays ? "green" : "orange"} variant="light" size="lg">
-                <Text span fw={700} size="sm">
-                  {t("caseStep.duration.sinceSigning", { days: duration.days })}
-                </Text>
-              </Badge>
+              <Text
+                span
+                fw={700}
+                size="xl"
+                c={duration.days <= duration.typicalDays ? "green" : "orange"}
+              >
+                {t("caseStep.duration.sinceSigning", { days: duration.days })}
+              </Text>
             ) : null}
+          </Group>
+          <Group gap="md" justify="flex-end">
             <StepLegendDot color="blue" label={t("caseStep.tone.progress")} />
             <StepLegendDot color="red" label={t("caseStep.tone.problem")} />
             <StepLegendDot color="green" label={t("caseStep.tone.done")} />
