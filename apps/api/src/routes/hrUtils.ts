@@ -18,12 +18,10 @@ export function toNumeric(value: string | number | null | undefined): string | n
 }
 
 export function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "23505"
-  );
+  if (typeof error !== "object" || error === null) return false;
+  if ((error as { code?: unknown }).code === "23505") return true;
+  // drizzle-orm ≥0.36 把驱动错误包成 DrizzleQueryError，pg 的 code 在 cause 上
+  return isUniqueViolation((error as { cause?: unknown }).cause);
 }
 
 export function sendNotFound(reply: FastifyReply) {
