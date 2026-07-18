@@ -572,7 +572,9 @@ export function CasesPage({ businessType }: CasesPageProps) {
                           <ReapplyBadge caseItem={caseItem} />
                         </Table.Td>
                       )}
-                      <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
+                      <Table.Td>
+                        {caseItem.current_step_name ?? caseItem.current_step ?? t("common.not_available")}
+                      </Table.Td>
                       <Table.Td>{formatDate(caseItem.signed_at)}</Table.Td>
                       {businessType === "ep" && (
                         <Table.Td>
