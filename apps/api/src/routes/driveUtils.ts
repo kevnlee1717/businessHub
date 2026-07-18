@@ -433,6 +433,6 @@ export async function sendDriveNodeDownload(id: string, reply: FastifyReply) {
 
   reply.header("Content-Type", node.mime ?? "application/octet-stream");
   reply.header("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(node.name)}`);
-  reply.send(createReadStream(absolutePath));
-  return true;
+  // 必须 return reply.send(stream):否则 async handler 以 undefined resolve,Fastify 会把 undefined 当 payload 冲掉流 → content-length 0
+  return reply.send(createReadStream(absolutePath));
 }
