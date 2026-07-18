@@ -33,7 +33,7 @@ import {
   createCase,
   listCases,
   listClients,
-  listEpStepStats,
+  listStepStats,
   listTemplates,
   type Case,
   type Client,
@@ -112,6 +112,21 @@ function computeEpHealth(caseItem: Case): {
   }
 
   return { signedDays, openDays, level: "normal" };
+}
+
+function computeIcaWarnings(caseItem: Case): {
+  openDays: number | null;
+  waitingDays: number | null;
+  attn: boolean;
+} {
+  const openDays = daysSince(caseItem.resubmission_open_since);
+  const waitingDays = caseItem.latest_result === "pending" ? daysSince(caseItem.latest_submission_at) : null;
+  const attn = Boolean(
+    (caseItem.resubmission_open && openDays !== null && openDays > 20) ||
+      (waitingDays !== null && waitingDays > 90)
+  );
+
+  return { openDays, waitingDays, attn };
 }
 
 function statusColor(status: CaseStatus) {
@@ -207,13 +222,13 @@ export function CasesPage({ businessType }: CasesPageProps) {
       }),
     placeholderData: keepPreviousData
   });
-  const epStepStatsQuery = useQuery({
-    queryKey: ["business", "ep-step-stats"],
-    queryFn: () => listEpStepStats(),
-    enabled: businessType === "ep"
+  const stepStatsQuery = useQuery({
+    queryKey: ["business", "step-stats", businessType],
+    queryFn: () => listStepStats(businessType),
+    enabled: businessType === "ep" || businessType === "ica"
   });
   const statByName = new Map<string, EpStepStat>(
-    (epStepStatsQuery.data?.stats ?? []).map((stat) => [stat.name, stat] as const)
+    (stepStatsQuery.data?.stats ?? []).map((stat) => [stat.name, stat] as const)
   );
   const clientsQuery = useQuery({
     queryKey: ["business", "clients"],
@@ -278,10 +293,12 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const attnCount =
     businessType === "ep"
       ? visibleCases.filter((caseItem) => computeEpHealth(caseItem).level === "attn").length
-      : 0;
+      : visibleCases.filter((caseItem) => computeIcaWarnings(caseItem).attn).length;
   const tableCases =
-    businessType === "ep" && onlyAttention
-      ? visibleCases.filter((caseItem) => computeEpHealth(caseItem).level === "attn")
+    onlyAttention
+      ? visibleCases.filter((caseItem) =>
+          businessType === "ep" ? computeEpHealth(caseItem).level === "attn" : computeIcaWarnings(caseItem).attn
+        )
       : visibleCases;
   const totalCases = useFrontendPagination ? filteredCases.length : (casesQuery.data?.total ?? filteredCases.length);
   const clients = clientsQuery.data?.clients ?? [];
@@ -451,6 +468,12 @@ export function CasesPage({ businessType }: CasesPageProps) {
         </Alert>
       ) : null}
 
+      {businessType === "ica" && attnCount > 0 ? (
+        <Alert color="red" variant="light">
+          {attnCount} 个案件需特别关注(补材料超20天或等结果超90天)
+        </Alert>
+      ) : null}
+
       {/* element-admin filter-container:筛选项 + 操作按钮同一行 */}
       <Group gap="sm" align="flex-end" wrap="wrap">
         <Select
@@ -488,7 +511,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
             style={{ alignSelf: "flex-end", paddingBottom: 6 }}
           />
         )}
-        {businessType === "ep" && (
+        {(businessType === "ep" || businessType === "ica") && (
           <Checkbox
             label="只看需关注"
             checked={onlyAttention}
@@ -499,7 +522,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
         {canManageCases ? (
           <Button onClick={openCreateModal}>{t("case.add")}</Button>
         ) : null}
-        {businessType === "ep" && (
+        {(businessType === "ep" || businessType === "ica") && (
           <Button variant="default" onClick={() => setStatsModalOpen(true)}>
             步骤耗时统计
           </Button>
@@ -514,7 +537,6 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 <Table.Th>{t("case.fields.status")}</Table.Th>
                 {businessType === "ica" && <Table.Th>首次申请</Table.Th>}
                 {businessType === "ica" && <Table.Th>最近申请</Table.Th>}
-                {businessType === "ica" && <Table.Th>再申请</Table.Th>}
                 <Table.Th>{t("case.fields.currentStep")}</Table.Th>
                 <Table.Th
                   onClick={toggleSignedAtSort}
@@ -525,13 +547,15 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Th>
                 {businessType === "ep" && <Table.Th>签约至今</Table.Th>}
                 {businessType === "ep" && <Table.Th>进展预警</Table.Th>}
+                {businessType === "ica" && <Table.Th>签约至今</Table.Th>}
+                {businessType === "ica" && <Table.Th>进展预警</Table.Th>}
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 8 : 7}>
+                  <Table.Td colSpan={businessType === "ica" ? 9 : 7}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
@@ -539,7 +563,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 </Table.Tr>
               ) : tableCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 8 : 7}>
+                  <Table.Td colSpan={businessType === "ica" ? 9 : 7}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
@@ -548,6 +572,8 @@ export function CasesPage({ businessType }: CasesPageProps) {
               ) : (
                 tableCases.map((caseItem) => {
                   const health = computeEpHealth(caseItem);
+                  const icaWarnings = computeIcaWarnings(caseItem);
+                  const icaSignedDays = daysSince(caseItem.signed_at);
                   const healthColor =
                     health.level === "attn" ? "red.7" : health.level === "slow" ? "orange.7" : "green.7";
                   const healthLabel =
@@ -572,6 +598,9 @@ export function CasesPage({ businessType }: CasesPageProps) {
                         cursor: "pointer",
                         ...(businessType === "ep" && health.level === "attn"
                           ? { backgroundColor: "var(--mantine-color-red-0)" }
+                          : {}),
+                        ...(businessType === "ica" && icaWarnings.attn
+                          ? { backgroundColor: "var(--mantine-color-red-0)" }
                           : {})
                       }}
                     >
@@ -589,11 +618,6 @@ export function CasesPage({ businessType }: CasesPageProps) {
                       {businessType === "ica" && (
                         <Table.Td>
                           {caseItem.last_submission_at ? caseItem.last_submission_at.slice(0, 7) : "—"}
-                        </Table.Td>
-                      )}
-                      {businessType === "ica" && (
-                        <Table.Td>
-                          <ReapplyBadge caseItem={caseItem} />
                         </Table.Td>
                       )}
                       <Table.Td>
@@ -645,6 +669,65 @@ export function CasesPage({ businessType }: CasesPageProps) {
                                 </Badge>
                               ) : null}
                             </Stack>
+                          )}
+                        </Table.Td>
+                      )}
+                      {businessType === "ica" && (
+                        <Table.Td>
+                          {icaSignedDays === null ? (
+                            <Text c="dimmed">—</Text>
+                          ) : (
+                            <Text
+                              c={icaWarnings.attn ? "red.7" : "gray.7"}
+                              size="lg"
+                              fw={700}
+                              style={{ fontVariantNumeric: "tabular-nums" }}
+                            >
+                              {icaSignedDays} <Text span size="sm">天</Text>
+                            </Text>
+                          )}
+                        </Table.Td>
+                      )}
+                      {businessType === "ica" && (
+                        <Table.Td>
+                          {!caseItem.resubmission_open &&
+                          icaWarnings.waitingDays === null &&
+                          caseItem.latest_result !== "rejected" &&
+                          !hasCurrentStepWarning ? (
+                            <Text c="dimmed">—</Text>
+                          ) : (
+                          <Stack gap={4}>
+                            {caseItem.resubmission_open ? (
+                              icaWarnings.openDays !== null && icaWarnings.openDays > 20 ? (
+                                <Badge color="red" variant="light">
+                                  ⚠ 补材料 {icaWarnings.openDays} 天未结
+                                </Badge>
+                              ) : (
+                                <Badge color="orange" variant="light">
+                                  补材料中 · 第{caseItem.resubmission_open_round}轮
+                                  {icaWarnings.openDays !== null ? ` · ${icaWarnings.openDays}天` : ""}
+                                </Badge>
+                              )
+                            ) : null}
+                            {icaWarnings.waitingDays !== null ? (
+                              icaWarnings.waitingDays > 90 ? (
+                                <Badge color="red" variant="light">
+                                  ⚠ 等结果 {icaWarnings.waitingDays} 天
+                                </Badge>
+                              ) : (
+                                <Badge color="blue" variant="light">
+                                  已递交 · 等结果 {icaWarnings.waitingDays} 天
+                                </Badge>
+                              )
+                            ) : null}
+                            {/* 再申请 badge 只在被拒后显示(pending 已有等结果 badge、approved 非预警,避免重复/噪音) */}
+                            {caseItem.latest_result === "rejected" ? <ReapplyBadge caseItem={caseItem} /> : null}
+                            {hasCurrentStepWarning ? (
+                              <Badge color="orange" variant="light">
+                                当前步超均值 · {caseItem.current_step_name} {caseItem.current_step_elapsed_days}/{st?.avg_days}天
+                              </Badge>
+                            ) : null}
+                          </Stack>
                           )}
                         </Table.Td>
                       )}
@@ -810,7 +893,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
           </Stack>
         </form>
       </Modal>
-      <Modal opened={statsModalOpen} onClose={() => setStatsModalOpen(false)} title="EP 步骤耗时统计" size="lg">
+      <Modal opened={statsModalOpen} onClose={() => setStatsModalOpen(false)} title="步骤耗时统计" size="lg">
         <Table withTableBorder withColumnBorders verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
@@ -821,7 +904,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {(epStepStatsQuery.data?.stats ?? []).map((stat) => (
+            {(stepStatsQuery.data?.stats ?? []).map((stat) => (
               <Table.Tr key={stat.step_order}>
                 <Table.Td>{stat.step_order}. {stat.name}</Table.Td>
                 <Table.Td>{stat.sample_count ? `${stat.avg_days} 天` : "—"}</Table.Td>

@@ -502,7 +502,7 @@ function parseSignedAtTimestamp(signedAt: string | null): number | null {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-async function computeEpStepStats(): Promise<
+async function computeStepStats(businessType: "ep" | "ica"): Promise<
   { step_order: number; name: string; sample_count: number; avg_days: number; reference_active: boolean }[]
 > {
   const rows = await db
@@ -516,7 +516,7 @@ async function computeEpStepStats(): Promise<
     })
     .from(caseSteps)
     .innerJoin(cases, eq(caseSteps.caseId, cases.id))
-    .where(eq(cases.businessType, "ep"))
+    .where(eq(cases.businessType, businessType))
     .orderBy(asc(caseSteps.caseId), asc(caseSteps.stepOrder));
 
   const stepsByCase = new Map<string, typeof rows>();
@@ -676,6 +676,10 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
 const caseStatsQuerySchema = z.object({
   year: z.coerce.number().int().min(1900).max(9999).optional(),
   business_type: z.enum(businessTypes).optional()
+});
+
+const stepStatsQuerySchema = z.object({
+  business_type: z.enum(["ep", "ica"])
 });
 
 const caseFileNodeParamsSchema = z.object({
@@ -1188,8 +1192,13 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/cases/ep-step-stats", { preHandler: requirePerm("case.view") }, async () => ({
-    stats: await computeEpStepStats()
+    stats: await computeStepStats("ep")
   }));
+
+  app.get("/cases/step-stats", { preHandler: requirePerm("case.view") }, async (request) => {
+    const query = parseWithSchema(stepStatsQuerySchema, request.query);
+    return { stats: await computeStepStats(query.business_type) };
+  });
 
   app.get("/cases/stats", { preHandler: requirePerm("case.view") }, async (request) => {
     const query = parseWithSchema(caseStatsQuerySchema, request.query);

@@ -531,6 +531,10 @@ export function listEpStepStats(): Promise<{ stats: EpStepStat[] }> {
   return api<{ stats: EpStepStat[] }>("/cases/ep-step-stats");
 }
 
+export function listStepStats(businessType: "ep" | "ica"): Promise<{ stats: EpStepStat[] }> {
+  return api<{ stats: EpStepStat[] }>(`/cases/step-stats?business_type=${businessType}`);
+}
+
 export function getCase(id: string): Promise<{
   case: Case;
   steps: CaseStep[];
