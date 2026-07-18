@@ -39,7 +39,7 @@ import {
   type MlkCouple,
   type MlkCoupleInput,
   type MlkCoupleStatus,
-  type MlkEpStatus,
+  type MlkEpHolder,
   type MlkLedgerEntry,
   type MlkLedgerInput,
   type MlkLedgerKind,
@@ -50,7 +50,7 @@ import { MlkFilePanel } from "./MlkFilePanel";
 import { formatSgd } from "./MlkMoneyText";
 import { coupleStatusColor, dateInputValue, ErrorAlert, formatDate, prColor, storeStatusColor } from "./shared";
 
-const epStatuses: MlkEpStatus[] = ["none", "applied", "granted"];
+const epHolderOptions: (MlkEpHolder | "none")[] = ["husband", "wife", "none"];
 const prStatuses: MlkPrStatus[] = ["none", "applied", "granted"];
 const coupleStatuses: MlkCoupleStatus[] = ["candidate", "active", "exited"];
 const ledgerKinds: MlkLedgerKind[] = [
@@ -96,9 +96,11 @@ function normalizeCouple(couple: MlkCouple): MlkCoupleInput {
     wife_passport: couple.wife_passport ?? null,
     phone: couple.phone ?? null,
     wechat: couple.wechat ?? null,
-    husband_ep: couple.husband_ep ?? "none",
-    wife_ep: couple.wife_ep ?? "none",
+    ep_holder: couple.ep_holder ?? null,
     pr_status: couple.pr_status ?? "none",
+    contract_signed_at: dateInputValue(couple.contract_signed_at) || null,
+    deposit_paid_at: dateInputValue(couple.deposit_paid_at) || null,
+    deposit_amount: couple.deposit_amount ?? null,
     mentor_id: couple.mentor_id ?? null,
     status: couple.status ?? "candidate",
     joined_at: dateInputValue(couple.joined_at) || null,
@@ -307,8 +309,7 @@ export function MlkCoupleDetailPage() {
             <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_id_no")} value={form.wife_id_no ?? ""} disabled={disabled} onChange={(event) => setField("wife_id_no", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.husband_passport")} value={form.husband_passport ?? ""} disabled={disabled} onChange={(event) => setField("husband_passport", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.wife_passport")} value={form.wife_passport ?? ""} disabled={disabled} onChange={(event) => setField("wife_passport", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={6}><Select label={t("mlk.fields.husband_ep")} data={epStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.husband_ep} disabled={disabled} onChange={(value) => setField("husband_ep", (value ?? "none") as MlkEpStatus)} /></Grid.Col>
-            <Grid.Col span={6}><Select label={t("mlk.fields.wife_ep")} data={epStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.wife_ep} disabled={disabled} onChange={(value) => setField("wife_ep", (value ?? "none") as MlkEpStatus)} /></Grid.Col>
+            <Grid.Col span={12}><Select label={t("mlk.fields.ep_holder")} data={epHolderOptions.map((value) => ({ value, label: t(`mlk.epHolder.${value}`) }))} value={form.ep_holder ?? "none"} disabled={disabled} onChange={(value) => setField("ep_holder", value === "none" || !value ? null : value as MlkEpHolder)} /></Grid.Col>
           </Grid>
         </Card>
       </Grid.Col>
@@ -318,6 +319,9 @@ export function MlkCoupleDetailPage() {
           <Grid gutter="sm">
             <Grid.Col span={6}><TextInput label={t("mlk.fields.operator_company")} value={form.operator_company ?? ""} disabled={disabled} onChange={(event) => setField("operator_company", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.operator_uen")} value={form.operator_uen ?? ""} disabled={disabled} onChange={(event) => setField("operator_uen", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput type="date" label={t("mlk.fields.contract_signed_at")} value={dateInputValue(form.contract_signed_at)} disabled={disabled} onChange={(event) => setField("contract_signed_at", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput type="date" label={t("mlk.fields.deposit_paid_at")} value={dateInputValue(form.deposit_paid_at)} disabled={disabled} onChange={(event) => setField("deposit_paid_at", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={6}><NumberInput label={t("mlk.fields.deposit_amount")} value={form.deposit_amount ?? ""} min={0} thousandSeparator="," disabled={disabled} onChange={(value) => setField("deposit_amount", typeof value === "number" ? value : null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} disabled={disabled} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} disabled={disabled} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={4}><Select label={t("mlk.fields.pr_status")} data={prStatuses.map((value) => ({ value, label: t(`mlk.status.pr.${value}`) }))} value={form.pr_status} disabled={disabled} onChange={(value) => setField("pr_status", (value ?? "none") as MlkPrStatus)} /></Grid.Col>

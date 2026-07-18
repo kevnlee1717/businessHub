@@ -21,7 +21,6 @@ import {
   updateMlkCuisine,
   updateMlkManager,
   updateMlkManagerSettlement,
-  type MlkBranding,
   type MlkCuisine,
   type MlkCuisineInput,
   type MlkManager,
@@ -36,7 +35,6 @@ import { formatSgd, MlkMoneyText } from "./MlkMoneyText";
 import { dateInputValue, ErrorAlert, formatDate, managerStatusColor, storeStatusColor } from "./shared";
 
 const managerStatuses: MlkManagerStatus[] = ["candidate", "active", "exited"];
-const brandingOptions: MlkBranding[] = ["co_brand", "mrs_lu"];
 
 type CuisineForm = MlkCuisineInput & { id?: string };
 type SettlementForm = MlkManagerSettlementInput & { id?: string };
@@ -55,8 +53,6 @@ function normalizeManager(manager: MlkManager): MlkManagerInput {
     phone: manager.phone ?? null,
     wechat: manager.wechat ?? null,
     id_no: manager.id_no ?? null,
-    brand_name: manager.brand_name ?? null,
-    branding: manager.branding ?? null,
     status: manager.status ?? "candidate",
     joined_at: dateInputValue(manager.joined_at) || null,
     exited_at: dateInputValue(manager.exited_at) || null,
@@ -69,14 +65,16 @@ function normalizeManager(manager: MlkManager): MlkManagerInput {
 }
 
 function toManagerBody(form: MlkManagerInput): MlkManagerInput {
+  const values = { ...form };
+  delete values.brand_name;
+  delete values.branding;
   return {
-    ...form,
-    name: form.name.trim(),
-    phone: cleanText(form.phone),
-    wechat: cleanText(form.wechat),
-    id_no: cleanText(form.id_no),
-    brand_name: cleanText(form.brand_name),
-    notes: cleanText(form.notes)
+    ...values,
+    name: values.name.trim(),
+    phone: cleanText(values.phone),
+    wechat: cleanText(values.wechat),
+    id_no: cleanText(values.id_no),
+    notes: cleanText(values.notes)
   };
 }
 
@@ -276,8 +274,6 @@ export function MlkManagerDetailPage() {
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} disabled={disabled} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} disabled={disabled} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.id_no")} value={form.id_no ?? ""} disabled={disabled} onChange={(event) => setField("id_no", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.brand_name")} value={form.brand_name ?? ""} disabled={disabled} onChange={(event) => setField("brand_name", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}><Select label={t("mlk.fields.branding")} data={brandingOptions.map((value) => ({ value, label: t(`mlk.branding.${value}`) }))} value={form.branding ?? null} disabled={disabled} onChange={(value) => setField("branding", value as MlkBranding | null)} clearable /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}><Select label={t("mlk.fields.status")} data={managerStatuses.map((value) => ({ value, label: t(`mlk.status.manager.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "candidate") as MlkManagerStatus)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}><TextInput type="date" label={t("mlk.fields.joined_at")} value={form.joined_at ?? ""} disabled={disabled} onChange={(event) => setField("joined_at", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}><TextInput type="date" label={t("mlk.fields.exited_at")} value={form.exited_at ?? ""} disabled={disabled} onChange={(event) => setField("exited_at", event.currentTarget.value || null)} /></Grid.Col>

@@ -23,7 +23,7 @@ export const mlkKeys = {
 
 export type MlkStatus = "intent" | "selected" | "incorporated" | "lease_signed" | "renovation" | "open" | "closed";
 export type MlkPrStatus = "none" | "applied" | "granted";
-export type MlkEpStatus = "none" | "applied" | "granted";
+export type MlkEpHolder = "husband" | "wife";
 export type MlkCoupleStatus = "candidate" | "active" | "exited";
 export type MlkManagerStatus = "candidate" | "active" | "exited";
 export type MlkBranding = "co_brand" | "mrs_lu";
@@ -81,9 +81,11 @@ export type MlkCoupleInput = {
   wife_passport?: string | null;
   phone?: string | null;
   wechat?: string | null;
-  husband_ep: MlkEpStatus;
-  wife_ep: MlkEpStatus;
+  ep_holder?: MlkEpHolder | null;
   pr_status: MlkPrStatus;
+  contract_signed_at?: string | null;
+  deposit_paid_at?: string | null;
+  deposit_amount?: number | null;
   mentor_id?: string | null;
   status: MlkCoupleStatus;
   joined_at?: string | null;
@@ -331,9 +333,11 @@ export const mlkCoupleDefaults = (): MlkCoupleInput => ({
   wife_passport: null,
   phone: null,
   wechat: null,
-  husband_ep: "none",
-  wife_ep: "none",
+  ep_holder: null,
   pr_status: "none",
+  contract_signed_at: null,
+  deposit_paid_at: null,
+  deposit_amount: null,
   mentor_id: null,
   status: "candidate",
   joined_at: null,

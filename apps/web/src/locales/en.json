@@ -2431,6 +2431,7 @@
       "wife_passport": "Wife passport",
       "husband_ep": "Husband EP",
       "wife_ep": "Wife EP",
+      "ep_holder": "EP holder",
       "ep_status": "EP status",
       "mentor_id": "Mentor",
       "status": "Status",
@@ -2468,6 +2469,9 @@
       "opened_at": "Opened at",
       "closed_at": "Closed at",
       "fc_deposit_amount": "Food-court deposit",
+      "contract_signed_at": "Contract signed at",
+      "deposit_paid_at": "Deposit paid at",
+      "deposit_amount": "Deposit amount",
       "store_count": "Store count",
       "stores": "Stores",
       "kind": "Kind",
@@ -2525,6 +2529,11 @@
         "paid": "Paid",
         "refunded": "Refunded"
       }
+    },
+    "epHolder": {
+      "husband": "Husband holds EP (wife DP)",
+      "wife": "Wife holds EP (husband DP)",
+      "none": "Undecided"
     },
     "branding": {
       "co_brand": "Co-brand",

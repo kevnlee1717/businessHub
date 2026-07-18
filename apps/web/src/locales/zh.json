@@ -2431,6 +2431,7 @@
       "wife_passport": "妻子护照",
       "husband_ep": "丈夫 EP",
       "wife_ep": "妻子 EP",
+      "ep_holder": "EP 持有人",
       "ep_status": "EP 状态",
       "mentor_id": "师傅",
       "status": "状态",
@@ -2468,6 +2469,9 @@
       "opened_at": "开业日期",
       "closed_at": "关店日期",
       "fc_deposit_amount": "食阁押金",
+      "contract_signed_at": "签约日期",
+      "deposit_paid_at": "押金缴付日期",
+      "deposit_amount": "押金金额",
       "store_count": "门店数",
       "stores": "所属门店",
       "kind": "类型",
@@ -2525,6 +2529,11 @@
         "paid": "已付款",
         "refunded": "已退款"
       }
+    },
+    "epHolder": {
+      "husband": "丈夫持 EP（妻子 DP）",
+      "wife": "妻子持 EP（丈夫 DP）",
+      "none": "未定"
     },
     "branding": {
       "co_brand": "联名",
