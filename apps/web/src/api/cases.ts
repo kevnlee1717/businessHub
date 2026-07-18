@@ -79,6 +79,7 @@ export type Case = {
   guarantor_name?: string | null;
   guarantor_relation?: string | null;
   guarantor_contact?: string | null;
+  company_name?: string | null;
   drive_folder_id?: string | null;
   signed_at?: string | null;
   created_at: string;

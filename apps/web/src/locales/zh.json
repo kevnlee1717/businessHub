@@ -789,7 +789,8 @@
       "addon": "增加服务",
       "commission": "分成",
       "steps": "步骤",
-      "files": "文件"
+      "files": "文件",
+      "resubmissions": "补材料"
     },
     "steps": {
       "empty": "暂无步骤",
@@ -819,7 +820,9 @@
       "guarantorName": "担保人姓名",
       "guarantorRelation": "担保人关系",
       "guarantorContact": "担保人联系方式",
-      "feeScheme": "收费方案"
+      "feeScheme": "收费方案",
+      "companyName": "公司名",
+      "companyNamePlaceholder": "雇主/公司名称"
     },
     "errors": {
       "guarantorRequired": "ICA 案件必须填写担保人姓名。",
