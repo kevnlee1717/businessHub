@@ -58,3 +58,19 @@ export function requirePerm(perm: string) {
     }
   };
 }
+
+export function requireAnyPerm(perms: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    await request.server.authenticate(request, reply);
+
+    if (reply.sent) {
+      return;
+    }
+
+    const ctx = await loadAuthContext(request);
+
+    if (!perms.some((perm) => ctx.permissions.includes(perm as Permission))) {
+      await reply.code(403).send({ error: "forbidden" });
+    }
+  };
+}
