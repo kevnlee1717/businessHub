@@ -112,6 +112,7 @@ function serializeCase(row: typeof cases.$inferSelect) {
     guarantor_name: row.guarantorName,
     guarantor_relation: row.guarantorRelation,
     guarantor_contact: row.guarantorContact,
+    company_name: row.companyName,
     drive_folder_id: row.driveFolderId,
     signed_at: row.signedAt,
     created_at: row.createdAt,
@@ -1264,6 +1265,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
           guarantorContact: body.guarantor_contact,
+          companyName: body.company_name,
           signedAt: body.signed_at ?? null
         })
         .returning();
@@ -1427,6 +1429,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
           guarantorName: body.guarantor_name,
           guarantorRelation: body.guarantor_relation,
           guarantorContact: body.guarantor_contact,
+          companyName: body.company_name,
           signedAt: body.signed_at,
           updatedAt: new Date()
         })

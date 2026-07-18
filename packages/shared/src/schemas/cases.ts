@@ -60,6 +60,7 @@ export const caseCreateSchema = z.object({
   guarantor_name: optionalText,
   guarantor_relation: optionalText,
   guarantor_contact: optionalText,
+  company_name: z.string().trim().min(1).nullable().optional(),
   signed_at: dateField.nullable().optional()
 });
 
@@ -73,6 +74,7 @@ export const caseUpdateSchema = z.object({
   guarantor_name: optionalText,
   guarantor_relation: optionalText,
   guarantor_contact: optionalText,
+  company_name: z.string().trim().min(1).nullable().optional(),
   signed_at: dateField.nullable().optional()
 });
 

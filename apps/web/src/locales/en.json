@@ -790,7 +790,8 @@
       "addon": "Add services",
       "commission": "Commission",
       "steps": "Steps",
-      "files": "Files"
+      "files": "Files",
+      "resubmissions": "Resubmissions"
     },
     "steps": {
       "empty": "No steps yet",
@@ -821,7 +822,9 @@
       "guarantorName": "Guarantor name",
       "guarantorRelation": "Guarantor relation",
       "guarantorContact": "Guarantor contact",
-      "feeScheme": "Fee scheme"
+      "feeScheme": "Fee scheme",
+      "companyName": "Company",
+      "companyNamePlaceholder": "Employer / company name"
     },
     "errors": {
       "guarantorRequired": "ICA cases require a guarantor name.",

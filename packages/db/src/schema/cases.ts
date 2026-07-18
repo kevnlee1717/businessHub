@@ -20,6 +20,7 @@ export const cases = pgTable("cases", {
   guarantorName: text("guarantor_name"),
   guarantorRelation: text("guarantor_relation"),
   guarantorContact: text("guarantor_contact"),
+  companyName: text("company_name"),
   driveFolderId: uuid("drive_folder_id"),
   signedAt: date("signed_at"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

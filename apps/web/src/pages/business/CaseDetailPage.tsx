@@ -49,6 +49,7 @@ import {
   listGuarantors,
   listClients,
   listFollowUps,
+  listResubmissions,
   listTemplates,
   postStepReviewMessage,
   removeCaseStepDocFile,
@@ -1524,12 +1525,14 @@ function SectionNav({
   items,
   selected,
   onSelect,
-  duration
+  duration,
+  heading
 }: {
   items: CaseNavItem[];
   selected: string;
   onSelect: (key: string) => void;
   duration?: SectionNavDuration | null;
+  heading?: string | null;
 }) {
   const { t } = useTranslation();
   return (
@@ -1548,7 +1551,7 @@ function SectionNav({
       <Stack gap="sm">
         <Group justify="space-between">
           <Group gap="sm" align="baseline">
-            <Title order={4}>{t("case.nav.title")}</Title>
+            <Title order={4}>{heading || t("case.nav.title")}</Title>
             {duration ? (
               <Text
                 span
@@ -1596,6 +1599,7 @@ export function CaseDetailPage() {
   const { id } = useParams();
   const [statusDraft, setStatusDraft] = useState<CaseStatus | null>(null);
   const [signedAtDraft, setSignedAtDraft] = useState<string | null>(null);
+  const [companyNameDraft, setCompanyNameDraft] = useState<string>("");
   const [statusError, setStatusError] = useState<string | null>(null);
   const [caseCharges, setCaseCharges] = useState<Charge[]>([]);
   const [selectedPanel, setSelectedPanel] = useState<string>("");
@@ -1621,9 +1625,24 @@ export function CaseDetailPage() {
     queryKey: ["documents", "categories"],
     queryFn: () => listDocumentCategories()
   });
+  // 补材料轮次:用来决定顶部是否显示红色「补材料」tab。queryKey 与 CaseResubmissionsPanel 一致,共享缓存。
+  const resubmissionsQuery = useQuery({
+    queryKey: ["business", "case", "resubmissions", id],
+    queryFn: () => listResubmissions(id ?? ""),
+    enabled: Boolean(id) && caseQuery.data?.case?.business_type === "ep"
+  });
   const updateCaseMutation = useMutation({
-    mutationFn: ({ caseId, status, signedAt }: { caseId: string; status: CaseStatus; signedAt: string | null }) =>
-      updateCase(caseId, { status, signed_at: signedAt }),
+    mutationFn: ({
+      caseId,
+      status,
+      signedAt,
+      companyName
+    }: {
+      caseId: string;
+      status: CaseStatus;
+      signedAt: string | null;
+      companyName: string | null;
+    }) => updateCase(caseId, { status, signed_at: signedAt, company_name: companyName }),
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", variables.caseId] });
       await queryClient.invalidateQueries({ queryKey: ["business", "cases"] });
@@ -1638,6 +1657,7 @@ export function CaseDetailPage() {
     () => [...(caseQuery.data?.steps ?? [])].sort((a, b) => a.step_order - b.step_order),
     [caseQuery.data?.steps]
   );
+  const hasResubmissions = (resubmissionsQuery.data?.resubmissions.length ?? 0) > 0;
   const navItems = useMemo<CaseNavItem[]>(() => {
     if (!caseItem) {
       return [];
@@ -1661,6 +1681,10 @@ export function CaseDetailPage() {
         tone: aggregateTone
       });
       epStepNavItems.push({ key: "files", label: t("case.section.files") });
+      // 有补材料轮次时,多出一个红色「补材料」tab(tone:"problem" → 红);一轮都没有则不显示。
+      if (hasResubmissions) {
+        epStepNavItems.push({ key: "resubmissions", label: t("case.section.resubmissions"), tone: "problem" });
+      }
     }
     const items: CaseNavItem[] = [{ key: "info", label: t("case.section.info") }];
     if (isIca) {
@@ -1686,7 +1710,7 @@ export function CaseDetailPage() {
       });
     }
     return items;
-  }, [caseItem, steps, t]);
+  }, [caseItem, steps, hasResubmissions, t]);
 
   const effectiveSelected = navItems.some((item) => item.key === selectedPanel)
     ? selectedPanel
@@ -1730,6 +1754,16 @@ export function CaseDetailPage() {
     () => new Map(clients.map((client) => [client.id, client] as const)),
     [clients]
   );
+  // EP 案件导航标题显示「客户名 · 公司名」(有哪个显示哪个);非 EP 或都为空时回落到默认「案件导航」。
+  const navHeading = useMemo(() => {
+    if (!caseItem || caseItem.business_type !== "ep") {
+      return null;
+    }
+    const client = clientById.get(caseItem.client_id ?? "");
+    const clientLabel = client ? displayName(client.name, client.name_en) : "";
+    const parts = [clientLabel, caseItem.company_name ?? ""].map((s) => s.trim()).filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  }, [caseItem, clientById]);
   const employeeById = useMemo(
     () => new Map(employees.map((employee) => [employee.id, employee] as const)),
     [employees]
@@ -1761,6 +1795,7 @@ export function CaseDetailPage() {
     if (caseItem) {
       setStatusDraft(caseItem.status);
       setSignedAtDraft(caseItem.signed_at ?? null);
+      setCompanyNameDraft(caseItem.company_name ?? "");
     }
   }, [caseItem]);
 
@@ -1782,7 +1817,12 @@ export function CaseDetailPage() {
 
     setStatusError(null);
     try {
-      await updateCaseMutation.mutateAsync({ caseId: id, status: statusDraft, signedAt: signedAtDraft || null });
+      await updateCaseMutation.mutateAsync({
+        caseId: id,
+        status: statusDraft,
+        signedAt: signedAtDraft || null,
+        companyName: companyNameDraft.trim() || null
+      });
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : t("common.unknown_error"));
     }
@@ -1821,7 +1861,7 @@ export function CaseDetailPage() {
         </Group>
       ) : caseItem ? (
         <>
-          <SectionNav items={navItems} selected={effectiveSelected} onSelect={setSelectedPanel} duration={epDuration} />
+          <SectionNav items={navItems} selected={effectiveSelected} onSelect={setSelectedPanel} duration={epDuration} heading={navHeading} />
 
           {selectedStep ? (
             <StepCard
@@ -1844,8 +1884,15 @@ export function CaseDetailPage() {
                 canManageCases={canManageCases}
                 employeeById={employeeById}
               />
-              <CaseResubmissionsPanel caseId={caseItem.id} canManage={canManageCases} />
+              {/* 还没有补材料轮次时,面板留在步骤页底部用于建第一轮;有轮次后移到红色「补材料」tab。 */}
+              {!hasResubmissions ? (
+                <CaseResubmissionsPanel caseId={caseItem.id} canManage={canManageCases} />
+              ) : null}
             </Stack>
+          ) : null}
+
+          {effectiveSelected === "resubmissions" && caseItem.business_type === "ep" ? (
+            <CaseResubmissionsPanel caseId={caseItem.id} canManage={canManageCases} />
           ) : null}
 
           {effectiveSelected === "files" && caseItem.business_type === "ep" ? (
@@ -1875,6 +1922,14 @@ export function CaseDetailPage() {
                       </Text>
                       <Text fw={500}>{clientName(clientById.get(caseItem.client_id ?? ""))}</Text>
                     </Stack>
+                    {caseItem.business_type === "ep" ? (
+                      <Stack gap={2}>
+                        <Text size="sm" c="dimmed">
+                          {t("case.fields.companyName")}
+                        </Text>
+                        <Text fw={500}>{caseItem.company_name || t("common.not_available")}</Text>
+                      </Stack>
+                    ) : null}
                     <Stack gap={2}>
                       <Text size="sm" c="dimmed">
                         {t("case.fields.currentStep")}
@@ -1940,7 +1995,17 @@ export function CaseDetailPage() {
                     value={signedAtDraft ?? ""}
                     onChange={(event) => setSignedAtDraft(event.currentTarget.value || null)}
                   />
-                  {statusDraft !== caseItem.status || signedAtDraft !== (caseItem.signed_at ?? null) ? (
+                  {caseItem.business_type === "ep" ? (
+                    <TextInput
+                      label={t("case.fields.companyName")}
+                      placeholder={t("case.fields.companyNamePlaceholder")}
+                      value={companyNameDraft}
+                      onChange={(event) => setCompanyNameDraft(event.currentTarget.value)}
+                    />
+                  ) : null}
+                  {statusDraft !== caseItem.status ||
+                  signedAtDraft !== (caseItem.signed_at ?? null) ||
+                  companyNameDraft.trim() !== (caseItem.company_name ?? "") ? (
                     <Button onClick={updateStatus} loading={updateCaseMutation.isPending}>
                       {t("case.updateStatus")}
                     </Button>
