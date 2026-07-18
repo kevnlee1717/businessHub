@@ -80,6 +80,38 @@ function formatDate(value?: string | null) {
   return value ? new Date(`${value}T00:00:00`).toLocaleDateString() : "-";
 }
 
+function daysSince(dateStr?: string | null): number | null {
+  if (!dateStr) {
+    return null;
+  }
+
+  const timestamp = Date.parse(dateStr);
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  return Math.floor((Date.now() - timestamp) / 86400000);
+}
+
+function computeEpHealth(caseItem: Case): {
+  signedDays: number | null;
+  openDays: number | null;
+  level: "normal" | "slow" | "attn";
+} {
+  const signedDays = daysSince(caseItem.signed_at);
+  const openDays = daysSince(caseItem.resubmission_open_since);
+
+  if (caseItem.resubmission_open && openDays !== null && openDays > 20) {
+    return { signedDays, openDays, level: "attn" };
+  }
+
+  if (signedDays !== null && signedDays > 21) {
+    return { signedDays, openDays, level: "slow" };
+  }
+
+  return { signedDays, openDays, level: "normal" };
+}
+
 function statusColor(status: CaseStatus) {
   switch (status) {
     case "completed":
@@ -136,6 +168,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState<string>(currentMonth());
   const [onlyReapply, setOnlyReapply] = useState(false);
+  const [onlyAttention, setOnlyAttention] = useState(false);
   const [signedAtOrder, setSignedAtOrder] = useState<"asc" | "desc" | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -231,6 +264,14 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const visibleCases = useFrontendPagination
     ? filteredCases.slice((page - 1) * pageSize, page * pageSize)
     : filteredCases;
+  const attnCount =
+    businessType === "ep"
+      ? visibleCases.filter((caseItem) => computeEpHealth(caseItem).level === "attn").length
+      : 0;
+  const tableCases =
+    businessType === "ep" && onlyAttention
+      ? visibleCases.filter((caseItem) => computeEpHealth(caseItem).level === "attn")
+      : visibleCases;
   const totalCases = useFrontendPagination ? filteredCases.length : (casesQuery.data?.total ?? filteredCases.length);
   const clients = clientsQuery.data?.clients ?? [];
   const templates = templatesQuery.data?.templates ?? [];
@@ -333,6 +374,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
     setPage(1);
   }
 
+  function updateOnlyAttention(checked: boolean) {
+    setOnlyAttention(checked);
+    setPage(1);
+  }
+
   function toggleSignedAtSort() {
     setSignedAtOrder((current) => {
       if (current === null) {
@@ -388,6 +434,12 @@ export function CasesPage({ businessType }: CasesPageProps) {
         </Alert>
       ) : null}
 
+      {businessType === "ep" && attnCount > 0 ? (
+        <Alert color="red" variant="light">
+          {attnCount} 个案件在补材料且超 20 天,需特别关注
+        </Alert>
+      ) : null}
+
       {/* element-admin filter-container:筛选项 + 操作按钮同一行 */}
       <Group gap="sm" align="flex-end" wrap="wrap">
         <Select
@@ -425,13 +477,21 @@ export function CasesPage({ businessType }: CasesPageProps) {
             style={{ alignSelf: "flex-end", paddingBottom: 6 }}
           />
         )}
+        {businessType === "ep" && (
+          <Checkbox
+            label="只看需关注"
+            checked={onlyAttention}
+            onChange={(event) => updateOnlyAttention(event.currentTarget.checked)}
+            style={{ alignSelf: "flex-end", paddingBottom: 6 }}
+          />
+        )}
         {canManageCases ? (
           <Button onClick={openCreateModal}>{t("case.add")}</Button>
         ) : null}
       </Group>
 
       <ScrollArea>
-        <Table miw={1040} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
+        <Table miw={1180} withTableBorder withColumnBorders highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("case.fields.client")}</Table.Th>
@@ -447,70 +507,117 @@ export function CasesPage({ businessType }: CasesPageProps) {
                   {t("case.fields.signedAt")}
                   {signedAtOrder ? ` ${signedAtOrder === "asc" ? "↑" : "↓"}` : ""}
                 </Table.Th>
+                {businessType === "ep" && <Table.Th>签约至今</Table.Th>}
+                {businessType === "ep" && <Table.Th>补材料</Table.Th>}
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {casesQuery.isLoading ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 8 : 5}>
+                  <Table.Td colSpan={businessType === "ica" ? 8 : 7}>
                     <Group justify="center" py="lg">
                       <Loader size="sm" />
                     </Group>
                   </Table.Td>
                 </Table.Tr>
-              ) : visibleCases.length === 0 ? (
+              ) : tableCases.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={businessType === "ica" ? 8 : 5}>
+                  <Table.Td colSpan={businessType === "ica" ? 8 : 7}>
                     <Text ta="center" c="dimmed" py="lg">
                       {t("case.empty")}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                visibleCases.map((caseItem) => (
-                  <Table.Tr
-                    key={caseItem.id}
-                    onClick={() => navigate(`/business/cases/${caseItem.id}`)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <Table.Td>{clientName(clientById.get(caseItem.client_id ?? ""))}</Table.Td>
-                    <Table.Td>
-                      <Badge color={statusColor(caseItem.status)} variant="light">
-                        {t(`caseStatus.${caseItem.status}`)}
-                      </Badge>
-                    </Table.Td>
-                    {businessType === "ica" && (
+                tableCases.map((caseItem) => {
+                  const health = computeEpHealth(caseItem);
+                  const healthColor =
+                    health.level === "attn" ? "red.7" : health.level === "slow" ? "orange.7" : "green.7";
+                  const healthLabel =
+                    health.level === "attn" ? "需特别关注" : health.level === "slow" ? "偏慢" : "正常";
+
+                  return (
+                    <Table.Tr
+                      key={caseItem.id}
+                      onClick={() => navigate(`/business/cases/${caseItem.id}`)}
+                      style={{
+                        cursor: "pointer",
+                        ...(businessType === "ep" && health.level === "attn"
+                          ? { backgroundColor: "var(--mantine-color-red-0)" }
+                          : {})
+                      }}
+                    >
+                      <Table.Td>{clientName(clientById.get(caseItem.client_id ?? ""))}</Table.Td>
                       <Table.Td>
-                        {caseItem.first_submission_at ? caseItem.first_submission_at.slice(0, 7) : "—"}
+                        <Badge color={statusColor(caseItem.status)} variant="light">
+                          {t(`caseStatus.${caseItem.status}`)}
+                        </Badge>
                       </Table.Td>
-                    )}
-                    {businessType === "ica" && (
+                      {businessType === "ica" && (
+                        <Table.Td>
+                          {caseItem.first_submission_at ? caseItem.first_submission_at.slice(0, 7) : "—"}
+                        </Table.Td>
+                      )}
+                      {businessType === "ica" && (
+                        <Table.Td>
+                          {caseItem.last_submission_at ? caseItem.last_submission_at.slice(0, 7) : "—"}
+                        </Table.Td>
+                      )}
+                      {businessType === "ica" && (
+                        <Table.Td>
+                          <ReapplyBadge caseItem={caseItem} />
+                        </Table.Td>
+                      )}
+                      <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
+                      <Table.Td>{formatDate(caseItem.signed_at)}</Table.Td>
+                      {businessType === "ep" && (
+                        <Table.Td>
+                          {health.signedDays === null ? (
+                            <Text c="dimmed">—</Text>
+                          ) : (
+                            <Stack gap={2}>
+                              <Text c={healthColor} size="lg" fw={700} style={{ fontVariantNumeric: "tabular-nums" }}>
+                                {health.signedDays} <Text span size="sm">天</Text>
+                              </Text>
+                              <Text c={healthColor} size="xs">
+                                {healthLabel}
+                              </Text>
+                            </Stack>
+                          )}
+                        </Table.Td>
+                      )}
+                      {businessType === "ep" && (
+                        <Table.Td>
+                          {!caseItem.resubmission_open ? (
+                            <Text c="dimmed">—</Text>
+                          ) : health.openDays !== null && health.openDays > 20 ? (
+                            <Badge color="red" variant="light">
+                              ⚠ 补材料 {health.openDays} 天未结
+                            </Badge>
+                          ) : (
+                            <Badge color="orange" variant="light">
+                              补材料中 · 第{caseItem.resubmission_open_round}轮
+                              {health.openDays !== null ? ` · ${health.openDays}天` : ""}
+                            </Badge>
+                          )}
+                        </Table.Td>
+                      )}
                       <Table.Td>
-                        {caseItem.last_submission_at ? caseItem.last_submission_at.slice(0, 7) : "—"}
+                        <Button
+                          size="xs"
+                          variant="light"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/business/cases/${caseItem.id}`);
+                          }}
+                        >
+                          {t("common.view")}
+                        </Button>
                       </Table.Td>
-                    )}
-                    {businessType === "ica" && (
-                      <Table.Td>
-                        <ReapplyBadge caseItem={caseItem} />
-                      </Table.Td>
-                    )}
-                    <Table.Td>{caseItem.current_step ?? t("common.not_available")}</Table.Td>
-                    <Table.Td>{formatDate(caseItem.signed_at)}</Table.Td>
-                    <Table.Td>
-                      <Button
-                        size="xs"
-                        variant="light"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          navigate(`/business/cases/${caseItem.id}`);
-                        }}
-                      >
-                        {t("common.view")}
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                ))
+                    </Table.Tr>
+                  );
+                })
               )}
             </Table.Tbody>
         </Table>
