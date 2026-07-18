@@ -8,6 +8,11 @@ export const mlkKeys = {
   investor: (id: string) => ["mlk", "investors", id] as const,
   couples: () => ["mlk", "couples"] as const,
   couple: (id: string) => ["mlk", "couples", id] as const,
+  managers: () => ["mlk", "managers"] as const,
+  manager: (id: string) => ["mlk", "managers", id] as const,
+  cuisines: (managerId?: string | null) => ["mlk", "cuisines", managerId ?? null] as const,
+  managerSettlements: (id: string) => ["mlk", "managers", id, "settlements"] as const,
+  managerSettlementPreview: (id: string, month: string) => ["mlk", "managers", id, "settlements", "preview", month] as const,
   investorPayments: (id: string) => ["mlk", "investors", id, "payments"] as const,
   coupleLedger: (id: string) => ["mlk", "couples", id, "ledger"] as const,
   revenue: (storeId: string, from?: string, to?: string) => ["mlk", "stores", storeId, "revenue", from ?? null, to ?? null] as const,
@@ -20,6 +25,8 @@ export type MlkStatus = "intent" | "selected" | "incorporated" | "lease_signed" 
 export type MlkPrStatus = "none" | "applied" | "granted";
 export type MlkEpStatus = "none" | "applied" | "granted";
 export type MlkCoupleStatus = "candidate" | "active" | "exited";
+export type MlkManagerStatus = "candidate" | "active" | "exited";
+export type MlkBranding = "co_brand" | "mrs_lu";
 export type MlkServiceTier = "tier1" | "tier2";
 export type MlkKycStatus = "pending" | "done";
 export type MlkPaymentStatus = "pending" | "paid" | "refunded";
@@ -95,7 +102,7 @@ export type MlkCouple = MlkCoupleInput & {
 export type MlkStoreInput = {
   name: string;
   stall?: string | null;
-  cuisine?: string | null;
+  cuisine_id?: string | null;
   address?: string | null;
   spv_name?: string | null;
   spv_uen?: string | null;
@@ -121,12 +128,101 @@ export type MlkStore = MlkStoreInput & {
   investor_name?: string | null;
   couple_name?: string | null;
   food_court_name?: string | null;
+  cuisine_name?: string | null;
+  manager_id?: string | null;
+  manager_name?: string | null;
   payments?: MlkPayment[];
   revenue_monthly?: { month: string; turnover: number }[];
   settlements?: MlkSettlement[];
   created_by?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type MlkManagerInput = {
+  name: string;
+  phone?: string | null;
+  wechat?: string | null;
+  id_no?: string | null;
+  brand_name?: string | null;
+  branding?: MlkBranding | null;
+  status: MlkManagerStatus;
+  joined_at?: string | null;
+  exited_at?: string | null;
+  mgmt_fee_rate: number;
+  excess_bonus_rate: number;
+  profit_threshold: number;
+  drive_folder_id?: string | null;
+  notes?: string | null;
+};
+
+export type MlkManager = MlkManagerInput & {
+  id: string;
+  cuisine_count?: number;
+  store_count?: number;
+  cuisines?: MlkCuisineWithStores[];
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MlkCuisineInput = {
+  name: string;
+  manager_id?: string | null;
+  notes?: string | null;
+};
+
+export type MlkCuisine = MlkCuisineInput & {
+  id: string;
+  manager_name?: string | null;
+  store_count?: number;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MlkCuisineWithStores = MlkCuisine & {
+  stores: { id: string; name: string; status: MlkStatus }[];
+};
+
+export type MlkManagerSettlementInput = {
+  manager_id: string;
+  month: string;
+  mgmt_fee: number;
+  material_share: number;
+  training_fee: number;
+  opening_surplus: number;
+  excess_bonus: number;
+  central_kitchen: number;
+  other: number;
+  detail?: unknown;
+  notes?: string | null;
+};
+
+export type MlkManagerSettlement = MlkManagerSettlementInput & {
+  id: string;
+  total: number;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MlkManagerSettlementPreviewRow = {
+  storeId: string;
+  storeName: string;
+  cuisineName: string;
+  turnover: number;
+  turnoverSource: "settlement" | "revenue" | "none";
+  mgmtFee: number;
+  netProfit: number;
+  excessBonus: number;
+};
+
+export type MlkManagerSettlementPreview = {
+  month: string;
+  mgmtFee: number;
+  excessBonus: number;
+  detail: MlkManagerSettlementPreviewRow[];
 };
 
 export type MlkPaymentInput = {
@@ -249,7 +345,7 @@ export const mlkCoupleDefaults = (): MlkCoupleInput => ({
 export const mlkStoreDefaults = (): MlkStoreInput => ({
   name: "",
   stall: null,
-  cuisine: null,
+  cuisine_id: null,
   address: null,
   spv_name: null,
   spv_uen: null,
@@ -267,6 +363,43 @@ export const mlkStoreDefaults = (): MlkStoreInput => ({
   closed_at: null,
   fc_deposit_amount: null,
   drive_folder_id: null,
+  notes: null
+});
+
+export const mlkManagerDefaults = (): MlkManagerInput => ({
+  name: "",
+  phone: null,
+  wechat: null,
+  id_no: null,
+  brand_name: null,
+  branding: null,
+  status: "candidate",
+  joined_at: null,
+  exited_at: null,
+  mgmt_fee_rate: 3,
+  excess_bonus_rate: 10,
+  profit_threshold: 5600,
+  drive_folder_id: null,
+  notes: null
+});
+
+export const mlkCuisineDefaults = (): MlkCuisineInput => ({
+  name: "",
+  manager_id: null,
+  notes: null
+});
+
+export const mlkManagerSettlementDefaults = (managerId: string, month: string): MlkManagerSettlementInput => ({
+  manager_id: managerId,
+  month,
+  mgmt_fee: 0,
+  material_share: 0,
+  training_fee: 0,
+  opening_surplus: 0,
+  excess_bonus: 0,
+  central_kitchen: 0,
+  other: 0,
+  detail: null,
   notes: null
 });
 
@@ -313,6 +446,33 @@ export const createMlkCouple = (body: MlkCoupleInput) => api<{ couple: MlkCouple
 export const updateMlkCouple = (id: string, body: Partial<MlkCoupleInput>) =>
   api<{ couple: MlkCouple }>(`/mlk/couples/${id}`, { method: "PATCH", body });
 export const deleteMlkCouple = (id: string) => api<{ ok: true }>(`/mlk/couples/${id}`, { method: "DELETE" });
+
+export const listMlkManagers = () => api<{ managers: MlkManager[] }>("/mlk/managers");
+export const getMlkManager = (id: string) => api<{ manager: MlkManager }>(`/mlk/managers/${id}`);
+export const createMlkManager = (body: MlkManagerInput) => api<{ manager: MlkManager }>("/mlk/managers", { method: "POST", body });
+export const updateMlkManager = (id: string, body: Partial<MlkManagerInput>) =>
+  api<{ manager: MlkManager }>(`/mlk/managers/${id}`, { method: "PATCH", body });
+export const deleteMlkManager = (id: string) => api<{ ok: true }>(`/mlk/managers/${id}`, { method: "DELETE" });
+
+export const listMlkCuisines = (query: { managerId?: string | null } = {}) => {
+  const params = new URLSearchParams();
+  if (query.managerId) params.set("managerId", query.managerId);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return api<{ cuisines: MlkCuisine[] }>(`/mlk/cuisines${suffix}`);
+};
+export const createMlkCuisine = (body: MlkCuisineInput) => api<{ cuisine: MlkCuisine }>("/mlk/cuisines", { method: "POST", body });
+export const updateMlkCuisine = (id: string, body: Partial<MlkCuisineInput>) =>
+  api<{ cuisine: MlkCuisine }>(`/mlk/cuisines/${id}`, { method: "PATCH", body });
+export const deleteMlkCuisine = (id: string) => api<{ ok: true }>(`/mlk/cuisines/${id}`, { method: "DELETE" });
+
+export const listMlkManagerSettlements = (id: string) => api<{ settlements: MlkManagerSettlement[] }>(`/mlk/managers/${id}/settlements`);
+export const previewMlkManagerSettlement = (id: string, month: string) =>
+  api<MlkManagerSettlementPreview>(`/mlk/managers/${id}/settlements/preview?month=${encodeURIComponent(month)}`);
+export const createMlkManagerSettlement = (body: MlkManagerSettlementInput) =>
+  api<{ settlement: MlkManagerSettlement }>("/mlk/manager-settlements", { method: "POST", body });
+export const updateMlkManagerSettlement = (id: string, body: Partial<MlkManagerSettlementInput>) =>
+  api<{ settlement: MlkManagerSettlement }>(`/mlk/manager-settlements/${id}`, { method: "PATCH", body });
+export const deleteMlkManagerSettlement = (id: string) => api<{ ok: true }>(`/mlk/manager-settlements/${id}`, { method: "DELETE" });
 
 export const createMlkPayment = (body: MlkPaymentInput) => api<{ payment: MlkPayment }>("/mlk/payments", { method: "POST", body });
 export const updateMlkPayment = (id: string, body: Partial<MlkPaymentInput>) =>

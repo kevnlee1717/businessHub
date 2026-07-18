@@ -3,12 +3,13 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { MlkCouplesTab } from "./MlkCouplesTab";
 import { MlkInvestorsTab } from "./MlkInvestorsTab";
+import { MlkManagersTab } from "./MlkManagersTab";
 import { MlkStoresTab } from "./MlkStoresTab";
 
-type MlkTab = "stores" | "investors" | "couples";
+type MlkTab = "stores" | "investors" | "couples" | "managers";
 
 function isMlkTab(value: string | null): value is MlkTab {
-  return value === "stores" || value === "investors" || value === "couples";
+  return value === "stores" || value === "investors" || value === "couples" || value === "managers";
 }
 
 export function MlkLayoutPage() {
@@ -28,6 +29,7 @@ export function MlkLayoutPage() {
           <Tabs.Tab value="stores">{t("mlk.tabs.stores")}</Tabs.Tab>
           <Tabs.Tab value="investors">{t("mlk.tabs.investors")}</Tabs.Tab>
           <Tabs.Tab value="couples">{t("mlk.tabs.couples")}</Tabs.Tab>
+          <Tabs.Tab value="managers">{t("mlk.tabs.managers")}</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="stores">
           <MlkStoresTab />
@@ -37,6 +39,9 @@ export function MlkLayoutPage() {
         </Tabs.Panel>
         <Tabs.Panel value="couples">
           <MlkCouplesTab />
+        </Tabs.Panel>
+        <Tabs.Panel value="managers">
+          <MlkManagersTab />
         </Tabs.Panel>
       </Tabs>
     </Box>

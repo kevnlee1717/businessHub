@@ -16,6 +16,7 @@ import { FranchisePropertyPlaceholder } from "./pages/franchise/FranchisePropert
 import { MlkCoupleDetailPage } from "./pages/franchise/mlk/MlkCoupleDetailPage";
 import { MlkInvestorDetailPage } from "./pages/franchise/mlk/MlkInvestorDetailPage";
 import { MlkLayoutPage } from "./pages/franchise/mlk/MlkLayoutPage";
+import { MlkManagerDetailPage } from "./pages/franchise/mlk/MlkManagerDetailPage";
 import { MlkStoreDetailPage } from "./pages/franchise/mlk/MlkStoreDetailPage";
 import { PropertiesPage } from "./pages/franchise/PropertiesPage";
 import { PropertyDetailPage } from "./pages/franchise/PropertyDetailPage";
@@ -114,6 +115,7 @@ export function App() {
           <Route path="franchise/mlk/stores/:id" element={<MlkStoreDetailPage />} />
           <Route path="franchise/mlk/investors/:id" element={<MlkInvestorDetailPage />} />
           <Route path="franchise/mlk/couples/:id" element={<MlkCoupleDetailPage />} />
+          <Route path="franchise/mlk/managers/:id" element={<MlkManagerDetailPage />} />
           <Route path="hr" element={<HrLayout />}>
             <Route index element={<Navigate to="employees" replace />} />
             <Route path="employees" element={<EmployeesPage />} />

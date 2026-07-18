@@ -1,7 +1,6 @@
 import {
   Alert,
   Anchor,
-  Autocomplete,
   Badge,
   Box,
   Button,
@@ -31,9 +30,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { fnbFoodCourtKeys, getFoodCourt, listFoodCourts, type FoodCourt } from "../../../api/fnbFoodCourts";
 import {
   createMlkPayment,
+  createMlkCuisine,
   deleteMlkPayment,
   deleteMlkSettlement,
   getMlkStore,
+  listMlkCuisines,
+  listMlkManagers,
   listMlkCoupleLedger,
   listMlkCouples,
   listMlkInvestors,
@@ -48,6 +50,7 @@ import {
   upsertMlkRevenue,
   upsertMlkSettlement,
   type MlkPayment,
+  type MlkCuisineInput,
   type MlkPaymentInput,
   type MlkPaymentKind,
   type MlkPaymentStatus,
@@ -130,7 +133,7 @@ function normalizeStore(store: MlkStore): MlkStoreInput {
   return {
     name: store.name ?? "",
     stall: store.stall ?? null,
-    cuisine: store.cuisine ?? null,
+    cuisine_id: store.cuisine_id ?? null,
     address: store.address ?? null,
     spv_name: store.spv_name ?? null,
     spv_uen: store.spv_uen ?? null,
@@ -161,7 +164,6 @@ function toStoreBody(form: MlkStoreInput): MlkStoreInput {
     ...form,
     name: form.name.trim(),
     stall: cleanText(form.stall),
-    cuisine: cleanText(form.cuisine),
     address: cleanText(form.address),
     spv_name: cleanText(form.spv_name),
     spv_uen: cleanText(form.spv_uen),
@@ -239,6 +241,8 @@ export function MlkStoreDetailPage() {
   const [settlementMonth, setSettlementMonth] = useState(previousMonth());
   const [settlementTurnover, setSettlementTurnover] = useState(0);
   const [noRepay, setNoRepay] = useState(false);
+  const [cuisineModalOpen, setCuisineModalOpen] = useState(false);
+  const [cuisineForm, setCuisineForm] = useState<MlkCuisineInput>({ name: "", manager_id: null, notes: null });
 
   const detailQuery = useQuery({
     queryKey: mlkKeys.store(id),
@@ -248,6 +252,8 @@ export function MlkStoreDetailPage() {
   const investorsQuery = useQuery({ queryKey: mlkKeys.investors(), queryFn: listMlkInvestors });
   const couplesQuery = useQuery({ queryKey: mlkKeys.couples(), queryFn: listMlkCouples });
   const storesQuery = useQuery({ queryKey: mlkKeys.stores(), queryFn: listMlkStores });
+  const cuisinesQuery = useQuery({ queryKey: mlkKeys.cuisines(), queryFn: () => listMlkCuisines() });
+  const managersQuery = useQuery({ queryKey: mlkKeys.managers(), queryFn: listMlkManagers });
   const foodCourtsQuery = useQuery({ queryKey: fnbFoodCourtKeys.list(), queryFn: listFoodCourts });
   const linkedFoodCourtQuery = useQuery({
     queryKey: form.food_court_id ? fnbFoodCourtKeys.detail(form.food_court_id) : ["fnb-food-courts", null],
@@ -391,6 +397,17 @@ export function MlkStoreDetailPage() {
     },
     onError: (error) => setToast({ color: "red", message: error instanceof Error ? error.message : t("common.unknown_error") })
   });
+  const cuisineMutation = useMutation({
+    mutationFn: createMlkCuisine,
+    onSuccess: async (data) => {
+      setField("cuisine_id", data.cuisine.id);
+      setCuisineModalOpen(false);
+      setCuisineForm({ name: "", manager_id: null, notes: null });
+      await queryClient.invalidateQueries({ queryKey: mlkKeys.cuisines() });
+      await queryClient.invalidateQueries({ queryKey: mlkKeys.all });
+    },
+    onError: (error) => setToast({ color: "red", message: error instanceof Error ? error.message : t("common.unknown_error") })
+  });
   const deleteSettlementMutation = useMutation({
     mutationFn: deleteMlkSettlement,
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: mlkKeys.store(id) })
@@ -472,10 +489,11 @@ export function MlkStoreDetailPage() {
   const coupleOptions = (couplesQuery.data?.couples ?? [])
     .filter((couple) => !takenCoupleIds.has(couple.id) || couple.id === form.couple_id)
     .map((couple) => ({ value: couple.id, label: `${couple.husband_name} / ${couple.wife_name}` }));
-  // 菜系:可搜索可新增下拉,选项来自所有门店已用过的菜系(去重)+ 当前值
-  const cuisineOptions = Array.from(
-    new Set([...allStores.map((store) => store.cuisine).filter((value): value is string => Boolean(value)), ...(form.cuisine ? [form.cuisine] : [])])
-  ).map((value) => ({ value, label: value }));
+  const cuisineOptions = (cuisinesQuery.data?.cuisines ?? []).map((cuisine) => ({
+    value: cuisine.id,
+    label: cuisine.manager_name ? `${cuisine.name} · ${cuisine.manager_name}` : cuisine.name
+  }));
+  const managerOptions = (managersQuery.data?.managers ?? []).map((manager) => ({ value: manager.id, label: manager.name }));
   const foodCourtOptions = (foodCourtsQuery.data?.food_courts ?? []).map((court) => ({ value: court.id, label: court.name }));
   const selectedInvestor = (investorsQuery.data?.investors ?? []).find((investor) => investor.id === form.investor_id);
   const selectedCouple = (couplesQuery.data?.couples ?? []).find((couple) => couple.id === form.couple_id);
@@ -516,7 +534,12 @@ export function MlkStoreDetailPage() {
           <Grid gutter="sm">
             <Grid.Col span={12}><TextInput label={t("mlk.fields.name")} value={form.name} disabled={disabled} onChange={(event) => setField("name", event.currentTarget.value)} /></Grid.Col>
             <Grid.Col span={4}><TextInput label={t("mlk.fields.stall")} value={form.stall ?? ""} disabled={disabled} onChange={(event) => setField("stall", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={4}><Autocomplete label={t("mlk.fields.cuisine")} data={cuisineOptions.map((option) => option.value)} value={form.cuisine ?? ""} disabled={disabled} clearable onChange={(value) => setField("cuisine", value || null)} /></Grid.Col>
+            <Grid.Col span={4}>
+              <Group align="flex-end" wrap="nowrap">
+                <Select w="100%" label={t("mlk.fields.cuisine")} data={cuisineOptions} value={form.cuisine_id ?? null} disabled={disabled} clearable searchable onChange={(value) => setField("cuisine_id", value)} />
+                {canManage ? <Button variant="light" onClick={() => setCuisineModalOpen(true)}>{t("mlk.cuisines.add")}</Button> : null}
+              </Group>
+            </Grid.Col>
             <Grid.Col span={4}><Select label={t("mlk.fields.status")} data={storeStatuses.map((value) => ({ value, label: t(`mlk.status.store.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "intent") as MlkStatus)} /></Grid.Col>
             <Grid.Col span={12}><TextInput label={t("mlk.fields.address")} value={form.address ?? ""} disabled={disabled} onChange={(event) => setField("address", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_name")} value={form.spv_name ?? ""} disabled={disabled} onChange={(event) => setField("spv_name", event.currentTarget.value || null)} /></Grid.Col>
@@ -538,6 +561,18 @@ export function MlkStoreDetailPage() {
               <Group align="flex-end" wrap="nowrap">
                 <Select w="100%" label={t("mlk.fields.couple")} data={coupleOptions} value={form.couple_id ?? null} disabled={disabled} onChange={(value) => setField("couple_id", value)} clearable searchable />
                 {selectedCouple ? <Anchor onClick={() => navigate(`/franchise/mlk/couples/${selectedCouple.id}`)}>48%</Anchor> : <Text>48%</Text>}
+              </Group>
+              <Group justify="space-between">
+                <Text>{t("mlk.fields.cuisine")}</Text>
+                <Text fw={600}>{detailQuery.data?.store.cuisine_name || "-"}</Text>
+              </Group>
+              <Group justify="space-between">
+                <Text>{t("mlk.fields.manager")}</Text>
+                {detailQuery.data?.store.manager_id && detailQuery.data.store.manager_name ? (
+                  <Anchor onClick={() => navigate(`/franchise/mlk/managers/${detailQuery.data?.store.manager_id}`)}>{detailQuery.data.store.manager_name}</Anchor>
+                ) : (
+                  <Text>-</Text>
+                )}
               </Group>
               <Group justify="space-between">
                 <Text>Kaider Management</Text>
@@ -753,6 +788,18 @@ export function MlkStoreDetailPage() {
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setRevenueModalOpen(false)}>{t("common.cancel")}</Button>
             <Button loading={revenueMutation.isPending} onClick={() => revenueMutation.mutate(revenueForm)}>{t("common.save")}</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={cuisineModalOpen} onClose={() => setCuisineModalOpen(false)} title={t("mlk.cuisines.add")}>
+        <Stack gap="md">
+          <TextInput label={t("mlk.fields.name")} value={cuisineForm.name} onChange={(event) => setCuisineForm({ ...cuisineForm, name: event.currentTarget.value })} />
+          <Select label={t("mlk.fields.manager")} data={managerOptions} value={cuisineForm.manager_id ?? null} onChange={(value) => setCuisineForm({ ...cuisineForm, manager_id: value })} clearable searchable />
+          <Textarea label={t("mlk.fields.notes")} value={cuisineForm.notes ?? ""} onChange={(event) => setCuisineForm({ ...cuisineForm, notes: event.currentTarget.value || null })} />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setCuisineModalOpen(false)}>{t("common.cancel")}</Button>
+            <Button loading={cuisineMutation.isPending} disabled={!cuisineForm.name.trim()} onClick={() => cuisineMutation.mutate({ ...cuisineForm, name: cuisineForm.name.trim() })}>{t("common.save")}</Button>
           </Group>
         </Stack>
       </Modal>
