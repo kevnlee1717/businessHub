@@ -9,7 +9,6 @@ import {
   listMlkManagers,
   mlkKeys,
   mlkManagerDefaults,
-  type MlkBranding,
   type MlkManagerInput,
   type MlkManagerStatus
 } from "../../../api/mlk";
@@ -17,21 +16,22 @@ import { useAuth } from "../../../auth/AuthContext";
 import { ErrorAlert, managerStatusColor } from "./shared";
 
 const managerStatuses: MlkManagerStatus[] = ["candidate", "active", "exited"];
-const brandingOptions: MlkBranding[] = ["co_brand", "mrs_lu"];
 
 function cleanText(value?: string | null) {
   return value?.trim() || null;
 }
 
 function toManagerBody(form: MlkManagerInput): MlkManagerInput {
+  const values = { ...form };
+  delete values.brand_name;
+  delete values.branding;
   return {
-    ...form,
-    name: form.name.trim(),
-    phone: cleanText(form.phone),
-    wechat: cleanText(form.wechat),
-    id_no: cleanText(form.id_no),
-    brand_name: cleanText(form.brand_name),
-    notes: cleanText(form.notes)
+    ...values,
+    name: values.name.trim(),
+    phone: cleanText(values.phone),
+    wechat: cleanText(values.wechat),
+    id_no: cleanText(values.id_no),
+    notes: cleanText(values.notes)
   };
 }
 
@@ -76,8 +76,7 @@ export function MlkManagersTab() {
       const matchesKeyword =
         term.length === 0 ||
         manager.name.toLowerCase().includes(term) ||
-        (manager.phone ?? "").toLowerCase().includes(term) ||
-        (manager.brand_name ?? "").toLowerCase().includes(term);
+        (manager.phone ?? "").toLowerCase().includes(term);
       return matchesKeyword && (!status || manager.status === status);
     });
   }, [keyword, managers, status]);
@@ -138,9 +137,8 @@ export function MlkManagersTab() {
         ) : (
           <Table withTableBorder withColumnBorders highlightOnHover>
             <Table.Thead>
-              <Table.Tr>
+                <Table.Tr>
                 <Table.Th>{t("mlk.fields.name")}</Table.Th>
-                <Table.Th>{t("mlk.fields.branding")}</Table.Th>
                 <Table.Th>{t("mlk.fields.cuisines")}</Table.Th>
                 <Table.Th>{t("mlk.fields.store_count")}</Table.Th>
                 <Table.Th>{t("mlk.fields.status")}</Table.Th>
@@ -156,7 +154,6 @@ export function MlkManagersTab() {
                   <Table.Td>
                     <Anchor onClick={() => navigate(`/franchise/mlk/managers/${manager.id}`)}>{manager.name}</Anchor>
                   </Table.Td>
-                  <Table.Td>{manager.branding ? t(`mlk.branding.${manager.branding}`) : "-"}</Table.Td>
                   <Table.Td>
                     <Group gap={4}>
                       {(cuisinesByManager.get(manager.id) ?? []).slice(0, 4).map((name) => (
@@ -195,8 +192,6 @@ export function MlkManagersTab() {
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.phone")} value={form.phone ?? ""} onChange={(event) => setField("phone", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.wechat")} value={form.wechat ?? ""} onChange={(event) => setField("wechat", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.id_no")} value={form.id_no ?? ""} onChange={(event) => setField("id_no", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}><TextInput label={t("mlk.fields.brand_name")} value={form.brand_name ?? ""} onChange={(event) => setField("brand_name", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}><Select label={t("mlk.fields.branding")} data={brandingOptions.map((value) => ({ value, label: t(`mlk.branding.${value}`) }))} value={form.branding ?? null} onChange={(value) => setField("branding", value as MlkBranding | null)} clearable /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}><Select label={t("mlk.fields.status")} data={managerStatuses.map((value) => ({ value, label: t(`mlk.status.manager.${value}`) }))} value={form.status} onChange={(value) => setField("status", (value ?? "candidate") as MlkManagerStatus)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}><TextInput type="date" label={t("mlk.fields.joined_at")} value={form.joined_at ?? ""} onChange={(event) => setField("joined_at", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}><NumberInput label={t("mlk.fields.mgmt_fee_rate")} value={form.mgmt_fee_rate} min={0} decimalScale={2} onChange={(value) => setField("mgmt_fee_rate", typeof value === "number" ? value : 0)} /></Grid.Col>

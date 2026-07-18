@@ -7,6 +7,10 @@ import { listMlkCouples, listMlkStores, mlkKeys } from "../../../api/mlk";
 import { useAuth } from "../../../auth/AuthContext";
 import { coupleStatusColor, ErrorAlert, prColor } from "./shared";
 
+function epHolderColor(holder?: string | null) {
+  return holder ? "green" : "gray";
+}
+
 export function MlkCouplesTab() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -94,14 +98,9 @@ export function MlkCouplesTab() {
                   <Table.Td>{couple.husband_name}</Table.Td>
                   <Table.Td>{couple.wife_name}</Table.Td>
                   <Table.Td>
-                    <Group gap={4}>
-                      <Badge size="sm" color={prColor(couple.husband_ep)} variant="light">
-                        {t("mlk.fields.husband_short")} · {t(`mlk.status.pr.${couple.husband_ep}`)}
-                      </Badge>
-                      <Badge size="sm" color={prColor(couple.wife_ep)} variant="light">
-                        {t("mlk.fields.wife_short")} · {t(`mlk.status.pr.${couple.wife_ep}`)}
-                      </Badge>
-                    </Group>
+                    <Badge size="sm" color={epHolderColor(couple.ep_holder)} variant="light">
+                      {t(`mlk.epHolder.${couple.ep_holder ?? "none"}`)}
+                    </Badge>
                   </Table.Td>
                   <Table.Td>
                     <Badge color={prColor(couple.pr_status)} variant="light">

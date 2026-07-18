@@ -1,6 +1,6 @@
 import { Alert, Badge } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import type { MlkCoupleStatus, MlkEpStatus, MlkKycStatus, MlkManagerStatus, MlkPrStatus, MlkServiceTier, MlkStatus } from "../../../api/mlk";
+import type { MlkCoupleStatus, MlkKycStatus, MlkManagerStatus, MlkPrStatus, MlkServiceTier, MlkStatus } from "../../../api/mlk";
 
 export function ErrorAlert({ error }: { error: unknown }) {
   const { t } = useTranslation();
@@ -44,7 +44,7 @@ export function tierColor(tier: MlkServiceTier) {
   return tier === "tier2" ? "violet" : "blue";
 }
 
-export function prColor(status: MlkPrStatus | MlkEpStatus) {
+export function prColor(status: MlkPrStatus) {
   if (status === "granted") return "green";
   if (status === "applied") return "blue";
   return "gray";
