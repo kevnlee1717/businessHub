@@ -29,6 +29,8 @@ export function MlkStoresTab() {
         term.length === 0 ||
         store.name.toLowerCase().includes(term) ||
         (store.stall ?? "").toLowerCase().includes(term) ||
+        (store.cuisine_name ?? "").toLowerCase().includes(term) ||
+        (store.manager_name ?? "").toLowerCase().includes(term) ||
         (store.investor_name ?? "").toLowerCase().includes(term) ||
         (store.couple_name ?? "").toLowerCase().includes(term);
       return matchesKeyword && (!status || store.status === status);
@@ -71,6 +73,7 @@ export function MlkStoresTab() {
                 <Table.Th>{t("mlk.fields.name")}</Table.Th>
                 <Table.Th>{t("mlk.fields.food_court")}</Table.Th>
                 <Table.Th>{t("mlk.fields.stall")}</Table.Th>
+                <Table.Th>{t("mlk.fields.cuisine_manager")}</Table.Th>
                 <Table.Th>{t("mlk.fields.investor")}</Table.Th>
                 <Table.Th>{t("mlk.fields.couple")}</Table.Th>
                 <Table.Th>{t("mlk.fields.status")}</Table.Th>
@@ -88,6 +91,12 @@ export function MlkStoresTab() {
                   </Table.Td>
                   <Table.Td>{store.food_court_name || "-"}</Table.Td>
                   <Table.Td>{store.stall || "-"}</Table.Td>
+                  <Table.Td>
+                    <Stack gap={2}>
+                      <Text size="sm">{store.cuisine_name || "-"}</Text>
+                      {store.manager_name ? <Text size="xs" c="dimmed">{store.manager_name}</Text> : null}
+                    </Stack>
+                  </Table.Td>
                   <Table.Td>{store.investor_name || "-"}</Table.Td>
                   <Table.Td>{store.couple_name || "-"}</Table.Td>
                   <Table.Td>

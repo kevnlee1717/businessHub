@@ -49,11 +49,38 @@ export const mlkCouples = pgTable("mlk_couples", {
   ...auditColumns
 });
 
+export const mlkManagers = pgTable("mlk_managers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  wechat: text("wechat"),
+  idNo: text("id_no"),
+  brandName: text("brand_name"),
+  branding: text("branding").$type<"co_brand" | "mrs_lu">(),
+  status: text("status").$type<"candidate" | "active" | "exited">().notNull().default("candidate"),
+  joinedAt: timestamp("joined_at", { withTimezone: true }),
+  exitedAt: timestamp("exited_at", { withTimezone: true }),
+  mgmtFeeRate: numeric("mgmt_fee_rate", { precision: 8, scale: 2 }).notNull().default("3"),
+  excessBonusRate: numeric("excess_bonus_rate", { precision: 8, scale: 2 }).notNull().default("10"),
+  profitThreshold: numeric("profit_threshold", { precision: 12, scale: 2 }).notNull().default("5600"),
+  driveFolderId: uuid("drive_folder_id"),
+  notes: text("notes"),
+  ...auditColumns
+});
+
+export const mlkCuisines = pgTable("mlk_cuisines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  managerId: uuid("manager_id").references(() => mlkManagers.id, { onDelete: "set null" }),
+  notes: text("notes"),
+  ...auditColumns
+});
+
 export const mlkStores = pgTable("mlk_stores", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   stall: text("stall"),
-  cuisine: text("cuisine"),
+  cuisineId: uuid("cuisine_id").references(() => mlkCuisines.id, { onDelete: "set null" }),
   address: text("address"),
   spvName: text("spv_name"),
   spvUen: text("spv_uen"),
@@ -154,5 +181,30 @@ export const mlkSettlements = pgTable(
   },
   (table) => ({
     storeMonth: uniqueIndex("mlk_settlements_store_month_uq").on(table.storeId, table.month)
+  })
+);
+
+export const mlkManagerSettlements = pgTable(
+  "mlk_manager_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    managerId: uuid("manager_id")
+      .notNull()
+      .references(() => mlkManagers.id, { onDelete: "cascade" }),
+    month: date("month", { mode: "string" }).notNull(),
+    mgmtFee: numeric("mgmt_fee", { precision: 12, scale: 2 }).notNull().default("0"),
+    materialShare: numeric("material_share", { precision: 12, scale: 2 }).notNull().default("0"),
+    trainingFee: numeric("training_fee", { precision: 12, scale: 2 }).notNull().default("0"),
+    openingSurplus: numeric("opening_surplus", { precision: 12, scale: 2 }).notNull().default("0"),
+    excessBonus: numeric("excess_bonus", { precision: 12, scale: 2 }).notNull().default("0"),
+    centralKitchen: numeric("central_kitchen", { precision: 12, scale: 2 }).notNull().default("0"),
+    other: numeric("other", { precision: 12, scale: 2 }).notNull().default("0"),
+    total: numeric("total", { precision: 12, scale: 2 }).notNull().default("0"),
+    detail: jsonb("detail"),
+    notes: text("notes"),
+    ...auditColumns
+  },
+  (table) => ({
+    managerMonth: uniqueIndex("mlk_manager_settlements_manager_month_uq").on(table.managerId, table.month)
   })
 );

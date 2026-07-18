@@ -10,8 +10,11 @@ import {
   driveNodes,
   fnbFoodCourts,
   mlkCouples,
+  mlkCuisines,
   mlkInvestors,
   mlkLedger,
+  mlkManagers,
+  mlkManagerSettlements,
   mlkPayments,
   mlkSettlements,
   mlkStoreRevenue,
@@ -25,21 +28,35 @@ import {
   mlkIdParams,
   mlkInvestorCreateSchema,
   mlkInvestorUpdateSchema,
+  mlkCuisineCreateSchema,
+  mlkCuisineQuerySchema,
+  mlkCuisineUpdateSchema,
   mlkLedgerCreateSchema,
   mlkLedgerUpdateSchema,
+  mlkManagerCreateSchema,
+  mlkManagerSettlementCreateSchema,
+  mlkManagerSettlementUpdateSchema,
+  mlkManagerUpdateSchema,
   mlkPaymentCreateSchema,
   mlkPaymentUpdateSchema,
   mlkRevenueCreateSchema,
   mlkRevenueQuerySchema,
   mlkSettlementCreateSchema,
+  mlkSettlementPreviewQuerySchema,
   mlkStoreCreateSchema,
   mlkStoreUpdateSchema,
   type MlkCoupleCreateInput,
   type MlkCoupleUpdateInput,
+  type MlkCuisineCreateInput,
+  type MlkCuisineUpdateInput,
   type MlkInvestorCreateInput,
   type MlkInvestorUpdateInput,
   type MlkLedgerCreateInput,
   type MlkLedgerUpdateInput,
+  type MlkManagerCreateInput,
+  type MlkManagerSettlementCreateInput,
+  type MlkManagerSettlementUpdateInput,
+  type MlkManagerUpdateInput,
   type MlkPaymentCreateInput,
   type MlkPaymentUpdateInput,
   type MlkStoreCreateInput,
@@ -50,7 +67,7 @@ import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requirePerm } from "../auth/jwt";
-import { parseWithSchema, sendNotFound } from "./hrUtils";
+import { isUniqueViolation, parseWithSchema, sendNotFound } from "./hrUtils";
 
 const mlkFileNodeParams = z.object({ folderId: z.string().uuid(), id: z.string().uuid() });
 const mlkFileNodePatchSchema = z
@@ -68,11 +85,14 @@ const DRIVE_MAX_UPLOAD = 300 * 1024 * 1024;
 
 type InvestorRow = typeof mlkInvestors.$inferSelect;
 type CoupleRow = typeof mlkCouples.$inferSelect;
+type ManagerRow = typeof mlkManagers.$inferSelect;
+type CuisineRow = typeof mlkCuisines.$inferSelect;
 type StoreRow = typeof mlkStores.$inferSelect;
 type PaymentRow = typeof mlkPayments.$inferSelect;
 type LedgerRow = typeof mlkLedger.$inferSelect;
 type RevenueRow = typeof mlkStoreRevenue.$inferSelect;
 type SettlementRow = typeof mlkSettlements.$inferSelect;
+type ManagerSettlementRow = typeof mlkManagerSettlements.$inferSelect;
 type DriveNodeRow = typeof driveNodes.$inferSelect;
 type MlkFolderKind = "stores" | "investors" | "couples";
 type MultipartFields = Record<string, string>;
@@ -148,12 +168,47 @@ function coupleDisplayName(row: Pick<CoupleRow, "husbandName" | "wifeName"> | nu
   return row ? `${row.husbandName} / ${row.wifeName}` : null;
 }
 
+function serializeManager(row: ManagerRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    wechat: row.wechat,
+    id_no: row.idNo,
+    brand_name: row.brandName,
+    branding: row.branding,
+    status: row.status,
+    joined_at: row.joinedAt,
+    exited_at: row.exitedAt,
+    mgmt_fee_rate: requiredNumberValue(row.mgmtFeeRate),
+    excess_bonus_rate: requiredNumberValue(row.excessBonusRate),
+    profit_threshold: requiredNumberValue(row.profitThreshold),
+    drive_folder_id: row.driveFolderId,
+    notes: row.notes,
+    created_by: row.createdBy,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializeCuisine(row: CuisineRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    manager_id: row.managerId,
+    notes: row.notes,
+    created_by: row.createdBy,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
 function serializeStore(row: StoreRow) {
   return {
     id: row.id,
     name: row.name,
     stall: row.stall,
-    cuisine: row.cuisine,
+    cuisine_id: row.cuisineId,
     address: row.address,
     spv_name: row.spvName,
     spv_uen: row.spvUen,
@@ -171,6 +226,27 @@ function serializeStore(row: StoreRow) {
     closed_at: row.closedAt,
     fc_deposit_amount: numberValue(row.fcDepositAmount),
     drive_folder_id: row.driveFolderId,
+    notes: row.notes,
+    created_by: row.createdBy,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializeManagerSettlement(row: ManagerSettlementRow) {
+  return {
+    id: row.id,
+    manager_id: row.managerId,
+    month: row.month,
+    mgmt_fee: requiredNumberValue(row.mgmtFee),
+    material_share: requiredNumberValue(row.materialShare),
+    training_fee: requiredNumberValue(row.trainingFee),
+    opening_surplus: requiredNumberValue(row.openingSurplus),
+    excess_bonus: requiredNumberValue(row.excessBonus),
+    central_kitchen: requiredNumberValue(row.centralKitchen),
+    other: requiredNumberValue(row.other),
+    total: requiredNumberValue(row.total),
+    detail: row.detail,
     notes: row.notes,
     created_by: row.createdBy,
     created_at: row.createdAt,
@@ -301,11 +377,38 @@ function coupleValues(body: MlkCoupleCreateInput | MlkCoupleUpdateInput) {
   };
 }
 
+function managerValues(body: MlkManagerCreateInput | MlkManagerUpdateInput) {
+  return {
+    ...(body.name !== undefined ? { name: body.name } : {}),
+    ...(body.phone !== undefined ? { phone: body.phone } : {}),
+    ...(body.wechat !== undefined ? { wechat: body.wechat } : {}),
+    ...(body.id_no !== undefined ? { idNo: body.id_no } : {}),
+    ...(body.brand_name !== undefined ? { brandName: body.brand_name } : {}),
+    ...(body.branding !== undefined ? { branding: body.branding } : {}),
+    ...(body.status !== undefined ? { status: body.status } : {}),
+    ...(body.joined_at !== undefined ? { joinedAt: body.joined_at } : {}),
+    ...(body.exited_at !== undefined ? { exitedAt: body.exited_at } : {}),
+    ...(body.mgmt_fee_rate !== undefined ? { mgmtFeeRate: numericValue(body.mgmt_fee_rate) } : {}),
+    ...(body.excess_bonus_rate !== undefined ? { excessBonusRate: numericValue(body.excess_bonus_rate) } : {}),
+    ...(body.profit_threshold !== undefined ? { profitThreshold: numericValue(body.profit_threshold) } : {}),
+    ...(body.drive_folder_id !== undefined ? { driveFolderId: body.drive_folder_id } : {}),
+    ...(body.notes !== undefined ? { notes: body.notes } : {})
+  };
+}
+
+function cuisineValues(body: MlkCuisineCreateInput | MlkCuisineUpdateInput) {
+  return {
+    ...(body.name !== undefined ? { name: body.name } : {}),
+    ...(body.manager_id !== undefined ? { managerId: body.manager_id } : {}),
+    ...(body.notes !== undefined ? { notes: body.notes } : {})
+  };
+}
+
 function storeValues(body: MlkStoreCreateInput | MlkStoreUpdateInput) {
   return {
     ...(body.name !== undefined ? { name: body.name } : {}),
     ...(body.stall !== undefined ? { stall: body.stall } : {}),
-    ...(body.cuisine !== undefined ? { cuisine: body.cuisine } : {}),
+    ...(body.cuisine_id !== undefined ? { cuisineId: body.cuisine_id } : {}),
     ...(body.address !== undefined ? { address: body.address } : {}),
     ...(body.spv_name !== undefined ? { spvName: body.spv_name } : {}),
     ...(body.spv_uen !== undefined ? { spvUen: body.spv_uen } : {}),
@@ -325,6 +428,45 @@ function storeValues(body: MlkStoreCreateInput | MlkStoreUpdateInput) {
     ...(body.drive_folder_id !== undefined ? { driveFolderId: body.drive_folder_id } : {}),
     ...(body.notes !== undefined ? { notes: body.notes } : {})
   };
+}
+
+function managerSettlementTotal(body: {
+  mgmt_fee?: number | undefined;
+  material_share?: number | undefined;
+  training_fee?: number | undefined;
+  opening_surplus?: number | undefined;
+  excess_bonus?: number | undefined;
+  central_kitchen?: number | undefined;
+  other?: number | undefined;
+}) {
+  return (
+    (body.mgmt_fee ?? 0) +
+    (body.material_share ?? 0) +
+    (body.training_fee ?? 0) +
+    (body.opening_surplus ?? 0) +
+    (body.excess_bonus ?? 0) +
+    (body.central_kitchen ?? 0) +
+    (body.other ?? 0)
+  );
+}
+
+function managerSettlementValues(body: MlkManagerSettlementCreateInput | MlkManagerSettlementUpdateInput, userId?: string) {
+  const values = {
+    ...(body.manager_id !== undefined ? { managerId: body.manager_id } : {}),
+    ...(body.month !== undefined ? { month: body.month } : {}),
+    ...(body.mgmt_fee !== undefined ? { mgmtFee: numericValue(body.mgmt_fee) } : {}),
+    ...(body.material_share !== undefined ? { materialShare: numericValue(body.material_share) } : {}),
+    ...(body.training_fee !== undefined ? { trainingFee: numericValue(body.training_fee) } : {}),
+    ...(body.opening_surplus !== undefined ? { openingSurplus: numericValue(body.opening_surplus) } : {}),
+    ...(body.excess_bonus !== undefined ? { excessBonus: numericValue(body.excess_bonus) } : {}),
+    ...(body.central_kitchen !== undefined ? { centralKitchen: numericValue(body.central_kitchen) } : {}),
+    ...(body.other !== undefined ? { other: numericValue(body.other) } : {}),
+    ...(body.detail !== undefined ? { detail: body.detail } : {}),
+    ...(body.notes !== undefined ? { notes: body.notes } : {}),
+    ...(userId !== undefined ? { createdBy: userId } : {}),
+    updatedAt: new Date()
+  };
+  return values;
 }
 
 function paymentValues(body: MlkPaymentCreateInput | MlkPaymentUpdateInput) {
@@ -592,6 +734,25 @@ async function findStoreOr404(storeId: string, reply: FastifyReply) {
   return store;
 }
 
+async function findManagerOr404(managerId: string, reply: FastifyReply) {
+  const [manager] = await db.select().from(mlkManagers).where(eq(mlkManagers.id, managerId)).limit(1);
+  if (!manager) {
+    sendNotFound(reply);
+    return null;
+  }
+  return manager;
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function nextMonth(month: string): string {
+  const value = new Date(`${month}T00:00:00.000Z`);
+  value.setUTCMonth(value.getUTCMonth() + 1);
+  return value.toISOString().slice(0, 10);
+}
+
 export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
@@ -700,6 +861,276 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  app.get("/mlk/managers", { preHandler: requirePerm("mlk.view") }, async () => {
+    const rows = await db
+      .select({
+        manager: mlkManagers,
+        cuisineCount: sql<number>`count(distinct ${mlkCuisines.id})::int`,
+        storeCount: sql<number>`count(distinct ${mlkStores.id})::int`
+      })
+      .from(mlkManagers)
+      .leftJoin(mlkCuisines, eq(mlkCuisines.managerId, mlkManagers.id))
+      .leftJoin(mlkStores, eq(mlkStores.cuisineId, mlkCuisines.id))
+      .groupBy(mlkManagers.id)
+      .orderBy(desc(mlkManagers.updatedAt), desc(mlkManagers.createdAt));
+
+    return {
+      managers: rows.map((row) => ({
+        ...serializeManager(row.manager),
+        cuisine_count: Number(row.cuisineCount),
+        store_count: Number(row.storeCount)
+      }))
+    };
+  });
+
+  app.get("/mlk/managers/:id", { preHandler: requirePerm("mlk.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const manager = await findManagerOr404(id, reply);
+    if (!manager) return;
+
+    const rows = await db
+      .select({
+        cuisine: mlkCuisines,
+        storeId: mlkStores.id,
+        storeName: mlkStores.name,
+        storeStatus: mlkStores.status
+      })
+      .from(mlkCuisines)
+      .leftJoin(mlkStores, eq(mlkStores.cuisineId, mlkCuisines.id))
+      .where(eq(mlkCuisines.managerId, id))
+      .orderBy(asc(mlkCuisines.name), asc(mlkStores.name));
+
+    const cuisineMap = new Map<string, ReturnType<typeof serializeCuisine> & { stores: Array<{ id: string; name: string; status: StoreRow["status"] }> }>();
+    for (const row of rows) {
+      const existing = cuisineMap.get(row.cuisine.id);
+      const cuisine = existing ?? { ...serializeCuisine(row.cuisine), stores: [] };
+      if (row.storeId && row.storeName && row.storeStatus) {
+        cuisine.stores.push({ id: row.storeId, name: row.storeName, status: row.storeStatus });
+      }
+      cuisineMap.set(row.cuisine.id, cuisine);
+    }
+
+    return { manager: { ...serializeManager(manager), cuisines: [...cuisineMap.values()] } };
+  });
+
+  app.post("/mlk/managers", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const body = parseWithSchema(mlkManagerCreateSchema, request.body);
+    const [row] = await db
+      .insert(mlkManagers)
+      .values({ ...managerValues(body), name: body.name, createdBy: request.user.id, updatedAt: new Date() })
+      .returning();
+    if (!row) throw new Error("mlk_manager_create_failed");
+    return reply.code(201).send({ manager: serializeManager(row) });
+  });
+
+  app.patch("/mlk/managers/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const body = parseWithSchema(mlkManagerUpdateSchema, request.body);
+    const [row] = await db
+      .update(mlkManagers)
+      .set({ ...managerValues(body), updatedAt: new Date() })
+      .where(eq(mlkManagers.id, id))
+      .returning();
+    if (!row) return sendNotFound(reply);
+    return { manager: serializeManager(row) };
+  });
+
+  app.delete("/mlk/managers/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const [cuisineRef] = await db.select({ id: mlkCuisines.id }).from(mlkCuisines).where(eq(mlkCuisines.managerId, id)).limit(1);
+    if (cuisineRef) return reply.code(409).send({ error: "manager_has_cuisines" });
+    const [settlementRef] = await db
+      .select({ id: mlkManagerSettlements.id })
+      .from(mlkManagerSettlements)
+      .where(eq(mlkManagerSettlements.managerId, id))
+      .limit(1);
+    if (settlementRef) return reply.code(409).send({ error: "manager_has_settlements" });
+    const [row] = await db.delete(mlkManagers).where(eq(mlkManagers.id, id)).returning({ id: mlkManagers.id });
+    if (!row) return sendNotFound(reply);
+    return { ok: true };
+  });
+
+  app.get("/mlk/cuisines", { preHandler: requirePerm("mlk.view") }, async (request) => {
+    const query = parseWithSchema(mlkCuisineQuerySchema, request.query);
+    const rows = await db
+      .select({
+        cuisine: mlkCuisines,
+        managerName: mlkManagers.name,
+        storeCount: sql<number>`count(distinct ${mlkStores.id})::int`
+      })
+      .from(mlkCuisines)
+      .leftJoin(mlkManagers, eq(mlkCuisines.managerId, mlkManagers.id))
+      .leftJoin(mlkStores, eq(mlkStores.cuisineId, mlkCuisines.id))
+      .where(query.managerId ? eq(mlkCuisines.managerId, query.managerId) : undefined)
+      .groupBy(mlkCuisines.id, mlkManagers.name)
+      .orderBy(asc(mlkCuisines.name));
+
+    return {
+      cuisines: rows.map((row) => ({
+        ...serializeCuisine(row.cuisine),
+        manager_name: row.managerName,
+        store_count: Number(row.storeCount)
+      }))
+    };
+  });
+
+  app.post("/mlk/cuisines", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const body = parseWithSchema(mlkCuisineCreateSchema, request.body);
+    const [row] = await db
+      .insert(mlkCuisines)
+      .values({ ...cuisineValues(body), name: body.name, createdBy: request.user.id, updatedAt: new Date() })
+      .returning();
+    if (!row) throw new Error("mlk_cuisine_create_failed");
+    return reply.code(201).send({ cuisine: serializeCuisine(row) });
+  });
+
+  app.patch("/mlk/cuisines/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const body = parseWithSchema(mlkCuisineUpdateSchema, request.body);
+    const [row] = await db
+      .update(mlkCuisines)
+      .set({ ...cuisineValues(body), updatedAt: new Date() })
+      .where(eq(mlkCuisines.id, id))
+      .returning();
+    if (!row) return sendNotFound(reply);
+    return { cuisine: serializeCuisine(row) };
+  });
+
+  app.delete("/mlk/cuisines/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const [storeRef] = await db.select({ id: mlkStores.id }).from(mlkStores).where(eq(mlkStores.cuisineId, id)).limit(1);
+    if (storeRef) return reply.code(409).send({ error: "cuisine_has_stores" });
+    const [row] = await db.delete(mlkCuisines).where(eq(mlkCuisines.id, id)).returning({ id: mlkCuisines.id });
+    if (!row) return sendNotFound(reply);
+    return { ok: true };
+  });
+
+  app.get("/mlk/managers/:id/settlements", { preHandler: requirePerm("mlk.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    if (!(await findManagerOr404(id, reply))) return;
+    const rows = await db
+      .select()
+      .from(mlkManagerSettlements)
+      .where(eq(mlkManagerSettlements.managerId, id))
+      .orderBy(desc(mlkManagerSettlements.month));
+    return { settlements: rows.map(serializeManagerSettlement) };
+  });
+
+  app.get("/mlk/managers/:id/settlements/preview", { preHandler: requirePerm("mlk.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const query = parseWithSchema(mlkSettlementPreviewQuerySchema, request.query);
+    const manager = await findManagerOr404(id, reply);
+    if (!manager) return;
+    const monthEnd = nextMonth(query.month);
+    const rows = await db.execute(sql`
+      select
+        s.id as store_id,
+        s.name as store_name,
+        c.name as cuisine_name,
+        st.turnover as settlement_turnover,
+        st.net_profit as settlement_net_profit,
+        rev.turnover as revenue_turnover,
+        rev.revenue_count as revenue_count
+      from "mlk_stores" s
+      join "mlk_cuisines" c on c.id = s.cuisine_id
+      left join "mlk_settlements" st on st.store_id = s.id and st.month = ${query.month}
+      left join (
+        select store_id, coalesce(sum(turnover), 0)::numeric(12, 2) as turnover, count(*)::int as revenue_count
+        from "mlk_store_revenue"
+        where "date" >= ${query.month} and "date" < ${monthEnd}
+        group by store_id
+      ) rev on rev.store_id = s.id
+      where c.manager_id = ${id}
+      order by c.name, s.name
+    `);
+
+    const mgmtFeeRate = requiredNumberValue(manager.mgmtFeeRate);
+    const excessBonusRate = requiredNumberValue(manager.excessBonusRate);
+    const profitThreshold = requiredNumberValue(manager.profitThreshold);
+    const detail = rows.rows.map((item) => {
+      const settlementTurnover = item.settlement_turnover === null ? null : Number(item.settlement_turnover);
+      const revenueCount = Number(item.revenue_count ?? 0);
+      const turnover = settlementTurnover ?? (revenueCount > 0 ? Number(item.revenue_turnover ?? 0) : 0);
+      const turnoverSource = settlementTurnover !== null ? "settlement" : revenueCount > 0 ? "revenue" : "none";
+      const netProfit = item.settlement_net_profit === null ? 0 : Number(item.settlement_net_profit ?? 0);
+      const mgmtFee = roundMoney((turnover * mgmtFeeRate) / 100);
+      const excessBonus = roundMoney((Math.max(0, netProfit - profitThreshold) * 0.5 * excessBonusRate) / 100);
+      return {
+        storeId: String(item.store_id),
+        storeName: String(item.store_name),
+        cuisineName: String(item.cuisine_name),
+        turnover: roundMoney(turnover),
+        turnoverSource,
+        mgmtFee,
+        netProfit: roundMoney(netProfit),
+        excessBonus
+      };
+    });
+
+    return {
+      month: query.month,
+      mgmtFee: roundMoney(detail.reduce((sum, item) => sum + item.mgmtFee, 0)),
+      excessBonus: roundMoney(detail.reduce((sum, item) => sum + item.excessBonus, 0)),
+      detail
+    };
+  });
+
+  app.post("/mlk/manager-settlements", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const body = parseWithSchema(mlkManagerSettlementCreateSchema, request.body);
+    const total = managerSettlementTotal(body);
+    try {
+      const [row] = await db
+        .insert(mlkManagerSettlements)
+        .values({
+          ...managerSettlementValues(body, request.user.id),
+          managerId: body.manager_id,
+          month: body.month,
+          total: numericValue(total)
+        })
+        .returning();
+      if (!row) throw new Error("mlk_manager_settlement_create_failed");
+      return reply.code(201).send({ settlement: serializeManagerSettlement(row) });
+    } catch (error) {
+      if (isUniqueViolation(error)) return reply.code(409).send({ error: "manager_settlement_exists" });
+      throw error;
+    }
+  });
+
+  app.patch("/mlk/manager-settlements/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const body = parseWithSchema(mlkManagerSettlementUpdateSchema, request.body);
+    const [existing] = await db.select().from(mlkManagerSettlements).where(eq(mlkManagerSettlements.id, id)).limit(1);
+    if (!existing) return sendNotFound(reply);
+    const total = managerSettlementTotal({
+      mgmt_fee: body.mgmt_fee ?? requiredNumberValue(existing.mgmtFee),
+      material_share: body.material_share ?? requiredNumberValue(existing.materialShare),
+      training_fee: body.training_fee ?? requiredNumberValue(existing.trainingFee),
+      opening_surplus: body.opening_surplus ?? requiredNumberValue(existing.openingSurplus),
+      excess_bonus: body.excess_bonus ?? requiredNumberValue(existing.excessBonus),
+      central_kitchen: body.central_kitchen ?? requiredNumberValue(existing.centralKitchen),
+      other: body.other ?? requiredNumberValue(existing.other)
+    });
+    try {
+      const [row] = await db
+        .update(mlkManagerSettlements)
+        .set({ ...managerSettlementValues(body), total: numericValue(total), updatedAt: new Date() })
+        .where(eq(mlkManagerSettlements.id, id))
+        .returning();
+      if (!row) return sendNotFound(reply);
+      return { settlement: serializeManagerSettlement(row) };
+    } catch (error) {
+      if (isUniqueViolation(error)) return reply.code(409).send({ error: "manager_settlement_exists" });
+      throw error;
+    }
+  });
+
+  app.delete("/mlk/manager-settlements/:id", { preHandler: requirePerm("mlk.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(mlkIdParams, request.params);
+    const [row] = await db.delete(mlkManagerSettlements).where(eq(mlkManagerSettlements.id, id)).returning({ id: mlkManagerSettlements.id });
+    if (!row) return sendNotFound(reply);
+    return { ok: true };
+  });
+
   app.get("/mlk/stores", { preHandler: requirePerm("mlk.view") }, async () => {
     const rows = await db
       .select({
@@ -707,12 +1138,17 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
         investorName: mlkInvestors.name,
         husbandName: mlkCouples.husbandName,
         wifeName: mlkCouples.wifeName,
-        foodCourtName: fnbFoodCourts.name
+        foodCourtName: fnbFoodCourts.name,
+        cuisineName: mlkCuisines.name,
+        managerId: mlkManagers.id,
+        managerName: mlkManagers.name
       })
       .from(mlkStores)
       .leftJoin(mlkInvestors, eq(mlkStores.investorId, mlkInvestors.id))
       .leftJoin(mlkCouples, eq(mlkStores.coupleId, mlkCouples.id))
       .leftJoin(fnbFoodCourts, eq(mlkStores.foodCourtId, fnbFoodCourts.id))
+      .leftJoin(mlkCuisines, eq(mlkStores.cuisineId, mlkCuisines.id))
+      .leftJoin(mlkManagers, eq(mlkCuisines.managerId, mlkManagers.id))
       .orderBy(desc(mlkStores.updatedAt), desc(mlkStores.createdAt));
 
     return {
@@ -720,7 +1156,10 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
         ...serializeStore(row.store),
         investor_name: row.investorName,
         couple_name: row.husbandName && row.wifeName ? `${row.husbandName} / ${row.wifeName}` : null,
-        food_court_name: row.foodCourtName
+        food_court_name: row.foodCourtName,
+        cuisine_name: row.cuisineName,
+        manager_id: row.managerId,
+        manager_name: row.managerName
       }))
     };
   });
@@ -728,11 +1167,21 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
   app.get("/mlk/stores/:id", { preHandler: requirePerm("mlk.view") }, async (request, reply) => {
     const { id } = parseWithSchema(mlkIdParams, request.params);
     const [row] = await db
-      .select({ store: mlkStores, investor: mlkInvestors, couple: mlkCouples, foodCourtName: fnbFoodCourts.name })
+      .select({
+        store: mlkStores,
+        investor: mlkInvestors,
+        couple: mlkCouples,
+        foodCourtName: fnbFoodCourts.name,
+        cuisineName: mlkCuisines.name,
+        managerId: mlkManagers.id,
+        managerName: mlkManagers.name
+      })
       .from(mlkStores)
       .leftJoin(mlkInvestors, eq(mlkStores.investorId, mlkInvestors.id))
       .leftJoin(mlkCouples, eq(mlkStores.coupleId, mlkCouples.id))
       .leftJoin(fnbFoodCourts, eq(mlkStores.foodCourtId, fnbFoodCourts.id))
+      .leftJoin(mlkCuisines, eq(mlkStores.cuisineId, mlkCuisines.id))
+      .leftJoin(mlkManagers, eq(mlkCuisines.managerId, mlkManagers.id))
       .where(eq(mlkStores.id, id))
       .limit(1);
     if (!row) return sendNotFound(reply);
@@ -756,6 +1205,9 @@ export async function registerMlkRoutes(app: FastifyInstance): Promise<void> {
         investor_name: row.investor?.name ?? null,
         couple_name: coupleDisplayName(row.couple),
         food_court_name: row.foodCourtName,
+        cuisine_name: row.cuisineName,
+        manager_id: row.managerId,
+        manager_name: row.managerName,
         payments: payments.map(serializePayment),
         revenue_monthly: revenueMonthly.rows.map((item) => ({
           month: String(item.month),

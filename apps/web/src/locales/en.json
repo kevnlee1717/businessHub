@@ -2388,6 +2388,9 @@
       "stores": "Stores",
       "investors": "Investors",
       "couples": "Couples",
+      "managers": "Cuisine managers",
+      "cuisines": "Cuisines & stores",
+      "managerSettlements": "Manager settlements",
       "revenue": "Revenue",
       "settlements": "Settlements",
       "files": "Files",
@@ -2401,7 +2404,8 @@
     "detail": {
       "store": "Store detail",
       "investor": "Investor detail",
-      "couple": "Couple detail"
+      "couple": "Couple detail",
+      "manager": "Cuisine manager detail"
     },
     "fields": {
       "name": "Name",
@@ -2435,6 +2439,22 @@
       "exited_at": "Exited at",
       "stall": "Stall",
       "cuisine": "Cuisine",
+      "cuisines": "Cuisines",
+      "manager": "Cuisine manager",
+      "cuisine_manager": "Cuisine / manager",
+      "brand_name": "Brand name",
+      "branding": "Branding",
+      "mgmt_fee_rate": "Mgmt fee %",
+      "excess_bonus_rate": "Bonus rate %",
+      "profit_threshold": "Profit threshold",
+      "mgmt_fee": "Mgmt fee",
+      "material_share": "Material share",
+      "training_fee": "Training fee",
+      "opening_surplus": "Opening surplus",
+      "excess_bonus": "Excess bonus",
+      "central_kitchen": "Central kitchen",
+      "other": "Other",
+      "total": "Total",
       "spv_name": "SPV company",
       "spv_uen": "SPV UEN",
       "investor": "Investor",
@@ -2496,11 +2516,29 @@
         "active": "Active",
         "exited": "Exited"
       },
+      "manager": {
+        "candidate": "Candidate",
+        "active": "Active",
+        "exited": "Exited"
+      },
       "payment": {
         "pending": "Pending",
         "paid": "Paid",
         "refunded": "Refunded"
       }
+    },
+    "branding": {
+      "co_brand": "Co-brand",
+      "mrs_lu": "Mrs Lu brand"
+    },
+    "cuisines": {
+      "add": "New cuisine",
+      "edit": "Edit cuisine"
+    },
+    "managerSettlements": {
+      "add": "New settlement",
+      "edit": "Edit settlement",
+      "previewing": "Calculating preview"
     },
     "payments": {
       "add": "Add payment",
@@ -2535,6 +2573,7 @@
       "newStore": "New store",
       "newInvestor": "New investor",
       "newCouple": "New couple",
+      "newManager": "New manager",
       "viewFoodCourt": "View forecast",
       "edit": "Edit",
       "view": "View"
@@ -2552,7 +2591,8 @@
       "operator": "Operator company",
       "mentor": "Mentor tree",
       "ledger": "Monthly ledger",
-      "coupleStores": "Stores"
+      "coupleStores": "Stores",
+      "shareParams": "Share parameters"
     },
     "lifecycle": {
       "title": "Lifecycle",
@@ -2608,7 +2648,11 @@
       "nameRequired": "Name is required",
       "coupleNameRequired": "Husband and wife names are required",
       "confirmDelete": "Delete this record?",
-      "coupleAlreadyAssigned": "This couple already belongs to another store; a couple can only belong to one store"
+      "coupleAlreadyAssigned": "This couple already belongs to another store; a couple can only belong to one store",
+      "managerHasCuisines": "This manager still has cuisines and cannot be deleted",
+      "managerHasSettlements": "This manager has settlements and cannot be deleted",
+      "cuisineHasStores": "This cuisine is used by stores and cannot be deleted",
+      "managerSettlementExists": "A settlement for this month already exists"
     }
   },
   "franchise": {
