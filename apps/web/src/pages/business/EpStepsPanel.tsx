@@ -2,7 +2,14 @@ import { Box, Button, Checkbox, Collapse, Group, Loader, Paper, Stack, Text, Tit
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getStepDateLogs, updateCaseStep, type CaseStep, type CaseStepDateLog } from "../../api/cases";
+import {
+  getStepDateLogs,
+  listEpStepStats,
+  updateCaseStep,
+  type CaseStep,
+  type CaseStepDateLog,
+  type EpStepStat
+} from "../../api/cases";
 import { type Employee } from "../../api/hr";
 
 function displayName(name: string, nameEn?: string | null) {
@@ -232,6 +239,14 @@ export function EpStepsPanel({
   const queryClient = useQueryClient();
   const [historyOpenByStepId, setHistoryOpenByStepId] = useState<Record<string, boolean>>({});
   const sortedSteps = useMemo(() => [...steps].sort((a, b) => a.step_order - b.step_order), [steps]);
+  const epStepStatsQuery = useQuery({
+    queryKey: ["business", "ep-step-stats"],
+    queryFn: () => listEpStepStats(),
+    enabled: true
+  });
+  const statByName = new Map<string, EpStepStat>(
+    (epStepStatsQuery.data?.stats ?? []).map((stat) => [stat.name, stat] as const)
+  );
   const updateMutation = useMutation({
     mutationFn: ({ stepId, checked }: { stepId: string; checked: boolean }) =>
       updateCaseStep(
@@ -271,6 +286,10 @@ export function EpStepsPanel({
         const currentCompletedAt = parseDate(step.completed_at) ?? Date.now();
         const stepGapDays =
           previousCompletedAt === null ? null : Math.max(0, Math.round((currentCompletedAt - previousCompletedAt) / 86_400_000));
+        const st = statByName.get(step.name);
+        const overAvg = Boolean(
+          st?.reference_active && st.avg_days >= 1 && stepGapDays !== null && stepGapDays > st.avg_days
+        );
         return (
           <Paper
             key={step.id}
@@ -288,8 +307,13 @@ export function EpStepsPanel({
                   <Title order={5} lineClamp={1}>
                     {index + 1}. {displayName(step.name, step.name_en)}
                     {stepGapDays !== null ? (
-                      <Text span size="xl" fw={700} c="blue" ml="sm">
+                      <Text span size="xl" fw={700} c={overAvg ? "red" : "blue"} ml="sm">
                         {t("caseStep.duration.stepGap", { days: stepGapDays })}
+                      </Text>
+                    ) : null}
+                    {st?.reference_active ? (
+                      <Text span size="sm" c={overAvg ? "red" : "dimmed"} ml="xs">
+                        {overAvg ? `⚠ 超均值(均 ${st.avg_days} 天)` : `· 均 ${st.avg_days} 天`}
                       </Text>
                     ) : null}
                   </Title>

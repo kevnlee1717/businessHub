@@ -89,6 +89,8 @@ type CaseCreateTransactionResult =
   | { caseRow: typeof cases.$inferSelect; stepRows: (typeof caseSteps.$inferSelect)[] }
   | { error: "package_not_found" | "billing_not_found" };
 
+const DAY_MS = 86_400_000;
+
 const caseCommissionParamsSchema = z.object({
   caseId: z.string().uuid()
 });
@@ -487,6 +489,91 @@ function getCaseSort(orderBy: "signed_at" | "created_at", order: "asc" | "desc")
   return [order === "asc" ? asc(cases.createdAt) : desc(cases.createdAt)];
 }
 
+function parseSignedAtTimestamp(signedAt: string | null): number | null {
+  if (!signedAt) {
+    return null;
+  }
+
+  const timestamp = Date.parse(`${signedAt}T00:00:00Z`);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+async function computeEpStepStats(): Promise<
+  { step_order: number; name: string; sample_count: number; avg_days: number; reference_active: boolean }[]
+> {
+  const rows = await db
+    .select({
+      caseId: caseSteps.caseId,
+      stepOrder: caseSteps.stepOrder,
+      name: caseSteps.name,
+      status: caseSteps.status,
+      completedAt: caseSteps.completedAt,
+      signedAt: cases.signedAt
+    })
+    .from(caseSteps)
+    .innerJoin(cases, eq(caseSteps.caseId, cases.id))
+    .where(eq(cases.businessType, "ep"))
+    .orderBy(asc(caseSteps.caseId), asc(caseSteps.stepOrder));
+
+  const stepsByCase = new Map<string, typeof rows>();
+  const aggregates = new Map<string, { step_order: number; name: string; samples: number[] }>();
+
+  for (const row of rows) {
+    const list = stepsByCase.get(row.caseId) ?? [];
+    list.push(row);
+    stepsByCase.set(row.caseId, list);
+
+    const key = `${row.stepOrder}:${row.name}`;
+    if (!aggregates.has(key)) {
+      aggregates.set(key, { step_order: row.stepOrder, name: row.name, samples: [] });
+    }
+  }
+
+  for (const steps of stepsByCase.values()) {
+    const orderedSteps = [...steps].sort((left, right) => left.stepOrder - right.stepOrder);
+    const completedAtByOrder = new Map<number, Date>();
+
+    for (const step of orderedSteps) {
+      const completedAt = step.completedAt;
+      const startTimestamp =
+        step.stepOrder === 1
+          ? parseSignedAtTimestamp(step.signedAt)
+          : (completedAtByOrder.get(step.stepOrder - 1)?.getTime() ?? null);
+
+      if (step.status === "done" && completedAt && startTimestamp !== null) {
+        const elapsedDays = Math.floor((completedAt.getTime() - startTimestamp) / DAY_MS);
+        if (elapsedDays >= 0) {
+          const key = `${step.stepOrder}:${step.name}`;
+          aggregates.get(key)?.samples.push(elapsedDays);
+        }
+      }
+
+      if (completedAt) {
+        completedAtByOrder.set(step.stepOrder, completedAt);
+      }
+    }
+  }
+
+  return [...aggregates.values()]
+    // step_order 1(签约)是流程起点、非"耗时步骤",其 signed_at→勾完 的差多为存量脏数据,排除
+    .filter((aggregate) => aggregate.step_order !== 1)
+    .sort((left, right) => left.step_order - right.step_order)
+    .map((aggregate) => {
+      const sampleCount = aggregate.samples.length;
+      const avgDays = sampleCount
+        ? Math.round((aggregate.samples.reduce((sum, days) => sum + days, 0) / sampleCount) * 10) / 10
+        : 0;
+
+      return {
+        step_order: aggregate.step_order,
+        name: aggregate.name,
+        sample_count: sampleCount,
+        avg_days: avgDays,
+        reference_active: sampleCount >= 20
+      };
+    });
+}
+
 async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
   const caseIds = rows.map((row) => row.id);
   const subs = caseIds.length
@@ -495,8 +582,13 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
   const resubs = caseIds.length
     ? await db.select().from(caseResubmissions).where(inArray(caseResubmissions.caseId, caseIds))
     : [];
+  const stepRows = caseIds.length
+    ? await db.select().from(caseSteps).where(inArray(caseSteps.caseId, caseIds)).orderBy(asc(caseSteps.stepOrder))
+    : [];
   const byCase = new Map<string, typeof subs>();
   const resubsByCase = new Map<string, typeof resubs>();
+  const stepsByCase = new Map<string, typeof stepRows>();
+  const now = Date.now();
 
   for (const submission of subs) {
     const submissions = byCase.get(submission.caseId) ?? [];
@@ -510,10 +602,37 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
     resubsByCase.set(resubmission.caseId, resubmissions);
   }
 
+  for (const step of stepRows) {
+    const steps = stepsByCase.get(step.caseId) ?? [];
+    steps.push(step);
+    stepsByCase.set(step.caseId, steps);
+  }
+
   return rows.map((row) => {
     const submissions = (byCase.get(row.id) ?? []).sort(
       (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
     );
+    const steps = (stepsByCase.get(row.id) ?? []).sort((left, right) => left.stepOrder - right.stepOrder);
+    const submitStep = steps.find((step) => step.name === "提交申请") ?? null;
+    const approvalStep = steps.find((step) => step.name === "获批") ?? null;
+    const submittedWaitingDays =
+      submitStep?.status === "done" && submitStep.completedAt && approvalStep && approvalStep.status !== "done"
+        ? Math.floor((now - submitStep.completedAt.getTime()) / DAY_MS)
+        : null;
+    const currentStep = steps.find((step) => step.status !== "done") ?? null;
+    let currentStepElapsedDays: number | null = null;
+
+    if (currentStep) {
+      const startTimestamp =
+        currentStep.stepOrder === 1
+          ? parseSignedAtTimestamp(row.signedAt)
+          : (steps.find((step) => step.stepOrder === currentStep.stepOrder - 1)?.completedAt?.getTime() ?? null);
+
+      if (startTimestamp !== null) {
+        currentStepElapsedDays = Math.max(0, Math.floor((now - startTimestamp) / DAY_MS));
+      }
+    }
+
     const currentOpenResubmission =
       (resubsByCase.get(row.id) ?? [])
         .filter((resubmission) => resubmission.status !== "approved")
@@ -542,7 +661,10 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
       last_submission_at: lastSubmissionAt,
       resubmission_open: Boolean(currentOpenResubmission),
       resubmission_open_round: currentOpenResubmission?.roundNo ?? null,
-      resubmission_open_since: currentOpenResubmission?.requestedAt ?? null
+      resubmission_open_since: currentOpenResubmission?.requestedAt ?? null,
+      submitted_waiting_days: submittedWaitingDays,
+      current_step_name: currentStep?.name ?? null,
+      current_step_elapsed_days: currentStepElapsedDays
     };
   });
 }
@@ -1043,6 +1165,10 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
 
     return computeIcaStats(input);
   });
+
+  app.get("/cases/ep-step-stats", { preHandler: requirePerm("case.view") }, async () => ({
+    stats: await computeEpStepStats()
+  }));
 
   app.get("/cases/stats", { preHandler: requirePerm("case.view") }, async (request) => {
     const query = parseWithSchema(caseStatsQuerySchema, request.query);
