@@ -92,6 +92,17 @@ export type Case = {
   resubmission_open?: boolean;
   resubmission_open_round?: number | null;
   resubmission_open_since?: string | null;
+  submitted_waiting_days?: number | null;
+  current_step_name?: string | null;
+  current_step_elapsed_days?: number | null;
+};
+
+export type EpStepStat = {
+  step_order: number;
+  name: string;
+  sample_count: number;
+  avg_days: number;
+  reference_active: boolean;
 };
 
 export type CaseOrderBy = "signed_at" | "created_at";
@@ -514,6 +525,10 @@ export function getCaseStats(params: {
 
   const query = searchParams.toString();
   return api<CaseStats>(`/cases/stats${query ? `?${query}` : ""}`);
+}
+
+export function listEpStepStats(): Promise<{ stats: EpStepStat[] }> {
+  return api<{ stats: EpStepStat[] }>("/cases/ep-step-stats");
 }
 
 export function getCase(id: string): Promise<{

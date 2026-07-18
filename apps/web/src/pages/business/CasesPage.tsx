@@ -33,9 +33,11 @@ import {
   createCase,
   listCases,
   listClients,
+  listEpStepStats,
   listTemplates,
   type Case,
-  type Client
+  type Client,
+  type EpStepStat
 } from "../../api/cases";
 import { listPackages } from "../../api/epPackages";
 import { listEmployees } from "../../api/hr";
@@ -171,6 +173,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
   const [onlyAttention, setOnlyAttention] = useState(false);
   const [signedAtOrder, setSignedAtOrder] = useState<"asc" | "desc" | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const canManageCases = can("case.manage");
@@ -204,6 +207,14 @@ export function CasesPage({ businessType }: CasesPageProps) {
       }),
     placeholderData: keepPreviousData
   });
+  const epStepStatsQuery = useQuery({
+    queryKey: ["business", "ep-step-stats"],
+    queryFn: () => listEpStepStats(),
+    enabled: businessType === "ep"
+  });
+  const statByName = new Map<string, EpStepStat>(
+    (epStepStatsQuery.data?.stats ?? []).map((stat) => [stat.name, stat] as const)
+  );
   const clientsQuery = useQuery({
     queryKey: ["business", "clients"],
     queryFn: () => listClients()
@@ -488,6 +499,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
         {canManageCases ? (
           <Button onClick={openCreateModal}>{t("case.add")}</Button>
         ) : null}
+        {businessType === "ep" && (
+          <Button variant="default" onClick={() => setStatsModalOpen(true)}>
+            步骤耗时统计
+          </Button>
+        )}
       </Group>
 
       <ScrollArea>
@@ -508,7 +524,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                   {signedAtOrder ? ` ${signedAtOrder === "asc" ? "↑" : "↓"}` : ""}
                 </Table.Th>
                 {businessType === "ep" && <Table.Th>签约至今</Table.Th>}
-                {businessType === "ep" && <Table.Th>补材料</Table.Th>}
+                {businessType === "ep" && <Table.Th>进展预警</Table.Th>}
                 <Table.Th>{t("common.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -536,6 +552,17 @@ export function CasesPage({ businessType }: CasesPageProps) {
                     health.level === "attn" ? "red.7" : health.level === "slow" ? "orange.7" : "green.7";
                   const healthLabel =
                     health.level === "attn" ? "需特别关注" : health.level === "slow" ? "偏慢" : "正常";
+                  const st = caseItem.current_step_name ? statByName.get(caseItem.current_step_name) : undefined;
+                  const hasResubmissionWarning = Boolean(caseItem.resubmission_open);
+                  const hasSubmittedWaitingWarning = caseItem.submitted_waiting_days != null;
+                  const hasCurrentStepWarning = Boolean(
+                    st?.reference_active &&
+                    st.avg_days >= 1 &&
+                    caseItem.current_step_elapsed_days != null &&
+                    caseItem.current_step_elapsed_days > st.avg_days
+                  );
+                  const hasProgressWarning =
+                    hasResubmissionWarning || hasSubmittedWaitingWarning || hasCurrentStepWarning;
 
                   return (
                     <Table.Tr
@@ -589,17 +616,33 @@ export function CasesPage({ businessType }: CasesPageProps) {
                       )}
                       {businessType === "ep" && (
                         <Table.Td>
-                          {!caseItem.resubmission_open ? (
+                          {!hasProgressWarning ? (
                             <Text c="dimmed">—</Text>
-                          ) : health.openDays !== null && health.openDays > 20 ? (
-                            <Badge color="red" variant="light">
-                              ⚠ 补材料 {health.openDays} 天未结
-                            </Badge>
                           ) : (
-                            <Badge color="orange" variant="light">
-                              补材料中 · 第{caseItem.resubmission_open_round}轮
-                              {health.openDays !== null ? ` · ${health.openDays}天` : ""}
-                            </Badge>
+                            <Stack gap={4}>
+                              {caseItem.resubmission_open ? (
+                                health.openDays !== null && health.openDays > 20 ? (
+                                  <Badge color="red" variant="light">
+                                    ⚠ 补材料 {health.openDays} 天未结
+                                  </Badge>
+                                ) : (
+                                  <Badge color="orange" variant="light">
+                                    补材料中 · 第{caseItem.resubmission_open_round}轮
+                                    {health.openDays !== null ? ` · ${health.openDays}天` : ""}
+                                  </Badge>
+                                )
+                              ) : null}
+                              {caseItem.submitted_waiting_days != null ? (
+                                <Badge color="blue" variant="light">
+                                  已递交 · 等结果 {caseItem.submitted_waiting_days} 天
+                                </Badge>
+                              ) : null}
+                              {hasCurrentStepWarning ? (
+                                <Badge color="orange" variant="light">
+                                  当前步超均值 · {caseItem.current_step_name} {caseItem.current_step_elapsed_days}/{st?.avg_days}天
+                                </Badge>
+                              ) : null}
+                            </Stack>
                           )}
                         </Table.Td>
                       )}
@@ -764,6 +807,34 @@ export function CasesPage({ businessType }: CasesPageProps) {
             </Group>
           </Stack>
         </form>
+      </Modal>
+      <Modal opened={statsModalOpen} onClose={() => setStatsModalOpen(false)} title="EP 步骤耗时统计" size="lg">
+        <Table withTableBorder withColumnBorders verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>步骤</Table.Th>
+              <Table.Th>平均用时</Table.Th>
+              <Table.Th>样本数</Table.Th>
+              <Table.Th>参考状态</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {(epStepStatsQuery.data?.stats ?? []).map((stat) => (
+              <Table.Tr key={stat.step_order}>
+                <Table.Td>{stat.step_order}. {stat.name}</Table.Td>
+                <Table.Td>{stat.sample_count ? `${stat.avg_days} 天` : "—"}</Table.Td>
+                <Table.Td>{stat.sample_count}</Table.Td>
+                <Table.Td>
+                  {stat.reference_active ? (
+                    <Badge color="green" variant="light">已参考</Badge>
+                  ) : (
+                    <Badge color="gray" variant="light">样本不足 {stat.sample_count}/20</Badge>
+                  )}
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
       </Modal>
     </Stack>
   );
