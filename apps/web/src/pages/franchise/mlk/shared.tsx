@@ -1,6 +1,6 @@
 import { Alert, Badge } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import type { MlkCoupleStatus, MlkEpStatus, MlkKycStatus, MlkPrStatus, MlkServiceTier, MlkStatus } from "../../../api/mlk";
+import type { MlkCoupleStatus, MlkEpStatus, MlkKycStatus, MlkManagerStatus, MlkPrStatus, MlkServiceTier, MlkStatus } from "../../../api/mlk";
 
 export function ErrorAlert({ error }: { error: unknown }) {
   const { t } = useTranslation();
@@ -55,6 +55,12 @@ export function kycColor(status: MlkKycStatus) {
 }
 
 export function coupleStatusColor(status: MlkCoupleStatus) {
+  if (status === "active") return "green";
+  if (status === "exited") return "red";
+  return "gray";
+}
+
+export function managerStatusColor(status: MlkManagerStatus) {
   if (status === "active") return "green";
   if (status === "exited") return "red";
   return "gray";

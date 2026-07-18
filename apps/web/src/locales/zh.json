@@ -2387,6 +2387,9 @@
       "stores": "门店",
       "investors": "投资人",
       "couples": "夫妻",
+      "managers": "菜系经理",
+      "cuisines": "菜系与门店",
+      "managerSettlements": "月度分成",
       "revenue": "营业流水",
       "settlements": "月结算",
       "files": "文件",
@@ -2400,7 +2403,8 @@
     "detail": {
       "store": "门店详情",
       "investor": "投资人详情",
-      "couple": "夫妻详情"
+      "couple": "夫妻详情",
+      "manager": "菜系经理详情"
     },
     "fields": {
       "name": "名称",
@@ -2434,6 +2438,22 @@
       "exited_at": "离场日期",
       "stall": "档口",
       "cuisine": "菜系",
+      "cuisines": "名下菜系",
+      "manager": "菜系经理",
+      "cuisine_manager": "菜系/经理",
+      "brand_name": "品牌名",
+      "branding": "挂牌方式",
+      "mgmt_fee_rate": "管理费率%",
+      "excess_bonus_rate": "超额奖励率%",
+      "profit_threshold": "纯利门槛",
+      "mgmt_fee": "管理费",
+      "material_share": "物料利润",
+      "training_fee": "培训费",
+      "opening_surplus": "开店结余",
+      "excess_bonus": "超额奖励",
+      "central_kitchen": "中央厨房",
+      "other": "其他",
+      "total": "合计",
       "spv_name": "SPV 公司",
       "spv_uen": "SPV UEN",
       "investor": "投资人",
@@ -2495,11 +2515,29 @@
         "active": "在营",
         "exited": "已离场"
       },
+      "manager": {
+        "candidate": "候选",
+        "active": "合作中",
+        "exited": "已退出"
+      },
       "payment": {
         "pending": "待付款",
         "paid": "已付款",
         "refunded": "已退款"
       }
+    },
+    "branding": {
+      "co_brand": "联名",
+      "mrs_lu": "陆老师牌"
+    },
+    "cuisines": {
+      "add": "新建菜系",
+      "edit": "编辑菜系"
+    },
+    "managerSettlements": {
+      "add": "新建分成单",
+      "edit": "编辑分成单",
+      "previewing": "正在计算建议值"
     },
     "payments": {
       "add": "添加付款",
@@ -2534,6 +2572,7 @@
       "newStore": "新建门店",
       "newInvestor": "新建投资人",
       "newCouple": "新建夫妻",
+      "newManager": "新建经理",
       "viewFoodCourt": "查看测算",
       "edit": "编辑",
       "view": "查看"
@@ -2552,6 +2591,7 @@
       "mentor": "师徒",
       "ledger": "逐月流水台账",
       "coupleStores": "所属门店"
+      ,"shareParams": "分成参数"
     },
     "lifecycle": {
       "title": "生命周期",
@@ -2607,7 +2647,11 @@
       "nameRequired": "请填写名称",
       "coupleNameRequired": "请填写丈夫和妻子姓名",
       "confirmDelete": "确认删除这条记录？",
-      "coupleAlreadyAssigned": "这对夫妻已属于另一家门店，一对夫妻只能属于一家门店"
+      "coupleAlreadyAssigned": "这对夫妻已属于另一家门店，一对夫妻只能属于一家门店",
+      "managerHasCuisines": "该经理名下还有菜系，不能删除",
+      "managerHasSettlements": "该经理已有分成单，不能删除",
+      "cuisineHasStores": "该菜系已有门店引用，不能删除",
+      "managerSettlementExists": "该月份分成单已存在"
     }
   },
   "franchise": {
