@@ -492,7 +492,11 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
   const subs = caseIds.length
     ? await db.select().from(caseSubmissions).where(inArray(caseSubmissions.caseId, caseIds))
     : [];
+  const resubs = caseIds.length
+    ? await db.select().from(caseResubmissions).where(inArray(caseResubmissions.caseId, caseIds))
+    : [];
   const byCase = new Map<string, typeof subs>();
+  const resubsByCase = new Map<string, typeof resubs>();
 
   for (const submission of subs) {
     const submissions = byCase.get(submission.caseId) ?? [];
@@ -500,10 +504,20 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
     byCase.set(submission.caseId, submissions);
   }
 
+  for (const resubmission of resubs) {
+    const resubmissions = resubsByCase.get(resubmission.caseId) ?? [];
+    resubmissions.push(resubmission);
+    resubsByCase.set(resubmission.caseId, resubmissions);
+  }
+
   return rows.map((row) => {
     const submissions = (byCase.get(row.id) ?? []).sort(
       (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
     );
+    const currentOpenResubmission =
+      (resubsByCase.get(row.id) ?? [])
+        .filter((resubmission) => resubmission.status !== "approved")
+        .sort((left, right) => right.roundNo - left.roundNo)[0] ?? null;
     const latest = submissions[0] ?? null;
     const submittedTimes = submissions
       .map((submission) => submission.submittedAt ?? submission.createdAt)
@@ -525,7 +539,10 @@ async function serializeCasesWithLatest(rows: (typeof cases.$inferSelect)[]) {
           : null,
       latest_submission_at: latest?.createdAt.toISOString() ?? null,
       first_submission_at: firstSubmissionAt,
-      last_submission_at: lastSubmissionAt
+      last_submission_at: lastSubmissionAt,
+      resubmission_open: Boolean(currentOpenResubmission),
+      resubmission_open_round: currentOpenResubmission?.roundNo ?? null,
+      resubmission_open_since: currentOpenResubmission?.requestedAt ?? null
     };
   });
 }

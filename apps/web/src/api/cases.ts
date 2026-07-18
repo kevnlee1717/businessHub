@@ -89,6 +89,9 @@ export type Case = {
   latest_submission_at?: string | null;
   first_submission_at?: string | null;
   last_submission_at?: string | null;
+  resubmission_open?: boolean;
+  resubmission_open_round?: number | null;
+  resubmission_open_since?: string | null;
 };
 
 export type CaseOrderBy = "signed_at" | "created_at";
