@@ -120,7 +120,11 @@ function computeIcaWarnings(caseItem: Case): {
   attn: boolean;
 } {
   const openDays = daysSince(caseItem.resubmission_open_since);
-  const waitingDays = caseItem.latest_result === "pending" ? daysSince(caseItem.latest_submission_at) : null;
+  // 等结果天数用 last_submission_at(基于真实递交日 submitted_at);latest_submission_at 是记录创建时间,批量导入的会失真
+  const waitingDays =
+    caseItem.latest_result === "pending"
+      ? daysSince(caseItem.last_submission_at ?? caseItem.latest_submission_at)
+      : null;
   const attn = Boolean(
     (caseItem.resubmission_open && openDays !== null && openDays > 20) ||
       (waitingDays !== null && waitingDays > 90)
