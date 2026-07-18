@@ -1629,7 +1629,7 @@ export function CaseDetailPage() {
   const resubmissionsQuery = useQuery({
     queryKey: ["business", "case", "resubmissions", id],
     queryFn: () => listResubmissions(id ?? ""),
-    enabled: Boolean(id) && caseQuery.data?.case?.business_type === "ep"
+    enabled: Boolean(id) && ["ep", "ica"].includes(caseQuery.data?.case?.business_type ?? "")
   });
   const updateCaseMutation = useMutation({
     mutationFn: ({
@@ -1664,8 +1664,8 @@ export function CaseDetailPage() {
     }
     const isEp = caseItem.business_type === "ep";
     const isIca = caseItem.business_type === "ica";
-    const epStepNavItems: CaseNavItem[] = [];
-    if (isEp) {
+    const stepNavItems: CaseNavItem[] = [];
+    if (isEp || isIca) {
       const doneCount = steps.filter((step) => step.status === "done").length;
       const tones = steps.map(stepTone);
       const aggregateTone: StepTone = tones.includes("problem")
@@ -1675,15 +1675,15 @@ export function CaseDetailPage() {
           : tones.includes("progress")
             ? "progress"
             : "pending";
-      epStepNavItems.push({
+      stepNavItems.push({
         key: "steps",
         label: `${t("case.section.steps")} ${doneCount}/${steps.length}`,
         tone: aggregateTone
       });
-      epStepNavItems.push({ key: "files", label: t("case.section.files") });
+      stepNavItems.push({ key: "files", label: t("case.section.files") });
       // 有补材料轮次时,多出一个红色「补材料」tab(tone:"problem" → 红);一轮都没有则不显示。
       if (hasResubmissions) {
-        epStepNavItems.push({ key: "resubmissions", label: t("case.section.resubmissions"), tone: "problem" });
+        stepNavItems.push({ key: "resubmissions", label: t("case.section.resubmissions"), tone: "problem" });
       }
     }
     const items: CaseNavItem[] = [{ key: "info", label: t("case.section.info") }];
@@ -1702,8 +1702,8 @@ export function CaseDetailPage() {
       items.push({ key: "addon", label: t("case.section.addon") });
       items.push({ key: "commission", label: t("case.section.commission") });
     }
-    if (isEp) {
-      return [...epStepNavItems, ...items];
+    if (isEp || isIca) {
+      return [...stepNavItems, ...items];
     } else {
       steps.forEach((step, index) => {
         items.push({ key: step.id, label: t("caseStep.stepNo", { n: index + 1 }), tone: stepTone(step) });
@@ -1717,11 +1717,14 @@ export function CaseDetailPage() {
     : navItems[0]?.key ?? "info";
 
   const selectedStep = useMemo(
-    () => (caseItem?.business_type === "ep" ? null : steps.find((step) => step.id === effectiveSelected) ?? null),
+    () =>
+      caseItem?.business_type === "ep" || caseItem?.business_type === "ica"
+        ? null
+        : steps.find((step) => step.id === effectiveSelected) ?? null,
     [caseItem?.business_type, steps, effectiveSelected]
   );
   const epDuration = useMemo<SectionNavDuration | null>(() => {
-    if (caseItem?.business_type !== "ep") {
+    if (caseItem?.business_type !== "ep" && caseItem?.business_type !== "ica") {
       return null;
     }
 
@@ -1744,7 +1747,7 @@ export function CaseDetailPage() {
       return null;
     }
 
-    return { days: Math.max(0, Math.round((latestDone - start) / 86_400_000)), typicalDays: 21 };
+    return { days: Math.max(0, Math.round((latestDone - start) / 86_400_000)), typicalDays: caseItem.business_type === "ica" ? 9999 : 21 };
   }, [caseItem, steps]);
   const clients = clientsQuery.data?.clients ?? [];
   const guarantors = guarantorsQuery.data?.guarantors ?? [];
@@ -1756,7 +1759,7 @@ export function CaseDetailPage() {
   );
   // EP 案件导航标题显示「客户名 · 公司名」(有哪个显示哪个);非 EP 或都为空时回落到默认「案件导航」。
   const navHeading = useMemo(() => {
-    if (!caseItem || caseItem.business_type !== "ep") {
+    if (!caseItem || (caseItem.business_type !== "ep" && caseItem.business_type !== "ica")) {
       return null;
     }
     const client = clientById.get(caseItem.client_id ?? "");
@@ -1876,11 +1879,12 @@ export function CaseDetailPage() {
             />
           ) : null}
 
-          {effectiveSelected === "steps" && caseItem.business_type === "ep" ? (
+          {effectiveSelected === "steps" && (caseItem.business_type === "ep" || caseItem.business_type === "ica") ? (
             <Stack gap="md">
               <EpStepsPanel
                 steps={steps}
                 caseId={caseItem.id}
+                businessType={caseItem.business_type === "ica" ? "ica" : "ep"}
                 canManageCases={canManageCases}
                 employeeById={employeeById}
               />
@@ -1891,11 +1895,11 @@ export function CaseDetailPage() {
             </Stack>
           ) : null}
 
-          {effectiveSelected === "resubmissions" && caseItem.business_type === "ep" ? (
+          {effectiveSelected === "resubmissions" && (caseItem.business_type === "ep" || caseItem.business_type === "ica") ? (
             <CaseResubmissionsPanel caseId={caseItem.id} canManage={canManageCases} />
           ) : null}
 
-          {effectiveSelected === "files" && caseItem.business_type === "ep" ? (
+          {effectiveSelected === "files" && (caseItem.business_type === "ep" || caseItem.business_type === "ica") ? (
             <CaseFilesPanel caseId={caseItem.id} canManage={canManageCases} />
           ) : null}
 

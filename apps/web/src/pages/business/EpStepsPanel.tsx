@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getStepDateLogs,
-  listEpStepStats,
+  listStepStats,
   updateCaseStep,
   type CaseStep,
   type CaseStepDateLog,
@@ -227,11 +227,13 @@ function StepDateHistoryCollapse({
 export function EpStepsPanel({
   steps,
   caseId,
+  businessType,
   canManageCases,
   employeeById
 }: {
   steps: CaseStep[];
   caseId: string;
+  businessType: "ep" | "ica";
   canManageCases: boolean;
   employeeById: Map<string, Employee>;
 }) {
@@ -240,8 +242,8 @@ export function EpStepsPanel({
   const [historyOpenByStepId, setHistoryOpenByStepId] = useState<Record<string, boolean>>({});
   const sortedSteps = useMemo(() => [...steps].sort((a, b) => a.step_order - b.step_order), [steps]);
   const epStepStatsQuery = useQuery({
-    queryKey: ["business", "ep-step-stats"],
-    queryFn: () => listEpStepStats(),
+    queryKey: ["business", "step-stats", businessType],
+    queryFn: () => listStepStats(businessType),
     enabled: true
   });
   const statByName = new Map<string, EpStepStat>(
