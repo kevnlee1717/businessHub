@@ -16,14 +16,38 @@
 
 **铁律:日常开发只动 `~/project/businessHub-dev`(改它、`restart bh-dev`、在 dev-bh 验证)。绝不在 `~/project/businessHub`(prod 树)上直接改/测,会影响真用户。**
 
-**发布到 prod(确认 dev OK 后):**
+## 🚀 发布到 prod 标准 checklist(2026-07-18 复盘后固化,严格照走)
+
+> **背景**:prod 与 dev 是两个独立 clone、历史已三方分叉(`git pull` **不**干净,别用)。`origin/master`=dev 全量权威主干,`origin/prod`=prod 实际在跑的状态。每次发布只带"某功能",按下面走 —— 这套是为了根治两个真实事故:①按 commit 前缀猜范围导致漏功能(月份筛选);②只测新功能没回归导致旧 bug(下载 0 字节)上 prod。
+
+**① 发布前(在 dev 上)**:功能已在 `dev-bh.youjia.sg` **用浏览器真走过关键流程**(不是只 curl 打接口),且**回归测过被本次改动牵连的相邻功能**(动了 drive 就下载一个文件、动了列表就翻页/筛选)。dev commit 已 push origin。
+
+**② 安全网(动 prod 前必做)**:
 ```bash
-cd ~/project/businessHub && git pull            # 拉 dev 已 push 的提交
-pnpm --filter @bh/web build                     # 重建前端
-sudo systemctl restart bh-prod                  # ⚠️ 系统级服务，不是 --user！
-# 若有新 migration:对 prod 库单独 migrate(注意 DATABASE_URL=businesshub)
+mkdir -p ~/backups; TS=$(date +%Y%m%d-%H%M%S)
+docker exec -e PGPASSWORD=bh businesshub-db-1 pg_dump -U bh -d businesshub | gzip > ~/backups/businesshub-prod-$TS.sql.gz   # 真实数据整库备份(只读)
+cd ~/project/businessHub && git tag prod-known-good-$TS HEAD    # 代码回滚锚点
 ```
-> dev 的 migration 跑在 `businesshub_dev`;发布时 prod 库 `businesshub` 要单独 migrate,别搞混 DATABASE_URL。
+
+**③ 定发布范围——用文件级 diff,不要猜 commit**:列出该功能涉及的**每个文件**,逐个 `diff ~/project/businessHub-dev/<f> ~/project/businessHub/<f>`;凡该功能相关的差异都要对齐到 prod。**别用 commit message 前缀圈范围**(月份筛选那种 `feat(business)` 会被漏)。EP 专属组件 diff 应为 0 才算全。
+
+**④ 结构(DDL,只加结构、绝不灌 dev 数据)**:把该功能依赖的所有 migration(**含它间接依赖的**,例:EP 文件盘依赖 drive 的 0073 scope 列)幂等灌 prod 库 `businesshub`:
+```bash
+docker exec -i -e PGPASSWORD=bh businesshub-db-1 psql -U bh -d businesshub -v ON_ERROR_STOP=1 < packages/db/migrations/00XX_xxx.sql
+```
+发前先想清楚"prod 存量老数据在新代码下会不会炸",需要回填的就地 UPDATE。**dev 的行数据永不进 prod。**
+
+**⑤ 代码**:cherry-pick(`git remote add devlocal ~/project/businessHub-dev && git fetch devlocal` 后 `git cherry-pick <shas>`)或直接对齐文件;解冲突只保该功能逻辑,别动 prod 已有的其它功能。**发前先 `git stash` prod 树里的本地未提交改动(CLAUDE.md/runbook),发完 pop;删 devlocal remote。**
+
+**⑥ 生效**:`pnpm --filter @bh/web build`(**纯后端改动可免 build**)→ `sudo systemctl restart bh-prod`(**系统级,不是 --user**)。
+
+**⑦ 验证(硬性)**:①`curl :3011/api/health` 得 `db:true`;②新前端 hash 变了;③**浏览器真走一遍**新功能 **+ 回归相邻功能**(用 prod .env 的 JWT_SECRET 自签 token 打 GET 只能证明不崩,证不了 UI 好用)。
+
+**⑧ 收尾**:`git push origin HEAD:refs/heads/prod --force-with-lease`(更新 origin/prod 记录 prod 新状态)+ 更新 memory。
+
+**⑨ 出事回滚**:代码 `git reset --hard prod-known-good-<TS> && pnpm --filter @bh/web build && sudo systemctl restart bh-prod`;数据 `gunzip -c ~/backups/businesshub-prod-<TS>.sql.gz | docker exec -i businesshub-db-1 psql -U bh -d businesshub`(谨慎,会覆盖)。
+
+> dev 的 migration 跑在 `businesshub_dev`;发布时 prod 库 `businesshub` 单独灌,别搞混 DATABASE_URL。
 
 ## 🟥 改前端后只 build 不重启 → 线上黑屏(stale index.html)
 
