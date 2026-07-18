@@ -1076,6 +1076,7 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     if (!existing || !(await isNodeInCaseDriveTree(rootId, nodeId))) return sendNotFound(reply);
     const sent = await sendDriveNodeDownload(nodeId, reply);
     if (!sent) return sendNotFound(reply);
+    return sent;
   });
 
   app.get("/cases", { preHandler: requirePerm("case.view") }, async (request) => {

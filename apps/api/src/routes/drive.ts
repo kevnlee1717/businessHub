@@ -383,5 +383,6 @@ export async function registerDriveRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parseWithSchema(idParams, request.params);
     const sent = await sendDriveNodeDownload(id, reply);
     if (!sent) return sendNotFound(reply);
+    return sent;
   });
 }
