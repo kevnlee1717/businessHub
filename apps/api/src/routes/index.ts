@@ -33,6 +33,7 @@ import { registerEpPriceFileRoutes } from "./epPriceFiles";
 import { registerEnglishRoutes } from "./english";
 import { registerExpenseCategoryRoutes } from "./expenseCategories";
 import { registerExternalCommissionRoutes } from "./externalCommission";
+import { registerExternalIfmRoutes } from "./externalIfm";
 import { registerExternalPartyRoutes } from "./externalParties";
 import { registerFaceChallengeRoutes } from "./faceChallenges";
 import { registerFnbFoodCourtRoutes } from "./fnbFoodCourts";
@@ -76,6 +77,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(registerCommissionRoutes);
   await app.register(registerExternalPartyRoutes);
   await app.register(registerExternalCommissionRoutes);
+  await app.register(registerExternalIfmRoutes);
   await app.register(registerStatementRoutes);
   await app.register(registerChargeRoutes);
   await app.register(registerBusinessRoutes);

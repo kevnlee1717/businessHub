@@ -28,7 +28,12 @@ export const recruitmentKeys = {
   candidates: (params?: unknown) => ["recruitment", "candidates", params] as const,
   candidate: (id: string) => ["recruitment", "candidate", id] as const,
   upcomingInterviews: () => ["recruitment", "interviews", "upcoming"] as const,
-  settings: () => ["recruitment", "settings"] as const
+  settings: () => ["recruitment", "settings"] as const,
+  kpiTargets: (params?: unknown) => ["recruitment", "kpi-targets", params] as const,
+  myKpiTargets: (params?: unknown) => ["recruitment", "kpi-targets", "my", params] as const,
+  groupOwners: (params?: unknown) => ["recruitment", "group-owners", params] as const,
+  ifmCompaniesCache: () => ["recruitment", "ifm", "companies-cache"] as const,
+  ifmUserBindings: () => ["recruitment", "ifm", "user-bindings"] as const
 };
 
 export type RecruitmentIndustry = {
@@ -236,6 +241,75 @@ export type RecruitmentDashboard = {
   overdue: { count: number; candidates: RecruitmentCandidate[] };
 };
 
+export type RecruitmentKpiMetric = "daily_posts" | "daily_new_group_owners" | "daily_contacts";
+
+export type RecruitmentKpiTarget = {
+  id: string;
+  company_id: string;
+  company_name?: string | null;
+  assignee_employee_id: string;
+  assignee_name?: string | null;
+  metric: RecruitmentKpiMetric;
+  platform?: string | null;
+  period: "daily" | "weekly" | "monthly";
+  target_count: number;
+  period_start: string;
+  period_end: string;
+  period_days_left: number;
+  target_per_day: number;
+  effective_from: string;
+  effective_to?: string | null;
+  issued_by_source: "ifm" | "bh";
+  issued_by_ifm_user?: string | null;
+  issued_by_employee_id?: string | null;
+  issued_by_name?: string | null;
+  note?: string | null;
+  active: boolean;
+  actual?: number;
+  completion_rate?: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruitmentGroupOwner = {
+  id: string;
+  company_id: string;
+  company_name?: string | null;
+  platform: string;
+  group_name: string;
+  owner_name?: string | null;
+  owner_contact?: string | null;
+  group_url?: string | null;
+  member_count?: number | null;
+  found_by: string;
+  found_by_name?: string | null;
+  found_on: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IfmCompanyCache = {
+  ifm_company_id: string;
+  name: string;
+  active: boolean;
+  synced_at: string;
+  bh_company_id?: string | null;
+  bh_company_name?: string | null;
+};
+
+export type IfmUserBinding = {
+  id: string;
+  ifm_user_id: string;
+  ifm_display_name?: string | null;
+  employee_id?: string | null;
+  employee_name?: string | null;
+  bridge_role: "manager" | "operator";
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type RecruitmentAnalytics = {
   platforms: {
     platform: string;
@@ -417,3 +491,96 @@ export const updateRecruitmentSettings = (id: string, body: unknown) =>
   api<{ settings: RecruitmentSettings }>(`/recruitment/settings/${id}`, { method: "PATCH", body });
 export const getRecruitmentDashboard = () =>
   api<{ dashboard: RecruitmentDashboard }>("/recruitment/dashboard");
+
+export type RecruitmentAssignableEmployee = {
+  id: string;
+  name: string;
+  position_name?: string | null;
+  is_recruitment_operator: boolean;
+};
+// 指标执行人候选（招聘操作员是内部员工，不走 /employees 的公司范围过滤）
+export const listRecruitmentAssignableEmployees = () =>
+  api<{ employees: RecruitmentAssignableEmployee[] }>("/recruitment/assignable-employees");
+
+export const listRecruitmentKpiTargets = (params: Record<string, unknown> = {}) =>
+  api<{ kpi_targets: RecruitmentKpiTarget[] }>(`/recruitment/kpi-targets${qs(params)}`);
+export const listMyRecruitmentKpiTargets = (params: Record<string, unknown> = {}) =>
+  api<{ date: string; kpi_targets: RecruitmentKpiTarget[] }>(`/recruitment/kpi-targets/my${qs(params)}`);
+export const createRecruitmentKpiTarget = (body: unknown) =>
+  api<{ kpi_target: RecruitmentKpiTarget }>("/recruitment/kpi-targets", { method: "POST", body });
+export const updateRecruitmentKpiTarget = (id: string, body: unknown) =>
+  api<{ kpi_target: RecruitmentKpiTarget }>(`/recruitment/kpi-targets/${id}`, { method: "PATCH", body });
+export const deleteRecruitmentKpiTarget = (id: string) =>
+  api<{ kpi_target: RecruitmentKpiTarget }>(`/recruitment/kpi-targets/${id}`, { method: "DELETE" });
+
+export const listRecruitmentGroupOwners = (params: Record<string, unknown> = {}) =>
+  api<{ group_owners: RecruitmentGroupOwner[] }>(`/recruitment/group-owners${qs(params)}`);
+export const createRecruitmentGroupOwner = (body: unknown) =>
+  api<{ group_owner: RecruitmentGroupOwner }>("/recruitment/group-owners", { method: "POST", body });
+export const updateRecruitmentGroupOwner = (id: string, body: unknown) =>
+  api<{ group_owner: RecruitmentGroupOwner }>(`/recruitment/group-owners/${id}`, { method: "PATCH", body });
+export const deleteRecruitmentGroupOwner = (id: string) =>
+  api<null>(`/recruitment/group-owners/${id}`, { method: "DELETE" });
+
+export const listIfmBindableCompanies = () =>
+  api<{ companies: { id: string; name: string }[] }>("/recruitment/ifm/companies");
+export const listIfmCompaniesCache = () =>
+  api<{ companies_cache: IfmCompanyCache[] }>("/recruitment/ifm/companies-cache");
+export const bindIfmCompany = (ifmCompanyId: string, companyId: string | null) =>
+  api<{ ok: true }>(`/recruitment/ifm/companies-cache/${encodeURIComponent(ifmCompanyId)}/bind`, {
+    method: "POST",
+    body: { companyId }
+  });
+export const createCompanyFromIfmCache = (ifmCompanyId: string) =>
+  api<{ company: { id: string; name: string; ifm_company_id: string | null } }>(
+    `/recruitment/ifm/companies-cache/${encodeURIComponent(ifmCompanyId)}/create-company`,
+    { method: "POST" }
+  );
+
+export const listIfmUserBindings = () =>
+  api<{ user_bindings: IfmUserBinding[] }>("/recruitment/ifm/user-bindings");
+export const createIfmUserBinding = (body: unknown) =>
+  api<{ user_binding: IfmUserBinding }>("/recruitment/ifm/user-bindings", { method: "POST", body });
+export const updateIfmUserBinding = (id: string, body: unknown) =>
+  api<{ user_binding: IfmUserBinding }>(`/recruitment/ifm/user-bindings/${id}`, { method: "PATCH", body });
+
+export type OperatorComparisonEntry = {
+  employee_id: string;
+  name: string;
+  ifm_display_name: string | null;
+  volume: {
+    postings: number;
+    contacts: number;
+    new_group_owners: number;
+    candidates_added: number;
+    interviews_created: number;
+  };
+  kpi: {
+    target_days: number;
+    met_days: number;
+    met_ratio: number | null;
+    avg_completion_rate: number | null;
+  };
+  funnel: {
+    candidates_added: number;
+    reached_interview: number;
+    interview_rate: number | null;
+    interviews_concluded: { done: number; no_show: number; cancelled: number };
+    show_rate: number | null;
+    results: { pass: number; fail: number };
+    pass_rate: number | null;
+    offered: number;
+    offer_rate: number | null;
+  };
+  active_days: number;
+};
+
+export const getOperatorComparison = (params: { from?: string; to?: string } = {}) => {
+  const searchParams = new URLSearchParams();
+  if (params.from) searchParams.set("from", params.from);
+  if (params.to) searchParams.set("to", params.to);
+  const query = searchParams.toString();
+  return api<{ from: string; to: string; operators: OperatorComparisonEntry[] }>(
+    `/recruitment/operator-comparison${query ? `?${query}` : ""}`
+  );
+};

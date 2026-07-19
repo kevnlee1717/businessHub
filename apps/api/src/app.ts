@@ -9,7 +9,7 @@ import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import fastify from "fastify";
-import { ZodError } from "zod";
+import { ZodError, type ZodIssue } from "zod";
 import { authenticate } from "./auth/jwt";
 import { env } from "./env";
 import { registerRoutes } from "./routes/index";
@@ -18,6 +18,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const uploadRoot = join(__dirname, "../../..", "uploads");
 const webDist = join(__dirname, "../../web/dist");
 const webIndex = join(webDist, "index.html");
+
+// zod issue → 人话（中文），给前端/桥对端直接展示用
+function zodIssueMessage(issue: ZodIssue): string {
+  const path = issue.path.join(".") || "参数";
+  switch (issue.code) {
+    case "invalid_type":
+      return issue.received === "undefined" || issue.received === "null"
+        ? `${path}：必填`
+        : `${path}：类型不对（应为 ${issue.expected}）`;
+    case "invalid_enum_value":
+      return `${path}：只能是 ${issue.options.join(" / ")}`;
+    case "too_small":
+      if (issue.type === "string") return `${path}：不能为空`;
+      if (issue.type === "array") return `${path}：至少 ${issue.minimum} 项`;
+      return `${path}：不能小于 ${issue.minimum}`;
+    case "too_big":
+      if (issue.type === "string") return `${path}：太长（最多 ${issue.maximum} 字）`;
+      return `${path}：不能大于 ${issue.maximum}`;
+    case "invalid_string":
+      return `${path}：格式不对`;
+    default:
+      return `${path}：${issue.message}`;
+  }
+}
 
 function isHttpError(error: unknown): error is { statusCode: number; message: string } {
   return (
@@ -76,6 +100,7 @@ export async function buildApp() {
     if (error instanceof ZodError) {
       return reply.code(400).send({
         error: "validation_error",
+        message: error.issues.map(zodIssueMessage).join("；"),
         issues: error.issues
       });
     }

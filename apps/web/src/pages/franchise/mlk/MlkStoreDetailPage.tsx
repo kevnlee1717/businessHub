@@ -27,7 +27,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
-import { fnbFoodCourtKeys, getFoodCourt, listFoodCourts, type FoodCourt } from "../../../api/fnbFoodCourts";
+import {
+  createFoodCourt,
+  fnbFoodCourtKeys,
+  foodCourtDefaults,
+  getFoodCourt,
+  listFoodCourts,
+  type FoodCourt
+} from "../../../api/fnbFoodCourts";
 import {
   createMlkPayment,
   createMlkCuisine,
@@ -230,6 +237,7 @@ export function MlkStoreDetailPage() {
   const queryClient = useQueryClient();
   const { can } = useAuth();
   const canManage = can("mlk.manage");
+  const canManageFoodCourt = can("franchise.manage") || can("mlk.manage");
   const [form, setForm] = useState<MlkStoreInput>(mlkStoreDefaults());
   const [toast, setToast] = useState<{ color: "green" | "red"; message: string } | null>(null);
   const [stepModal, setStepModal] = useState<{ status: MlkStatus; date: string } | null>(null);
@@ -243,6 +251,8 @@ export function MlkStoreDetailPage() {
   const [noRepay, setNoRepay] = useState(false);
   const [cuisineModalOpen, setCuisineModalOpen] = useState(false);
   const [cuisineForm, setCuisineForm] = useState<MlkCuisineInput>({ name: "", manager_id: null, notes: null });
+  const [foodCourtModalOpen, setFoodCourtModalOpen] = useState(false);
+  const [foodCourtName, setFoodCourtName] = useState("");
 
   const detailQuery = useQuery({
     queryKey: mlkKeys.store(id),
@@ -408,6 +418,16 @@ export function MlkStoreDetailPage() {
     },
     onError: (error) => setToast({ color: "red", message: error instanceof Error ? error.message : t("common.unknown_error") })
   });
+  const foodCourtMutation = useMutation({
+    mutationFn: (name: string) => createFoodCourt({ ...foodCourtDefaults(), name }),
+    onSuccess: async (data) => {
+      setField("food_court_id", data.food_court.id);
+      setFoodCourtModalOpen(false);
+      setFoodCourtName("");
+      await queryClient.invalidateQueries({ queryKey: fnbFoodCourtKeys.all });
+    },
+    onError: (error) => setToast({ color: "red", message: error instanceof Error ? error.message : t("common.unknown_error") })
+  });
   const deleteSettlementMutation = useMutation({
     mutationFn: deleteMlkSettlement,
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: mlkKeys.store(id) })
@@ -441,6 +461,11 @@ export function MlkStoreDetailPage() {
       ...(dateKey ? { [dateKey]: stepModal.date } : {})
     });
     setStepModal(null);
+  }
+
+  function closeFoodCourtModal() {
+    setFoodCourtModalOpen(false);
+    setFoodCourtName("");
   }
 
   function openPayment(payment?: MlkPayment) {
@@ -500,6 +525,25 @@ export function MlkStoreDetailPage() {
   const selectedFoodCourt = (foodCourtsQuery.data?.food_courts ?? []).find((court) => court.id === form.food_court_id);
   const foodCourt = linkedFoodCourtQuery.data?.food_court as FoodCourt | undefined;
   const settlementCalc = foodCourt ? calcAtRevenue(foodCourt, settlementTurnover, { noRepay }) : null;
+  const foodCourtSelect = (
+    <Group align="flex-end" wrap="nowrap">
+      <Select
+        w="100%"
+        label={t("mlk.fields.food_court")}
+        data={foodCourtOptions}
+        value={form.food_court_id ?? null}
+        disabled={disabled}
+        onChange={(value) => setField("food_court_id", value)}
+        clearable
+        searchable
+      />
+      {canManageFoodCourt ? (
+        <Button size="xs" variant="light" onClick={() => setFoodCourtModalOpen(true)}>
+          {t("mlk.actions.newFoodCourt")}
+        </Button>
+      ) : null}
+    </Group>
+  );
 
   const stepperSection = (
     <Card withBorder shadow="xs" p="md">
@@ -533,14 +577,15 @@ export function MlkStoreDetailPage() {
           <Text fw={600} mb="sm">{t("mlk.cards.basic")}</Text>
           <Grid gutter="sm">
             <Grid.Col span={12}><TextInput label={t("mlk.fields.name")} value={form.name} disabled={disabled} onChange={(event) => setField("name", event.currentTarget.value)} /></Grid.Col>
-            <Grid.Col span={4}><TextInput label={t("mlk.fields.stall")} value={form.stall ?? ""} disabled={disabled} onChange={(event) => setField("stall", event.currentTarget.value || null)} /></Grid.Col>
-            <Grid.Col span={4}>
+            <Grid.Col span={{ base: 12, sm: isNew ? 6 : 4 }}><TextInput label={t("mlk.fields.stall")} value={form.stall ?? ""} disabled={disabled} onChange={(event) => setField("stall", event.currentTarget.value || null)} /></Grid.Col>
+            <Grid.Col span={{ base: 12, sm: isNew ? 6 : 4 }}>
               <Group align="flex-end" wrap="nowrap">
                 <Select w="100%" label={t("mlk.fields.cuisine")} data={cuisineOptions} value={form.cuisine_id ?? null} disabled={disabled} clearable searchable onChange={(value) => setField("cuisine_id", value)} />
                 {canManage ? <Button variant="light" onClick={() => setCuisineModalOpen(true)}>{t("mlk.cuisines.add")}</Button> : null}
               </Group>
             </Grid.Col>
-            <Grid.Col span={4}><Select label={t("mlk.fields.status")} data={storeStatuses.map((value) => ({ value, label: t(`mlk.status.store.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "intent") as MlkStatus)} /></Grid.Col>
+            {isNew ? <Grid.Col span={{ base: 12, sm: 6 }}>{foodCourtSelect}</Grid.Col> : null}
+            <Grid.Col span={{ base: 12, sm: isNew ? 6 : 4 }}><Select label={t("mlk.fields.status")} data={storeStatuses.map((value) => ({ value, label: t(`mlk.status.store.${value}`) }))} value={form.status} disabled={disabled} onChange={(value) => setField("status", (value ?? "intent") as MlkStatus)} /></Grid.Col>
             <Grid.Col span={12}><TextInput label={t("mlk.fields.address")} value={form.address ?? ""} disabled={disabled} onChange={(event) => setField("address", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_name")} value={form.spv_name ?? ""} disabled={disabled} onChange={(event) => setField("spv_name", event.currentTarget.value || null)} /></Grid.Col>
             <Grid.Col span={6}><TextInput label={t("mlk.fields.spv_uen")} value={form.spv_uen ?? ""} disabled={disabled} onChange={(event) => setField("spv_uen", event.currentTarget.value || null)} /></Grid.Col>
@@ -584,7 +629,7 @@ export function MlkStoreDetailPage() {
           <Card withBorder shadow="xs" p="sm">
             <Text fw={600} mb="sm">{t("mlk.cards.foodCourt")}</Text>
             <Stack gap="sm">
-              <Select label={t("mlk.fields.food_court")} data={foodCourtOptions} value={form.food_court_id ?? null} disabled={disabled} onChange={(value) => setField("food_court_id", value)} clearable searchable />
+              {!isNew ? foodCourtSelect : null}
               {selectedFoodCourt ? <Anchor onClick={() => navigate(`/franchise/fnb/${selectedFoodCourt.id}`)}>{t("mlk.actions.viewFoodCourt")}</Anchor> : null}
               <NumberInput label={t("mlk.fields.fc_deposit_amount")} value={form.fc_deposit_amount ?? ""} min={0} thousandSeparator="," disabled={disabled} onChange={(value) => setField("fc_deposit_amount", typeof value === "number" ? value : null)} />
             </Stack>
@@ -800,6 +845,16 @@ export function MlkStoreDetailPage() {
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setCuisineModalOpen(false)}>{t("common.cancel")}</Button>
             <Button loading={cuisineMutation.isPending} disabled={!cuisineForm.name.trim()} onClick={() => cuisineMutation.mutate({ ...cuisineForm, name: cuisineForm.name.trim() })}>{t("common.save")}</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={foodCourtModalOpen} onClose={closeFoodCourtModal} title={t("mlk.actions.newFoodCourt")}>
+        <Stack gap="md">
+          <TextInput label={t("foodCourt.fields.name")} value={foodCourtName} onChange={(event) => setFoodCourtName(event.currentTarget.value)} />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={closeFoodCourtModal}>{t("common.cancel")}</Button>
+            <Button loading={foodCourtMutation.isPending} disabled={!foodCourtName.trim()} onClick={() => foodCourtMutation.mutate(foodCourtName.trim())}>{t("common.save")}</Button>
           </Group>
         </Stack>
       </Modal>

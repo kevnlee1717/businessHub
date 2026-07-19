@@ -73,8 +73,12 @@ import { JobDetailPage } from "./pages/recruitment/JobDetailPage";
 import { JobsPage } from "./pages/recruitment/JobsPage";
 import { PostingsPage } from "./pages/recruitment/PostingsPage";
 import { QuickCapturePage } from "./pages/recruitment/QuickCapturePage";
+import { RecruitmentGroupOwnersPage } from "./pages/recruitment/RecruitmentGroupOwnersPage";
 import { RecruitmentAnalyticsPage } from "./pages/recruitment/RecruitmentAnalyticsPage";
 import { RecruitmentDashboardPage } from "./pages/recruitment/RecruitmentDashboardPage";
+import { RecruitmentIfmSettingsPage } from "./pages/recruitment/RecruitmentIfmSettingsPage";
+import { RecruitmentComparisonPage } from "./pages/recruitment/RecruitmentComparisonPage";
+import { RecruitmentKpiPage } from "./pages/recruitment/RecruitmentKpiPage";
 import { RecruitmentLayout } from "./pages/recruitment/RecruitmentLayout";
 import { RecruitmentSettingsPage } from "./pages/recruitment/RecruitmentSettingsPage";
 import { TalentPoolPage } from "./pages/recruitment/TalentPoolPage";
@@ -177,6 +181,9 @@ export function App() {
             <Route path="jobs" element={<JobsPage />} />
             <Route path="jobs/:id" element={<JobDetailPage />} />
             <Route path="postings" element={<PostingsPage />} />
+            <Route path="kpi" element={<RecruitmentKpiPage />} />
+            <Route path="comparison" element={<RecruitmentComparisonPage />} />
+            <Route path="group-owners" element={<RecruitmentGroupOwnersPage />} />
             <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="campaigns/:id" element={<CampaignDetailPage />} />
             <Route path="candidates" element={<CandidatesPage />} />
@@ -186,6 +193,7 @@ export function App() {
             <Route path="talent-pool" element={<TalentPoolPage />} />
             <Route path="capture" element={<QuickCapturePage />} />
             <Route path="settings" element={<RecruitmentSettingsPage />} />
+            <Route path="ifm-settings" element={<RecruitmentIfmSettingsPage />} />
           </Route>
           <Route path="business-finance" element={<BusinessListPage />} />
           <Route path="business-finance/parties" element={<DealPartiesPage />} />

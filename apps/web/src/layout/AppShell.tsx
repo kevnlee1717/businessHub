@@ -206,6 +206,7 @@ export function AppShell() {
   const [views, setViews] = useState<VisitedView[]>(() => [
     { path: "/", title: t("nav.dashboard") }
   ]);
+  const activeTitle = views.find((v) => v.path === pathname)?.title ?? resolveTitle(pathname);
 
   useEffect(() => {
     setViews((prev) => {
@@ -214,6 +215,10 @@ export function AppShell() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  useEffect(() => {
+    document.title = activeTitle ? `${activeTitle} · BusinessHub` : "BusinessHub";
+  }, [activeTitle]);
 
   // 供具体页面(如案件详情)在拿到数据后回填对应标签的标题;标签不存在则忽略。
   const setTabTitle = useCallback((path: string, title: string) => {

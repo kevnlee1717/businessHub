@@ -87,6 +87,7 @@ export * from "./contracts";
 export * from "./contractVersions";
 export * from "./translations";
 export * from "./recruitment";
+export * from "./recruitmentBridge";
 export * from "./franchise";
 export * from "./fnbFoodCourts";
 export * from "./mlk";

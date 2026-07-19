@@ -1,20 +1,26 @@
 import {
+  companies,
   db,
   documents,
   employees,
+  ifmCompaniesCache,
   recruitmentCampaignJobs,
   recruitmentCampaignMaterials,
   recruitmentCampaigns,
   recruitmentCandidates,
   recruitmentFollowups,
+  recruitmentGroupOwners,
   recruitmentIndustries,
   recruitmentInterviews,
+  recruitmentIfmUserBindings,
   recruitmentJobs,
   recruitmentMaterials,
+  positions,
   recruitmentPlatforms,
   recruitmentPostings,
   recruitmentPromptTemplates,
-  recruitmentSettings
+  recruitmentSettings,
+  recruitmentKpiTargets
 } from "@bh/db";
 import {
   computeRecruitmentAnalytics,
@@ -46,21 +52,102 @@ import {
   recruitmentPromptTemplateUpdateSchema,
   recruitmentSettingsUpdateSchema
 } from "@bh/shared";
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
-import { companyFilter } from "../auth/context";
+import { companyFilter, ctxCan } from "../auth/context";
 import { requirePerm } from "../auth/jwt";
 import { generateRecruitmentCopy } from "../lib/ai";
 import { saveUpload } from "../lib/files";
 import { getTranslations, saveTranslationPair, type TranslationValue } from "../lib/translationStore";
 import { type Lang } from "../lib/translate";
+import { buildOperatorComparison, operatorComparisonRange } from "./externalIfm";
 import { idParamsSchema, isUniqueViolation, parseWithSchema, sendConflict, sendNotFound } from "./hrUtils";
+import { computeKpiActualForPeriod, kpiPeriodDaysLeft, kpiPeriodWindow, kpiPeriods } from "./recruitmentKpiPeriod";
+
+const operatorComparisonQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+});
 
 const uuidArrayBodySchema = z.object({
   job_ids: z.array(z.string().uuid()).optional(),
   material_ids: z.array(z.string().uuid()).optional()
 });
+const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const nullableTextSchema = z.string().trim().min(1).nullable().optional();
+const nullableUuidSchema = z.string().uuid().nullable().optional();
+const recruitmentKpiMetricSchema = z.enum(["daily_posts", "daily_new_group_owners", "daily_contacts"]);
+const bridgeRoleSchema = z.enum(["manager", "operator"]);
+const recruitmentKpiQuerySchema = z.object({
+  companyId: z.string().uuid().optional(),
+  assigneeEmployeeId: z.string().uuid().optional(),
+  activeOnly: z.preprocess(booleanValue, z.boolean().optional())
+});
+const recruitmentMyKpiQuerySchema = z.object({
+  date: dateStringSchema.default(todayString())
+});
+const recruitmentKpiCreateSchema = z
+  .object({
+    company_id: z.string().uuid(),
+    assignee_employee_id: z.string().uuid(),
+    metric: recruitmentKpiMetricSchema,
+    platform: nullableTextSchema,
+    period: z.enum(kpiPeriods).default("daily"),
+    target_per_day: z.number().int().min(1),
+    effective_from: dateStringSchema,
+    effective_to: dateStringSchema.nullable().optional(),
+    active: z.boolean().optional(),
+    note: nullableTextSchema
+  })
+  .refine((body) => !body.effective_to || body.effective_to >= body.effective_from, {
+    message: "效期止不能早于效期起",
+    path: ["effective_to"]
+  });
+const recruitmentKpiPatchSchema = z.object({
+  company_id: z.string().uuid().optional(),
+  assignee_employee_id: z.string().uuid().optional(),
+  metric: recruitmentKpiMetricSchema.optional(),
+  platform: nullableTextSchema,
+  period: z.enum(kpiPeriods).optional(),
+  target_per_day: z.number().int().min(1).optional(),
+  effective_from: dateStringSchema.optional(),
+  effective_to: dateStringSchema.nullable().optional(),
+  active: z.boolean().optional(),
+  note: nullableTextSchema
+});
+const recruitmentGroupOwnerQuerySchema = z.object({
+  companyId: z.string().uuid().optional(),
+  platform: z.string().trim().min(1).optional(),
+  from: dateStringSchema.optional(),
+  to: dateStringSchema.optional()
+});
+const recruitmentGroupOwnerBodySchema = z.object({
+  company_id: z.string().uuid(),
+  platform: z.string().trim().min(1).max(120),
+  group_name: z.string().trim().min(1).max(200),
+  owner_name: z.string().trim().min(1).max(200).nullable().optional(),
+  owner_contact: z.string().trim().min(1).max(120).nullable().optional(),
+  group_url: z.string().trim().max(1024).nullable().optional(),
+  member_count: z.number().int().min(0).nullable().optional(),
+  found_on: dateStringSchema.default(todayString()),
+  notes: nullableTextSchema
+});
+const recruitmentGroupOwnerPatchSchema = recruitmentGroupOwnerBodySchema.partial();
+const ifmCompanyIdParamsSchema = z.object({
+  ifmCompanyId: z.string().trim().min(1)
+});
+const bindIfmCompanySchema = z.object({
+  companyId: z.string().uuid().nullable()
+});
+const ifmUserBindingCreateSchema = z.object({
+  ifm_user_id: z.string().trim().min(1),
+  ifm_display_name: z.string().trim().min(1).nullable().optional(),
+  employee_id: nullableUuidSchema,
+  bridge_role: bridgeRoleSchema,
+  active: z.boolean().optional()
+});
+const ifmUserBindingPatchSchema = ifmUserBindingCreateSchema.partial();
 
 const RECRUITMENT_JOB_ENTITY = "recruitment_job";
 const RECRUITMENT_INDUSTRY_ENTITY = "recruitment_industry";
@@ -98,6 +185,10 @@ function booleanValue(value: unknown) {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value === "boolean") return value;
   return value === "true" || value === "1";
+}
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function nullableValue(value: unknown) {
@@ -486,6 +577,111 @@ function serializeFollowup(row: typeof recruitmentFollowups.$inferSelect) {
     created_at: row.createdAt,
     updated_at: row.updatedAt
   };
+}
+
+function serializeRecruitmentKpiTarget(
+  row: typeof recruitmentKpiTargets.$inferSelect,
+  actual?: number,
+  names: { companyName?: string | null; assigneeName?: string | null; issuedByName?: string | null } = {},
+  date?: string
+) {
+  const completionRate = actual === undefined || row.targetPerDay === 0 ? null : actual / row.targetPerDay;
+  const baseDate = date ?? todayString();
+  const window = kpiPeriodWindow(row.period, baseDate);
+  return {
+    id: row.id,
+    company_id: row.companyId,
+    company_name: names.companyName ?? null,
+    assignee_employee_id: row.assigneeEmployeeId,
+    assignee_name: names.assigneeName ?? null,
+    metric: row.metric,
+    platform: row.platform,
+    // 周期粒度：target_per_day 字段名保留，语义=每周期目标数
+    period: row.period,
+    target_count: row.targetPerDay,
+    period_start: window.start,
+    period_end: window.end,
+    period_days_left: kpiPeriodDaysLeft(row.period, baseDate),
+    target_per_day: row.targetPerDay,
+    effective_from: row.effectiveFrom,
+    effective_to: row.effectiveTo,
+    issued_by_source: row.issuedBySource,
+    issued_by_ifm_user: row.issuedByIfmUser,
+    issued_by_employee_id: row.issuedByEmployeeId,
+    issued_by_name: names.issuedByName ?? null,
+    note: row.note,
+    active: row.active,
+    actual,
+    completion_rate: completionRate,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializeRecruitmentGroupOwner(
+  row: typeof recruitmentGroupOwners.$inferSelect,
+  names: { companyName?: string | null; foundByName?: string | null } = {}
+) {
+  return {
+    id: row.id,
+    company_id: row.companyId,
+    company_name: names.companyName ?? null,
+    platform: row.platform,
+    group_name: row.groupName,
+    owner_name: row.ownerName,
+    owner_contact: row.ownerContact,
+    group_url: row.groupUrl,
+    member_count: row.memberCount,
+    found_by: row.foundBy,
+    found_by_name: names.foundByName ?? null,
+    found_on: row.foundOn,
+    notes: row.notes,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+function serializeIfmUserBinding(row: typeof recruitmentIfmUserBindings.$inferSelect, employeeName?: string | null) {
+  return {
+    id: row.id,
+    ifm_user_id: row.ifmUserId,
+    ifm_display_name: row.ifmDisplayName,
+    employee_id: row.employeeId,
+    employee_name: employeeName ?? null,
+    bridge_role: row.bridgeRole,
+    active: row.active,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt
+  };
+}
+
+async function serializeRecruitmentKpiTargetsWithActual(
+  rows: (typeof recruitmentKpiTargets.$inferSelect)[],
+  date: string,
+  namesById = new Map<string, string | null>(),
+  companyNamesById = new Map<string, string | null>(),
+  ifmUserNamesById = new Map<string, string | null>()
+) {
+  return Promise.all(
+    rows.map(async (row) => {
+      const actual = await computeKpiActualForPeriod(row, date);
+      return serializeRecruitmentKpiTarget(
+        row,
+        actual,
+        {
+          companyName: companyNamesById.get(row.companyId) ?? null,
+          assigneeName: namesById.get(row.assigneeEmployeeId) ?? null,
+          issuedByName:
+            row.issuedBySource === "ifm" && row.issuedByIfmUser
+              ? ifmUserNamesById.get(row.issuedByIfmUser) ?? row.issuedByIfmUser
+              : row.issuedByEmployeeId
+                ? namesById.get(row.issuedByEmployeeId) ?? null
+                : null
+        },
+        date
+      );
+    })
+  );
 }
 
 function serializeInterview(row: typeof recruitmentInterviews.$inferSelect) {
@@ -1710,6 +1906,349 @@ export async function registerRecruitmentRoutes(app: FastifyInstance): Promise<v
       .returning();
     const resource = serializeSettings(mustReturn(settings));
     return { settings: resource, resource };
+  });
+
+  // 指标执行人候选：招聘操作员是 bh 内部员工，不隶属客户公司（employees.company_id 普遍为空），
+  // 走通用 /employees 会被公司范围过滤成 0 条。此处按 recruitment.manage 授权返回在职员工，
+  // 绑定过桥 operator 的排在前面（他们才是日常登记的人）。
+  app.get("/recruitment/assignable-employees", { preHandler: requirePerm("recruitment.manage") }, async () => {
+    const [rows, operatorBindings] = await Promise.all([
+      db
+        .select({ id: employees.id, name: employees.name, positionName: positions.name })
+        .from(employees)
+        .leftJoin(positions, eq(employees.positionId, positions.id))
+        .where(eq(employees.status, "active"))
+        .orderBy(employees.name),
+      db
+        .select({ employeeId: recruitmentIfmUserBindings.employeeId })
+        .from(recruitmentIfmUserBindings)
+        .where(and(eq(recruitmentIfmUserBindings.bridgeRole, "operator"), eq(recruitmentIfmUserBindings.active, true)))
+    ]);
+    const operatorIds = new Set(operatorBindings.map((row) => row.employeeId).filter(Boolean));
+    const employeesList = rows
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        position_name: row.positionName ?? null,
+        is_recruitment_operator: operatorIds.has(row.id)
+      }))
+      .sort((a, b) => Number(b.is_recruitment_operator) - Number(a.is_recruitment_operator));
+    return { employees: employeesList };
+  });
+
+  app.get("/recruitment/kpi-targets", { preHandler: requirePerm("recruitment.manage") }, async (request) => {
+    const query = parseWithSchema(recruitmentKpiQuerySchema, request.query);
+    const filters: SQL[] = [];
+    if (query.companyId) filters.push(eq(recruitmentKpiTargets.companyId, query.companyId));
+    if (query.assigneeEmployeeId) filters.push(eq(recruitmentKpiTargets.assigneeEmployeeId, query.assigneeEmployeeId));
+    if (query.activeOnly) filters.push(eq(recruitmentKpiTargets.active, true));
+    const rows = await db
+      .select()
+      .from(recruitmentKpiTargets)
+      .where(filters.length ? and(...filters) : sql`true`)
+      .orderBy(desc(recruitmentKpiTargets.createdAt));
+    const employeeIds = [
+      ...new Set(rows.flatMap((row) => [row.assigneeEmployeeId, row.issuedByEmployeeId]).filter((id): id is string => Boolean(id)))
+    ];
+    const companyIds = [...new Set(rows.map((row) => row.companyId))];
+    const ifmUserIds = [...new Set(rows.map((row) => row.issuedByIfmUser).filter((id): id is string => Boolean(id)))];
+    const [employeeRows, companyRows, ifmUserRows] = await Promise.all([
+      employeeIds.length ? db.select({ id: employees.id, name: employees.name }).from(employees).where(inArray(employees.id, employeeIds)) : [],
+      companyIds.length ? db.select({ id: companies.id, name: companies.name }).from(companies).where(inArray(companies.id, companyIds)) : [],
+      ifmUserIds.length
+        ? db
+            .select({ ifmUserId: recruitmentIfmUserBindings.ifmUserId, ifmDisplayName: recruitmentIfmUserBindings.ifmDisplayName })
+            .from(recruitmentIfmUserBindings)
+            .where(inArray(recruitmentIfmUserBindings.ifmUserId, ifmUserIds))
+        : []
+    ]);
+    const employeeNames = new Map(employeeRows.map((row) => [row.id, row.name]));
+    const companyNames = new Map(companyRows.map((row) => [row.id, row.name]));
+    const ifmUserNames = new Map(ifmUserRows.map((row) => [row.ifmUserId, row.ifmDisplayName || row.ifmUserId]));
+    return { kpi_targets: await serializeRecruitmentKpiTargetsWithActual(rows, todayString(), employeeNames, companyNames, ifmUserNames) };
+  });
+
+  app.get("/recruitment/kpi-targets/my", { preHandler: requirePerm("recruitment.view") }, async (request) => {
+    const query = parseWithSchema(recruitmentMyKpiQuerySchema, request.query);
+    const date = query.date ?? todayString();
+    const rows = await db
+      .select()
+      .from(recruitmentKpiTargets)
+      .where(
+        and(
+          eq(recruitmentKpiTargets.assigneeEmployeeId, request.user.id),
+          eq(recruitmentKpiTargets.active, true),
+          lte(recruitmentKpiTargets.effectiveFrom, date),
+          or(isNull(recruitmentKpiTargets.effectiveTo), gte(recruitmentKpiTargets.effectiveTo, date))
+        )
+      )
+      .orderBy(desc(recruitmentKpiTargets.createdAt));
+    const companyIds = [...new Set(rows.map((row) => row.companyId))];
+    const employeeIds = [
+      ...new Set([request.user.id, ...rows.map((row) => row.issuedByEmployeeId)].filter((id): id is string => Boolean(id)))
+    ];
+    const ifmUserIds = [...new Set(rows.map((row) => row.issuedByIfmUser).filter((id): id is string => Boolean(id)))];
+    const [companyRows, employeeRows, ifmUserRows] = await Promise.all([
+      companyIds.length ? db.select({ id: companies.id, name: companies.name }).from(companies).where(inArray(companies.id, companyIds)) : [],
+      employeeIds.length ? db.select({ id: employees.id, name: employees.name }).from(employees).where(inArray(employees.id, employeeIds)) : [],
+      ifmUserIds.length
+        ? db
+            .select({ ifmUserId: recruitmentIfmUserBindings.ifmUserId, ifmDisplayName: recruitmentIfmUserBindings.ifmDisplayName })
+            .from(recruitmentIfmUserBindings)
+            .where(inArray(recruitmentIfmUserBindings.ifmUserId, ifmUserIds))
+        : []
+    ]);
+    const companyNames = new Map(companyRows.map((row) => [row.id, row.name]));
+    const employeeNames = new Map(employeeRows.map((row) => [row.id, row.name]));
+    const ifmUserNames = new Map(ifmUserRows.map((row) => [row.ifmUserId, row.ifmDisplayName || row.ifmUserId]));
+    return {
+      date,
+      kpi_targets: await serializeRecruitmentKpiTargetsWithActual(rows, date, employeeNames, companyNames, ifmUserNames)
+    };
+  });
+
+  app.post("/recruitment/kpi-targets", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const body = parseWithSchema(recruitmentKpiCreateSchema, request.body);
+    const [company, assignee] = await Promise.all([
+      db.select({ id: companies.id }).from(companies).where(eq(companies.id, body.company_id)).limit(1),
+      db.select({ id: employees.id }).from(employees).where(and(eq(employees.id, body.assignee_employee_id), eq(employees.status, "active"))).limit(1)
+    ]);
+    if (!company[0]) return sendNotFound(reply);
+    if (!assignee[0]) return reply.code(400).send({ error: "invalid_assignee" });
+    const [target] = await db
+      .insert(recruitmentKpiTargets)
+      .values({
+        companyId: body.company_id,
+        assigneeEmployeeId: body.assignee_employee_id,
+        metric: body.metric,
+        platform: body.metric === "daily_posts" ? body.platform : null,
+        period: body.period,
+        targetPerDay: body.target_per_day,
+        effectiveFrom: body.effective_from,
+        effectiveTo: body.effective_to,
+        active: body.active,
+        note: body.note,
+        issuedBySource: "bh",
+        issuedByEmployeeId: request.user.id
+      })
+      .returning();
+    return reply.code(201).send({ kpi_target: serializeRecruitmentKpiTarget(mustReturn(target)) });
+  });
+
+  app.patch("/recruitment/kpi-targets/:id", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(recruitmentKpiPatchSchema, request.body);
+    const update: Partial<typeof recruitmentKpiTargets.$inferInsert> = { updatedAt: new Date() };
+    if (body.company_id !== undefined) update.companyId = body.company_id;
+    if (body.assignee_employee_id !== undefined) update.assigneeEmployeeId = body.assignee_employee_id;
+    if (body.metric !== undefined) update.metric = body.metric;
+    if (hasOwn(body, "platform")) update.platform = body.metric === undefined || body.metric === "daily_posts" ? body.platform : null;
+    if (body.period !== undefined) update.period = body.period;
+    if (body.target_per_day !== undefined) update.targetPerDay = body.target_per_day;
+    if (body.effective_from !== undefined) update.effectiveFrom = body.effective_from;
+    if (hasOwn(body, "effective_to")) update.effectiveTo = body.effective_to;
+    if (body.active !== undefined) update.active = body.active;
+    if (hasOwn(body, "note")) update.note = body.note;
+    const [target] = await db.update(recruitmentKpiTargets).set(update).where(eq(recruitmentKpiTargets.id, id)).returning();
+    if (!target) return sendNotFound(reply);
+    return { kpi_target: serializeRecruitmentKpiTarget(target) };
+  });
+
+  app.delete("/recruitment/kpi-targets/:id", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [target] = await db.update(recruitmentKpiTargets).set({ active: false, updatedAt: new Date() }).where(eq(recruitmentKpiTargets.id, id)).returning();
+    if (!target) return sendNotFound(reply);
+    return { kpi_target: serializeRecruitmentKpiTarget(target) };
+  });
+
+  app.get("/recruitment/group-owners", { preHandler: requirePerm("recruitment.view") }, async (request) => {
+    const query = parseWithSchema(recruitmentGroupOwnerQuerySchema, request.query);
+    const filters: SQL[] = [];
+    if (query.companyId) filters.push(eq(recruitmentGroupOwners.companyId, query.companyId));
+    if (query.platform) filters.push(eq(recruitmentGroupOwners.platform, query.platform));
+    if (query.from) filters.push(gte(recruitmentGroupOwners.foundOn, query.from));
+    if (query.to) filters.push(lte(recruitmentGroupOwners.foundOn, query.to));
+    const rows = await db
+      .select()
+      .from(recruitmentGroupOwners)
+      .where(filters.length ? and(...filters) : sql`true`)
+      .orderBy(desc(recruitmentGroupOwners.foundOn), desc(recruitmentGroupOwners.createdAt));
+    const employeeIds = [...new Set(rows.map((row) => row.foundBy))];
+    const companyIds = [...new Set(rows.map((row) => row.companyId))];
+    const [employeeRows, companyRows] = await Promise.all([
+      employeeIds.length ? db.select({ id: employees.id, name: employees.name }).from(employees).where(inArray(employees.id, employeeIds)) : [],
+      companyIds.length ? db.select({ id: companies.id, name: companies.name }).from(companies).where(inArray(companies.id, companyIds)) : []
+    ]);
+    const employeeNames = new Map(employeeRows.map((row) => [row.id, row.name]));
+    const companyNames = new Map(companyRows.map((row) => [row.id, row.name]));
+    return {
+      group_owners: rows.map((row) =>
+        serializeRecruitmentGroupOwner(row, { companyName: companyNames.get(row.companyId) ?? null, foundByName: employeeNames.get(row.foundBy) ?? null })
+      )
+    };
+  });
+
+  app.post("/recruitment/group-owners", { preHandler: requirePerm("recruitment.view") }, async (request, reply) => {
+    const body = parseWithSchema(recruitmentGroupOwnerBodySchema, request.body);
+    const [company] = await db.select({ id: companies.id }).from(companies).where(eq(companies.id, body.company_id)).limit(1);
+    if (!company) return sendNotFound(reply);
+    const [groupOwner] = await db
+      .insert(recruitmentGroupOwners)
+      .values({
+        companyId: body.company_id,
+        platform: body.platform,
+        groupName: body.group_name,
+        ownerName: body.owner_name,
+        ownerContact: body.owner_contact,
+        groupUrl: body.group_url,
+        memberCount: body.member_count,
+        foundBy: request.user.id,
+        foundOn: body.found_on ?? todayString(),
+        notes: body.notes
+      })
+      .returning();
+    return reply.code(201).send({ group_owner: serializeRecruitmentGroupOwner(mustReturn(groupOwner)) });
+  });
+
+  app.patch("/recruitment/group-owners/:id", { preHandler: requirePerm("recruitment.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(recruitmentGroupOwnerPatchSchema, request.body);
+    const [existing] = await db.select().from(recruitmentGroupOwners).where(eq(recruitmentGroupOwners.id, id)).limit(1);
+    if (!existing) return sendNotFound(reply);
+    if (existing.foundBy !== request.user.id && !(await ctxCan(request, "recruitment.manage"))) return reply.code(403).send({ error: "forbidden" });
+    const update: Partial<typeof recruitmentGroupOwners.$inferInsert> = { updatedAt: new Date() };
+    if (body.company_id !== undefined) update.companyId = body.company_id;
+    if (body.platform !== undefined) update.platform = body.platform;
+    if (body.group_name !== undefined) update.groupName = body.group_name;
+    if (hasOwn(body, "owner_name")) update.ownerName = body.owner_name;
+    if (hasOwn(body, "owner_contact")) update.ownerContact = body.owner_contact;
+    if (hasOwn(body, "group_url")) update.groupUrl = body.group_url;
+    if (hasOwn(body, "member_count")) update.memberCount = body.member_count;
+    if (body.found_on !== undefined) update.foundOn = body.found_on;
+    if (hasOwn(body, "notes")) update.notes = body.notes;
+    const [groupOwner] = await db.update(recruitmentGroupOwners).set(update).where(eq(recruitmentGroupOwners.id, id)).returning();
+    return { group_owner: serializeRecruitmentGroupOwner(mustReturn(groupOwner)) };
+  });
+
+  app.delete("/recruitment/group-owners/:id", { preHandler: requirePerm("recruitment.view") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const [existing] = await db.select().from(recruitmentGroupOwners).where(eq(recruitmentGroupOwners.id, id)).limit(1);
+    if (!existing) return sendNotFound(reply);
+    if (existing.foundBy !== request.user.id && !(await ctxCan(request, "recruitment.manage"))) return reply.code(403).send({ error: "forbidden" });
+    await db.delete(recruitmentGroupOwners).where(eq(recruitmentGroupOwners.id, id));
+    return reply.code(204).send();
+  });
+
+  app.get("/recruitment/operator-comparison", { preHandler: requirePerm("recruitment.view") }, async (request, reply) => {
+    const query = parseWithSchema(operatorComparisonQuerySchema, request.query);
+    const range = operatorComparisonRange(query.from, query.to);
+    if (!range) return reply.code(400).send({ error: "invalid_range" });
+    return buildOperatorComparison(range.from, range.to);
+  });
+
+  // IFM 绑定管理是跨公司管理动作：下拉需要全量公司，不走个人公司访问范围过滤
+  app.get("/recruitment/ifm/companies", { preHandler: requirePerm("recruitment.manage") }, async () => {
+    const rows = await db.select({ id: companies.id, name: companies.name }).from(companies).orderBy(asc(companies.name));
+    return { companies: rows };
+  });
+
+  app.get("/recruitment/ifm/companies-cache", { preHandler: requirePerm("recruitment.manage") }, async () => {
+    const cacheRows = await db.select().from(ifmCompaniesCache).orderBy(asc(ifmCompaniesCache.name));
+    const ifmIds = cacheRows.map((row) => row.ifmCompanyId);
+    const boundRows = ifmIds.length
+      ? await db.select({ id: companies.id, name: companies.name, ifmCompanyId: companies.ifmCompanyId }).from(companies).where(inArray(companies.ifmCompanyId, ifmIds))
+      : [];
+    const boundByIfmId = new Map(boundRows.map((row) => [row.ifmCompanyId, row]));
+    return {
+      companies_cache: cacheRows.map((row) => {
+        const bound = boundByIfmId.get(row.ifmCompanyId);
+        return {
+          ifm_company_id: row.ifmCompanyId,
+          name: row.name,
+          active: row.active,
+          synced_at: row.syncedAt,
+          bh_company_id: bound?.id ?? null,
+          bh_company_name: bound?.name ?? null
+        };
+      })
+    };
+  });
+
+  app.post("/recruitment/ifm/companies-cache/:ifmCompanyId/bind", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { ifmCompanyId } = parseWithSchema(ifmCompanyIdParamsSchema, request.params);
+    const body = parseWithSchema(bindIfmCompanySchema, request.body);
+    const [cache] = await db.select().from(ifmCompaniesCache).where(eq(ifmCompaniesCache.ifmCompanyId, ifmCompanyId)).limit(1);
+    if (!cache) return sendNotFound(reply);
+    if (body.companyId) {
+      const [company] = await db.select({ id: companies.id }).from(companies).where(eq(companies.id, body.companyId)).limit(1);
+      if (!company) return sendNotFound(reply);
+    }
+    await db.transaction(async (tx) => {
+      await tx.update(companies).set({ ifmCompanyId: null }).where(eq(companies.ifmCompanyId, ifmCompanyId));
+      if (body.companyId) {
+        await tx.update(companies).set({ ifmCompanyId }).where(eq(companies.id, body.companyId));
+      }
+    });
+    return { ok: true };
+  });
+
+  app.post("/recruitment/ifm/companies-cache/:ifmCompanyId/create-company", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { ifmCompanyId } = parseWithSchema(ifmCompanyIdParamsSchema, request.params);
+    const [cache] = await db.select().from(ifmCompaniesCache).where(eq(ifmCompaniesCache.ifmCompanyId, ifmCompanyId)).limit(1);
+    if (!cache) return sendNotFound(reply);
+    const [company] = await db.transaction(async (tx) => {
+      await tx.update(companies).set({ ifmCompanyId: null }).where(eq(companies.ifmCompanyId, ifmCompanyId));
+      return tx.insert(companies).values({ name: cache.name, ifmCompanyId, status: cache.active ? "active" : "inactive" }).returning();
+    });
+    const created = mustReturn(company);
+    return reply.code(201).send({ company: { id: created.id, name: created.name, ifm_company_id: created.ifmCompanyId } });
+  });
+
+  app.get("/recruitment/ifm/user-bindings", { preHandler: requirePerm("recruitment.manage") }, async () => {
+    const rows = await db.select().from(recruitmentIfmUserBindings).orderBy(desc(recruitmentIfmUserBindings.createdAt));
+    const employeeIds = [...new Set(rows.map((row) => row.employeeId).filter((id): id is string => Boolean(id)))];
+    const employeeRows = employeeIds.length ? await db.select({ id: employees.id, name: employees.name }).from(employees).where(inArray(employees.id, employeeIds)) : [];
+    const employeeNames = new Map(employeeRows.map((row) => [row.id, row.name]));
+    return { user_bindings: rows.map((row) => serializeIfmUserBinding(row, row.employeeId ? employeeNames.get(row.employeeId) : null)) };
+  });
+
+  app.post("/recruitment/ifm/user-bindings", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const body = parseWithSchema(ifmUserBindingCreateSchema, request.body);
+    try {
+      const [binding] = await db
+        .insert(recruitmentIfmUserBindings)
+        .values({
+          ifmUserId: body.ifm_user_id,
+          ifmDisplayName: body.ifm_display_name,
+          employeeId: body.employee_id,
+          bridgeRole: body.bridge_role,
+          active: body.active
+        })
+        .returning();
+      return reply.code(201).send({ user_binding: serializeIfmUserBinding(mustReturn(binding)) });
+    } catch (error) {
+      if (isUniqueViolation(error)) return sendConflict(reply);
+      throw error;
+    }
+  });
+
+  app.patch("/recruitment/ifm/user-bindings/:id", { preHandler: requirePerm("recruitment.manage") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+    const body = parseWithSchema(ifmUserBindingPatchSchema, request.body);
+    const update: Partial<typeof recruitmentIfmUserBindings.$inferInsert> = { updatedAt: new Date() };
+    if (body.ifm_user_id !== undefined) update.ifmUserId = body.ifm_user_id;
+    if (hasOwn(body, "ifm_display_name")) update.ifmDisplayName = body.ifm_display_name;
+    if (hasOwn(body, "employee_id")) update.employeeId = body.employee_id;
+    if (body.bridge_role !== undefined) update.bridgeRole = body.bridge_role;
+    if (body.active !== undefined) update.active = body.active;
+    try {
+      const [binding] = await db.update(recruitmentIfmUserBindings).set(update).where(eq(recruitmentIfmUserBindings.id, id)).returning();
+      if (!binding) return sendNotFound(reply);
+      return { user_binding: serializeIfmUserBinding(binding) };
+    } catch (error) {
+      if (isUniqueViolation(error)) return sendConflict(reply);
+      throw error;
+    }
   });
 
   app.get("/recruitment/dashboard", { preHandler: requirePerm("recruitment.view") }, async (request) => {

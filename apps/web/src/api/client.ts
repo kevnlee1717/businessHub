@@ -58,6 +58,16 @@ async function parseResponse(response: Response): Promise<unknown> {
   return JSON.parse(text);
 }
 
+// 服务端 400 校验错误带人话 message（zod issues 汇总），优先展示；否则退回 error code
+function extractErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === "object" && data !== null) {
+    const record = data as { message?: unknown; error?: unknown };
+    if (typeof record.message === "string" && record.message) return record.message;
+    if (typeof record.error === "string" && record.error) return record.error;
+  }
+  return fallback;
+}
+
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { body, headers: optionHeaders, ...init } = options;
   const headers = new Headers(optionHeaders);
@@ -84,11 +94,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
-        ? data.error
-        : response.statusText;
-    throw new ApiError(message, response.status);
+    throw new ApiError(extractErrorMessage(data, response.statusText), response.status);
   }
 
   return data as T;
@@ -142,11 +148,7 @@ export async function uploadAvatar(file: File): Promise<{ user: User }> {
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === "object" && data !== null && "error" in data && typeof (data as any).error === "string"
-        ? (data as any).error
-        : response.statusText;
-    throw new ApiError(message, response.status);
+    throw new ApiError(extractErrorMessage(data, response.statusText), response.status);
   }
 
   return data as { user: User };

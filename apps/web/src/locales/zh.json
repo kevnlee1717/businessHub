@@ -2583,6 +2583,7 @@
       "newInvestor": "新建投资人",
       "newCouple": "新建夫妻",
       "newManager": "新建经理",
+      "newFoodCourt": "新建食阁",
       "viewFoodCourt": "查看测算",
       "edit": "编辑",
       "view": "查看"
@@ -2600,8 +2601,8 @@
       "operator": "运营公司",
       "mentor": "师徒",
       "ledger": "逐月流水台账",
-      "coupleStores": "所属门店"
-      ,"shareParams": "分成参数"
+      "coupleStores": "所属门店",
+      "shareParams": "分成参数"
     },
     "lifecycle": {
       "title": "生命周期",
@@ -2867,13 +2868,17 @@
       "dashboard": "看板",
       "jobs": "岗位",
       "postings": "线上发布",
+      "kpi": "指标任务",
+      "comparison": "绩效对比",
+      "groupOwners": "群主",
       "campaigns": "线下活动",
       "candidates": "候选人",
       "upcoming": "未来预约",
       "analytics": "效果分析",
       "talentPool": "人才库",
       "capture": "现场登记",
-      "settings": "设置"
+      "settings": "设置",
+      "ifmSettings": "IFM 互通"
     },
     "filters": {
       "q": "关键词"

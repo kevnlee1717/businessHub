@@ -2,7 +2,7 @@ import { db, fnbFoodCourts, type FnbFoodCourtFixedFees } from "@bh/db";
 import { fnbFoodCourtCreateSchema, fnbFoodCourtIdParams, fnbFoodCourtUpdateSchema } from "@bh/shared";
 import { desc, eq } from "drizzle-orm";
 import { type FastifyInstance } from "fastify";
-import { requirePerm } from "../auth/jwt";
+import { requireAnyPerm, requirePerm } from "../auth/jwt";
 import { parseWithSchema, sendNotFound } from "./hrUtils";
 
 type FnbFoodCourtRow = typeof fnbFoodCourts.$inferSelect;
@@ -132,19 +132,19 @@ function foodCourtValues(body: FoodCourtBody) {
 export async function registerFnbFoodCourtRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", app.authenticate);
 
-  app.get("/fnb-food-courts", { preHandler: requirePerm("franchise.view") }, async () => {
+  app.get("/fnb-food-courts", { preHandler: requireAnyPerm(["franchise.view", "mlk.view"]) }, async () => {
     const rows = await db.select().from(fnbFoodCourts).orderBy(desc(fnbFoodCourts.updatedAt), desc(fnbFoodCourts.createdAt));
     return { food_courts: rows.map(serializeFoodCourt) };
   });
 
-  app.get("/fnb-food-courts/:id", { preHandler: requirePerm("franchise.view") }, async (request, reply) => {
+  app.get("/fnb-food-courts/:id", { preHandler: requireAnyPerm(["franchise.view", "mlk.view"]) }, async (request, reply) => {
     const { id } = parseWithSchema(fnbFoodCourtIdParams, request.params);
     const [row] = await db.select().from(fnbFoodCourts).where(eq(fnbFoodCourts.id, id)).limit(1);
     if (!row) return sendNotFound(reply);
     return { food_court: serializeFoodCourt(row) };
   });
 
-  app.post("/fnb-food-courts", { preHandler: requirePerm("franchise.manage") }, async (request, reply) => {
+  app.post("/fnb-food-courts", { preHandler: requireAnyPerm(["franchise.manage", "mlk.manage"]) }, async (request, reply) => {
     const body = parseWithSchema(fnbFoodCourtCreateSchema, request.body);
     const [row] = await db
       .insert(fnbFoodCourts)

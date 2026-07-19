@@ -2583,6 +2583,7 @@
       "newInvestor": "New investor",
       "newCouple": "New couple",
       "newManager": "New manager",
+      "newFoodCourt": "New food court",
       "viewFoodCourt": "View forecast",
       "edit": "Edit",
       "view": "View"
@@ -2867,13 +2868,17 @@
       "dashboard": "Dashboard",
       "jobs": "Jobs",
       "postings": "Postings",
+      "kpi": "KPI Tasks",
+      "comparison": "Performance Compare",
+      "groupOwners": "Group Owners",
       "campaigns": "Campaigns",
       "candidates": "Candidates",
       "upcoming": "Upcoming",
       "analytics": "Analytics",
       "talentPool": "Talent Pool",
       "capture": "Capture",
-      "settings": "Settings"
+      "settings": "Settings",
+      "ifmSettings": "IFM Bridge"
     },
     "filters": {
       "q": "Keyword"

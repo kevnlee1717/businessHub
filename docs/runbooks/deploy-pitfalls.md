@@ -62,7 +62,9 @@ curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:3011/assets/$JS"   # 
 - 用户级那个已 `systemctl --user disable/stop bh-prod` 停用。别再启它。
 - 排查端口归属:`ss -ltnp | grep :3011` 拿 pid → `cat /proc/<pid>/cgroup`,`/system.slice/bh-prod.service` 才是对的;若落在 `user@1000` 说明又是用户级在抢。
 
-## 📥 把 dev 数据推到 prod 但**保留 prod 员工登录账号**(2026-07-01 实操)
+## 📥 把 dev 数据推到 prod 但**保留 prod 员工登录账号**(2026-07-01 实操,⚠️一次性特殊操作)
+
+> ⚠️ **这不是"更新到 prod"的默认流程。** 默认铁律见 `CLAUDE.md` §「当用户说"更新到 prod"时」:只推代码+附件、库只对结构、存量数据就地适配、**dev 数据永不进 prod**。下面这套"全量含数据 dev→prod"仅在用户明确要求"连数据一起覆盖 prod"时才用。
 
 需求:代码 + 数据 + 附件全量 dev→prod,**唯独 `employees` 表保留 prod 原值**(员工可能已在 prod 改过密码)。
 
