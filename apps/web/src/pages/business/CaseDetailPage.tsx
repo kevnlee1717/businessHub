@@ -1107,13 +1107,19 @@ function DpChildrenSection({ parentCaseId, children, clients, canManageCases }: 
   });
 
   const createDpMutation = useMutation({
-    mutationFn: () =>
-      createCase({
+    mutationFn: () => {
+      // 客户必填——没有客户的案件在列表里只显示「-」，无法跟进
+      if (!clientId) {
+        return Promise.reject(new Error("请选择客户"));
+      }
+
+      return createCase({
         business_type: "dp",
         parent_case_id: parentCaseId,
         template_id: templateId ?? undefined,
         client_id: clientId
-      }),
+      });
+    },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["business", "case", parentCaseId] });
       await queryClient.invalidateQueries({ queryKey: ["business", "cases"] });
@@ -1215,7 +1221,7 @@ function DpChildrenSection({ parentCaseId, children, clients, canManageCases }: 
             <Button variant="subtle" onClick={() => setModalOpened(false)}>
               {t("common.cancel")}
             </Button>
-            <Button onClick={createDpCase} loading={createDpMutation.isPending} disabled={!templateId}>
+            <Button onClick={createDpCase} loading={createDpMutation.isPending} disabled={!templateId || !clientId}>
               {t("common.save")}
             </Button>
           </Group>

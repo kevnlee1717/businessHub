@@ -25,7 +25,8 @@ import {
   serviceItems,
   servicePackages,
   stepReviews,
-  templateSteps
+  templateSteps,
+  workflowTemplates
 } from "@bh/db";
 import { randomUUID } from "node:crypto";
 import {
@@ -1293,6 +1294,46 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // 删除案件：不可逆，仅 case.delete（默认只有超管）。
+  // cases 的子表外键都是 ON DELETE CASCADE（步骤→文档/日志/跟进/审核、服务、佣金、递交、子案件），
+  // 但 cases.billing_id 指向 billing，删完会留孤儿，所以显式清掉该案件的账单。
+  app.delete("/cases/:id", { preHandler: requirePerm("case.delete") }, async (request, reply) => {
+    const { id } = parseWithSchema(idParamsSchema, request.params);
+
+    const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+    if (!caseRow) return sendNotFound(reply);
+
+    const billingId =
+      caseRow.billingId ??
+      (
+        await db
+          .select({ id: billing.id })
+          .from(billing)
+          .where(eq(billing.refId, id))
+          .limit(1)
+      )[0]?.id;
+
+    // 已有实际收款的案件不允许删除——财务记录不能凭空消失
+    if (billingId) {
+      const [collected] = await db
+        .select({ total: sql<string>`coalesce(sum(${billingCharges.amountCollected}), 0)` })
+        .from(billingCharges)
+        .where(eq(billingCharges.billingId, billingId));
+      if (Number(collected?.total ?? 0) > 0) {
+        return reply.code(409).send({ error: "case_has_collected_payment", message: "该案件已有收款记录，不能删除；如需作废请改状态" });
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(cases).where(eq(cases.id, id));
+      if (billingId) {
+        await tx.delete(billing).where(eq(billing.id, billingId));
+      }
+    });
+
+    return { ok: true };
+  });
+
   app.get("/cases/:id", { preHandler: requirePerm("case.view") }, async (request, reply) => {
     const { id } = parseWithSchema(idParamsSchema, request.params);
     const [caseRow] = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
@@ -1429,11 +1470,24 @@ export async function registerCaseRoutes(app: FastifyInstance): Promise<void> {
 
       const stepRows: (typeof caseSteps.$inferSelect)[] = [];
 
-      if (body.template_id) {
+      // 没传 template_id 时按 business_type 兜底取默认模板——否则会静默建出一个
+      // 没有任何步骤的空案件（前端模板下拉可清空，漏选就中招）
+      let templateId = body.template_id;
+      if (!templateId) {
+        const [fallback] = await tx
+          .select({ id: workflowTemplates.id })
+          .from(workflowTemplates)
+          .where(eq(workflowTemplates.businessType, body.business_type))
+          .orderBy(asc(workflowTemplates.createdAt))
+          .limit(1);
+        templateId = fallback?.id;
+      }
+
+      if (templateId) {
         const templateStepRows = await tx
           .select()
           .from(templateSteps)
-          .where(eq(templateSteps.templateId, body.template_id))
+          .where(eq(templateSteps.templateId, templateId))
           .orderBy(asc(templateSteps.stepOrder));
 
         for (const templateStep of templateStepRows) {

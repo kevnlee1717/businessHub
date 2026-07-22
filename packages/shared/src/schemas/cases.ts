@@ -51,7 +51,8 @@ export const templateStepUpdateSchema = templateStepCreateSchema.partial();
 export const caseCreateSchema = z.object({
   business_type: z.enum(businessTypes),
   parent_case_id: uuidField.nullable().optional(),
-  client_id: uuidField.nullable().optional(),
+  // 客户必填——没有客户的案件在列表里显示成「-」，无法跟进也无法归属
+  client_id: uuidField,
   template_id: uuidField.optional(),
   billing_id: uuidField.nullable().optional(),
   package_id: uuidField.nullable().optional(),

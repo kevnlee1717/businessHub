@@ -558,6 +558,11 @@ export function createCase(body: CaseCreateInput): Promise<{ case: Case }> {
   });
 }
 
+// 删除案件（不可逆，仅 case.delete 权限）；已有收款的案件后端会挡回 409
+export function deleteCase(caseId: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>(`/cases/${caseId}`, { method: "DELETE" });
+}
+
 export function updateCase(id: string, body: CaseUpdateInput): Promise<{ case: Case }> {
   return api<{ case: Case }>(`/cases/${id}`, {
     method: "PATCH",

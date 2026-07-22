@@ -24,13 +24,14 @@ import {
   type CaseCreateInput,
   type CaseStatus
 } from "@bh/shared";
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   createCase,
+  deleteCase,
   listCases,
   listClients,
   listStepStats,
@@ -184,6 +185,7 @@ function getDefaultValues(businessType: CaseListBusinessType): CaseFormValues {
 export function CasesPage({ businessType }: CasesPageProps) {
   const { t } = useTranslation();
   const { can } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<CaseStatus | "active" | null>("active");
   const [clientFilter, setClientFilter] = useState<string | null>(null);
@@ -268,6 +270,28 @@ export function CasesPage({ businessType }: CasesPageProps) {
     onSuccess: (data) => {
       closeModal();
       navigate(`/business/cases/${data.case.id}`);
+    }
+  });
+
+  // 删除案件：不可逆，二次确认后才发请求
+  const canDeleteCase = can("case.delete");
+  const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteMutation = useMutation({
+    mutationFn: deleteCase,
+    onMutate: (caseId: string) => {
+      setPendingDeleteId(caseId);
+      setDeleteError(null);
+    },
+    onSuccess: async () => {
+      setCaseToDelete(null);
+      setPendingDeleteId(null);
+      await queryClient.invalidateQueries({ queryKey: ["business", "cases"] });
+    },
+    onError: (error) => {
+      setPendingDeleteId(null);
+      setDeleteError(error instanceof Error ? error.message : "删除失败");
     }
   });
 
@@ -371,6 +395,8 @@ export function CasesPage({ businessType }: CasesPageProps) {
     setFormError(null);
     form.reset({
       ...getDefaultValues(businessType),
+      // 默认选中该业务类型的模板——没模板就不会生成步骤，建出的案件是空壳
+      template_id: templates.find((template) => template.business_type === businessType)?.id,
       fee_scheme_version_id: businessType === "ica" ? defaultSchemeId : undefined
     });
     setModalOpened(true);
@@ -736,16 +762,32 @@ export function CasesPage({ businessType }: CasesPageProps) {
                         </Table.Td>
                       )}
                       <Table.Td>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            navigate(`/business/cases/${caseItem.id}`);
-                          }}
-                        >
-                          {t("common.view")}
-                        </Button>
+                        <Group gap="xs" wrap="nowrap">
+                          <Button
+                            size="xs"
+                            variant="light"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(`/business/cases/${caseItem.id}`);
+                            }}
+                          >
+                            {t("common.view")}
+                          </Button>
+                          {canDeleteCase ? (
+                            <Button
+                              size="xs"
+                              variant="subtle"
+                              color="red"
+                              loading={deleteMutation.isPending && pendingDeleteId === caseItem.id}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setCaseToDelete(caseItem);
+                              }}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          ) : null}
+                        </Group>
                       </Table.Td>
                     </Table.Tr>
                   );
@@ -775,7 +817,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 name="client_id"
                 control={form.control}
                 render={({ field }) => (
-                  <Input.Wrapper label={t("case.fields.client")} error={errors.client_id?.message}>
+                  <Input.Wrapper label={t("case.fields.client")} error={errors.client_id?.message} required>
                     <ClientSelect
                       value={field.value ?? null}
                       onChange={(value) => field.onChange(value)}
@@ -807,8 +849,9 @@ export function CasesPage({ businessType }: CasesPageProps) {
                   value={field.value ?? null}
                   onChange={(value) => field.onChange(value ?? undefined)}
                   error={errors.template_id?.message}
+                  description={t("case.fields.templateHint")}
                   searchable
-                  clearable
+                  required
                 />
               )}
             />
@@ -924,6 +967,51 @@ export function CasesPage({ businessType }: CasesPageProps) {
             ))}
           </Table.Tbody>
         </Table>
+      </Modal>
+
+      <Modal
+        opened={caseToDelete !== null}
+        onClose={() => {
+          setCaseToDelete(null);
+          setDeleteError(null);
+        }}
+        title="删除案件"
+        size="md"
+      >
+        <Stack>
+          <Alert color="red">
+            <Text fw={600} mb={4}>
+              此操作不可恢复
+            </Text>
+            <Text size="sm">
+              将一并删除该案件的<b>全部步骤、材料清单、服务项、佣金记录、递交记录和账单</b>。
+              已有收款记录的案件不允许删除。
+            </Text>
+          </Alert>
+          <Text size="sm">
+            客户：<b>{caseToDelete ? clientName(clientById.get(caseToDelete.client_id ?? "")) : "-"}</b>
+            {caseToDelete?.signed_at ? `　签约：${formatDate(caseToDelete.signed_at)}` : ""}
+          </Text>
+          {deleteError ? <Alert color="red">{deleteError}</Alert> : null}
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => {
+                setCaseToDelete(null);
+                setDeleteError(null);
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              color="red"
+              loading={deleteMutation.isPending}
+              onClick={() => caseToDelete && deleteMutation.mutate(caseToDelete.id)}
+            >
+              确认删除
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </Stack>
   );

@@ -15,6 +15,9 @@ export const permissions = [
   "report.export",
   "case.manage",
   "case.view",
+  // 删除案件是不可逆操作（连带步骤/服务/佣金/收费全部级联清除），
+  // 默认只有 owner 通过 allPermissions 获得，admin 角色不含
+  "case.delete",
   "document.manage",
   "document.view",
   "settings.manage",

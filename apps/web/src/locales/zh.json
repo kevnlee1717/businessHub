@@ -824,7 +824,8 @@
       "guarantorContact": "担保人联系方式",
       "feeScheme": "收费方案",
       "companyName": "公司名",
-      "companyNamePlaceholder": "雇主/公司名称"
+      "companyNamePlaceholder": "雇主/公司名称",
+      "templateHint": "决定案件生成哪些步骤，不选则没有步骤"
     },
     "errors": {
       "guarantorRequired": "ICA 案件必须填写担保人姓名。",

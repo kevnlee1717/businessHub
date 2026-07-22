@@ -824,7 +824,8 @@
       "guarantorContact": "Guarantor contact",
       "feeScheme": "Fee scheme",
       "companyName": "Company",
-      "companyNamePlaceholder": "Employer / company name"
+      "companyNamePlaceholder": "Employer / company name",
+      "templateHint": "Determines the case steps; without it no steps are created"
     },
     "errors": {
       "guarantorRequired": "ICA cases require a guarantor name.",
