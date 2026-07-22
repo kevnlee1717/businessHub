@@ -830,7 +830,8 @@
     "errors": {
       "guarantorRequired": "ICA 案件必须填写担保人姓名。",
       "packageRequired": "EP 案件必须选择套餐。",
-      "feeSchemeRequired": "ICA 案件必须选择收费方案。"
+      "feeSchemeRequired": "ICA 案件必须选择收费方案。",
+      "signedAtRequired": "EP 案件必须填写签约日期。"
     },
     "packageCommissionHint": "选了套餐和销售人后，分成会按套餐默认规则自动生成；案件详情可修改。",
     "stats": {

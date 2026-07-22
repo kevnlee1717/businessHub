@@ -470,6 +470,11 @@ export function CasesPage({ businessType }: CasesPageProps) {
       return;
     }
 
+    if (businessType === "ep" && !values.signed_at) {
+      setFormError(t("case.errors.signedAtRequired"));
+      return;
+    }
+
     try {
       await createMutation.mutateAsync({
         ...values,
@@ -833,6 +838,7 @@ export function CasesPage({ businessType }: CasesPageProps) {
                 <TextInput
                   type="date"
                   label={t("case.fields.signedAt")}
+                  required={businessType === "ep"}
                   value={field.value ?? ""}
                   onChange={(event) => field.onChange(event.currentTarget.value || null)}
                   error={errors.signed_at?.message}

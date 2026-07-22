@@ -63,6 +63,15 @@ export const caseCreateSchema = z.object({
   guarantor_contact: optionalText,
   company_name: z.string().trim().min(1).nullable().optional(),
   signed_at: dateField.nullable().optional()
+}).superRefine((data, ctx) => {
+  // EP 新建案件必须填写签约日期——用于「签约至今·健康度」预警与签约月份筛选
+  if (data.business_type === "ep" && !data.signed_at) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["signed_at"],
+      message: "EP 案件必须填写签约日期"
+    });
+  }
 });
 
 export const caseUpdateSchema = z.object({

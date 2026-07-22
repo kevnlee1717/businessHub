@@ -830,7 +830,8 @@
     "errors": {
       "guarantorRequired": "ICA cases require a guarantor name.",
       "packageRequired": "EP cases require a package.",
-      "feeSchemeRequired": "ICA cases require a fee scheme."
+      "feeSchemeRequired": "ICA cases require a fee scheme.",
+      "signedAtRequired": "EP cases require a signed date."
     },
     "packageCommissionHint": "After selecting a package and sales person, commissions are generated from package defaults and can be changed in case details.",
     "stats": {
